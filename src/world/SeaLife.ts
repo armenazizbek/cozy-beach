@@ -78,7 +78,7 @@ export class SeaLife {
     this.caudal = this.caudalGeometry();
     this.pectoral = this.pectoralGeometry();
     // a bigger sea, so a few more of everything
-    for (let i = 0; i < 6; i++) this.sharks.push(this.makeShark(finGeo, fin));
+    for (let i = 0; i < 2; i++) this.sharks.push(this.makeShark(finGeo, fin));
     for (let i = 0; i < 12; i++) this.schools.push(this.makeSchool());
     for (let i = 0; i < 6; i++) this.jumpers.push(this.makeJumper());
     this.group.add(this.splashes.points, this.wakeParticles.points);

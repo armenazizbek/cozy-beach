@@ -10,6 +10,7 @@ const SWAPS: [RegExp, string][] = [
   [/[Ss]croll to pick it up/, 'Use LB / RB to pick it up'],
   [/[Pp]ick it with the scroll wheel/g, 'Pick it with LB / RB'],
   [/Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down/, 'RT fires the harpoon · A picks up a find · X swims back up · left stick swims · RB up · LB down'],
+  [/Climb the stairs and the ladder, then press F at the top to go back out/, 'Climb the stairs and the ladder, then press A at the top to go back out'],
   [/Press F/g, 'Press A'],
   [/any key/g, 'any button'],
   [/right-click/gi, 'LT'],

@@ -275,6 +275,13 @@ export class Sky {
   /** Underwater, the sky, sun, moon and clouds are not there, and the fog is the water. */
   underwater = false;
 
+  /** Underground the sky stays (it shows through the hatch), but the room is lit by torches, not by the day. */
+  underground = false;
+
+  setUnderground(on: boolean): void {
+    this.underground = on;
+  }
+
   setUnderwater(on: boolean): void {
     this.underwater = on;
     for (const o of [this.dome, this.stars, this.glow, this.core, this.moonGlow, this.moonCore]) o.visible = !on;
@@ -376,6 +383,11 @@ export class Sky {
       });
     } else {
       this.cloudMats.forEach((m) => (m.opacity = 0.92));
+    }
+    if (this.underground) {
+      this.hemi.intensity *= 0.16;
+      this.fog.color.set(0x0c0907);
+      this.fog.density = 0.02;
     }
     if (this.underwater) {
       // the fog becomes the water: a clear blue-green that swallows everything past a few dozen metres, and dims at night

@@ -366,6 +366,7 @@ export class UIManager {
     mk('🏝️', 'New Game', h.onNew);
     mk('📂', 'Load Game', h.onLoad, !h.hasSaves);
     mk('⚙️', 'Settings', h.onSettings);
+    mk('🎞️', 'Credits', () => this.showCredits());
     mk('🚪', 'Exit Game', h.onExit);
     panel.append(list);
     m.append(panel);
@@ -470,27 +471,23 @@ export class UIManager {
     this.settingsEl = null;
   }
 
-  /** The closing card once every lost item has been found. */
-  showEnding(onDone: () => void): void {
-    const wrap = el('div', 'pause ending');
+  /** The credits: who made the game. Opened from the main menu. */
+  showCredits(): void {
+    const wrap = el('div', 'pause credits');
     const card = el('div', 'intro-card');
     card.append(
-      el('h1', '', 'The End'),
-      el('p', 'tag', 'Every lost treasure has found its way home. Thank you for playing.'),
-      el('p', 'credit', 'Cozy Treasure Hunter was made by Armen Azizbekyan, a solo developer and the creator of this game.'),
+      el('h1', '', 'Credits'),
+      el('p', 'tag', 'Cozy Treasure Hunter'),
+      el('p', 'credit', 'Made by Armen Azizbekyan, a solo developer and the creator of this game.'),
+      el('p', 'credit', 'Built with Three.js, Vite and Electron.'),
+      el('p', 'credit', 'Thank you for playing.'),
+      el('p', 'save-note', `Version ${__APP_VERSION__} · ${__BUILD_YEAR__}`),
     );
-    const back = el('button', 'btn big', 'Back to the main menu');
-    let done = false;
-    const go = (): void => {
-      if (done) return;
-      done = true;
-      onDone();
-    };
-    back.onclick = go;
+    const back = el('button', 'btn big', 'Back');
+    back.onclick = (): void => wrap.remove();
     card.append(back);
     wrap.append(card);
     this.root.append(wrap);
-    setTimeout(go, 20000);
   }
 
   /** What "Exit Game" shows: a web page cannot always close itself, so say goodbye nicely. */
@@ -815,6 +812,11 @@ export class UIManager {
   }
 
   /** Replaces the tool badge text (used while driving). */
+  /** The minimap is of no use under the dunes. */
+  setUnderground(on: boolean): void {
+    document.body.classList.toggle('underground', on);
+  }
+
   private diveTint: HTMLElement | null = null;
 
   /** Underwater the minimap goes away and a soft blue vignette comes in at the edges. */

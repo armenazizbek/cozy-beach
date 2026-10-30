@@ -29,6 +29,7 @@ import { MAX_CASTLES, Sandcastles } from '../world/Sandcastles';
 import { Island } from '../world/Island';
 import { ParticleSystem } from './Particles';
 import { Underwater, UW, UW_ENTRY, UW_SURFACE } from '../world/Underwater';
+import { UG, Underground } from '../world/Underground';
 import type { DogEnv } from '../world/Dog';
 import { Rain, rainWindow } from '../world/Rain';
 import { GamepadInput } from './GamepadInput';
@@ -48,7 +49,7 @@ import { AUTOSAVE_ID, deleteSave, listSaves, requestLoad, takePendingLoad, write
 import { loadSettings, requestAutostart, saveSettings, takeAutostart } from './Settings';
 import type { GameSettings } from './Settings';
 import type { SaveMeta, Snapshot } from './SaveGame';
-import { DEF_BY_ID, DIVE_ITEM_IDS, ISLAND_ITEM_IDS, QUEST_DEFS, SHARD_SETS } from './items';
+import { DEF_BY_ID, DIVE_ITEM_IDS, ISLAND_ITEM_IDS, SHARD_SETS } from './items';
 import { StateManager } from './StateManager';
 import type { LightingMode } from './StateManager';
 import { SIGN_TEXTS } from './StateManager';
@@ -146,6 +147,11 @@ export class Game {
   readonly castles = new Sandcastles(this.beach);
   readonly island = new Island();
   readonly under = new Underwater();
+  readonly cellar = new Underground();
+  /** in the room under the hatch: the land is hidden and not updated, as when diving */
+  private underground = false;
+  /** how far up the ladder the player has climbed */
+  private ladderY = 0;
   /** little hearts that float up when the dog is petted */
   private hearts = new ParticleSystem(60, 0.17, -0.5, false, true);
   /** swimming on the sea floor: the land is hidden and is not updated while this is true */
@@ -242,6 +248,7 @@ export class Game {
       this.castles.group,
       this.island.group,
       this.under.group,
+      this.cellar.group,
       this.hearts.points,
       this.view.proxy,
       this.camera,
@@ -303,7 +310,7 @@ export class Game {
     this.state.subscribe(() => this.ecology.setScore(this.state.data.ecology));
     // the flag count shows next to the tool name
     this.state.subscribe(() => {
-      if (this.tool === 7 && this.started && !this.driving && !this.diving && this.gameState === 'EXPLORE') this.ui.setTool(7);
+      if (this.tool === 7 && this.started && !this.driving && !this.alt && this.gameState === 'EXPLORE') this.ui.setTool(7);
     });
 
     this.ecology.setScore(this.state.data.ecology);
@@ -369,6 +376,10 @@ export class Game {
     if (!this.started || this.transitioning || this.paused || this.driving) return;
     if (this.hammock) {
       this.leaveHammock(false);
+      return;
+    }
+    if (this.underground) {
+      if (button === 0 && this.gameState === 'EXPLORE' && !this.locked && !this.usingPad) this.requestLock(true);
       return;
     }
     if (this.diving) {
@@ -437,7 +448,7 @@ export class Game {
   }
 
   private canUseBow(): boolean {
-    return this.started && !this.paused && !this.driving && !this.diving && !this.transitioning && this.gameState === 'EXPLORE' && this.tool === 6;
+    return this.started && !this.paused && !this.driving && !this.alt && !this.transitioning && this.gameState === 'EXPLORE' && this.tool === 6;
   }
 
   private onPointerDown(button: number): void {
@@ -576,11 +587,16 @@ export class Game {
   /** scroll swaps between the detector and the trowel */
   private onWheel(d: number): void {
     const now = performance.now();
-    if (!this.started || this.paused || this.driving || this.diving || this.gameState !== 'EXPLORE' || now - this.lastWheel < 180) return;
+    if (!this.started || this.paused || this.driving || this.alt || this.gameState !== 'EXPLORE' || now - this.lastWheel < 180) return;
     this.lastWheel = now;
     const order = this.toolOrder();
     const i = order.indexOf(this.tool);
     this.selectSlot(order[(i + (d > 0 ? 1 : order.length - 1)) % order.length]);
+  }
+
+  /** away from the beach altogether: diving, or in the room under the hatch */
+  private get alt(): boolean {
+    return this.diving || this.underground;
   }
 
   private get locked(): boolean {
@@ -664,7 +680,7 @@ export class Game {
     }
     if (code === 'KeyM') {
       if (this.mapOpen) this.setMap(false);
-      else if (!this.paused && !this.diving && this.gameState === 'EXPLORE' && !this.transitioning) this.setMap(true);
+      else if (!this.paused && !this.alt && this.gameState === 'EXPLORE' && !this.transitioning) this.setMap(true);
       return;
     }
     if (code === 'Escape') {
@@ -689,6 +705,11 @@ export class Game {
     if (this.gameState === 'INSPECT') {
       if (code === 'Escape') this.exitInspect();
       else if (code === 'Space' && this.ui.isResultOpen()) this.exitInspect();
+      return;
+    }
+    if (this.underground) {
+      if (code === 'KeyF') this.interaction?.run();
+      else if (code.startsWith('Digit')) this.ui.toast('There is nothing to dig or shoot down here.');
       return;
     }
     if (this.diving) {
@@ -740,8 +761,8 @@ export class Game {
 
   private selectSlot(n: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8): void {
     if (!this.started && n !== 1) return;
-    if (this.diving) {
-      this.ui.toast('Down here the harpoon is your only tool.');
+    if (this.alt) {
+      this.ui.toast(this.underground ? 'There is nothing to dig or shoot down here.' : 'Down here the harpoon is your only tool.');
       return;
     }
     if (n === 8 && !this.state.data.ownsBucket) {
@@ -919,9 +940,7 @@ export class Game {
         this.discover('captain_hatch');
         this.dig.particles.burst(new THREE.Vector3(it.x, this.beach.heightAt(it.x, it.z) + 0.1, it.z), 14, 1, 1.4, 0.6, new THREE.Color(0xe6ccb2));
       } else {
-        // the way down is not built yet
-        this.audio.error();
-        this.ui.toast('A ladder leads down into the dark. You cannot see the bottom yet. Whatever is down there will have to wait.');
+        this.enterUnderground();
       }
       return;
     }
@@ -978,7 +997,6 @@ export class Game {
       if (res.quest.reward > 0) {
         this.audio.coin();
         this.sendLetter(res.quest.id);
-        if (QUEST_DEFS.every((q) => this.state.data.questsDone.includes(q.id))) this.endPending = true;
       }
     } else {
       const bonus = this.state.tier('cleaning') >= 2 ? '  (+25% brush bonus)' : '';
@@ -1007,19 +1025,7 @@ export class Game {
       }
       setTimeout(() => (this.transitioning = false), 350);
       this.grabMouse();
-      if (this.endPending) this.endGame();
     });
-  }
-
-  private endPending = false;
-
-  /** Every lost item is home: say thanks, then back to the main menu. */
-  private endGame(): void {
-    this.endPending = false;
-    this.started = false;
-    document.exitPointerLock?.();
-    this.audio.discover();
-    this.ui.showEnding(() => this.backToMenu());
   }
 
   // ---------------------------------------------------------------- camp
@@ -1313,6 +1319,12 @@ export class Game {
       } finally {
         this.padCalling = false;
       }
+      return;
+    }
+    if (this.underground) {
+      if (down && b === 'a') this.padKey('KeyF');
+      else if (down && b === 'start') this.padKey('Escape');
+      else if (down && b === 'back') this.padKey('KeyN');
       return;
     }
     if (this.diving) {
@@ -1614,7 +1626,7 @@ export class Game {
 
   private snapshot(): Snapshot {
     // saved while diving, the game comes back on the beach where the dive began
-    const pl = this.diving && this.diveReturn ? this.diveReturn : this.player;
+    const pl = this.alt && this.diveReturn ? this.diveReturn : this.player;
     return {
       v: 1,
       savedAt: Date.now(),
@@ -1658,7 +1670,7 @@ export class Game {
     this.autoT = 0;
     const now = performance.now();
     if (now - this.lastAuto < AUTOSAVE_MIN_GAP) return;
-    if (!this.started || this.gameState === 'MENU' || this.hammock || this.endPending) return;
+    if (!this.started || this.gameState === 'MENU' || this.hammock) return;
     this.lastAuto = now;
     writeSave(this.snapshot(), 'Autosave', AUTOSAVE_ID);
   }
@@ -1772,6 +1784,10 @@ export class Game {
   private updateCamera(dt: number): void {
     if (this.hammock) {
       this.updateHammock(dt);
+      return;
+    }
+    if (this.underground) {
+      this.updateUnderground(dt);
       return;
     }
     if (this.diving) {
@@ -1906,11 +1922,124 @@ export class Game {
     this.leaveFootprints();
   }
 
+  // ---------------------------------------------------------------- the room under the hatch
+
+  private enterUnderground(): void {
+    if (this.transitioning || this.alt) return;
+    this.transitioning = true;
+    if (this.drawing) this.cancelDraw();
+    this.setBinocView(false);
+    this.ui.fade(() => {
+      this.diveReturn = { x: this.player.x, z: this.player.z, yaw: this.player.yaw, pitch: this.player.pitch };
+      this.underground = true;
+      this.hideLand(true);
+      this.spawner.group.visible = false;
+      this.cellar.setActive(true);
+      this.sky.setUnderground(true);
+      this.player.x = this.cellar.entry.x;
+      this.player.z = this.cellar.entry.z;
+      this.player.yaw = this.cellar.entry.yaw;
+      this.player.pitch = 0;
+      this.eyeY = UG.y + 1.65;
+      this.ladderY = 0;
+      this.walkTo = null;
+      this.view.setTool(0);
+      this.ui.setTool(0);
+      this.detector.setActive(false);
+      this.dig.setActive(false);
+      this.ui.setUnderground(true);
+      this.audio.thud();
+      this.audio.setOceanLevel(0.006);
+      this.discover('underground_first');
+      setTimeout(() => (this.transitioning = false), 350);
+    });
+  }
+
+  private leaveUnderground(): void {
+    if (this.transitioning || !this.underground) return;
+    this.transitioning = true;
+    this.ui.fade(() => {
+      const r = this.diveReturn;
+      this.underground = false;
+      this.cellar.setActive(false);
+      this.sky.setUnderground(false);
+      this.spawner.group.visible = true;
+      this.hideLand(false);
+      if (r) {
+        this.player.x = r.x;
+        this.player.z = r.z;
+        this.player.yaw = r.yaw;
+        this.player.pitch = r.pitch;
+      }
+      this.diveReturn = null;
+      this.eyeY = 0;
+      this.lastFoot.set = false;
+      this.view.setTool(this.tool);
+      this.ui.setTool(this.tool);
+      this.detector.setActive(this.tool === 1);
+      this.dig.setActive(this.tool === 2);
+      this.ui.setUnderground(false);
+      this.audio.thud();
+      this.audio.setOceanLevel(0.06);
+      setTimeout(() => (this.transitioning = false), 350);
+    });
+  }
+
+  /** Walking about the room: like walking the beach, but with walls, furniture and the stairs. */
+  private updateUnderground(dt: number): void {
+    const p = this.player;
+    this.moving = false;
+    if (this.started && this.gameState === 'EXPLORE') {
+      const k = this.input.keys;
+      const pm = this.pad.move;
+      const f = Math.max(-1, Math.min(1, (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) - pm.y));
+      const s = Math.max(-1, Math.min(1, (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + pm.x));
+      // facing the ladder, forward and back climb it instead of walking
+      const climbing = this.cellar.onLadder(p.x, p.z) && (this.ladderY > 0.02 || (f > 0 && -Math.sin(p.yaw) > 0.3));
+      if (climbing) {
+        this.ladderY = Math.min(this.cellar.ladderH, Math.max(0, this.ladderY + f * 1.6 * dt));
+        if (f) this.moving = true;
+      }
+      const fw = climbing ? 0 : f;
+      if (fw || s) {
+        const len = Math.max(1, Math.hypot(fw, s));
+        const sp = (k.has('ShiftLeft') ? 5.2 : 3.2) * dt;
+        p.x += ((-Math.sin(p.yaw) * fw + Math.cos(p.yaw) * s) / len) * sp;
+        p.z += ((-Math.cos(p.yaw) * fw - Math.sin(p.yaw) * s) / len) * sp;
+        this.moving = true;
+      }
+    }
+    // up the ladder you cannot step off sideways
+    if (this.ladderY > 0.02) {
+      p.x = Math.max(p.x, 7.1);
+      p.z = Math.min(-3.3, Math.max(-4.7, p.z));
+    } else if (!this.cellar.onLadder(p.x, p.z)) {
+      this.ladderY = 0;
+    }
+    for (const c of this.cellar.colliders) {
+      const d = Math.hypot(p.x - c.x, p.z - c.z);
+      if (d < c.r) {
+        p.x = c.x + ((p.x - c.x) / (d || 1)) * c.r;
+        p.z = c.z + ((p.z - c.z) / (d || 1)) * c.r;
+      }
+    }
+    const c = this.cellar.clamp(p.x, p.z);
+    p.x = c.x;
+    p.z = c.z;
+    const ground = UG.y + this.cellar.floorAt(p.x, p.z) + this.ladderY;
+    this.eyeY += (ground + 1.65 - this.eyeY) * Math.min(1, dt * 12);
+    this.feet.set(p.x, ground, p.z);
+    this.camera.position.set(p.x, this.eyeY + (this.moving ? Math.sin(this.time * 9) * 0.025 : 0), p.z);
+    this.camera.rotation.set(p.pitch, p.yaw, 0);
+    this.view.update(dt, this.moving, this.feet, p.yaw, p.pitch);
+    this.applyToolFov(dt);
+  }
+
   // ---------------------------------------------------------------- diving
 
   /** True where the water is close enough to slip in: the shallow edge of the beach, or the island's coast. */
   private canDive(): boolean {
-    if (this.vehicle || this.driving || this.hammock || this.diving || !this.started) return false;
+    if (this.vehicle || this.driving || this.hammock || this.alt || !this.started) return false;
     if (this.onIsland) return this.beach.heightAt(this.player.x, this.player.z) < WATER_LEVEL + 0.8;
     return this.player.z > SHORE_Z - 8;
   }
@@ -1942,7 +2071,7 @@ export class Game {
   /** Everything on land is hidden while diving, and put back afterwards; the sky and the finds stay. */
   private hideLand(on: boolean): void {
     if (on) {
-      const keep = new Set<THREE.Object3D>([this.sky.group, this.camera, this.under.group, this.spawner.group]);
+      const keep = new Set<THREE.Object3D>([this.sky.group, this.camera, this.under.group, this.cellar.group, this.spawner.group]);
       this.hiddenByDive = this.scene.children.filter((o) => o.visible && !keep.has(o));
       for (const o of this.hiddenByDive) o.visible = false;
     } else {
@@ -1962,7 +2091,7 @@ export class Game {
   }
 
   private enterDive(): void {
-    if (this.transitioning || this.diving) return;
+    if (this.transitioning || this.alt) return;
     if (!this.state.data.ownsDiveGear) {
       this.audio.error();
       this.ui.toast('You need diving gear to go under. The camper shop sells a mask, snorkel, fins and a harpoon.');
@@ -2831,6 +2960,12 @@ export class Game {
       this.ui.setPrompt(null);
       return;
     }
+    if (this.underground) {
+      if (this.ladderY >= this.cellar.ladderH - 0.15) this.interaction = { label: 'Climb out through the hatch', run: () => this.leaveUnderground() };
+      this.ui.setPrompt(this.interaction?.label ?? null);
+      this.ui.setPrompt2(null);
+      return;
+    }
     if (this.diving) {
       // F picks up a find within reach; Q always swims back up
       const cp = this.camera.position;
@@ -2988,6 +3123,7 @@ export class Game {
     this.hoveredCamp = null;
     this.toolHit = null;
     if (!this.started || this.driving || this.gameState === 'INSPECT' || this.campModal.isOpen && this.isOverPanel()) return;
+    if (this.underground) return;
     if (this.diving) {
       // underwater only the finds can be looked at
       if (this.gameState !== 'EXPLORE') return;
@@ -3058,6 +3194,12 @@ export class Game {
         this.ui.setBadgeText('🛺', 'Golf cart');
       }
       this.ui.setCrosshair(false);
+      return;
+    }
+    if (this.underground) {
+      this.ui.setBinoculars(false, '', '');
+      this.ui.setHint(this.gameState === 'INSPECT' ? null : 'Climb the stairs and the ladder, then press F at the top to go back out');
+      this.ui.setCrosshair(this.gameState === 'EXPLORE');
       return;
     }
     if (this.diving) {
@@ -3149,7 +3291,9 @@ export class Game {
 
     this.updateDayNight(dt);
     this.sky.update(dt);
-    if (this.diving) {
+    if (this.underground) {
+      this.cellar.update(t);
+    } else if (this.diving) {
       // the land is hidden: only the water around the diver is alive
       this.under.update(dt, t, this.camera.position);
       // the water, and what shows past it, follow the time of day
@@ -3196,7 +3340,7 @@ export class Game {
         this.ui.toast(`📬 A letter has arrived at the camp post, from ${from}`);
       }
     }
-    if (!this.diving) this.updateDog(dt, t);
+    if (!this.alt) this.updateDog(dt, t);
     if (this.gameState !== 'EXPLORE') this.ui.setPrompt(null);
     this.audio.detectorEnabled = false;
     if (this.gameState === 'INSPECT') {
@@ -3212,7 +3356,7 @@ export class Game {
       return;
     }
 
-    this.audio.detectorEnabled = this.gameState === 'EXPLORE' && this.tool === 1 && !this.driving && !this.diving;
+    this.audio.detectorEnabled = this.gameState === 'EXPLORE' && this.tool === 1 && !this.driving && !this.alt;
     if (this.gameState === 'MENU') this.updateMenuCamera(dt);
     else this.updateCamera(dt);
     this.updateMusic();
@@ -3220,7 +3364,7 @@ export class Game {
     this.updateHover();
 
     if (this.gameState === 'EXPLORE') {
-      if (this.driving || this.diving) {
+      if (this.driving || this.alt) {
         /* hands are on the wheel, or on the harpoon */
       } else if (this.tool === 1) {
         this.detector.update(dt, this.toolHit, this.state, this.spawner, this.audio, this.beach);
@@ -3232,16 +3376,16 @@ export class Game {
     }
     this.dig.update(dt);
     this.hearts.update(dt);
-    if (!this.diving) this.arrows.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, this.scenery.trunks, {
+    if (!this.alt) this.arrows.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, this.scenery.trunks, {
       onHit: (o, at) => this.onBulletHit(o, at, 0.2),
       onStick: () => this.audio.thud(),
     });
-    if (!this.diving) this.bullets.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, {
+    if (!this.alt) this.bullets.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, {
       onHit: (o, at) => this.onBulletHit(o, at, 0.14),
       onGround: (p) => this.dig.particles.burst(p.setY(p.y + 0.05), 10, 1, 1.6, 0.5, new THREE.Color(0xe6ccb2)),
     });
     this.spawner.update(dt, t, this.hoveredItem);
-    if (!this.diving) {
+    if (!this.alt) {
       this.flags.update(t);
       this.mapView.captain = this.state.data.hasBottleMap ? this.spawner.items.filter((i) => i.def.id === 'captain_chest' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
     this.mapView.treasures = this.state.data.hasTreasureMap ? this.spawner.items.filter((i) => i.def.id === 'treasure_cache' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
@@ -3261,7 +3405,7 @@ export class Game {
         this.ui.toast('You have reached your destination.');
       }
     }
-    if (!this.diving) this.mapView.drawMini(this.ui.miniCtx, 150, { x: this.player.x, z: this.player.z, yaw: this.player.yaw }, this.holes, this.waypoint, { x: this.cart.x, z: this.cart.z }, { x: this.boat.x, z: this.boat.z });
+    if (!this.alt) this.mapView.drawMini(this.ui.miniCtx, 150, { x: this.player.x, z: this.player.z, yaw: this.player.yaw }, this.holes, this.waypoint, { x: this.cart.x, z: this.cart.z }, { x: this.boat.x, z: this.boat.z });
     this.updateHint();
     this.canvas.classList.toggle('pointer', !!(this.hoveredItem || this.hoveredCamp));
     if (this.audio.ready) {

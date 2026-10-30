@@ -208,6 +208,10 @@ export const JOURNAL_PAGES: JournalPage[] = [
     text: 'Where the bottle\u2019s map pointed, the shovel struck wood: a trapdoor with an iron ring, buried flat in the dune. Under it a ladder drops into the dark, and a cold draught that smells of old stone comes up.',
   },
   {
+    id: 'underground_first', group: 'Journeys', icon: '🔥', title: 'Under the Dunes',
+    text: 'A stone room, older than the camp, lit by torches nobody remembers lighting. Pillars, barrels, a table with a lantern still warm. At the far end the stairs climb back up to a square of sky.',
+  },
+  {
     id: 'dive_first', group: 'Journeys', icon: '🤿', title: 'Under the Surface',
     text: 'One breath, one step, and the beach is gone. Down here the light comes in long gold ribbons and the whole world is quiet except for your own bubbles.',
   },

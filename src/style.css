@@ -594,8 +594,8 @@ button.chip { cursor: pointer; }
 .set-row:has(.set-check) { grid-template-columns: 150px 24px 1fr; }
 .set-row:has(.set-check) .set-val { text-align: left; }
 .farewell { z-index: 6; }
-.ending { z-index: 7; background: rgba(20, 12, 6, 0.78); }
-.ending .credit { font-style: italic; margin: 14px 0 22px; opacity: 0.9; }
+.credits { z-index: 6; }
+.credits .credit { font-style: italic; margin: 10px 0 22px; opacity: 0.9; line-height: 1.5; }
 
 /* ---------- controller focus ---------- */
 body.usingpad button:focus,
@@ -802,3 +802,4 @@ body.usingpad .minimap { bottom: 232px; }
 .dive-tint { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s; background: radial-gradient(ellipse at center, rgba(40, 150, 190, 0) 45%, rgba(10, 70, 110, 0.4) 100%); }
 .dive-tint.on { opacity: 1; }
 body.diving .minimap { display: none; }
+body.underground .minimap { display: none; }
