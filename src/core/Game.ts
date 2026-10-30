@@ -44,7 +44,7 @@ import { Tracks } from '../world/Tracks';
 import { Whitecaps } from '../world/Whitecaps';
 import { AudioManager } from './AudioManager';
 import { InputManager } from './InputManager';
-import { deleteSave, listSaves, requestLoad, takePendingLoad, writeSave } from './SaveGame';
+import { AUTOSAVE_ID, deleteSave, listSaves, requestLoad, takePendingLoad, writeSave } from './SaveGame';
 import { loadSettings, requestAutostart, saveSettings, takeAutostart } from './Settings';
 import type { GameSettings } from './Settings';
 import type { SaveMeta, Snapshot } from './SaveGame';
@@ -72,6 +72,10 @@ const FISH_REWARD = 1;
 const LIGHT_ORDER: LightingMode[] = ['cycle', 'golden', 'day', 'sunset', 'night'];
 /** how long a full day lasts, in seconds (5 minutes) */
 const DAY_SECONDS = 5 * 60;
+/** how often the game saves itself, in seconds of play */
+const AUTOSAVE_SECONDS = 90;
+/** the shortest gap between two autosaves, whatever triggers them */
+const AUTOSAVE_MIN_GAP = 15000;
 /** the time of day each fixed mood is frozen at */
 const MOOD_TIME: Record<Exclude<LightingMode, 'cycle'>, number> = { golden: 0.02, day: 0.28, sunset: 0.56, night: 0.78 };
 const CATEGORY_LABEL: Record<string, string> = {
@@ -993,6 +997,7 @@ export class Game {
       this.ui.hideInspect();
       this.ui.setMode('EXPLORE');
       this.audio.setOceanLevel(this.diving ? 0.015 : 0.06);
+      this.autoSave();
       if (this.diving) this.applyDiveHands();
       else {
         this.ui.setTool(this.tool);
@@ -1086,6 +1091,7 @@ export class Game {
   private closeCamp(): void {
     this.campModal.close();
     if (this.gameState !== 'CAMP') return;
+    this.autoSave();
     this.walkTo = null;
     this.gameState = 'EXPLORE';
     this.ui.setMode('EXPLORE');
@@ -1639,6 +1645,22 @@ export class Game {
       load: (id) => this.loadGame(id),
       remove: (id) => deleteSave(id),
     };
+  }
+
+  private autoT = 0;
+  private lastAuto = -Infinity;
+
+  /**
+   * Saves the world into the single autosave slot, over whatever was there. Quiet: no message. It skips the menu, sleeping and
+   * the ending, and never runs twice in quick succession.
+   */
+  private autoSave(): void {
+    this.autoT = 0;
+    const now = performance.now();
+    if (now - this.lastAuto < AUTOSAVE_MIN_GAP) return;
+    if (!this.started || this.gameState === 'MENU' || this.hammock || this.endPending) return;
+    this.lastAuto = now;
+    writeSave(this.snapshot(), 'Autosave', AUTOSAVE_ID);
   }
 
   /** Writes the whole world as a new save, or over an existing one. */
@@ -3120,6 +3142,8 @@ export class Game {
     }
     const dt = Math.min(rawDt, 0.05);
     this.time += dt;
+    this.autoT += dt;
+    if (this.autoT >= AUTOSAVE_SECONDS) this.autoSave();
     const t = this.time;
     this.input.tick(dt);
 

@@ -5,6 +5,9 @@ const SLOT_PREFIX = 'cozy-treasure-hunter-slot-';
 const OLD_KEY = 'cozy-treasure-hunter-save-v2';
 const LOAD_FLAG = 'cozy-treasure-hunter-load';
 
+/** The one slot the game saves into by itself; every autosave writes over it. */
+export const AUTOSAVE_ID = 'autosave';
+
 export interface SavedItem {
   defId: string;
   x: number;
