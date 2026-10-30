@@ -29,6 +29,8 @@ interface Gull extends Parts {
   vz: number;
   timer: number;
   climb: number;
+  /** how close a visitor can come before this gull takes off; each one is a little different */
+  alert: number;
   hit: THREE.Mesh;
 }
 
@@ -133,7 +135,7 @@ export class Birds {
     parts.root.add(hit);
     const gull: Gull = {
       ...parts, hit, mode, cx: 0, cz: 0, r: 0, ang: 0, omega: 0, alt: 0, phase: Math.random() * 6,
-      vx: 0, vz: 0, timer: 0, climb: 0,
+      vx: 0, vz: 0, timer: 0, climb: 0, alert: rand(10, 15),
     };
     hit.userData.gull = gull;
     return gull;
@@ -246,7 +248,7 @@ export class Birds {
         this.setWings(g, -1.15);
         // startled by a visitor
         const d = Math.hypot(px - nx, pz - nz);
-        if (d < 5.5) {
+        if (d < g.alert) {
           g.mode = 'flee';
           g.climb = 0;
           const away = Math.atan2(nx - px, nz - pz);
