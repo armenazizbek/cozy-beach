@@ -171,11 +171,15 @@ export class Birds {
     return this.gulls.filter((g) => g.mode !== 'away' && g.root.visible).map((g) => g.hit);
   }
 
+  /** whether the gull that was last shot was in the air, which is the harder shot */
+  lastShotAirborne = false;
+
   /** A gull is startled right out of sight for a good while. Returns where it was. */
   shoot(obj: THREE.Object3D): THREE.Vector3 | null {
     const g = obj.userData.gull as Gull | undefined;
     if (!g || g.mode === 'away') return null;
     const at = g.root.getWorldPosition(new THREE.Vector3());
+    this.lastShotAirborne = g.mode === 'fly' || g.mode === 'flee';
     g.mode = 'away';
     g.timer = rand(40, 70);
     g.root.visible = false;

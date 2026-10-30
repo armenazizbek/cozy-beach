@@ -64,7 +64,9 @@ export type GameState = 'MENU' | 'EXPLORE' | 'INSPECT' | 'CAMP';
 const DETECT_REACH = 4;
 /** coins for hitting a crab or a seagull with the gun or the bow */
 const CRAB_REWARD = 1;
+/** a gull on the sand pays this; one shot in the air pays more */
 const BIRD_REWARD = 2;
+const BIRD_AIR_REWARD = 5;
 const COCONUT_REWARD = 0.5;
 /** the chance that a bone sends the dog after a Lost & Found item instead of a coin or trash */
 const DOG_LOST_CHANCE = 0.06;
@@ -873,9 +875,10 @@ export class Game {
       if (at) {
         this.dig.particles.burst(at, 40, 2.4, 1.2, 1.6, new THREE.Color(0xf6f4ee));
         this.audio.gull(4);
-        this.state.addCoins(BIRD_REWARD);
+        const reward = this.birds.lastShotAirborne ? BIRD_AIR_REWARD : BIRD_REWARD;
+        this.state.addCoins(reward);
         this.discover('bird_shot');
-        this.ui.toast(`Poof! A flurry of feathers. +${BIRD_REWARD}g`);
+        this.ui.toast(`Poof! A flurry of feathers. +${reward}g`);
       }
       return;
     }
