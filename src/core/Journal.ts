@@ -208,6 +208,14 @@ export const JOURNAL_PAGES: JournalPage[] = [
     text: 'Where the bottle\u2019s map pointed, the shovel struck wood: a trapdoor with an iron ring, buried flat in the dune. Under it a ladder drops into the dark, and a cold draught that smells of old stone comes up.',
   },
   {
+    id: 'great_door', group: 'Journeys', icon: '🚪', title: 'The Great Door',
+    text: 'At the far end of the room stands a door of black wood and iron, with a ring of pale blue light over it and a keyhole with no key. It does not open. Not yet.',
+  },
+  {
+    id: 'captain_journal', group: 'Journeys', icon: '📜', title: 'The Captain\u2019s Journal',
+    text: 'A shipwrecked captain\u2019s diary, left open on the stone ring: the town\u2019s gold lost with the Marigold, a room under the dunes, a message sealed in a bottle, and a lower door the captain never opened.',
+  },
+  {
     id: 'underground_first', group: 'Journeys', icon: '🔥', title: 'Under the Dunes',
     text: 'A stone room, older than the camp, lit by torches nobody remembers lighting. Pillars, barrels, a table with a lantern still warm. At the far end the stairs climb back up to a square of sky.',
   },

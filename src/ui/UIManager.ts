@@ -479,7 +479,6 @@ export class UIManager {
       el('h1', '', 'Credits'),
       el('p', 'tag', 'Cozy Treasure Hunter'),
       el('p', 'credit', 'Made by Armen Azizbekyan, a solo developer and the creator of this game.'),
-      el('p', 'credit', 'Built with Three.js, Vite and Electron.'),
       el('p', 'credit', 'Thank you for playing.'),
       el('p', 'save-note', `Version ${__APP_VERSION__} · ${__BUILD_YEAR__}`),
     );
@@ -605,6 +604,68 @@ export class UIManager {
       // left (dir -1) means a newer letter, right an older one
       const n = i + dir;
       if (n < 0 || n >= list.length) return;
+      i = n;
+      render();
+      if ((document.activeElement === prev || document.activeElement === next) && (document.activeElement as HTMLButtonElement).disabled) (dir > 0 ? prev : next).focus();
+    };
+    prev.onclick = (): void => turn(-1);
+    next.onclick = (): void => turn(1);
+    this.bookTurnFn = turn;
+    render();
+    this.bookEl = wrap;
+    this.root.append(wrap);
+  }
+
+  /** The end of part one. Closing it returns to the game. */
+  showTeaser(onClose: () => void): void {
+    this.hideBook();
+    const wrap = el('div', 'pause bookview teaser');
+    const card = el('div', 'intro-card');
+    card.append(
+      el('h1', '', 'To be continued\u2026'),
+      el('p', 'tag', 'Part 2'),
+      el('p', 'credit', 'The door will open in the next part of the adventure.'),
+    );
+    const back = el('button', 'btn big', 'Back');
+    back.onclick = (): void => onClose();
+    card.append(back);
+    wrap.append(card);
+    this.bookEl = wrap;
+    this.root.append(wrap);
+  }
+
+  /** A handwritten journal read page by page, oldest entry first. Shares the post's paper look. */
+  showStory(title: string, pages: { heading: string; text: string; sign: string }[], onClose: () => void): void {
+    this.hideBook();
+    const wrap = el('div', 'pause bookview mailview');
+    const card = el('div', 'mail');
+    const sheet = el('div', 'mail-sheet');
+    const nav = el('div', 'book-nav');
+    const prev = el('button', 'btn ghost small', '\u2039 Earlier');
+    prev.dataset.act = 'prev';
+    const count = el('span', 'book-count');
+    const next = el('button', 'btn ghost small', 'Later \u203a');
+    next.dataset.act = 'next';
+    const close = el('button', 'btn small', padText('Close (Esc)'));
+    close.dataset.kb = 'Close (Esc)';
+    close.onclick = (): void => onClose();
+    nav.append(prev, count, next, close);
+    card.append(sheet, nav);
+    wrap.append(card);
+    let i = 0;
+    const render = (): void => {
+      sheet.replaceChildren();
+      const p = pages[i];
+      const head = el('div', 'mail-head');
+      head.append(el('span', 'mail-from', title), el('span', 'mail-stamp', '\ud83d\udcd6'));
+      sheet.append(head, el('p', 'mail-greeting', p.heading), el('p', 'mail-body', p.text), el('p', 'mail-sign', p.sign));
+      count.textContent = `Page ${i + 1} of ${pages.length}`;
+      prev.disabled = i <= 0;
+      next.disabled = i >= pages.length - 1;
+    };
+    const turn = (dir: number): void => {
+      const n = i + dir;
+      if (n < 0 || n >= pages.length) return;
       i = n;
       render();
       if ((document.activeElement === prev || document.activeElement === next) && (document.activeElement as HTMLButtonElement).disabled) (dir > 0 ? prev : next).focus();

@@ -803,3 +803,6 @@ body.usingpad .minimap { bottom: 232px; }
 .dive-tint.on { opacity: 1; }
 body.diving .minimap { display: none; }
 body.underground .minimap { display: none; }
+.teaser { z-index: 6; background: rgba(10, 6, 3, 0.82); }
+.teaser .credit { font-style: italic; margin: 10px 0 22px; opacity: 0.9; }
+.teaser h1 { font-size: 40px; }

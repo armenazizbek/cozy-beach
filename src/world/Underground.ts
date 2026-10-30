@@ -12,6 +12,8 @@ const TOP = STAIRS.steps * STAIRS.rise;
 /** past the top step a wooden ladder, like the one under the hatch outside, climbs the rest of the way to the rim of the stairwell */
 const SHAFT_TOP = STAIRS.steps * STAIRS.rise + 3.0;
 const TILE = 2.5;
+/** where the great door stands in the east wall */
+const DOOR_Z = 0.5;
 
 const rng = (seed: number): (() => number) => {
   let s = seed;
@@ -182,6 +184,7 @@ export class Underground {
 
     this.buildTorches();
     this.buildFurniture(wood, darkWood, iron);
+    this.buildDoor(darkWood, iron);
   }
 
   /** The height of the floor at a point: flat, or the steps of the stair. */
@@ -261,9 +264,72 @@ export class Underground {
     this.torch(ROOM.x0 + 0.02, 2.2, 0.5, 1, 0);
     this.torch(-6.5, 2.2, ROOM.z0 + 0.02, 0, 1);
     this.torch(-1, 3.4, ROOM.z0 + 0.02, 0, 1);
+    // either side of the great door
+    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z - 2.1, -1, 0);
+    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z + 2.1, -1, 0);
     // up the stairwell, so the climb is lit
     this.torch(4.2, 5.9, ROOM.z0 + 0.02, 0, 1);
     this.torch(6.6, 6.4, ROOM.z0 + 0.02, 0, 1);
+  }
+
+  // ---------------------------------------------------------------- the door
+
+  /** A great iron-bound double door set in a stone frame, with a faintly glowing sigil over it. */
+  private buildDoor(darkWood: THREE.Material, iron: THREE.Material): void {
+    const stone = new THREE.MeshStandardMaterial({ map: stoneTexture([150, 140, 126], 2, 2, 91), roughness: 0.85 });
+    const g = new THREE.Group();
+    // built facing +z (out of the wall), then turned to face west, into the room
+    const W = 2.4;
+    const H = 3.0;
+    const add = (m: THREE.Mesh): THREE.Mesh => {
+      m.castShadow = true;
+      m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+    // the stone frame: two jambs, a heavy lintel and a step
+    for (const sx of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry(0.4, H + 0.3, 0.45), stone)).position.set(sx * (W / 2 + 0.2), (H + 0.3) / 2, 0.12);
+    add(new THREE.Mesh(new THREE.BoxGeometry(W + 1.2, 0.45, 0.5), stone)).position.set(0, H + 0.3, 0.14);
+    add(new THREE.Mesh(new THREE.BoxGeometry(W + 1.0, 0.12, 0.7), stone)).position.set(0, 0.06, 0.25);
+    // the two leaves
+    const leaf = new THREE.MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.9 });
+    for (const sx of [-1, 1]) {
+      const body = add(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.03, H - 0.1, 0.16), leaf));
+      body.position.set(sx * (W / 4), H / 2 + 0.05, 0);
+      for (const y of [0.55, 1.5, 2.45]) {
+        const strap = add(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.06, 0.16, 0.04), iron));
+        strap.position.set(sx * (W / 4), y, 0.1);
+        for (let i = 0; i < 4; i++) {
+          const stud = add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), iron));
+          stud.position.set(sx * (W / 4) + (i - 1.5) * 0.26, y, 0.13);
+        }
+      }
+      const handle = add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 18), iron));
+      handle.position.set(sx * 0.2, 1.3, 0.11);
+    }
+    // a lock plate and keyhole in the middle, where there is no key
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.4, 0.05), iron)).position.set(0, 1.35, 0.12);
+    const keyhole = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0x050403 }));
+    keyhole.position.set(0, 1.35, 0.15);
+    g.add(keyhole);
+    // a sigil above the door: a ring and a ring of small lights, glowing faintly teal
+    const glow = new THREE.MeshStandardMaterial({ color: 0x1f6f7a, emissive: 0x3fd0e0, emissiveIntensity: 0.9, roughness: 0.4 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 8, 36), glow);
+    ring.position.set(0, H + 0.85, 0.2);
+    g.add(ring);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 5), glow);
+      dot.position.set(Math.cos(a) * 0.5, H + 0.85 + Math.sin(a) * 0.5, 0.2);
+      g.add(dot);
+    }
+    const inner = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.02, 8, 24), glow);
+    inner.position.set(0, H + 0.85, 0.2);
+    g.add(inner);
+    g.position.set(ROOM.x1 - 0.12, 0, DOOR_Z);
+    g.rotation.y = -Math.PI / 2;
+    this.group.add(g);
+    void darkWood;
   }
 
   // ---------------------------------------------------------------- furnishings
@@ -333,6 +399,33 @@ export class Underground {
     const lantern = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.28, 8), new THREE.MeshStandardMaterial({ color: 0xffd98a, emissive: 0xffa030, emissiveIntensity: 0.9 }));
     lantern.position.set(-6.3, 1.2, -1.2);
     this.group.add(lantern);
+    // the captain's journal: open on a lectern in the middle of the ring
+    const lectern = new THREE.Group();
+    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.85, 12), stone);
+    pillar.position.y = 0.3 + 0.425;
+    const top = new THREE.Group();
+    top.position.set(0, 1.18, 0);
+    top.rotation.z = 0.3;
+    const desk = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 0.6), wood);
+    const cover = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.035, 0.46), new THREE.MeshStandardMaterial({ color: 0x5a2a20, roughness: 0.7 }));
+    cover.position.y = 0.05;
+    const pageMat = new THREE.MeshStandardMaterial({ color: 0xf1e6c6, roughness: 0.9, emissive: 0xd9a24a, emissiveIntensity: 0.22 });
+    for (const sx of [-1, 1]) {
+      const pg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.4), pageMat);
+      pg.position.set(sx * 0.155, 0.085, 0);
+      pg.rotation.z = sx * -0.05;
+      top.add(pg);
+    }
+    top.add(desk, cover);
+    lectern.add(pillar, top);
+    lectern.position.set(0, 0, -0.3);
+    for (const m of [pillar, desk, cover]) {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    }
+    this.group.add(lectern);
+    post(0, -0.3, 0.45);
+
     // a round stone dais in the middle, with a ring cut into it
     const dais = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.3, 28), stone);
     dais.position.set(0, 0.15, -0.3);
@@ -343,5 +436,15 @@ export class Underground {
     ring.rotation.x = Math.PI / 2;
     ring.position.set(0, 0.31, -0.3);
     this.group.add(ring);
+  }
+
+  /** True when close enough to the door in the east wall. */
+  nearDoor(x: number, z: number): boolean {
+    return Math.hypot(x - 7.7, z - DOOR_Z) < 2.4;
+  }
+
+  /** True when close enough to the lectern to read the journal. */
+  nearBook(x: number, z: number): boolean {
+    return Math.hypot(x - 0, z - -0.3) < 2.4;
   }
 }

@@ -30,6 +30,7 @@ import { Island } from '../world/Island';
 import { ParticleSystem } from './Particles';
 import { Underwater, UW, UW_ENTRY, UW_SURFACE } from '../world/Underwater';
 import { UG, Underground } from '../world/Underground';
+import { CAPTAIN_PAGES } from './Story';
 import type { DogEnv } from '../world/Dog';
 import { Rain, rainWindow } from '../world/Rain';
 import { GamepadInput } from './GamepadInput';
@@ -2658,7 +2659,7 @@ export class Game {
 
   private bookOpen = false;
   /** what the reader overlay is showing: the journal or the post */
-  private readerKind: 'book' | 'mail' = 'book';
+  private readerKind: 'book' | 'mail' | 'story' = 'book';
 
   /** Writes a story into the journal the first time something happens. */
   private discover(id: string): void {
@@ -2704,6 +2705,34 @@ export class Game {
     );
   }
 
+  /** The great door in the east wall does not open yet: it is where part two begins. */
+  private openTeaser(): void {
+    if (this.bookOpen || this.gameState !== 'EXPLORE') return;
+    this.bookOpen = true;
+    this.readerKind = 'story';
+    this.paused = true;
+    this.input.keys.clear();
+    document.exitPointerLock?.();
+    this.audio.thud();
+    this.audio.setOceanLevel(0.006);
+    this.discover('great_door');
+    this.ui.showTeaser(() => this.closeBook());
+  }
+
+  /** The captain's journal on the ring under the hatch. */
+  private openStory(): void {
+    if (this.bookOpen || this.gameState !== 'EXPLORE') return;
+    this.bookOpen = true;
+    this.readerKind = 'story';
+    this.paused = true;
+    this.input.keys.clear();
+    document.exitPointerLock?.();
+    this.audio.ui();
+    this.audio.setOceanLevel(0.006);
+    this.discover('captain_journal');
+    this.ui.showStory('The captain\u2019s journal', CAPTAIN_PAGES, () => this.closeBook());
+  }
+
   /** A letter has been written: it will reach the post after a short while. */
   private sendLetter(noteId: string): void {
     if (!LETTERS.some((l) => l.id === noteId)) return;
@@ -2716,9 +2745,9 @@ export class Game {
     this.paused = false;
     this.ui.hideBook();
     if (this.readerKind === 'mail') this.state.markLettersRead();
-    else this.state.markPagesRead();
+    else if (this.readerKind === 'book') this.state.markPagesRead();
     this.audio.ui();
-    this.audio.setOceanLevel(0.06);
+    this.audio.setOceanLevel(this.underground ? 0.006 : 0.06);
     this.input.keys.clear();
     this.grabMouse();
   }
@@ -2965,6 +2994,8 @@ export class Game {
     }
     if (this.underground) {
       if (this.ladderY >= this.cellar.ladderH - 0.15) this.interaction = { label: 'Climb out through the hatch', run: () => this.leaveUnderground() };
+      else if (this.cellar.nearDoor(this.player.x, this.player.z)) this.interaction = { label: 'Open the great door', run: () => this.openTeaser() };
+      else if (this.cellar.nearBook(this.player.x, this.player.z)) this.interaction = { label: 'Read the captain\u2019s journal', run: () => this.openStory() };
       this.ui.setPrompt(this.interaction?.label ?? null);
       this.ui.setPrompt2(null);
       return;
