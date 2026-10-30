@@ -8,6 +8,8 @@ interface Parts {
   legs: THREE.Group;
   left: THREE.Group;
   right: THREE.Group;
+  /** the wings tucked along the body, for a bird that is standing */
+  folded: THREE.Group;
 }
 
 type Mode = 'fly' | 'ground' | 'flee' | 'away';
@@ -73,17 +75,37 @@ export class Birds {
     eyeR.position.x = -0.05;
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.2), this.grey);
     tail.position.set(0, 0.0, -0.36);
-    root.add(body, head, beak, eyeL, eyeR, tail);
+    // the grey back that gulls have, and a rounded breast
+    const mantle = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), this.grey);
+    mantle.scale.set(0.14, 0.06, 0.3);
+    mantle.position.set(0, 0.09, -0.06);
+    const breast = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), this.white);
+    breast.position.set(0, 0.0, 0.2);
+    root.add(body, head, beak, eyeL, eyeR, tail, mantle, breast);
     // orange legs, only visible while standing
     const legs = new THREE.Group();
     for (const x of [-0.05, 0.05]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 5), this.beak);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.009, 0.2, 6), this.beak);
       leg.position.set(x, -0.18, 0.02);
       const foot = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.09), this.beak);
       foot.position.set(x, -0.28, 0.05);
       legs.add(leg, foot);
     }
     root.add(legs);
+
+    // standing, the wings lie folded along the flanks with dark tips crossing at the tail
+    const folded = new THREE.Group();
+    for (const sx of [-1, 1]) {
+      const w = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), this.grey);
+      w.scale.set(0.05, 0.085, 0.3);
+      w.position.set(sx * 0.12, 0.04, -0.08);
+      w.rotation.set(0.06, sx * 0.05, sx * -0.1);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.2, 6), this.dark);
+      tip.rotation.x = -Math.PI / 2;
+      tip.position.set(sx * 0.07, 0.04, -0.46);
+      folded.add(w, tip);
+    }
+    root.add(folded);
 
     const wing = (): THREE.Group => {
       const w = new THREE.Group();
@@ -101,7 +123,7 @@ export class Birds {
     root.add(right, left);
     root.scale.setScalar(1.5);
     this.group.add(root);
-    return { root, legs, left, right };
+    return { root, legs, left, right, folded };
   }
 
   private blank(mode: Mode): Gull {
@@ -163,7 +185,10 @@ export class Birds {
 
   /** Wing angle in radians; positive lifts the tips. */
   private setWings(g: Gull, a: number): void {
-    g.legs.visible = g.mode === 'ground';
+    const ground = g.mode === 'ground';
+    g.legs.visible = ground;
+    g.folded.visible = ground;
+    g.right.visible = g.left.visible = !ground;
     g.right.rotation.z = a;
     g.left.rotation.z = -a;
   }
