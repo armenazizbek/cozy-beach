@@ -31,6 +31,7 @@ import { ParticleSystem } from './Particles';
 import { Underwater, UW, UW_ENTRY, UW_SURFACE } from '../world/Underwater';
 import { UG, Underground } from '../world/Underground';
 import { CAPTAIN_PAGES } from './Story';
+import { ACHIEVEMENTS, Achievements } from './Achievements';
 import type { DogEnv } from '../world/Dog';
 import { Rain, rainWindow } from '../world/Rain';
 import { GamepadInput } from './GamepadInput';
@@ -50,10 +51,10 @@ import { AUTOSAVE_ID, deleteSave, listSaves, requestLoad, takePendingLoad, write
 import { loadSettings, requestAutostart, saveSettings, takeAutostart } from './Settings';
 import type { GameSettings } from './Settings';
 import type { SaveMeta, Snapshot } from './SaveGame';
-import { DEF_BY_ID, DIVE_ITEM_IDS, ISLAND_ITEM_IDS, SHARD_SETS } from './items';
+import { DEF_BY_ID, DIVE_ITEM_IDS, ISLAND_ITEM_IDS, QUEST_DEFS, SHARD_SETS } from './items';
 import { StateManager } from './StateManager';
 import type { LightingMode } from './StateManager';
-import { SIGN_TEXTS } from './StateManager';
+import { DECOR, SIGN_TEXTS } from './StateManager';
 
 /** set when the page was reloaded to load a saved game */
 const PENDING: Snapshot | null = takePendingLoad();
@@ -150,6 +151,8 @@ export class Game {
   readonly castles = new Sandcastles(this.beach);
   readonly island = new Island();
   readonly under = new Underwater();
+  readonly achievements = new Achievements();
+  private achT = 0;
   readonly cellar = new Underground();
   /** in the room under the hatch: the land is hidden and not updated, as when diving */
   private underground = false;
@@ -325,6 +328,10 @@ export class Game {
     };
     this.state.subscribe(showDecor);
     showDecor();
+    this.achievements.onUnlock = (a) => {
+      this.audio.discover();
+      this.ui.toast(`🏆 Achievement: ${a.name}`);
+    };
     this.spawner.populate();
     this.dayTime = PENDING?.dayTime ?? 0;
     this.sky.setTime(this.dayTime);
@@ -661,6 +668,7 @@ export class Game {
       onResume: () => this.setPaused(false),
       onNew: () => this.newGame(),
       onSettings: () => this.openSettings(),
+      onAchievements: () => this.showAchievements(),
       onMenu: () => this.backToMenu(),
       saves: this.saveHooks(),
     });
@@ -1508,6 +1516,7 @@ export class Game {
   private showMenu(): void {
     this.ui.showMainMenu({
       hasSaves: listSaves().length > 0,
+      onAchievements: () => this.showAchievements(),
       onNew: () => this.menuNewGame(),
       onLoad: () => this.ui.openSaves('load', this.saveHooks()),
       onSettings: () => this.openSettings(),
@@ -1661,6 +1670,29 @@ export class Game {
       load: (id) => this.loadGame(id),
       remove: (id) => deleteSave(id),
     };
+  }
+
+  /** The achievements that depend on how much you have done, rather than on one thing happening. */
+  private checkAchievements(): void {
+    if (!this.started || this.gameState === 'MENU') return;
+    const d = this.state.data;
+    const a = this.achievements;
+    const finds = Object.values(d.found).reduce((sum, n) => sum + n, 0);
+    if (finds >= 10) a.unlock('FINDS_10');
+    if (finds >= 50) a.unlock('FINDS_50');
+    if (finds >= 150) a.unlock('FINDS_150');
+    if ((d.questsDone?.length ?? 0) >= 1) a.unlock('QUEST_FIRST');
+    if (QUEST_DEFS.every((q) => d.questsDone?.includes(q.id))) a.unlock('QUEST_ALL');
+    if ((d.assembled?.length ?? 0) >= 2) a.unlock('ASSEMBLED');
+    if (d.coins >= 2000) a.unlock('RICH');
+    if (d.ownsBoatKey) a.unlock('BOAT');
+    if ((d.decor?.length ?? 0) >= DECOR.length) a.unlock('DECOR');
+    if (d.day >= 7) a.unlock('WEEK');
+  }
+
+  /** The list of achievements on screen, with the earned ones marked. */
+  private showAchievements(): void {
+    this.ui.showAchievements(ACHIEVEMENTS.map((x) => ({ name: x.name, desc: x.desc, icon: x.icon, done: this.achievements.has(x.id), secret: !!x.secret })));
   }
 
   private autoT = 0;
@@ -2663,6 +2695,7 @@ export class Game {
 
   /** Writes a story into the journal the first time something happens. */
   private discover(id: string): void {
+    if (this.started) this.achievements.page(id);
     if (!this.started || !this.state.unlockPage(id)) return;
     // the whole book is open from the start, so there is no announcement; the page just stops saying "to discover"
     if (BOOK_SHOW_ALL) return;
@@ -3320,6 +3353,11 @@ export class Game {
     this.time += dt;
     this.autoT += dt;
     if (this.autoT >= AUTOSAVE_SECONDS) this.autoSave();
+    this.achT += dt;
+    if (this.achT >= 1) {
+      this.achT = 0;
+      this.checkAchievements();
+    }
     const t = this.time;
     this.input.tick(dt);
 

@@ -7,6 +7,78 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 const DEV_URL = process.env.ELECTRON_DEV_URL;
 
+// ---------------------------------------------------------------- Steam
+// Only used when the game is started by Steam; anywhere else the module or the client is missing and this stays off.
+let steam = null;
+try {
+  const steamworks = require('steamworks.js');
+  steam = steamworks.init();
+  // the Steam overlay needs the game to draw in-process
+  app.commandLine.appendSwitch('in-process-gpu');
+  app.commandLine.appendSwitch('disable-direct-composition');
+} catch {
+  steam = null;
+}
+
+ipcMain.on('steam:available', (e) => {
+  e.returnValue = steam !== null;
+});
+
+ipcMain.on('steam:achievement', (_e, id) => {
+  if (!steam || typeof id !== 'string') return;
+  try {
+    if (!steam.achievement.isActivated(id)) steam.achievement.activate(id);
+  } catch {
+    /* an achievement Steam does not know about is not worth a crash */
+  }
+});
+
+// ---------------------------------------------------------------- saves
+// Saves and achievements are plain files in the game's folder (userData/saves), which Steam Auto-Cloud can copy to the cloud.
+const savesDir = () => path.join(app.getPath('userData'), 'saves');
+// keys are made of letters, digits and dashes only, so they are safe as file names
+const fileFor = (key) => {
+  if (typeof key !== 'string' || !/^[A-Za-z0-9_-]{1,120}$/.test(key)) return null;
+  return path.join(savesDir(), `${key}.json`);
+};
+
+ipcMain.on('store:get', (e, key) => {
+  const f = fileFor(key);
+  try {
+    e.returnValue = f && fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
+  } catch {
+    e.returnValue = null;
+  }
+});
+
+ipcMain.on('store:set', (e, key, value) => {
+  const f = fileFor(key);
+  if (!f || typeof value !== 'string') {
+    e.returnValue = false;
+    return;
+  }
+  try {
+    fs.mkdirSync(savesDir(), { recursive: true });
+    // write beside it first, then rename, so a crash never leaves half a save
+    const tmp = `${f}.tmp`;
+    fs.writeFileSync(tmp, value);
+    fs.renameSync(tmp, f);
+    e.returnValue = true;
+  } catch {
+    e.returnValue = false;
+  }
+});
+
+ipcMain.on('store:remove', (e, key) => {
+  const f = fileFor(key);
+  try {
+    if (f && fs.existsSync(f)) fs.unlinkSync(f);
+  } catch {
+    /* ignore */
+  }
+  e.returnValue = true;
+});
+
 // how the window is shown is remembered between runs
 const cfgPath = () => path.join(app.getPath('userData'), 'display.json');
 const readCfg = () => {

@@ -11,3 +11,7 @@ release
 *.log
 .DS_Store
 Thumbs.db
+
+# raw captures used to make the store art (the finished art is in steam/art and steam/screenshots)
+steam/raw/
+steam/video/

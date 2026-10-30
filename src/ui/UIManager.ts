@@ -29,6 +29,7 @@ export interface SaveHooks {
 
 export interface MenuHooks {
   hasSaves: boolean;
+  onAchievements: () => void;
   onNew: () => void;
   onLoad: () => void;
   onSettings: () => void;
@@ -36,6 +37,7 @@ export interface MenuHooks {
 }
 
 export interface PauseHooks {
+  onAchievements: () => void;
   onResume: () => void;
   onNew: () => void;
   onSettings: () => void;
@@ -323,7 +325,9 @@ export class UIManager {
       menu.onclick = (): void => confirmStep('Return to the main menu? Anything you have not saved will be lost.', 'Yes, go to the menu', hooks.onMenu);
       row.append(save, load, settings);
       const row2 = el('div', 'row gap');
-      row2.append(fresh, menu);
+      const ach = el('button', 'btn ghost', '🏆 Achievements');
+      ach.onclick = (): void => hooks.onAchievements();
+      row2.append(ach, fresh, menu);
       actions.append(resume, row, row2);
     };
     const confirmStep = (question: string, yes: string, run: () => void): void => {
@@ -366,6 +370,7 @@ export class UIManager {
     mk('🏝️', 'New Game', h.onNew);
     mk('📂', 'Load Game', h.onLoad, !h.hasSaves);
     mk('⚙️', 'Settings', h.onSettings);
+    mk('🏆', 'Achievements', h.onAchievements);
     mk('🎞️', 'Credits', () => this.showCredits());
     mk('🚪', 'Exit Game', h.onExit);
     panel.append(list);
@@ -469,6 +474,29 @@ export class UIManager {
   closeSettings(): void {
     this.settingsEl?.remove();
     this.settingsEl = null;
+  }
+
+  /** Every achievement, with the ones already earned lit up. */
+  showAchievements(list: { name: string; desc: string; icon: string; done: boolean; secret: boolean }[]): void {
+    const wrap = el('div', 'pause achievements');
+    const card = el('div', 'intro-card ach-card');
+    const done = list.filter((a) => a.done).length;
+    card.append(el('h1', '', 'Achievements'), el('p', 'tag', `${done} of ${list.length} earned`));
+    const grid = el('div', 'ach-list');
+    for (const a of list) {
+      const row = el('div', `ach-row${a.done ? ' done' : ''}`);
+      const hidden = a.secret && !a.done;
+      row.append(el('span', 'ach-icon', hidden ? '❔' : a.icon));
+      const text = el('div', 'ach-text');
+      text.append(el('b', '', hidden ? 'Secret' : a.name), el('span', '', hidden ? 'Keep exploring to find out.' : a.desc));
+      row.append(text);
+      grid.append(row);
+    }
+    const back = el('button', 'btn big', 'Back');
+    back.onclick = (): void => wrap.remove();
+    card.append(grid, back);
+    wrap.append(card);
+    this.root.append(wrap);
   }
 
   /** The credits: who made the game. Opened from the main menu. */

@@ -1,4 +1,5 @@
 import type { GameData } from './StateManager';
+import { store } from './Storage';
 
 const INDEX_KEY = 'cozy-treasure-hunter-saves-v3';
 const SLOT_PREFIX = 'cozy-treasure-hunter-slot-';
@@ -59,29 +60,22 @@ export interface SaveMeta {
 
 const readIndex = (): SaveMeta[] => {
   try {
-    const raw = localStorage.getItem(INDEX_KEY);
+    const raw = store.getItem(INDEX_KEY);
     return raw ? (JSON.parse(raw) as SaveMeta[]) : [];
   } catch {
     return [];
   }
 };
 
-const writeIndex = (list: SaveMeta[]): boolean => {
-  try {
-    localStorage.setItem(INDEX_KEY, JSON.stringify(list));
-    return true;
-  } catch {
-    return false;
-  }
-};
+const writeIndex = (list: SaveMeta[]): boolean => store.setItem(INDEX_KEY, JSON.stringify(list));
 
 /** Brings the earlier single-slot save along, once. */
 const migrateOld = (): void => {
   try {
-    const raw = localStorage.getItem(OLD_KEY);
+    const raw = store.getItem(OLD_KEY);
     if (!raw) return;
     const snap = JSON.parse(raw) as Snapshot;
-    localStorage.removeItem(OLD_KEY);
+    store.removeItem(OLD_KEY);
     if (snap.v === 1) writeSave(snap, 'Earlier save');
   } catch {
     /* ignore */
@@ -96,7 +90,7 @@ export const listSaves = (): SaveMeta[] => {
 
 export const readSave = (id: string): Snapshot | null => {
   try {
-    const raw = localStorage.getItem(SLOT_PREFIX + id);
+    const raw = store.getItem(SLOT_PREFIX + id);
     if (!raw) return null;
     const s = JSON.parse(raw) as Snapshot;
     return s.v === 1 ? s : null;
@@ -114,22 +108,14 @@ export const writeSave = (snap: Snapshot, name: string, id?: string): SaveMeta |
     coins: snap.data.coins,
     finds: Object.keys(snap.data.found).length,
   };
-  try {
-    localStorage.setItem(SLOT_PREFIX + meta.id, JSON.stringify(snap));
-  } catch {
-    return null;
-  }
+  if (!store.setItem(SLOT_PREFIX + meta.id, JSON.stringify(snap))) return null;
   const list = readIndex().filter((m) => m.id !== meta.id);
   list.push(meta);
   return writeIndex(list) ? meta : null;
 };
 
 export const deleteSave = (id: string): void => {
-  try {
-    localStorage.removeItem(SLOT_PREFIX + id);
-  } catch {
-    /* ignore */
-  }
+  store.removeItem(SLOT_PREFIX + id);
   writeIndex(readIndex().filter((m) => m.id !== id));
 };
 

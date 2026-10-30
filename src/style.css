@@ -806,3 +806,14 @@ body.underground .minimap { display: none; }
 .teaser { z-index: 6; background: rgba(10, 6, 3, 0.82); }
 .teaser .credit { font-style: italic; margin: 10px 0 22px; opacity: 0.9; }
 .teaser h1 { font-size: 40px; }
+
+/* ---------- achievements ---------- */
+.achievements { z-index: 7; }
+.ach-card { width: min(620px, 94vw); max-height: 92vh; display: flex; flex-direction: column; }
+.ach-list { overflow-y: auto; margin: 10px 0 14px; padding-right: 6px; display: grid; gap: 8px; text-align: left; }
+.ach-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 12px; background: rgba(60, 40, 20, 0.07); opacity: 0.55; }
+.ach-row.done { opacity: 1; background: rgba(230, 170, 60, 0.22); }
+.ach-icon { font-size: 26px; width: 34px; text-align: center; }
+.ach-text { display: flex; flex-direction: column; }
+.ach-text b { all: unset; display: block; font-weight: 700; font-size: 15px; line-height: 1.3; }
+.ach-text span { display: block; font-size: 13px; opacity: 0.8; line-height: 1.3; }

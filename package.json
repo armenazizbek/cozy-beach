@@ -11,7 +11,8 @@
     "electron:start": "npm run build && electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:linux": "npm run build && electron-builder --linux"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:steam": "npm run build && electron-builder --win dir"
   },
   "dependencies": {
     "three": "^0.170.0"
@@ -39,9 +40,20 @@
     ],
     "win": {
       "target": [
-        "nsis",
-        "portable"
-      ]
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
     },
     "mac": {
       "target": [
@@ -58,7 +70,26 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Cozy Treasure Hunter",
+      "uninstallDisplayName": "Cozy Treasure Hunter",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Cozy-Treasure-Hunter-Setup-${version}.${ext}"
+    },
+    "copyright": "Copyright © 2026 Armen Azizbekyan",
+    "asarUnpack": [
+      "node_modules/steamworks.js/**"
+    ],
+    "portable": {
+      "artifactName": "Cozy-Treasure-Hunter-${version}-portable.${ext}"
     }
-  }
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.4.0"
+  },
+  "license": "UNLICENSED"
 }
