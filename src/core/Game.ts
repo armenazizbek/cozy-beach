@@ -650,12 +650,6 @@ export class Game {
 
   private onKey(code: string): void {
     if (!this.started) return;
-    // TEST ONLY: F1 gives 10000g. Remove before release.
-    if (code === 'F1') {
-      this.state.addCoins(10000);
-      this.ui.toast('Test: +10000g');
-      return;
-    }
     if (this.hammock) {
       if (code !== 'KeyN') this.leaveHammock(false);
       return;
