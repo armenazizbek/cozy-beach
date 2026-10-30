@@ -110,15 +110,21 @@ export class Underground {
     const hole = { x0: 2.6, x1: 7.8, z0: -5, z1: -3 };
     add(slab(hole.x0 + 8.5, 0.5, 11, roof, (-8.5 + hole.x0) / 2, ROOM.h + 0.25, 0));
     add(slab(8.5 - hole.x0, 0.5, 5.5 - hole.z1, roof, (hole.x0 + 8.5) / 2, ROOM.h + 0.25, (hole.z1 + 5.5) / 2));
-    add(slab(8.5 - hole.x1, 0.5, hole.z1 - -5.5, roof, (hole.x1 + 8.5) / 2, ROOM.h + 0.25, (hole.z1 - 5.5) / 2));
 
     // the stairwell: walls on up to a rim, open to the sky
-    const shaftH = SHAFT_TOP - ROOM.h;
-    const sy = ROOM.h + shaftH / 2 + 0.25;
-    add(slab(hole.x1 - hole.x0 + 0.8, shaftH, 0.5, wall, (hole.x0 + hole.x1) / 2, sy, hole.z0 - 0.25));
-    add(slab(hole.x1 - hole.x0 + 0.8, shaftH, 0.5, wall, (hole.x0 + hole.x1) / 2, sy, hole.z1 + 0.25));
-    add(slab(0.5, shaftH, hole.z1 - hole.z0, wall, hole.x0 - 0.25, sy, (hole.z0 + hole.z1) / 2));
-    add(slab(0.5, shaftH, hole.z1 - hole.z0, wall, hole.x1 + 0.25, sy, (hole.z0 + hole.z1) / 2));
+    // Each wall starts exactly where the thing below it ends and never overlaps another box, so no two faces lie in the same plane
+    // (which made the stairwell flicker). The north and east walls start at the top of the room's own walls; the west and south
+    // ones sit on top of the ceiling slabs.
+    const wallTo = (y0: number): { h: number; y: number } => ({ h: SHAFT_TOP - y0, y: (SHAFT_TOP + y0) / 2 });
+    const fromWall = wallTo(ROOM.h);
+    const fromRoof = wallTo(ROOM.h + 0.5);
+    // north: from the stairwell's west edge to the room's east wall
+    add(slab(8.5 - hole.x0, fromWall.h, 0.5, wall, (hole.x0 + 8.5) / 2, fromWall.y, hole.z0 - 0.25));
+    // east: between the north wall and the ceiling slab
+    add(slab(8.5 - hole.x1, fromWall.h, hole.z1 - hole.z0, wall, (hole.x1 + 8.5) / 2, fromWall.y, (hole.z0 + hole.z1) / 2));
+    // west and south: standing on the ceiling slabs
+    add(slab(0.5, fromRoof.h, hole.z1 - hole.z0, wall, hole.x0 - 0.25, fromRoof.y, (hole.z0 + hole.z1) / 2));
+    add(slab(hole.x1 - hole.x0, fromRoof.h, 0.5, wall, (hole.x0 + hole.x1) / 2, fromRoof.y, hole.z1 + 0.25));
     // a timber frame around the opening, and the door standing open beside it
     for (const [w, d, x, z] of [[hole.x1 - hole.x0 + 1.2, 0.3, (hole.x0 + hole.x1) / 2, hole.z0 - 0.1], [hole.x1 - hole.x0 + 1.2, 0.3, (hole.x0 + hole.x1) / 2, hole.z1 + 0.1]] as const) {
       const f = new THREE.Mesh(new THREE.BoxGeometry(w, 0.18, d), darkWood);
