@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Beach, CAMP_Z, DIG_MIN_Z, WET_Z } from './Beach';
 
 interface Crab {
@@ -10,9 +11,96 @@ interface Crab {
   alive: boolean;
   respawn: number;
   hit: THREE.Mesh;
+  /** the body, which rocks a little as the crab scuttles */
+  body: THREE.Mesh;
 }
 
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
+
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+
+/** One colour for a whole piece, so the pieces of a crab can be merged into a single mesh. */
+const paint = (g: THREE.BufferGeometry, color: number): THREE.BufferGeometry => {
+  g.deleteAttribute('uv');
+  const c = new THREE.Color(color);
+  const n = (g.attributes.position as THREE.BufferAttribute).count;
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return g;
+};
+
+/** A tapering rod between two points: a limb. */
+const limb = (a: THREE.Vector3, b: THREE.Vector3, r: number, color: number): THREE.BufferGeometry => {
+  const d = b.clone().sub(a);
+  const g = new THREE.CylinderGeometry(r * 0.75, r, d.length(), 6, 1);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(Y_AXIS, d.clone().normalize()));
+  g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+  return paint(g, color);
+};
+
+/**
+ * A shore crab, facing +z: a broad domed shell with a paler top, two eyes on stalks, two arms ending in claws with open pincers,
+ * and three bent legs on each side. Built once per shell colour and shared by every crab of that colour.
+ */
+const crabGeometry = (shell: number, light: number, leg: number): THREE.BufferGeometry => {
+  const parts: THREE.BufferGeometry[] = [];
+  const v = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+  const body = new THREE.SphereGeometry(0.15, 18, 12);
+  body.scale(1.35, 0.5, 0.95);
+  body.translate(0, 0.1, 0);
+  parts.push(paint(body, shell));
+  const top = new THREE.SphereGeometry(0.115, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  top.scale(1.3, 0.55, 0.9);
+  top.translate(0, 0.115, 0);
+  parts.push(paint(top, light));
+  // a row of small points along the front edge of the shell
+  for (let i = -2; i <= 2; i++) {
+    const t = new THREE.ConeGeometry(0.014, 0.04, 5);
+    t.rotateX(Math.PI / 2);
+    t.translate(i * 0.05, 0.1, 0.135 - Math.abs(i) * 0.012);
+    parts.push(paint(t, shell));
+  }
+  for (const s of [-1, 1]) {
+    // eyes on short stalks
+    parts.push(limb(v(s * 0.045, 0.13, 0.1), v(s * 0.055, 0.185, 0.115), 0.01, light));
+    const eye = new THREE.SphereGeometry(0.017, 8, 6);
+    eye.translate(s * 0.055, 0.195, 0.118);
+    parts.push(paint(eye, 0x141010));
+    // an arm with an elbow, and a claw
+    const shoulder = v(s * 0.17, 0.1, 0.07);
+    const elbow = v(s * 0.26, 0.11, 0.14);
+    const wrist = v(s * 0.23, 0.11, 0.23);
+    parts.push(limb(shoulder, elbow, 0.02, shell), limb(elbow, wrist, 0.019, shell));
+    const palm = new THREE.SphereGeometry(0.052, 10, 8);
+    palm.scale(1, 0.7, 1.2);
+    palm.translate(s * 0.225, 0.11, 0.265);
+    parts.push(paint(palm, shell));
+    for (const open of [-1, 1]) {
+      const f = new THREE.ConeGeometry(0.026, 0.1, 6);
+      f.rotateX(Math.PI / 2);
+      f.rotateY(open * 0.28 * -s);
+      f.translate(s * 0.225 + open * 0.02 * s, 0.11 + open * 0.008, 0.33);
+      parts.push(paint(f, light));
+    }
+    // three legs, each bent at the knee and ending on the sand
+    for (let i = 0; i < 3; i++) {
+      const z = -0.07 + i * 0.06;
+      const knee = v(s * (0.25 + i * 0.01), 0.145, z - 0.01);
+      parts.push(limb(v(s * 0.15, 0.085, z), knee, 0.011, leg), limb(knee, v(s * (0.33 + i * 0.012), 0.0, z - 0.035), 0.009, leg));
+    }
+  }
+  const merged = mergeGeometries(parts, false)!;
+  merged.computeVertexNormals();
+  return merged;
+};
+
+/** Reddish-orange, sandy-brown and deep red crabs. */
+const CRAB_LOOKS: THREE.BufferGeometry[] = [
+  crabGeometry(0xe0643f, 0xf08a5a, 0xc9502f),
+  crabGeometry(0xb98a58, 0xd6b183, 0x9c7040),
+  crabGeometry(0xc23e2e, 0xdc6a4c, 0x9e2c20),
+];
 
 /** Grass tufts and scuttling crabs that grow with the Beach Ecology Score. */
 export class Ecology {
@@ -20,8 +108,7 @@ export class Ecology {
   private tufts: THREE.Object3D[] = [];
   readonly crabs: Crab[] = [];
   private grassMat = new THREE.MeshStandardMaterial({ color: 0x6ea84f, roughness: 0.9 });
-  private crabMat = new THREE.MeshStandardMaterial({ color: 0xe8704f, roughness: 0.7 });
-  private eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  private crabMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65 });
 
   constructor(private beach: Beach) {}
 
@@ -56,25 +143,10 @@ export class Ecology {
 
   private addCrab(): void {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), this.crabMat);
-    body.scale.set(1.3, 0.55, 1);
-    body.position.y = 0.09;
+    const body = new THREE.Mesh(CRAB_LOOKS[Math.floor(Math.random() * CRAB_LOOKS.length)], this.crabMat);
+    body.castShadow = true;
+    g.scale.setScalar(rand(0.85, 1.25));
     g.add(body);
-    for (const s of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 6, 6), this.eyeMat);
-      eye.position.set(s * 0.06, 0.19, 0.1);
-      g.add(eye);
-      const claw = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), this.crabMat);
-      claw.position.set(s * 0.25, 0.1, 0.1);
-      g.add(claw);
-      for (let l = 0; l < 3; l++) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.14, 4), this.crabMat);
-        leg.position.set(s * 0.19, 0.05, -0.04 + l * 0.06);
-        leg.rotation.z = s * 0.9;
-        g.add(leg);
-      }
-    }
-    g.traverse((o) => (o.castShadow = true));
     const x = rand(-60, 60);
     const z = rand(DIG_MIN_Z + 3, WET_Z - 1);
     g.position.set(x, this.beach.heightAt(x, z), z);
@@ -82,7 +154,7 @@ export class Ecology {
     const hit = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 0.12;
     g.add(hit);
-    const crab: Crab = { mesh: g, vx: 0, vz: 0, timer: 0, phase: Math.random() * 6, alive: true, respawn: 0, hit };
+    const crab: Crab = { mesh: g, vx: 0, vz: 0, timer: 0, phase: Math.random() * 6, alive: true, respawn: 0, hit, body };
     hit.userData.crab = crab;
     this.crabs.push(crab);
   }
@@ -152,7 +224,8 @@ export class Ecology {
       const moving = Math.abs(c.vx) + Math.abs(c.vz) > 0.01;
       if (moving) {
         c.phase += dt * 22;
-        m.position.y += Math.abs(Math.sin(c.phase)) * 0.015;
+        m.position.y += Math.abs(Math.sin(c.phase)) * 0.012;
+        c.body.rotation.z = Math.sin(c.phase) * 0.05;
         m.rotation.y += (Math.atan2(c.vx, c.vz) - Math.PI / 2 - m.rotation.y) * Math.min(1, dt * 4);
       }
     }

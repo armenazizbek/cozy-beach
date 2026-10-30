@@ -2,6 +2,7 @@ import type { StateManager } from '../core/StateManager';
 import { TIER_INFO } from '../core/StateManager';
 import { timeLabel } from '../core/SaveGame';
 import type { GameSettings } from '../core/Settings';
+import { HELP_TOPICS } from '../core/Help';
 import { pad, padText } from './PadText';
 import type { JournalPage } from '../core/Journal';
 import type { Letter } from '../core/Mail';
@@ -327,7 +328,9 @@ export class UIManager {
       const row2 = el('div', 'row gap');
       const ach = el('button', 'btn ghost', '🏆 Achievements');
       ach.onclick = (): void => hooks.onAchievements();
-      row2.append(ach, fresh, menu);
+      const help = el('button', 'btn ghost', '❓ Help');
+      help.onclick = (): void => this.showHelp();
+      row2.append(help, ach, fresh, menu);
       actions.append(resume, row, row2);
     };
     const confirmStep = (question: string, yes: string, run: () => void): void => {
@@ -370,6 +373,7 @@ export class UIManager {
     mk('🏝️', 'New Game', h.onNew);
     mk('📂', 'Load Game', h.onLoad, !h.hasSaves);
     mk('⚙️', 'Settings', h.onSettings);
+    mk('❓', 'Help', () => this.showHelp());
     mk('🏆', 'Achievements', h.onAchievements);
     mk('🎞️', 'Credits', () => this.showCredits());
     mk('🚪', 'Exit Game', h.onExit);
@@ -474,6 +478,50 @@ export class UIManager {
   closeSettings(): void {
     this.settingsEl?.remove();
     this.settingsEl = null;
+  }
+
+  /** How to play: tabs of short topics, from what the game is about to the controls and saving. */
+  showHelp(): void {
+    const wrap = el('div', 'pause helpscreen');
+    const card = el('div', 'intro-card help-card');
+    card.append(el('h1', '', 'Help'));
+    const tabs = el('div', 'help-tabs');
+    const body = el('div', 'help-body');
+    const buttons = HELP_TOPICS.map((t, i) => {
+      const b = el('button', `btn small ghost${i === 0 ? ' on' : ''}`, `${t.icon} ${t.title}`);
+      b.onclick = (): void => show(i);
+      tabs.append(b);
+      return b;
+    });
+    const show = (i: number): void => {
+      buttons.forEach((b, k) => b.classList.toggle('on', k === i));
+      body.replaceChildren();
+      body.scrollTop = 0;
+      for (const blk of HELP_TOPICS[i].blocks) {
+        if (blk.h) body.append(el('h3', '', blk.h));
+        if (blk.p) body.append(el('p', 'help-p', blk.p));
+        if (blk.list) {
+          const ul = el('ul', 'help-list');
+          for (const item of blk.list) ul.append(el('li', '', item));
+          body.append(ul);
+        }
+        if (blk.keys) {
+          const keys = el('div', 'keys');
+          for (const [k, v] of blk.keys) {
+            const row = el('div', 'krow');
+            row.append(el('b', '', k), el('span', '', v));
+            keys.append(row);
+          }
+          body.append(keys);
+        }
+      }
+    };
+    show(0);
+    const back = el('button', 'btn big', 'Back');
+    back.onclick = (): void => wrap.remove();
+    card.append(tabs, body, back);
+    wrap.append(card);
+    this.root.append(wrap);
   }
 
   /** Every achievement, with the ones already earned lit up. */
