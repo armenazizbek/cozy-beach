@@ -1,0 +1,13 @@
+node_modules
+dist
+release
+
+# local tooling and editor files
+.claude/
+.vscode/
+.idea/
+
+# logs and OS junk
+*.log
+.DS_Store
+Thumbs.db
