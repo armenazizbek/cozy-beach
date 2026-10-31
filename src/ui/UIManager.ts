@@ -1166,32 +1166,17 @@ export class UIManager {
       <div class="intro-card">
         <h1>Cozy Treasure Hunter</h1>
         <p class="tag">A misty golden morning. A quiet beach. Nothing to rush.</p>
-        ${pad.on ? `<div class="keys">
-          <div class="krow"><b>LB / RB</b><span>Switch between your tools</span></div>
-          <div class="krow"><b>Detector</b><span>Sweep the sand and listen for the beep</span></div>
-          <div class="krow"><b>Trowel</b><span>Dig where the signal sings (RT)</span></div>
-          <div class="krow"><b>RT</b><span>Brush a dug-up find clean</span></div>
-          <div class="krow"><b>Binoculars</b><span>Pick them with LB / RB, RT to zoom</span></div>
-          <div class="krow"><b>A</b><span>Use what is next to you</span></div>
-          <div class="krow"><b>Cart</b><span>A beside the golf cart to drive it</span></div>
-          <div class="krow"><b>Left stick</b><span>Walk (press it in to hurry)</span></div>
-          <div class="krow"><b>Right stick</b><span>Look around</span></div>
-          <div class="krow"><b>Y</b><span>Open the island map</span></div>
-          <div class="krow"><b>Back</b><span>Mute sound</span></div>
-        </div>` : `<div class="keys">
-          <div class="krow"><b>Scroll</b><span>Switch between your tools</span></div>
-          <div class="krow"><b>Detector</b><span>Sweep the sand and listen for the beep</span></div>
-          <div class="krow"><b>Trowel</b><span>Dig where the signal sings</span></div>
-          <div class="krow"><b>Click</b><span>Brush a dug-up find clean</span></div>
-          <div class="krow"><b>Binoculars</b><span>Scroll to them, click to zoom</span></div>
-          <div class="krow"><b>F</b><span>Use what is next to you</span></div>
-          <div class="krow"><b>Cart</b><span>F beside the golf cart to drive it</span></div>
-          <div class="krow"><b>WASD</b><span>Walk (hold Shift to hurry)</span></div>
-          <div class="krow"><b>Mouse</b><span>Look around (click to capture)</span></div>
-          <div class="krow"><b>M</b><span>Open the island map</span></div>
-          <div class="krow"><b>N</b><span>Mute sound</span></div>
-          <div class="krow"><b>Pad</b><span>Sticks move and look · RT use · LT aim · A interact · LB/RB tools · Start pause</span></div>
-        </div>`}
+        <div class="intro-text">
+          <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat. Long ago ships passed this coast, and some of them did not make it home.</p>
+          <p>You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it.</p>
+          <p>There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like.</p>
+          <ul class="intro-first">
+            <li><span>📡</span>Sweep the sand with the detector and listen for the beep.</li>
+            <li><span>⛏️</span>Dig where it beeps fastest.</li>
+            <li><span>✨</span>Brush what you find until it shines.</li>
+          </ul>
+          <p class="intro-hint">${pad.on ? 'Press Start' : 'Press Esc'} at any time for the pause menu. Help there explains every control.</p>
+        </div>
         <div class="row gap"><button class="btn big" data-act="begin">Begin</button>${onLoad ? '<button class="btn ghost big" data-act="load">Load saved game</button>' : ''}</div>
       </div>`;
     const go = (): void => {

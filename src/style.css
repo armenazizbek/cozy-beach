@@ -832,3 +832,11 @@ body.underground .minimap { display: none; }
 .help-tabs .btn.on { background: linear-gradient(180deg, #f0a24a, var(--accent)); color: #fff; box-shadow: 0 3px 0 var(--accent2); }
 .help-tabs .btn { opacity: 0.7; }
 .help-tabs .btn.on { opacity: 1; }
+
+/* ---------- the new-game introduction ---------- */
+.intro-text { text-align: left; margin: 0 0 16px; max-width: 520px; }
+.intro-text p { margin: 0 0 10px; line-height: 1.55; font-size: 15px; }
+.intro-first { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
+.intro-first li { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 12px; background: rgba(60, 40, 20, 0.07); font-size: 14.5px; line-height: 1.3; }
+.intro-first li span { font-size: 20px; width: 26px; text-align: center; }
+.intro-text .intro-hint { opacity: 0.7; font-style: italic; font-size: 13.5px; margin: 8px 0 0; text-align: center; }

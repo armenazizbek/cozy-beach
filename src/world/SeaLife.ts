@@ -6,6 +6,14 @@ const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 
 const SHARK_LEN = 4.4;
 
+// a shark's leap: how long it lasts, how fast it travels, how far below the surface it starts and how high it climbs
+const BREACH_SECONDS = 2.4;
+const BREACH_SPEED = 6.5;
+const BREACH_DEPTH = 1.8;
+const BREACH_PEAK = 2.7;
+/** the point in the leap, as a fraction of it, where the nose breaks the surface */
+const BREACH_OUT = (1 - Math.sqrt(1 - BREACH_DEPTH / (BREACH_PEAK + BREACH_DEPTH))) / 2;
+
 // swimming area: out beyond the surf, in front of the beach
 const X_MAX = SEA.x;
 const Z_MIN = SHORE_Z + 10;
@@ -67,6 +75,8 @@ export class SeaLife {
   private fishGeo = new THREE.SphereGeometry(1, 8, 6);
   private tailGeo = new THREE.ConeGeometry(0.07, 0.16, 4);
   private sharkBody: THREE.BufferGeometry;
+  /** the body's radius along its length: 0 at the nose, 1 at the tail */
+  private outline: THREE.Vector2[] = [];
   private caudal: THREE.BufferGeometry;
   private pectoral: THREE.BufferGeometry;
   private breachTimer = 40;
@@ -106,6 +116,7 @@ export class SeaLife {
     // smooth the profile with a Catmull-Rom curve
     const curve = new THREE.SplineCurve(profile.map(([u, r]) => new THREE.Vector2(u * L - L / 2, r)));
     for (const pt of curve.getPoints(44)) pts.push(new THREE.Vector2(Math.max(0, pt.y), pt.x));
+    this.outline = curve.getPoints(200).map((pt) => new THREE.Vector2((pt.x + L / 2) / L, Math.max(0, pt.y)));
     const g = new THREE.LatheGeometry(pts, 22);
     g.rotateX(-Math.PI / 2); // lathe axis y -> z, nose (+y) -> -z
     g.scale(1.3, 0.95, 1);
@@ -152,6 +163,23 @@ export class SeaLife {
     return g;
   }
 
+  /** Half the body's width and height (in model units) at a point along it, 0 at the nose and 1 at the tail. */
+  private halfSize(u: number): { w: number; h: number } {
+    let r = 0;
+    // the lathed outline runs from the tail (0) to the nose (1)
+    const uu = 1 - u;
+    for (let i = 1; i < this.outline.length; i++) {
+      if (this.outline[i].x >= uu) {
+        const a = this.outline[i - 1];
+        const b = this.outline[i];
+        r = a.y + ((b.y - a.y) * (uu - a.x)) / Math.max(1e-6, b.x - a.x);
+        break;
+      }
+    }
+    // the body is lathed, then squeezed 1.3 wide and 0.95 high
+    return { w: r * 1.3, h: r * 0.95 };
+  }
+
   private makeShark(finGeo: THREE.BufferGeometry, finMat: THREE.Material): Shark {
     const root = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0.05 });
@@ -183,20 +211,74 @@ export class SeaLife {
     caudal.position.set(0, 0.0, SHARK_LEN / 2 - 0.05);
 
     const dark = new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.3 });
+    const glossy = new THREE.MeshStandardMaterial({ color: 0x07090b, roughness: 0.08, metalness: 0.4 });
+    const white = new THREE.MeshStandardMaterial({ color: 0xf5f3ec, roughness: 0.35 });
+    const gum = new THREE.MeshStandardMaterial({ color: 0x4a1418, roughness: 0.6 });
+    const zAt = (u: number): number => -SHARK_LEN / 2 + u * SHARK_LEN;
     for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), dark);
-      eye.position.set(side * 0.2, 0.08, -1.62);
-      root.add(eye);
-      for (let i = 0; i < 4; i++) {
-        const slit = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.2, 0.03), dark);
-        slit.position.set(side * 0.395, 0.04, -1.0 + i * 0.1);
-        slit.rotation.z = side * 0.2;
+      // an eye sitting on the side of the head: a dark socket, a glossy black eye and a speck of light
+      const ue = 0.115;
+      const hs = this.halfSize(ue);
+      const ey = 0.07;
+      const ex = hs.w * Math.sqrt(Math.max(0.05, 1 - (ey / hs.h) ** 2));
+      const socket = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 8), dark);
+      socket.scale.set(0.55, 0.95, 1.1);
+      socket.position.set(side * (ex - 0.005), ey, zAt(ue));
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), glossy);
+      eye.position.set(side * (ex + 0.012), ey, zAt(ue) - 0.005);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      glint.position.set(side * (ex + 0.05), ey + 0.028, zAt(ue) - 0.03);
+      root.add(socket, eye, glint);
+      // five curved gill slits behind the head
+      for (let i = 0; i < 5; i++) {
+        const ug = 0.255 + i * 0.026;
+        const hg = this.halfSize(ug);
+        const slit = new THREE.Mesh(new THREE.BoxGeometry(0.012, hg.h * 0.62, 0.016), dark);
+        slit.position.set(side * (hg.w - 0.004), 0.02, zAt(ug));
+        slit.rotation.z = side * (-0.18 + 0.02 * i);
+        slit.rotation.y = side * 0.0;
         root.add(slit);
       }
+      // a nostril pit on the snout
+      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), dark);
+      const un = 0.045;
+      const hn = this.halfSize(un);
+      nostril.position.set(side * hn.w * 0.8, 0.03, zAt(un));
+      root.add(nostril);
+      // the pelvic fins, small and low
+      const pelvic = new THREE.Mesh(this.pectoral, finMat);
+      pelvic.scale.set(side * 0.28, 0.28, 0.28);
+      pelvic.position.set(side * 0.12, -0.2, 0.62);
+      pelvic.rotation.z = side * 0.5;
+      root.add(pelvic);
     }
-    const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.012, 0.02), dark);
-    mouth.position.set(0, -0.1, -1.92);
-    root.add(mouth);
+    // the mouth: a wide open grin on the underside of the snout, a dark gape with a row of teeth along each jaw
+    const gape = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20, 0, Math.PI), gum);
+    gape.rotation.x = Math.PI / 2;
+    gape.rotation.z = Math.PI;
+    gape.scale.set(1, 1.35, 1);
+    gape.position.set(0, -0.2, -1.86);
+    root.add(gape);
+    const teeth = (rows: 1 | -1, y: number, len: number): void => {
+      for (let i = 0; i < 15; i++) {
+        const th = -1.15 + (i / 14) * 2.3;
+        const t = new THREE.Mesh(new THREE.ConeGeometry(0.014, len, 5), white);
+        const x = Math.sin(th) * 0.21;
+        const z = -1.86 + (1 - Math.cos(th)) * 0.32 - 0.06 + rows * 0.015;
+        t.position.set(x, y + (rows === 1 ? -len / 2 : len / 2), z);
+        if (rows === 1) t.rotation.x = Math.PI;
+        t.rotation.z = -Math.sin(th) * 0.35;
+        root.add(t);
+      }
+    };
+    teeth(1, -0.195, 0.07);
+    teeth(-1, -0.22, 0.045);
+    // a small anal fin behind the belly
+    const anal = new THREE.Mesh(finGeo, finMat);
+    anal.scale.setScalar(0.22);
+    anal.rotation.x = Math.PI;
+    anal.position.set(0, -0.22, 1.2);
+    root.add(anal);
 
     const hit = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.set(0, 0.4, 0);
@@ -335,12 +417,16 @@ export class SeaLife {
       if (pick) {
         pick.breach = 0.0001;
         pick.breachFrom.set(pick.x, pick.z);
+        // always out to sea, never at the beach or off the edge of the water
+        if (pick.z < Z_MIN + 22) pick.heading = Math.PI + (Math.random() - 0.5) * 0.6;
+        else if (Math.abs(pick.x) > X_MAX - 18) pick.heading = Math.atan2(pick.x, 0) + Math.PI * 0.5;
         this.splash(new THREE.Vector3(pick.x, level, pick.z), 45);
         onSplash(Math.hypot(pick.x - px, pick.z - pz) * 0.5);
       }
     }
 
     for (const s of this.sharks) {
+      let leapDone = false;
       if (!s.alive) {
         s.respawn -= dt;
         if (s.respawn <= 0) {
@@ -356,20 +442,40 @@ export class SeaLife {
         if (s.flinch <= 0) s.speed = s.baseSpeed;
       }
       const leaping = s.breach > 0;
+      let height = 0;
+      let pitch = 0;
       if (leaping) {
-        s.breach += dt / 1.9;
-        if (s.breach >= 1) {
-          s.breach = 0;
-          this.splash(new THREE.Vector3(s.x, level, s.z), 55);
+        // a real leap: it comes up from below the surface at a slant, arcs over and goes back in headfirst
+        const prev = s.breach;
+        s.breach += dt / BREACH_SECONDS;
+        const u = Math.min(1, s.breach);
+        s.x += -Math.sin(s.heading) * BREACH_SPEED * dt;
+        s.z += -Math.cos(s.heading) * BREACH_SPEED * dt;
+        height = -BREACH_DEPTH + 4 * (BREACH_PEAK + BREACH_DEPTH) * u * (1 - u);
+        const slope = (4 * (BREACH_PEAK + BREACH_DEPTH) * (1 - 2 * u)) / (BREACH_SPEED * BREACH_SECONDS);
+        pitch = Math.atan(slope);
+        const at = new THREE.Vector3(s.x - Math.sin(s.heading) * 1.8, level, s.z - Math.cos(s.heading) * 1.8);
+        if (prev < BREACH_OUT && s.breach >= BREACH_OUT) {
+          this.splash(at, 60);
           onSplash(Math.hypot(s.x - px, s.z - pz) * 0.5);
         }
+        if (prev < 1 - BREACH_OUT && s.breach >= 1 - BREACH_OUT) {
+          this.splash(at, 70);
+          onSplash(Math.hypot(s.x - px, s.z - pz) * 0.5);
+        }
+        // spray drips off it while it is in the air
+        if (height > 0.2 && Math.random() < dt * 14) this.splashes.burst(new THREE.Vector3(s.x, level + height, s.z), 4, 0.6, 0.5, 0.7, this.white);
+        if (s.breach >= 1) {
+          s.breach = 0;
+          leapDone = true;
+        }
+      } else {
+        this.steer(s, dt, t, 0.55);
       }
-      this.steer(s, dt, t, leaping ? 0.05 : 0.55);
-      const u = s.breach;
-      const arc = leaping ? 4 * 2.6 * u * (1 - u) : 0;
-      s.root.position.set(s.x, level - 0.22 + arc, s.z);
-      // nose up as it leaves the water, nose down as it returns
-      s.root.rotation.set(leaping ? (0.5 - u) * 2.2 : Math.sin(t * 1.1 + s.phase) * 0.02, s.heading, leaping ? Math.sin(u * Math.PI * 2) * 0.35 : 0, 'YXZ');
+      const u = Math.min(1, s.breach || (leapDone ? 1 : 0));
+      s.root.position.set(s.x, level - 0.22 + height, s.z);
+      // nose up as it leaves the water, level at the top, nose down as it returns, with a slow half-roll over the top
+      s.root.rotation.set(leaping ? pitch : Math.sin(t * 1.1 + s.phase) * 0.02, s.heading, leaping ? (u - 0.5) * 1.5 : 0, 'YXZ');
 
       // swimming: a wave runs down the body, strongest at the tail
       const pos = s.body.geometry.attributes.position as THREE.BufferAttribute;

@@ -191,8 +191,8 @@ export class Game {
   private clock = new THREE.Clock();
   private time = 0;
   readonly view = new ViewModel();
-  /** yaw uses three's rotation.y: 0 looks toward -z (the dunes), PI toward the sea */
-  private player = { x: 0, z: CAMP_Z + 9, yaw: Math.PI, pitch: -0.15 };
+  /** yaw uses three's rotation.y: 0 looks toward -z (the dunes and the camp), PI toward the sea */
+  private player = { x: 0, z: CAMP_Z + 9, yaw: 0, pitch: -0.12 };
   private walkTo: { x: number; z: number; yaw: number; pitch: number } | null = null;
   private moving = false;
   private dayTime = 0;
@@ -1549,6 +1549,12 @@ export class Game {
       this.gameState = 'EXPLORE';
       this.ui.setMode('EXPLORE');
       this.started = true;
+      // a new game starts at the foot of the camp, looking at it
+      this.player.x = 0;
+      this.player.z = CAMP_Z + 9;
+      this.player.yaw = 0;
+      this.player.pitch = -0.12;
+      this.eyeY = 0;
       this.view.proxy.visible = true;
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
