@@ -22,6 +22,7 @@ const WHEEL_BASE = 1.7;
 /** A little electric golf cart the player can climb into and drive around the island. */
 export class GolfCart {
   readonly group = new THREE.Group();
+  private paint = new THREE.MeshStandardMaterial();
   x: number;
   z: number;
   /** same convention as three.js rotation.y: forward is (-sin, -cos); positive turns left */
@@ -49,6 +50,13 @@ export class GolfCart {
     this.place();
   }
 
+  /** Gold paint, from the Luxury shop. */
+  setGilded(): void {
+    this.paint.color.set(0xe8b93a);
+    this.paint.metalness = 0.6;
+    this.paint.roughness = 0.3;
+  }
+
   private part(geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = this.group): THREE.Mesh {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
@@ -61,6 +69,7 @@ export class GolfCart {
   private build(): void {
     const teal = new THREE.MeshStandardMaterial({ color: 0x2f9e8f, roughness: 0.45, metalness: 0.2 });
     const white = new THREE.MeshStandardMaterial({ color: 0xf4f2ea, roughness: 0.6 });
+    this.paint = teal;
     const cream = new THREE.MeshStandardMaterial({ color: 0xe6d7b3, roughness: 0.85 });
     const dark = new THREE.MeshStandardMaterial({ color: 0x24262a, roughness: 0.7, metalness: 0.4 });
     const box = (w: number, h: number, d: number): THREE.BufferGeometry => new THREE.BoxGeometry(w, h, d);

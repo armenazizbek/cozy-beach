@@ -79,8 +79,17 @@ export class AudioManager {
     this.refreshMusic();
   }
 
+  private endingOn = false;
+
+  /** The ending plays its own music, whether or not the radio is on. */
+  setEnding(on: boolean): void {
+    this.endingOn = on;
+    this.refreshMusic();
+    this.setMusicLevel(on ? 1 : this.musicLevel, 1);
+  }
+
   private get playing(): boolean {
-    return this.musicOn || this.menuOn;
+    return this.musicOn || this.menuOn || this.endingOn;
   }
 
   private refreshMusic(): void {
@@ -113,7 +122,7 @@ export class AudioManager {
     { name: 'Under the Dunes', file: 4 },
     { name: 'Cozy Treasure Hunter', file: 0 },
   ];
-  private static readonly RADIO_FILES = ['01-main-theme', '02-beach-day', '03-camp-night', '04-underwater', '05-underground'];
+  private static readonly RADIO_FILES = ['01-main-theme', '02-beach-day', '03-camp-night', '04-underwater', '05-underground', '06-ending'];
 
   get trackName(): string {
     const st = AudioManager.STATIONS[this.trackIdx];
@@ -142,6 +151,7 @@ export class AudioManager {
   }
 
   private wantedFile(): number {
+    if (this.endingOn) return 5;
     if (this.menuOn) return 0;
     const st = AudioManager.STATIONS[this.trackIdx];
     return st.file >= 0 ? st.file : this.place;

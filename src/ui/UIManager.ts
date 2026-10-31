@@ -10,9 +10,15 @@ import type { SaveMeta } from '../core/SaveGame';
 
 const MINI_PX = 150;
 
-/** There is no trowel emoji, so the tool badge draws one: an orange handle, a steel neck and a pointed blade. */
+/** Tool badge drawings that match the tools in hand: the metal detector, the trowel and the binoculars. */
+const DETECTOR_ICON =
+  '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><ellipse cx="9.5" cy="25.5" rx="7.5" ry="3.6" fill="#1f2124" stroke="#e6b422" stroke-width="1.8"/><circle cx="9.5" cy="25.5" r="2.1" fill="#3a4048"/><path d="M9.5 25L21 11.5L23.5 5.5L27.5 7" fill="none" stroke="#9aa3ad" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M25.5 3.5C28.5 3.8 30 6.2 29.2 9" fill="none" stroke="#1f2124" stroke-width="2.6" stroke-linecap="round"/><path d="M21.8 10.5L23.2 6.8" stroke="#1f2124" stroke-width="4" stroke-linecap="round"/><path d="M14.2 19.5L15.8 17.6" stroke="#e6b422" stroke-width="3.2" stroke-linecap="round"/><g transform="translate(18.8 13.8) rotate(-49)"><rect x="-3.4" y="-3.2" width="6.8" height="5.2" rx="1.2" fill="#3a4048" stroke="#1f2124" stroke-width="1"/><rect x="-2" y="-2" width="4" height="2.4" rx="0.4" fill="#39ff88"/></g></svg>';
+
 const TROWEL_ICON =
   '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><path d="M3 29C2 20 7 13 14 11L21 18C19 25 12 30 3 29Z" fill="#c9cfd6" stroke="#5f6771" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.5 27.5L16 16" stroke="#8d95a0" stroke-width="1.4" stroke-linecap="round"/><path d="M16 16L22 10" stroke="#8d95a0" stroke-width="2.6"/><path d="M21 11L23 9" stroke="#dfe3e8" stroke-width="5"/><path d="M23.5 8.5L28.5 3.5" stroke="#e0732f" stroke-width="5.4" stroke-linecap="round"/></svg>';
+
+const BINOC_ICON =
+  '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><rect x="6" y="4" width="6" height="4" rx="1.2" fill="#15181a"/><rect x="20" y="4" width="6" height="4" rx="1.2" fill="#15181a"/><rect x="11" y="10" width="10" height="4.5" rx="1" fill="#15181a"/><circle cx="16" cy="12.2" r="2.2" fill="#3a4440" stroke="#15181a" stroke-width="1"/><path d="M5.5 7.5H12.5L13.8 22H3.5Z" fill="#2b3430" stroke="#15181a" stroke-width="1.3" stroke-linejoin="round"/><path d="M19.5 7.5H26.5L28.5 22H18.2Z" fill="#2b3430" stroke="#15181a" stroke-width="1.3" stroke-linejoin="round"/><ellipse cx="8.6" cy="23.5" rx="5.4" ry="3.2" fill="#15181a"/><ellipse cx="23.4" cy="23.5" rx="5.4" ry="3.2" fill="#15181a"/><ellipse cx="8.6" cy="23.8" rx="3.8" ry="2.1" fill="#6aa8d8"/><ellipse cx="23.4" cy="23.8" rx="3.8" ry="2.1" fill="#6aa8d8"/></svg>';
 
 /** Shows a tool's icon: an emoji, or one of the drawings above. */
 const showIcon = (target: HTMLElement, icon: string): void => {
@@ -209,11 +215,11 @@ export class UIManager {
 
   setTool(n: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 0): void {
     const info: Record<number, [string, string]> = {
-      1: ['📡', 'Detector'],
+      1: [DETECTOR_ICON, 'Detector'],
       2: [TROWEL_ICON, 'Trowel'],
       3: ['⛺', 'Camp'],
       4: ['🔫', 'Gun'],
-      5: ['🔭', 'Binoculars'],
+      5: [BINOC_ICON, 'Binoculars'],
       6: ['🏹', 'Bow'],
       7: ['🚩', 'Flags'],
       8: ['🪣', 'Bucket'],
@@ -246,7 +252,7 @@ export class UIManager {
     this.padTools.classList.toggle('hidden', !show);
     if (!show) return;
     const icons: Record<number, [string, string]> = {
-      1: ['📡', 'Detector'], 2: [TROWEL_ICON, 'Trowel'], 5: ['🔭', 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
+      1: [DETECTOR_ICON, 'Detector'], 2: [TROWEL_ICON, 'Trowel'], 5: [BINOC_ICON, 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
     };
     const others = this.padOtherTools();
     const leftTool = others.includes(this.curTool as 8 | 7 | 6 | 4) ? (this.curTool as 8 | 7 | 6 | 4) : others[0];
@@ -703,17 +709,22 @@ export class UIManager {
     this.root.append(wrap);
   }
 
-  /** The end of part one. Closing it returns to the game. */
-  showTeaser(onClose: () => void): void {
+  /** The end of the story. Closing it returns to the game, which carries on. */
+  showEnding(stats: [string, string][], onClose: () => void): void {
     this.hideBook();
     const wrap = el('div', 'pause bookview teaser');
     const card = el('div', 'intro-card');
+    const facts = el('div', 'ending-stats');
+    for (const [label, value] of stats) facts.append(el('div', 'ending-stat', `<b>${value}</b><span>${label}</span>`));
     card.append(
-      el('h1', '', 'To be continued\u2026'),
-      el('p', 'tag', 'Part 2'),
-      el('p', 'credit', 'The door will open in the next part of the adventure.'),
+      el('h1', '', 'The Marigold\u2019s Gold'),
+      el('p', 'tag', 'You found it'),
+      el('p', 'credit', 'Whatever lived down here died long before Captain Holt ever heard of this coast. The sea carried the Marigold\u2019s gold in on the tide and left it in the bones, and nobody has laid eyes on it since.'),
+      el('p', 'credit', 'Tucked into the old bell is a note, in a newer hand: \u201cThe town made its peace with this long ago. If you are reading it, you were patient and you were kind, and my great-grandfather asked for no more than that. Keep it. Look after the place.\u201d'),
+      facts,
+      el('p', 'tag', 'The beach is still yours.'),
     );
-    const back = el('button', 'btn big', 'Back');
+    const back = el('button', 'btn big', 'Keep playing');
     back.onclick = (): void => onClose();
     card.append(back);
     wrap.append(card);
@@ -1182,7 +1193,7 @@ export class UIManager {
           <p>You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it.</p>
           <p>There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like.</p>
           <ul class="intro-first">
-            <li><span>📡</span>Sweep the sand with the detector and listen for the beep.</li>
+            <li><span>${DETECTOR_ICON}</span>Sweep the sand with the detector and listen for the beep.</li>
             <li><span>⛏️</span>Dig where it beeps fastest.</li>
             <li><span>✨</span>Brush what you find until it shines.</li>
           </ul>

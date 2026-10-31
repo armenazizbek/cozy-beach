@@ -278,6 +278,14 @@ export class Ocean {
     this.update(0);
   }
 
+  /** A sheet of this same open sea, with the same waves and colours, for looking out at it from somewhere else. */
+  seaSheet(width: number, length: number): THREE.Mesh {
+    const geo = new THREE.PlaneGeometry(length, width, 70, 90);
+    geo.rotateX(-Math.PI / 2);
+    geo.setAttribute('aDepth', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count).fill(30), 1));
+    return new THREE.Mesh(geo, this.water.material);
+  }
+
   /** The water's own blue glow would look odd at night, so it fades with the dark (0 day .. 1 night). */
   setNight(n: number): void {
     (this.water.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55 * (1 - 0.85 * n);

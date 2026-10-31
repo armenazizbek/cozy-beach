@@ -102,6 +102,9 @@ export class Boat {
   private vz = 0;
   private wheel = new THREE.Group();
   private motor = new THREE.Group();
+  private stripe = new THREE.MeshStandardMaterial();
+  private rail = new THREE.MeshStandardMaterial();
+  private nameplate = new THREE.Mesh();
   private prop = new THREE.Group();
   private pitch = 0;
   private roll = 0;
@@ -125,6 +128,8 @@ export class Boat {
     const dark = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.6, metalness: 0.4 });
     const chrome = new THREE.MeshStandardMaterial({ color: 0xcfd6dc, roughness: 0.3, metalness: 0.7 });
     const cream = new THREE.MeshStandardMaterial({ color: 0xe9ddc0, roughness: 0.9 });
+    this.stripe = blue;
+    this.rail = teak;
     const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x = 0, y = 0, z = 0, parent: THREE.Object3D = this.group): THREE.Mesh => {
       const m = new THREE.Mesh(geo, mat);
       m.position.set(x, y, z);
@@ -309,7 +314,31 @@ export class Boat {
     add(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), dark, 0.74, 1.3, 2.14);
     add(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshStandardMaterial({ color: 0xe63946, side: THREE.DoubleSide }), 0.91, 1.66, 2.14);
     mergeStatic(this.group, new Set([this.wheel]));
+    // the name on the stern, painted when the boat is given the Marigold's colours
+    const cv = document.createElement('canvas');
+    cv.width = 256;
+    cv.height = 64;
+    const c = cv.getContext('2d')!;
+    c.fillStyle = '#b8892a';
+    c.font = 'bold italic 42px Georgia, serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('Marigold II', 128, 34);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.nameplate = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.16), new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.6 }));
+    this.nameplate.position.set(-0.52, 0.55, 2.32);
+    this.nameplate.visible = false;
+    this.group.add(this.nameplate);
     mergeStatic(this.motor, new Set([this.prop]));
+  }
+
+  /** The captain's colours and the name on the stern, from the Luxury shop. */
+  setMarigold(): void {
+    this.stripe.color.set(0xe0a92e);
+    this.rail.color.set(0xd9ab45);
+    this.rail.metalness = 0.5;
+    this.nameplate.visible = true;
   }
 
   /** World position of the helmsman's eyes. */

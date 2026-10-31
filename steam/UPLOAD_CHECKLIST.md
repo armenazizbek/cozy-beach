@@ -21,7 +21,7 @@ The 8 screenshots, in the order I would show them: golden-hour camp, camp at nig
 
 ## Achievements (Steamworks > Stats & Achievements)
 
-- 33 achievements. Create each one with the API name from `../STEAM.md`.
+- 35 achievements. Create each one with the API name from `../STEAM.md`.
 - Icons: `achievements/<API_NAME>.png` (earned) and `achievements/<API_NAME>_locked.png` (not yet earned), 256 x 256.
 - Names and descriptions are in `../STEAM.md`.
 
@@ -31,6 +31,7 @@ The 8 screenshots, in the order I would show them: golden-hour camp, camp at nig
 
 ## What is still needed
 
+- [ ] Icons for the two newest achievements, `DOOR_OPEN` and `HOARD` (both the earned and the locked version).
 - [ ] A trailer (optional but strongly recommended): 30 to 60 seconds. A good plan: dig and clean, the camp at night, the boat to the island, diving with the turtle and octopus, the underground door, and the title. You can record gameplay with OBS; I can also set up a free-roaming camera mode to make a smooth fly-through if you want.
 - [ ] The App ID (when your Steamworks account is approved) and the achievements created on Steam.
 - [ ] Steam Auto-Cloud turned on (see `../STEAM.md`, step 4).

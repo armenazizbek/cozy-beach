@@ -111,15 +111,18 @@ export class Scenery {
         new THREE.Vector3(Math.cos(leanDir) * lean * 0.2, h * 0.55, Math.sin(leanDir) * lean * 0.2),
         new THREE.Vector3(Math.cos(leanDir) * lean, h, Math.sin(leanDir) * lean),
       );
-      const trunk = new THREE.Mesh(new THREE.TubeGeometry(curve, 14, 0.2, 8), trunkMat);
+      // the trunk reaches well down into the sand, so even the deepest hole never uncovers its foot
+      const rootGeo = new THREE.CylinderGeometry(0.2, 0.22, 2, 8);
+      rootGeo.translate(0, -1, 0);
+      const trunk = new THREE.Mesh(mergeGeometries([rootGeo, new THREE.TubeGeometry(curve, 14, 0.2, 8)]), trunkMat);
       trunk.castShadow = true;
       trunk.receiveShadow = true;
       g.add(trunk);
-      // rings along the trunk
+      // rings along the trunk (and down the buried foot, in case someone digs beside the tree)
       const ringGeos: THREE.BufferGeometry[] = [];
-      for (let i = 1; i < 12; i++) {
-        const pt = curve.getPoint(i / 12);
-        const ring = new THREE.TorusGeometry(0.21 - i * 0.004, 0.03, 5, 10);
+      for (let i = -3; i < 12; i++) {
+        const pt = i > 0 ? curve.getPoint(i / 12) : new THREE.Vector3(0, (i / 12) * h, 0);
+        const ring = new THREE.TorusGeometry(0.21 - Math.max(0, i) * 0.004, 0.03, 5, 10);
         ring.rotateX(Math.PI / 2);
         ring.translate(pt.x, pt.y, pt.z);
         ringGeos.push(ring);

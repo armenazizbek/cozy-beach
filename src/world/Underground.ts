@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CAVE_Y, SeaCave } from './SeaCave';
 
 /** The room under the dunes sits far below the beach, so nothing on the surface can ever be near it. Local x and z are world x and z. */
 export const UG = { y: -60 };
@@ -14,6 +15,10 @@ const SHAFT_TOP = STAIRS.steps * STAIRS.rise + 3.0;
 const TILE = 2.5;
 /** where the great door stands in the east wall */
 const DOOR_Z = 0.5;
+/** a shaft in the ceiling, open to the sky, that lets the noon sun reach the lock of the great door */
+const SUN_SHAFT = { x0: 5, x1: 6.7, z0: -0.15, z1: 1.15, h: 1.6 };
+/** behind the door a stone stair goes down to the sea cave */
+const PASSAGE = { x0: 8.5, x1: 13, halfWidth: 1.05, steps: 15 };
 
 const rng = (seed: number): (() => number) => {
   let s = seed;
@@ -79,6 +84,8 @@ interface Torch {
   flames: THREE.Mesh[];
   light: THREE.PointLight;
   ph: number;
+  /** which part it lights: the room behind the door, the cave, or (by the door) both */
+  place: 'room' | 'cave' | 'door';
 }
 
 /** The chamber below the hatch: a stone room with wall torches, a stair up to an open hatch with the sky above it, and a few old furnishings. */
@@ -88,6 +95,14 @@ export class Underground {
   /** where you stand after coming down, and which way you face */
   readonly entry = { x: -6.5, z: 0.5, yaw: -Math.PI / 2 };
   private torches: Torch[] = [];
+  readonly cave = new SeaCave();
+  private doorOpen = false;
+  private leaves: { pivot: THREE.Group; side: number }[] = [];
+  /** 0 shut .. 1 wide open */
+  private swing = 0;
+  private beam: THREE.Mesh;
+  private sigil: THREE.MeshStandardMaterial | null = null;
+  private seal = new THREE.Group();
 
   constructor() {
     this.group.position.y = UG.y;
@@ -107,12 +122,41 @@ export class Underground {
     add(slab(16.6, ROOM.h, 0.5, wall, 0, ROOM.h / 2, ROOM.z0 - 0.25));
     add(slab(16.6, ROOM.h, 0.5, wall, 0, ROOM.h / 2, ROOM.z1 + 0.25));
     add(slab(0.5, ROOM.h, 10.6, wall, ROOM.x0 - 0.25, ROOM.h / 2, 0));
-    add(slab(0.5, ROOM.h, 10.6, wall, ROOM.x1 + 0.25, ROOM.h / 2, 0));
+    // the east wall has a way through it, behind the great door
+    add(slab(0.5, ROOM.h, DOOR_Z - 1.2 + 5.3, wall, ROOM.x1 + 0.25, ROOM.h / 2, (-5.3 + DOOR_Z - 1.2) / 2));
+    add(slab(0.5, ROOM.h, 5.3 - DOOR_Z - 1.2, wall, ROOM.x1 + 0.25, ROOM.h / 2, (5.3 + DOOR_Z + 1.2) / 2));
+    add(slab(0.5, ROOM.h - 3.05, 2.4, wall, ROOM.x1 + 0.25, (ROOM.h + 3.05) / 2, DOOR_Z));
 
     // the ceiling, with a hole over the top of the stairs
     const hole = { x0: 2.6, x1: 7.8, z0: -5, z1: -3 };
     add(slab(hole.x0 + 8.5, 0.5, 11, roof, (-8.5 + hole.x0) / 2, ROOM.h + 0.25, 0));
-    add(slab(8.5 - hole.x0, 0.5, 5.5 - hole.z1, roof, (hole.x0 + 8.5) / 2, ROOM.h + 0.25, (hole.z1 + 5.5) / 2));
+    // the rest of the ceiling, built around the sun shaft
+    const sun = SUN_SHAFT;
+    add(slab(sun.x0 - hole.x0, 0.5, 5.5 - hole.z1, roof, (hole.x0 + sun.x0) / 2, ROOM.h + 0.25, (hole.z1 + 5.5) / 2));
+    add(slab(8.5 - sun.x1, 0.5, 5.5 - hole.z1, roof, (sun.x1 + 8.5) / 2, ROOM.h + 0.25, (hole.z1 + 5.5) / 2));
+    add(slab(sun.x1 - sun.x0, 0.5, sun.z0 - hole.z1, roof, (sun.x0 + sun.x1) / 2, ROOM.h + 0.25, (hole.z1 + sun.z0) / 2));
+    add(slab(sun.x1 - sun.x0, 0.5, 5.5 - sun.z1, roof, (sun.x0 + sun.x1) / 2, ROOM.h + 0.25, (sun.z1 + 5.5) / 2));
+    // a small square shaft climbs from that opening to the open sky, cut so that the noon sun falls on the great door's lock
+    const up = ROOM.h + 0.5 + sun.h / 2;
+    const th = 0.35;
+    add(slab(th, sun.h, sun.z1 - sun.z0 + th * 2, wall, sun.x0 - th / 2, up, (sun.z0 + sun.z1) / 2));
+    add(slab(th, sun.h, sun.z1 - sun.z0 + th * 2, wall, sun.x1 + th / 2, up, (sun.z0 + sun.z1) / 2));
+    add(slab(sun.x1 - sun.x0, sun.h, th, wall, (sun.x0 + sun.x1) / 2, up, sun.z0 - th / 2));
+    add(slab(sun.x1 - sun.x0, sun.h, th, wall, (sun.x0 + sun.x1) / 2, up, sun.z1 + th / 2));
+    // iron bars across the top: the grate that can be seen on the beach above
+    const barY = ROOM.h + 0.5 + sun.h - 0.06;
+    for (let i = 1; i < 5; i++) {
+      const x = sun.x0 + ((sun.x1 - sun.x0) * i) / 5;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, sun.z1 - sun.z0 + 0.1), iron);
+      bar.position.set(x, barY, (sun.z0 + sun.z1) / 2);
+      add(bar);
+    }
+    for (let i = 1; i < 4; i++) {
+      const z = sun.z0 + ((sun.z1 - sun.z0) * i) / 4;
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(sun.x1 - sun.x0 + 0.1, 0.08, 0.06), iron);
+      bar.position.set((sun.x0 + sun.x1) / 2, barY, z);
+      add(bar);
+    }
 
     // the stairwell: walls on up to a rim, open to the sky
     // Each wall starts exactly where the thing below it ends and never overlaps another box, so no two faces lie in the same plane
@@ -186,10 +230,104 @@ export class Underground {
     this.buildTorches();
     this.buildFurniture(wood, darkWood, iron);
     this.buildDoor(darkWood, iron);
+    this.buildPassage(wall, floor, stairMat, roof);
+    this.setSide(false);
+    this.group.add(this.cave.group);
+    this.colliders.push(...this.cave.colliders);
+    // the beam of noon sun: it comes down the shaft in the ceiling and narrows to the lock
+    const from = new THREE.Vector3(5.3, ROOM.h + 0.5 + SUN_SHAFT.h, DOOR_Z);
+    const to = new THREE.Vector3(ROOM.x1 - 0.08, 1.35, DOOR_Z);
+    const dir = to.clone().sub(from);
+    // it fades in from nothing at the top, so it has no hard end up in the stairwell
+    const fade = document.createElement('canvas');
+    fade.width = 4;
+    fade.height = 64;
+    const c = fade.getContext('2d')!;
+    const grad = c.createLinearGradient(0, 0, 0, 64);
+    grad.addColorStop(0, '#000');
+    grad.addColorStop(0.14, '#fff');
+    grad.addColorStop(1, '#fff');
+    c.fillStyle = grad;
+    c.fillRect(0, 0, 4, 64);
+    this.beam = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.42, 0.1, dir.length(), 18, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0xffe9b0, alphaMap: new THREE.CanvasTexture(fade), transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }),
+    );
+    this.beam.position.copy(from).add(to).multiplyScalar(0.5);
+    this.beam.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize());
+    this.beam.visible = false;
+    add(this.beam);
+  }
+
+  /** The stone stair down from the door to the cave. */
+  private buildPassage(wall: THREE.Material, floor: THREE.Material, stairMat: THREE.Material, roof: THREE.Material): void {
+    const run = (PASSAGE.x1 - PASSAGE.x0) / PASSAGE.steps;
+    const rise = -CAVE_Y / PASSAGE.steps;
+    const add = (o: THREE.Object3D): void => void this.group.add(o);
+    const wide = PASSAGE.halfWidth * 2 + 0.5;
+    add(slab(PASSAGE.x0 - ROOM.x1, 0.4, wide, floor, (PASSAGE.x0 + ROOM.x1) / 2, -0.2, DOOR_Z));
+    for (let i = 0; i < PASSAGE.steps; i++) {
+      add(slab(run, 0.5, wide, stairMat, PASSAGE.x0 + run * (i + 0.5), -(i + 1) * rise - 0.25, DOOR_Z));
+    }
+    const len = PASSAGE.x1 - ROOM.x1 + 0.6;
+    const cx = (PASSAGE.x1 + ROOM.x1 + 0.6) / 2;
+    const h = 3.05 - CAVE_Y;
+    for (const s of [-1, 1]) add(slab(len, h, 0.4, wall, cx, CAVE_Y + h / 2, DOOR_Z + s * (PASSAGE.halfWidth + 0.35)));
+    // the roof slopes down with the stair, so at the bottom it runs in under the rock of the cave wall
+    const fall = 0.45;
+    const tilt = Math.atan(fall);
+    const x0 = ROOM.x1;
+    const x1 = PASSAGE.x1 + 0.9;
+    const under = (x: number): number => 3.05 - (x - PASSAGE.x0) * fall;
+    const lid = slab((x1 - x0) / Math.cos(tilt), 0.4, wide + 0.8, roof, (x0 + x1) / 2, under((x0 + x1) / 2) + 0.2 / Math.cos(tilt), DOOR_Z);
+    lid.rotation.z = -tilt;
+    add(lid);
+  }
+
+  /** Lights cost time, so each side of the stair only keeps its own: the room's while in the room, the cave's while in the cave. */
+  setSide(inCave: boolean): void {
+    for (const t of this.torches) t.light.visible = t.place === 'door' || (t.place === 'cave') === inCave;
+    for (const l of this.cave.lights) l.visible = inCave;
+  }
+
+  /** True when the sun is reaching the keyhole. */
+  setBeam(on: boolean): void {
+    this.beam.visible = on && !this.doorOpen;
+  }
+
+  /** Opens the great door: swinging, or already standing open when a saved game is loaded. */
+  openDoor(instant = false): void {
+    this.doorOpen = true;
+    this.beam.visible = false;
+    if (this.sigil) this.sigil.emissiveIntensity = 2.2;
+    this.seal.visible = true;
+    if (instant) {
+      this.swing = 1;
+      this.poseDoor();
+    }
+  }
+
+  get isDoorOpen(): boolean {
+    return this.doorOpen;
+  }
+
+  private poseDoor(): void {
+    const k = this.swing * this.swing * (3 - 2 * this.swing);
+    for (const l of this.leaves) l.pivot.rotation.y = -l.side * 1.8 * k;
+  }
+
+  /** True when close enough to reach the gold. */
+  nearGold(x: number, z: number): boolean {
+    return this.doorOpen && x > PASSAGE.x1 && this.cave.nearGold(x, z);
   }
 
   /** The height of the floor at a point: flat, or the steps of the stair. */
   floorAt(x: number, z: number): number {
+    if (this.doorOpen && x > PASSAGE.x0) {
+      if (x >= PASSAGE.x1) return Math.min(CAVE_Y + 0.4, this.cave.floorAt(x, z));
+      const step = Math.floor(((x - PASSAGE.x0) / (PASSAGE.x1 - PASSAGE.x0)) * PASSAGE.steps) + 1;
+      return (CAVE_Y * step) / PASSAGE.steps;
+    }
     if (z > STAIRS.z0 - 0.2 && z < STAIRS.z1 && x > STAIRS.x0) {
       if (x >= STAIRS.x1) return TOP;
       return (Math.floor((x - STAIRS.x0) / STEP_RUN) + 1) * STAIRS.rise;
@@ -199,6 +337,11 @@ export class Underground {
 
   /** Keeps a walker inside the walls. */
   clamp(x: number, z: number): { x: number; z: number } {
+    if (this.doorOpen) {
+      if (x > PASSAGE.x1 + 0.6) return this.cave.clamp(x, z);
+      if (x > ROOM.x1 - 1 && Math.abs(z - DOOR_Z) < PASSAGE.halfWidth) return { x, z };
+      if (x > ROOM.x1) return { x, z: Math.min(DOOR_Z + PASSAGE.halfWidth - 0.05, Math.max(DOOR_Z - PASSAGE.halfWidth + 0.05, z)) };
+    }
     return { x: Math.min(STAIRS.landingX1 - 0.45, Math.max(ROOM.x0 + 0.4, x)), z: Math.min(ROOM.z1 - 0.4, Math.max(ROOM.z0 + 0.3, z)) };
   }
 
@@ -207,7 +350,8 @@ export class Underground {
 
   /** True where the ladder hangs: at the east end of the landing, against the wall. */
   onLadder(x: number, z: number): boolean {
-    return x > STAIRS.x1 + 0.2 && z > STAIRS.z0 + 0.2 && z < STAIRS.z1 - 0.2;
+    // only on the landing at the top of the stair: the cave beyond the great door lies on the same line, and must not count
+    return x > STAIRS.x1 + 0.2 && x < STAIRS.landingX1 && z > STAIRS.z0 + 0.2 && z < STAIRS.z1 - 0.2;
   }
 
   setActive(on: boolean): void {
@@ -215,7 +359,7 @@ export class Underground {
     this.group.matrixWorldAutoUpdate = on;
   }
 
-  update(t: number): void {
+  update(t: number, dt = 0): void {
     for (const tc of this.torches) {
       const k = 1 + Math.sin(t * 11 + tc.ph) * 0.12 + Math.sin(t * 6.3 + tc.ph * 2) * 0.1 + (Math.random() - 0.5) * 0.06;
       tc.light.intensity = 11 * k;
@@ -224,11 +368,16 @@ export class Underground {
         f.rotation.y = t * (2 + i) + tc.ph;
       });
     }
+    this.cave.update(t, dt);
+    if (this.doorOpen && this.swing < 1) {
+      this.swing = Math.min(1, this.swing + 0.008);
+      this.poseDoor();
+    }
   }
 
   // ---------------------------------------------------------------- torches
 
-  private torch(x: number, y: number, z: number, faceX: number, faceZ: number): void {
+  private torch(x: number, y: number, z: number, faceX: number, faceZ: number, place: Torch['place'] = 'room'): void {
     const iron = new THREE.MeshStandardMaterial({ color: 0x2c2f34, roughness: 0.5, metalness: 0.7 });
     const wood = new THREE.MeshStandardMaterial({ color: 0x5a3b24, roughness: 0.95 });
     const char = new THREE.MeshStandardMaterial({ color: 0x1a120c, roughness: 1 });
@@ -257,7 +406,7 @@ export class Underground {
     g.position.set(x, y, z);
     g.rotation.y = Math.atan2(faceX, faceZ);
     this.group.add(g);
-    this.torches.push({ flames, light, ph: Math.random() * 6 });
+    this.torches.push({ flames, light, ph: Math.random() * 6, place });
   }
 
   private buildTorches(): void {
@@ -267,8 +416,11 @@ export class Underground {
     this.torch(-6.5, 2.2, ROOM.z0 + 0.02, 0, 1);
     this.torch(-1, 3.4, ROOM.z0 + 0.02, 0, 1);
     // either side of the great door
-    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z - 2.1, -1, 0);
-    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z + 2.1, -1, 0);
+    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z - 2.1, -1, 0, 'door');
+    this.torch(ROOM.x1 - 0.02, 2.4, DOOR_Z + 2.1, -1, 0, 'door');
+    // on the cave wall either side of the stair, so the cave is never dark, whatever the hour
+    this.torch(PASSAGE.x1 + 0.45, CAVE_Y + 2.1, DOOR_Z - 2.3, 1, 0, 'cave');
+    this.torch(PASSAGE.x1 + 0.45, CAVE_Y + 2.1, DOOR_Z + 2.3, 1, 0, 'cave');
     // up the stairwell, so the climb is lit
     this.torch(4.2, 5.9, ROOM.z0 + 0.02, 0, 1);
     this.torch(6.6, 6.4, ROOM.z0 + 0.02, 0, 1);
@@ -296,26 +448,38 @@ export class Underground {
     // the two leaves
     const leaf = new THREE.MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.9 });
     for (const sx of [-1, 1]) {
-      const body = add(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.03, H - 0.1, 0.16), leaf));
-      body.position.set(sx * (W / 4), H / 2 + 0.05, 0);
+      // each leaf turns on a hinge at the outer edge of the frame, swinging away from the room
+      const pivot = new THREE.Group();
+      pivot.position.x = (sx * W) / 2;
+      g.add(pivot);
+      this.leaves.push({ pivot, side: sx });
+      const part = (m: THREE.Mesh, x: number, y: number, z: number): THREE.Mesh => {
+        m.castShadow = true;
+        m.receiveShadow = true;
+        m.position.set(x - (sx * W) / 2, y, z);
+        pivot.add(m);
+        return m;
+      };
+      part(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.03, H - 0.1, 0.16), leaf), sx * (W / 4), H / 2 + 0.05, 0);
       for (const y of [0.55, 1.5, 2.45]) {
-        const strap = add(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.06, 0.16, 0.04), iron));
-        strap.position.set(sx * (W / 4), y, 0.1);
-        for (let i = 0; i < 4; i++) {
-          const stud = add(new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), iron));
-          stud.position.set(sx * (W / 4) + (i - 1.5) * 0.26, y, 0.13);
-        }
+        part(new THREE.Mesh(new THREE.BoxGeometry(W / 2 - 0.06, 0.16, 0.04), iron), sx * (W / 4), y, 0.1);
+        for (let i = 0; i < 4; i++) part(new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), iron), sx * (W / 4) + (i - 1.5) * 0.26, y, 0.13);
       }
-      const handle = add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 18), iron));
-      handle.position.set(sx * 0.2, 1.3, 0.11);
+      part(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 18), iron), sx * 0.2, 1.3, 0.11);
+      // half a lock plate on each leaf: it parts down the middle as the door opens
+      part(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.4, 0.05), iron), sx * 0.066, 1.35, 0.12);
+      if (sx < 0) part(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 20), new THREE.MeshBasicMaterial({ color: 0x050403 })), -0.066, 1.35, 0.15).rotation.x = Math.PI / 2;
     }
-    // a lock plate and keyhole in the middle, where there is no key
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.4, 0.05), iron)).position.set(0, 1.35, 0.12);
-    const keyhole = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0x050403 }));
-    keyhole.position.set(0, 1.35, 0.15);
-    g.add(keyhole);
+    // the medallion, sitting in the lock once the door has taken it
+    const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.095, 0.03, 24), new THREE.MeshStandardMaterial({ color: 0xd8ac4a, metalness: 0.75, roughness: 0.3 }));
+    coin.rotation.x = Math.PI / 2;
+    this.seal.add(coin);
+    this.seal.position.set(W / 2 - 0.066, 1.35, 0.17);
+    this.seal.visible = false;
+    this.leaves[0].pivot.add(this.seal);
     // a sigil above the door: a ring and a ring of small lights, glowing faintly teal
     const glow = new THREE.MeshStandardMaterial({ color: 0x1f6f7a, emissive: 0x3fd0e0, emissiveIntensity: 0.9, roughness: 0.4 });
+    this.sigil = glow;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.025, 8, 36), glow);
     ring.position.set(0, H + 0.85, 0.2);
     g.add(ring);
@@ -442,7 +606,7 @@ export class Underground {
 
   /** True when close enough to the door in the east wall. */
   nearDoor(x: number, z: number): boolean {
-    return Math.hypot(x - 7.7, z - DOOR_Z) < 2.4;
+    return !this.doorOpen && Math.hypot(x - 7.7, z - DOOR_Z) < 2.4;
   }
 
   /** True when close enough to the lectern to read the journal. */

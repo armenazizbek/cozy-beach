@@ -40,7 +40,7 @@ Cozy Treasure Hunter is a gentle first-person game about a long beach, a metal d
 [/list]
 
 [h2]Under the dunes[/h2]
-A stone room lit by torches, a captain's journal left open on a lectern and a great door that is not ready to open. Part one ends here. What is behind the door is the next adventure.
+A stone room lit by torches, a captain's journal left open on a lectern and a great door that has been waiting a very long time for the right two antiques and the noon sun. What is behind it is yours to find, and the beach is still yours afterwards.
 
 [h2]A world that changes around you[/h2]
 [list]
@@ -53,7 +53,7 @@ A stone room lit by torches, a captain's journal left open on a lectern and a gr
 [list]
 [*] Gamepad support, with on-screen prompts that follow what you are using
 [*] Autosave, plus as many manual saves as you like
-[*] 33 Steam achievements
+[*] 35 Steam achievements
 [*] Steam Cloud saves
 [*] Windowed, borderless and fullscreen, with an adjustable resolution
 [/list]

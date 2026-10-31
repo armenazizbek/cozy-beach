@@ -4,7 +4,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
 
 ## What is built in
 
-- **Achievements.** 33 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). When Steam starts the game, each achievement is also unlocked on Steam. Outside Steam it works the same, without any Steam features.
+- **Achievements.** 35 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). When Steam starts the game, each achievement is also unlocked on Steam. Outside Steam it works the same, without any Steam features.
 - **Cloud saves.** In the desktop app every save, the autosave and the achievement list are plain `.json` files in a `saves` folder inside the game's user-data folder, which Steam can copy to the cloud (see step 4). Saves an earlier version kept in the browser's storage are copied across the first time they are read.
 - **Installer.** `npm run dist:win` makes an installer (`Cozy-Treasure-Hunter-Setup-<version>.exe`, with a desktop shortcut, a Start-menu entry, a choice of folder and an uninstaller) and a portable exe. Steam itself does not use the installer: it installs the game from the files you upload (step 5).
 
@@ -63,4 +63,6 @@ What the game already does for Steam, and what is left to do on Steam's side.
 | `HATCH` | A Door Under the Sand | Dig up the hidden hatch. |
 | `UNDERGROUND` | Under the Dunes | Climb down into the stone room. |
 | `JOURNAL` | The Captain’s Story | Read the captain’s journal. |
-| `DOOR` | To Be Continued… | Try the great door. (secret) |
+| `DOOR` | Knock Knock | Try the great door. (secret) |
+| `DOOR_OPEN` | High Noon | Open the great door. (secret) |
+| `HOARD` | The Marigold’s Gold | Find the lost gold. (secret) |

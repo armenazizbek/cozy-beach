@@ -39,19 +39,19 @@ const toBone = (s: Bone, x: number, y: number, z: number): number => {
 };
 
 /** The union of two shapes, with the crease between them filled in over a distance of about `k`. */
-const blend = (a: number, b: number, k: number): number => {
+export const blendShapes = (a: number, b: number, k: number): number => {
   const h = Math.max(k - Math.abs(a - b), 0) / k;
   return Math.min(a, b) - (h * h * k) / 4;
 };
 
 const merged = (bones: Bone[], k: number, x: number, y: number, z: number): number => {
   let d = Infinity;
-  for (const s of bones) d = blend(d, toBone(s, x, y, z), k);
+  for (const s of bones) d = blendShapes(d, toBone(s, x, y, z), k);
   return d;
 };
 
 /** Turns a distance function into one closed mesh (surface nets), with normals taken from the function so it shades perfectly smooth. */
-const surface = (f: (x: number, y: number, z: number) => number, lo: THREE.Vector3, hi: THREE.Vector3, step: number): THREE.BufferGeometry => {
+export const solidSurface = (f: (x: number, y: number, z: number) => number, lo: THREE.Vector3, hi: THREE.Vector3, step: number): THREE.BufferGeometry => {
   const nx = Math.ceil((hi.x - lo.x) / step) + 1;
   const ny = Math.ceil((hi.y - lo.y) / step) + 1;
   const nz = Math.ceil((hi.z - lo.z) / step) + 1;
@@ -201,9 +201,9 @@ export const buildFist = (r: number, toElbow: THREE.Vector3, mat: THREE.Material
 
   const dist = (x: number, y: number, z: number): number => {
     let hand = merged(digits[0], 0.003, x, y, z);
-    for (let i = 1; i < digits.length; i++) hand = blend(hand, merged(digits[i], 0.003, x, y, z), 0.006);
-    hand = blend(hand, merged(palm, 0.018, x, y, z), 0.012);
-    return blend(hand, merged(thumb, 0.004, x, y, z), 0.012);
+    for (let i = 1; i < digits.length; i++) hand = blendShapes(hand, merged(digits[i], 0.003, x, y, z), 0.006);
+    hand = blendShapes(hand, merged(palm, 0.018, x, y, z), 0.012);
+    return blendShapes(hand, merged(thumb, 0.004, x, y, z), 0.012);
   };
 
   const box = new THREE.Box3();
@@ -212,5 +212,5 @@ export const buildFist = (r: number, toElbow: THREE.Vector3, mat: THREE.Material
     box.expandByPoint(v(s.bx, s.by, s.bz));
   }
   box.expandByScalar(0.04);
-  return new THREE.Mesh(surface(dist, box.min, box.max, 0.004), mat);
+  return new THREE.Mesh(solidSurface(dist, box.min, box.max, 0.004), mat);
 };

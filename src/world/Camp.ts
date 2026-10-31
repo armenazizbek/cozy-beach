@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeStatic } from './merge';
+import { buildMonsterSkull } from './SeaCave';
 import { ParticleSystem } from '../core/Particles';
 import { CAMP_Y, CAMP_Z } from './Beach';
 
@@ -603,6 +604,28 @@ export class Camp {
     this.signMat.needsUpdate = true;
   }
 
+  private skull: THREE.Group | null = null;
+
+  /** The monster's skull, mounted on a stone plinth at the edge of the camp. */
+  showSkull(): void {
+    if (this.skull) return;
+    const g = new THREE.Group();
+    const plinth = box(1.9, 0.62, 3.6, new THREE.MeshStandardMaterial({ color: 0x8b8680, roughness: 1 }), 0, 0.19, 0);
+    const head = buildMonsterSkull();
+    head.position.y = 1.25;
+    g.add(plinth, head);
+    const x = 9.4;
+    const z = -4.6;
+    const rot = 2.4;
+    g.position.set(x, 0, z);
+    g.rotation.y = rot;
+    this.group.add(g);
+    for (const s of [-0.85, 0.85]) {
+      this.obstacles.push({ x: x + Math.sin(rot) * s, z: CAMP_Z + z + Math.cos(rot) * s, r: 1.25 });
+    }
+    this.skull = g;
+  }
+
   /** Past their reach the camp's lights only cost time, so they switch off once the player is well away. */
   setLightsNear(near: boolean): void {
     this.fireLight.visible = this.lanternLight.visible = this.camperLight.visible = near;
@@ -965,21 +988,21 @@ export class Camp {
     // door on the fire side
     g.add(box(0.8, 1.35, 0.05, new THREE.MeshStandardMaterial({ color: 0x7a5538, roughness: 0.8 }), 1.65, 1.35, 1.03));
     g.add(box(0.06, 0.06, 0.07, cream, 1.4, 1.3, 1.08));
-    // striped awning with poles
-    const stripe = (i: number): THREE.Mesh => box(0.3, 0.05, 1.3, i % 2 ? cream : trim, 1.1 + i * 0.3, 2.15 - i * 0.0, 1.65);
+    // striped awning with poles, flush with the end of the camper
+    const stripe = (i: number): THREE.Mesh => box(0.3, 0.05, 1.3, i % 2 ? cream : trim, 0.55 + i * 0.3, 2.15 - i * 0.0, 1.65);
     for (let i = 0; i < 6; i++) {
       const s = stripe(i);
       s.rotation.x = 0.22;
       g.add(s);
     }
-    for (const x of [1.0, 2.7]) g.add(box(0.06, 1.7, 0.06, wood(0x4a3523), x, 1.1, 2.25));
+    for (const x of [0.45, 2.15]) g.add(box(0.06, 1.7, 0.06, wood(0x4a3523), x, 1.1, 2.25));
     // string lights along the awning edge
     for (let i = 0; i < 7; i++) {
       const bulb = new THREE.Mesh(
         new THREE.SphereGeometry(0.06, 8, 6),
         new THREE.MeshStandardMaterial({ color: 0xfff0b0, emissive: 0xffc860, emissiveIntensity: 1.2 }),
       );
-      bulb.position.set(1.0 + i * 0.28, 1.9 - Math.sin((i / 6) * Math.PI) * -0.0, 2.3);
+      bulb.position.set(0.45 + i * 0.28, 1.9 - Math.sin((i / 6) * Math.PI) * -0.0, 2.3);
       g.add(bulb);
     }
     // wheels (both sides) and a hitch with a jockey wheel

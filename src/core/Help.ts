@@ -174,7 +174,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'Bow (6): hold click to draw, release to shoot. Toy pistol (4): click to shoot. Crabs, gulls, sharks and coconuts pay a few coins when hit.',
         ],
       },
-      { p: 'There are secrets that the journal and the maps only hint at. If you find a strange door, give it some time.' },
+      { p: 'There are secrets that the journal and the maps only hint at. If you find a strange door, read what the captain left behind, and keep your antiques together.' },
     ],
   },
   {

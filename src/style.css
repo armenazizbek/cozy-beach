@@ -841,3 +841,9 @@ body.underground .minimap { display: none; }
 .intro-first li { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 12px; background: rgba(60, 40, 20, 0.07); font-size: 14.5px; line-height: 1.3; }
 .intro-first li span { font-size: 20px; width: 26px; text-align: center; }
 .intro-text .intro-hint { opacity: 0.7; font-style: italic; font-size: 13.5px; margin: 8px 0 0; text-align: center; }
+
+/* ---------- the ending card ---------- */
+.ending-stats { display: flex; justify-content: center; gap: 28px; margin: 14px 0; }
+.ending-stat { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ending-stat b { font-size: 26px; }
+.ending-stat span { font-size: 13px; opacity: 0.75; }

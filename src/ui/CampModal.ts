@@ -2,9 +2,9 @@ import type { AudioManager } from '../core/AudioManager';
 import { padText } from './PadText';
 import { DEF_BY_ID, ITEM_DEFS, QUEST_DEFS, SHARD_SETS } from '../core/items';
 import type { LightingMode, TierKey } from '../core/StateManager';
-import { DECOR, DIVE_COST, BUCKET_COST, BONE_COST, BONE_STOCK, BOAT_KEY_COST, BOW_COST, CART_KEY_COST, FLAG_PACK_COST, FLAG_PACK_SIZE, GUN_COST, StateManager, TIER_INFO } from '../core/StateManager';
+import { DECOR, DIVE_COST, LUXURY, BUCKET_COST, BONE_COST, BONE_STOCK, BOAT_KEY_COST, BOW_COST, CART_KEY_COST, FLAG_PACK_COST, FLAG_PACK_SIZE, GUN_COST, StateManager, TIER_INFO } from '../core/StateManager';
 
-export type CampTab = 'rest' | 'recycle' | 'sell' | 'board' | 'upgrades' | 'shelf';
+export type CampTab = 'rest' | 'recycle' | 'sell' | 'board' | 'upgrades' | 'luxury' | 'shelf';
 
 export interface CampHooks {
   onSip: () => void;
@@ -12,6 +12,7 @@ export interface CampHooks {
   onLighting: () => void;
   onRecycled: (pieces: number) => void;
   onAssembled: (setId: string) => void;
+  onLuxury: () => void;
   toast: (msg: string) => void;
 }
 
@@ -21,6 +22,7 @@ const TABS: [CampTab, string][] = [
   ['sell', '🪙 Sell & Assemble'],
   ['board', '📌 Lost & Found'],
   ['upgrades', '🧰 Upgrades'],
+  ['luxury', '👑 Luxury'],
   ['shelf', '🏺 Trophy Shelf'],
 ];
 
@@ -28,6 +30,7 @@ const LIGHT_NAMES: Record<LightingMode, string> = {
   cycle: 'Day & night cycle',
   golden: 'Golden Morning',
   day: 'Bright Day',
+  rain: 'Rainy Day',
   sunset: 'Sunset',
   night: 'Cozy Night',
 };
@@ -94,6 +97,7 @@ export class CampModal {
   private render(): void {
     this.tabs.innerHTML = '';
     for (const [id, label] of TABS) {
+      if (id === 'luxury' && !this.state.data.hoardTaken) continue;
       const t = this.btn(label, () => {
         this.audio.ui();
         this.tab = id;
@@ -113,6 +117,7 @@ export class CampModal {
       case 'sell': this.renderSell(); break;
       case 'board': this.renderBoard(); break;
       case 'upgrades': this.renderUpgrades(); break;
+      case 'luxury': this.renderLuxury(); break;
       case 'shelf': this.renderShelf(); break;
     }
   }
@@ -454,6 +459,36 @@ export class CampModal {
     }, 'small', soldOut || this.state.data.coins < BONE_COST));
     fun.append(fh, keyCell, boatCell, bowCell, flagCell, bucketCell, diveCell, ...decorCells, boneCell, cell);
     this.body.append(fun);
+  }
+
+  /** Only there once the gold has been found. */
+  private renderLuxury(): void {
+    const grid = document.createElement('div');
+    grid.className = 'section';
+    const head = document.createElement('h4');
+    head.textContent = 'Things the Marigold\u2019s gold can buy';
+    grid.append(head);
+    for (const l of LUXURY) {
+      const owned = this.state.data.luxury.includes(l.id);
+      const cell = document.createElement('div');
+      cell.className = `ucell ${owned ? 'owned' : ''}`;
+      const name = document.createElement('b');
+      name.textContent = l.name;
+      cell.append(name, this.p(l.desc));
+      if (owned) cell.append(this.p('Yours', 'tag'));
+      else {
+        cell.append(this.btn(`Buy · ${l.cost}g`, () => {
+          if (this.state.buyLuxury(l.id)) {
+            this.audio.discover();
+            this.hooks.onLuxury();
+            this.hooks.toast(`${l.name} is yours.`);
+          } else this.audio.error();
+          this.render();
+        }, 'small', this.state.data.coins < l.cost));
+      }
+      grid.append(cell);
+    }
+    this.body.append(grid);
   }
 
   private renderShelf(): void {

@@ -408,6 +408,26 @@ export class Dog {
     }
   }
 
+  /** The Golden Bone from the Luxury shop: the dog carries it in its mouth from now on. */
+  setGoldenBone(): void {
+    if (this.jaw.getObjectByName('golden-bone')) return;
+    const gold = new THREE.MeshStandardMaterial({ color: 0xf0c24a, roughness: 0.3, metalness: 0.75 });
+    const bone = new THREE.Group();
+    bone.name = 'golden-bone';
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), gold);
+    shaft.rotation.z = Math.PI / 2;
+    bone.add(shaft);
+    for (const sx of [-1, 1]) {
+      for (const sz of [-1, 1]) {
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), gold);
+        knob.position.set(sx * 0.11, 0, sz * 0.02);
+        bone.add(knob);
+      }
+    }
+    bone.position.set(0, 0.01, -0.13);
+    this.jaw.add(bone);
+  }
+
   get away(): boolean {
     return this.state !== 'rest';
   }

@@ -8,6 +8,7 @@ import { DigTool } from '../mechanics/DigTool';
 import { CampModal } from '../ui/CampModal';
 import type { CampTab } from '../ui/CampModal';
 import { UIManager } from '../ui/UIManager';
+import { HOARD_VALUE, buildGrate } from '../world/SeaCave';
 import { BEACH_SEGMENTS, Beach, CAMP_Z, HALF, SHORE_Z, ISLAND, SEA, WATER_LEVEL, createSkirt, createSurround } from '../world/Beach';
 import { Birds } from '../world/Birds';
 import { Boat } from '../world/Boat';
@@ -78,15 +79,19 @@ const NO_TARGETS: THREE.Object3D[] = [];
 const DOG_LOST_CHANCE = 0.06;
 const SHARK_REWARD = 5;
 const FISH_REWARD = 1;
-const LIGHT_ORDER: LightingMode[] = ['cycle', 'golden', 'day', 'sunset', 'night'];
+const LIGHT_ORDER: LightingMode[] = ['cycle', 'golden', 'day', 'rain', 'sunset', 'night'];
 /** how long a full day lasts, in seconds (5 minutes) */
 const DAY_SECONDS = 5 * 60;
 /** how often the game saves itself, in seconds of play */
 const AUTOSAVE_SECONDS = 90;
 /** the shortest gap between two autosaves, whatever triggers them */
 const AUTOSAVE_MIN_GAP = 15000;
+/** how far the grate's stone frame reaches from its middle (it is 2.34 by 1.94): no digging inside this */
+const GRATE_R = 1.6;
+/** no find is buried closer than this to the grate, so none can be dug out from under the stone */
+const GRATE_CLEAR = 2.6;
 /** the time of day each fixed mood is frozen at */
-const MOOD_TIME: Record<Exclude<LightingMode, 'cycle'>, number> = { golden: 0.02, day: 0.28, sunset: 0.56, night: 0.78 };
+const MOOD_TIME: Record<Exclude<LightingMode, 'cycle'>, number> = { golden: 0.02, day: 0.28, rain: 0.4, sunset: 0.56, night: 0.78 };
 const CATEGORY_LABEL: Record<string, string> = {
   trash: 'Recyclable', coin: 'Coin', jewelry: 'Jewelry', quest: 'Lost & Found', shard: 'Antique shard',
 };
@@ -179,6 +184,8 @@ export class Game {
   usingPad = false;
   /** the controller is holding the cleaning brush */
   private padBrush = false;
+  /** where the grate over the sun shaft lies on the beach */
+  private grate: { x: number; z: number } | null = null;
   /** the dropdown whose choices are open for the controller */
   private padSelect: HTMLSelectElement | null = null;
   private padKeys = new Set<string>();
@@ -316,6 +323,7 @@ export class Game {
       onLighting: () => this.cycleLighting(),
       onRecycled: () => undefined,
       onAssembled: (id) => this.camp.showTrophy(id),
+      onLuxury: () => this.applyLuxury(),
       toast: (m) => this.ui.toast(m),
     });
 
@@ -329,6 +337,12 @@ export class Game {
 
     this.ecology.setScore(this.state.data.ecology);
     this.state.data.assembled.forEach((id) => this.camp.showTrophy(id));
+    this.cellar.cave.addSea(this.ocean.seaSheet(900, 700));
+    this.cellar.cave.addClouds(this.sky.cloudMaterials);
+    this.cellar.cave.addShark(this.sea.sharks[0].root);
+    if (this.state.data.doorOpen) this.cellar.openDoor(true);
+    this.cellar.cave.setTaken(this.state.data.hoardTaken);
+    this.applyLuxury();
     const showDecor = (): void => {
       const d = this.state.data;
       this.camp.setDecor(d.decor ?? [], SIGN_TEXTS[d.signText ?? 0] ?? SIGN_TEXTS[0]);
@@ -362,6 +376,7 @@ export class Game {
     this.ensureIslandFinds();
     this.ensureTreasureCaches();
     this.ensureCaptainChest();
+    this.placeGrate();
     this.ensureDiveFinds();
 
     // Esc while the mouse is captured is swallowed by the browser: treat losing the lock as pausing
@@ -394,11 +409,12 @@ export class Game {
    */
   private async prepareEverything(): Promise<void> {
     const bar = document.getElementById('boot-bar');
-    const places: { camp: boolean; near: boolean; under: boolean; cellar: boolean }[] = [
-      { camp: true, near: false, under: false, cellar: false },
-      { camp: false, near: false, under: true, cellar: false },
-      { camp: false, near: false, under: false, cellar: true },
-      { camp: true, near: true, under: false, cellar: false },
+    const places: { camp: boolean; near: boolean; under: boolean; cellar: boolean; cave: boolean }[] = [
+      { camp: true, near: false, under: false, cellar: false, cave: false },
+      { camp: false, near: false, under: true, cellar: false, cave: false },
+      { camp: false, near: false, under: false, cellar: true, cave: true },
+      { camp: false, near: false, under: false, cellar: true, cave: false },
+      { camp: true, near: true, under: false, cellar: false, cave: false },
     ];
     const steps = places.length + 2;
     const done = (n: number): void => {
@@ -410,6 +426,7 @@ export class Game {
       this.cart.group.visible = p.camp;
       this.under.group.visible = p.under;
       this.cellar.group.visible = p.cellar;
+      this.cellar.setSide(p.cave);
       this.camp.setLightsNear(p.near);
       await this.renderer.compileAsync(this.scene, this.camera);
       done(i + 1);
@@ -774,8 +791,10 @@ export class Game {
     this.input.keys.clear();
   }
 
+
   private onKey(code: string): void {
     if (!this.started) return;
+
     if (this.hammock) {
       if (code !== 'KeyN') this.leaveHammock(false);
       return;
@@ -1017,12 +1036,19 @@ export class Game {
       this.audio.error();
       return;
     }
+    if (this.grate && Math.hypot(hit.x - this.grate.x, hit.z - this.grate.z) < GRATE_R) {
+      this.ui.toast('The old stone grate is set firm in the sand. There is no digging under it.');
+      this.audio.error();
+      return;
+    }
     this.dig.dig(hit.x, hit.z, this.beach, this.state);
+    this.tidyGrateGround();
     this.discover('dig_first');
     if (!this.holes.some(([x, z]) => Math.hypot(x - hit.x, z - hit.z) < 0.9)) this.holes.push([hit.x, hit.z]);
     this.view.doSwing();
     this.audio.crunch();
     const fresh = this.spawner.checkReveals();
+    this.grass.trimDug();
     for (const it of fresh) {
       this.dig.particles.burst(new THREE.Vector3(it.x, this.beach.heightAt(it.x, it.z) + 0.2, it.z), 24, 1.6, 3.4, 1, new THREE.Color(0xf3e2b8));
       this.audio.coin();
@@ -1243,7 +1269,7 @@ export class Game {
     }
     // rare rainy days: a spell of rain on about one day in seven, only while the day cycle runs
     const win = rainWindow(this.state.data.day);
-    const raining = mode === 'cycle' && win !== null && this.dayTime > win.start && this.dayTime < win.end;
+    const raining = mode === 'rain' || (mode === 'cycle' && win !== null && this.dayTime > win.start && this.dayTime < win.end);
     this.rain.update(dt, raining ? 1 : 0, this.camera.position);
     if (raining !== this.wasRaining) {
       this.wasRaining = raining;
@@ -1403,6 +1429,7 @@ export class Game {
 
   private padButton(b: PadButton, down: boolean): void {
     this.setUsingPad(true);
+
     if (this.hammock) {
       if (down) this.leaveHammock(false);
       return;
@@ -2153,6 +2180,7 @@ export class Game {
       this.underground = false;
       this.cellar.setActive(false);
       this.sky.setUnderground(false);
+      this.sky.openAir = 0;
       this.spawner.group.visible = true;
       this.hideLand(false);
       if (r) {
@@ -2216,6 +2244,12 @@ export class Game {
     const c = this.cellar.clamp(p.x, p.z);
     p.x = c.x;
     p.z = c.z;
+    this.cellar.setBeam(this.isMidday);
+    // the outside comes in as you go down the stair to the cave
+    const air = Math.min(1, Math.max(0, (p.x - 11) / 4));
+    this.sky.openAir += (air - this.sky.openAir) * Math.min(1, dt * 3);
+    this.cellar.setSide(p.x > 11);
+    this.cellar.cave.setDaylight(1 - this.sky.starAmount);
     const ground = UG.y + this.cellar.floorAt(p.x, p.z) + this.ladderY;
     this.eyeY += (ground + 1.65 - this.eyeY) * Math.min(1, dt * 12);
     this.feet.set(p.x, ground, p.z);
@@ -2892,21 +2926,77 @@ export class Game {
     );
   }
 
-  /** The great door in the east wall does not open yet: it is where part two begins. */
-  private openTeaser(): void {
+  /** The time around noon, when the sun stands high enough to reach down the shaft in the ceiling. */
+  private get isMidday(): boolean {
+    return this.dayTime > 0.2 && this.dayTime < 0.34;
+  }
+
+  /** The great door takes the medallion as its key, and the astrolabe to catch the noon sun on the lock. */
+  private tryGreatDoor(): void {
     if (this.bookOpen || this.gameState !== 'EXPLORE') return;
+    this.discover('great_door');
+    const made = this.state.data.assembled;
+    if (!made.includes('medallion')) {
+      this.audio.thud();
+      this.ui.toast('It will not move. The lock is round and flat, the size of a large medallion.');
+    } else if (!made.includes('astrolabe')) {
+      this.audio.thud();
+      this.ui.toast('The medallion fits the lock, but it will not turn. Rings are cut around it, like the rings of an old brass astrolabe.');
+    } else if (!this.isMidday) {
+      this.audio.thud();
+      this.ui.toast('The medallion and the astrolabe fit, but the lock stays dark. Your astrolabe needs the sun: come back around midday.');
+    } else {
+      this.state.data.doorOpen = true;
+      this.state.emit();
+      this.cellar.openDoor();
+      this.audio.discover();
+      this.audio.thud();
+      this.discover('door_open');
+      this.ui.toast('The sun catches the astrolabe, the medallion turns, and the great door opens. Cold sea air comes up the stairs.');
+    }
+  }
+
+  /** The end of the story: the gold, then a last card, and the game carries on. */
+  private takeHoard(): void {
+    if (this.bookOpen || this.gameState !== 'EXPLORE' || this.state.data.hoardTaken) return;
+    const d = this.state.data;
+    d.hoardTaken = true;
+    this.state.addCoins(HOARD_VALUE);
+    this.cellar.cave.setTaken(true);
+    this.discover('hoard_found');
     this.bookOpen = true;
     this.readerKind = 'story';
     this.paused = true;
     this.input.keys.clear();
     document.exitPointerLock?.();
-    this.audio.thud();
-    this.audio.setOceanLevel(0.006);
-    this.discover('great_door');
-    this.ui.showTeaser(() => this.closeBook());
+    this.audio.discover();
+    this.audio.setEnding(true);
+    const finds = Object.values(d.found).reduce((a, b) => a + b, 0);
+    this.ui.showEnding(
+      [
+        [d.day === 1 ? 'day on the beach' : 'days on the beach', String(d.day)],
+        ['finds cleaned', String(finds)],
+        ['gold found', `${HOARD_VALUE}g`],
+      ],
+      () => {
+        this.audio.setEnding(false);
+        this.closeBook();
+        this.autoSave();
+        this.ui.toast('The camper has something new for you: a Luxury page in its shop.');
+      },
+    );
   }
 
-  /** The captain's journal on the ring under the hatch. */
+  /** Puts everything the player has bought with the gold on show. */
+  private applyLuxury(): void {
+    const has = (id: string): boolean => this.state.data.luxury.includes(id);
+    this.view.setGolden(has('gold_detector'), has('gold_trowel'));
+    if (has('gold_cart')) this.cart.setGilded();
+    if (has('marigold_boat')) this.boat.setMarigold();
+    if (has('monster_skull')) this.camp.showSkull();
+    if (has('gold_bone')) this.dog.setGoldenBone();
+  }
+
   private openStory(): void {
     if (this.bookOpen || this.gameState !== 'EXPLORE') return;
     this.bookOpen = true;
@@ -3061,18 +3151,37 @@ export class Game {
     }
     // nothing else is ever buried near the hatch: any find that lies close to it is moved out of the way
     const hatch = this.spawner.items.find((i) => i.def.id === 'captain_chest');
-    if (hatch) {
-      for (const o of this.spawner.items) {
-        if (o === hatch || o.collected || o.revealed) continue;
-        const d = Math.hypot(o.x - hatch.x, o.z - hatch.z);
-        if (d >= 5) continue;
-        const a = d > 0.01 ? Math.atan2(o.z - hatch.z, o.x - hatch.x) : Math.random() * Math.PI * 2;
-        const r = 5.4 + Math.random() * 1.6;
-        o.x = Math.max(-(HALF - 3), Math.min(HALF - 3, hatch.x + Math.cos(a) * r));
-        o.z = hatch.z + Math.sin(a) * r;
-      }
-    }
+    if (hatch) this.spawner.keepClear(hatch.x, hatch.z, 5, hatch);
     this.spawner.checkReveals();
+  }
+
+  /** The top of the sun shaft: an old grate in the sand a few steps from the hatch, there to be noticed from the first day. */
+  private placeGrate(): void {
+    const hatch = this.spawner.items.find((i) => i.def.id === 'captain_chest');
+    if (!hatch) return;
+    const clear = (x: number, z: number): boolean =>
+      Math.abs(x) < HALF - 4 &&
+      this.stones.colliders.every((s) => Math.hypot(x - s.x, z - s.z) > s.r + 1.8) &&
+      this.scenery.trunks.every((t) => Math.hypot(x - t.x, z - t.z) > 2);
+    const spots: [number, number][] = [[-1.85, 4.5], [1.85, 4.5], [-1.85, -4.5], [1.85, -4.5], [4.5, 1.85], [-4.5, 1.85], [4.5, -1.85], [-4.5, -1.85]];
+    const [ox, oz] = spots.find(([dx, dz]) => clear(hatch.x + dx, hatch.z + dz)) ?? spots[0];
+    const x = hatch.x + ox;
+    const z = hatch.z + oz;
+    this.grate = { x, z };
+    // the stone sits on sand nobody has dug: a hole made under it in an older save is filled in again
+    this.tidyGrateGround();
+    const g = buildGrate();
+    g.position.set(x, this.beach.heightAt(x, z), z);
+    this.scene.add(g);
+    this.camp.obstacles.push({ x, z, r: 1.3 });
+    // nothing lies buried under the stone, or close enough to it that digging it out would mean digging under the stone
+    this.spawner.keepClear(x, z, GRATE_CLEAR);
+    this.spawner.checkReveals();
+  }
+
+  /** Keeps the sand under the grate as it was, with any hole dug beside it easing up to meet the stone. */
+  private tidyGrateGround(): void {
+    if (this.grate) this.beach.shapePit(this.grate.x, this.grate.z, 0, GRATE_R, GRATE_R + 0.15, GRATE_R + 1.3, 0);
   }
 
   /** The map from the bottle is now in the map menu. */
@@ -3183,7 +3292,8 @@ export class Game {
     }
     if (this.underground) {
       if (this.ladderY >= this.cellar.ladderH - 0.15) this.interaction = { label: 'Climb out through the hatch', run: () => this.leaveUnderground() };
-      else if (this.cellar.nearDoor(this.player.x, this.player.z)) this.interaction = { label: 'Open the great door', run: () => this.openTeaser() };
+      else if (this.cellar.nearDoor(this.player.x, this.player.z)) this.interaction = { label: 'Try the great door', run: () => this.tryGreatDoor() };
+      else if (!this.state.data.hoardTaken && this.cellar.nearGold(this.player.x, this.player.z)) this.interaction = { label: 'Take the gold', run: () => this.takeHoard() };
       else if (this.cellar.nearBook(this.player.x, this.player.z)) this.interaction = { label: 'Read the captain\u2019s journal', run: () => this.openStory() };
       this.ui.setPrompt(this.interaction?.label ?? null);
       this.ui.setPrompt2(null);
@@ -3308,6 +3418,16 @@ export class Game {
         // the second button (E, or X on a controller) is always for a little love
         this.interaction2 = { label: 'Pet the dog', run: () => this.petDog() };
       }
+    }
+    if (this.grate && Math.hypot(this.player.x - this.grate.x, this.player.z - this.grate.z) < 2.6 && 0.5 < best) {
+      best = 0.5;
+      this.interaction = {
+        label: 'Look through the grate',
+        run: () => {
+          this.audio.ui();
+          this.ui.toast('An old iron grate, set in cut stone. Cold air rises through the bars. It seems there is something underground here.');
+        },
+      };
     }
     if (!this.state.data.hasTreasureMap && this.island.nearMap(this.player.x, this.player.z) && 0.3 < best) {
       best = 0.3;
@@ -3523,7 +3643,8 @@ export class Game {
     this.updateDayNight(dt);
     this.sky.update(dt);
     if (this.underground) {
-      this.cellar.update(t);
+      this.ocean.update(t);
+      this.cellar.update(t, dt);
     } else if (this.diving) {
       // the land is hidden: only the water around the diver is alive
       this.under.update(dt, t, this.camera.position);

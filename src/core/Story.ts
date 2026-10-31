@@ -37,13 +37,13 @@ export const CAPTAIN_PAGES: StoryPage[] = [
     sign: 'M. Holt',
   },
   {
-    heading: 'The ring in the floor',
-    text: 'When I stand in the middle of the ring I can hear the sea, though we are a long way from it and the stone is thick. Not waves: something slower, like a very large animal breathing. There is a seam round the edge of the platform, and under it, a lower door. It is cold to the touch and does not have a lock I can see. I have not tried to open it. I find I do not want to be the one who does.',
+    heading: 'The great door',
+    text: 'At the far end of the room stands a door of black wood and iron, older than the stone around it. There is no keyhole for a key: only a round, flat lock the size of a large medallion, with fine rings cut around it like those of a navigator\u2019s astrolabe. Someone cut a narrow shaft through the roof, and at noon the sun comes down it and lands on that lock, as if whoever built this place had planned it so. I own neither of those things, and I find I do not want to be the one who opens it.',
     sign: 'M. Holt',
   },
   {
     heading: 'The last entry',
-    text: 'The boats are back. The crew came across the water at low tide, thin and sunburnt and cheerful, and we have decided to sail for home at first light. I will not take the gold. It belongs to the bottom of the sea now, and the bottom of the sea has always known how to keep a secret. I will leave this journal where I found it, on the ring, and the torches burning. To whoever reads this: look after the place. And mind the lower door.',
+    text: 'The boats are back. The crew came across the water at low tide, thin and sunburnt and cheerful, and we have decided to sail for home at first light. I never found the gold. The sea has it now, and the sea has always known how to keep a secret. I will leave this journal where I found the room, on the ring, and the torches burning. To whoever reads this: look after the place. And mind the great door.',
     sign: 'Captain M. Holt',
   },
 ];

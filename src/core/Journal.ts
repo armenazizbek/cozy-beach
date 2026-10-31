@@ -209,11 +209,19 @@ export const JOURNAL_PAGES: JournalPage[] = [
   },
   {
     id: 'great_door', group: 'Journeys', icon: '🚪', title: 'The Great Door',
-    text: 'At the far end of the room stands a door of black wood and iron, with a ring of pale blue light over it and a keyhole with no key. It does not open. Not yet.',
+    text: 'At the far end of the room stands a door of black wood and iron, with a ring of pale blue light over it and a round, flat lock. It does not open. Not yet.',
+  },
+  {
+    id: 'door_open', group: 'Journeys', icon: '☀️', title: 'Noon at the Door',
+    text: 'The medallion fitted the lock and the astrolabe caught the noon sun. The great door swung back on a stair going down, and cold sea air came up it.',
+  },
+  {
+    id: 'hoard_found', group: 'Journeys', icon: '💰', title: 'The Marigold\u2019s Gold',
+    text: 'A cave open to the sea, the bones of something enormous, and all the gold the town ever lost, heaped where the tide left it. The old church bell was in there too.',
   },
   {
     id: 'captain_journal', group: 'Journeys', icon: '📜', title: 'The Captain\u2019s Journal',
-    text: 'A shipwrecked captain\u2019s diary, left open on the stone ring: the town\u2019s gold lost with the Marigold, a room under the dunes, a message sealed in a bottle, and a lower door the captain never opened.',
+    text: 'A shipwrecked captain\u2019s diary, left open on the stone ring: the town\u2019s gold lost with the Marigold, a room under the dunes, a message sealed in a bottle, and a great door the captain never opened.',
   },
   {
     id: 'underground_first', group: 'Journeys', icon: '🔥', title: 'Under the Dunes',

@@ -107,6 +107,9 @@ export class ViewModel {
   private moving = 0;
   private swing = 0;
   private tool: 0 | 1 | 2 | 4 | 5 | 6 | 7 | 8 | 9 = 1;
+  private detectorGold: THREE.MeshStandardMaterial[] = [];
+  private trowelSteel: THREE.MeshStandardMaterial[] = [];
+  private trowelGrip = new THREE.MeshStandardMaterial();
   private harpoon = new THREE.Group();
   /** swimming: the hands drift and sway slowly instead of bobbing with footsteps */
   private swim = false;
@@ -339,6 +342,7 @@ export class ViewModel {
     g.add(cuff, strap);
 
     // control box with a glowing screen, knobs and a signal LED
+    this.detectorGold = [body, steel];
     const box = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.075, 0.17), body);
     box.position.set(0.25, -0.27, -0.88);
     g.add(box);
@@ -411,6 +415,7 @@ export class ViewModel {
   private buildTrowel(): void {
     const g = this.trowel;
     const orange = new THREE.MeshStandardMaterial({ color: 0xe0732f, roughness: 0.55 });
+    this.trowelGrip = orange;
     const steel = new THREE.MeshStandardMaterial({ color: 0xd6dbe1, roughness: 0.42, metalness: 0.35, side: THREE.DoubleSide });
 
     const tool = new THREE.Group();
@@ -487,7 +492,9 @@ export class ViewModel {
     bladeGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     bladeGeo.setIndex(idx);
     bladeGeo.computeVertexNormals();
-    const blade = new THREE.Mesh(bladeGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.4, side: THREE.DoubleSide }));
+    const bladeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.4, side: THREE.DoubleSide });
+    this.trowelSteel = [steel, bladeMat];
+    const blade = new THREE.Mesh(bladeGeo, bladeMat);
     const outline: THREE.Vector3[] = [];
     for (const side of [-1, 1]) {
       for (let i = 0; i <= rows; i++) {
@@ -604,6 +611,16 @@ export class ViewModel {
     g.scale.setScalar(BINOC_SCALE);
     g.position.set(0, -0.16, -0.16);
     g.visible = false;
+  }
+
+  /** The gold finishes from the Luxury shop. */
+  setGolden(detector: boolean, trowel: boolean): void {
+    const gold = 0xf0c24a;
+    if (detector) for (const m of this.detectorGold) m.color.set(gold);
+    if (trowel) {
+      for (const m of this.trowelSteel) m.color.set(gold);
+      this.trowelGrip.color.set(0x4a2c17);
+    }
   }
 
   /** Hides the hand-held model while the player is looking through the binoculars. */

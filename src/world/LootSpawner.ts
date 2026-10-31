@@ -27,6 +27,8 @@ export class LootSpawner {
   readonly group = new THREE.Group();
   items: BuriedItem[] = [];
   private nextId = 1;
+  /** circles nothing may be buried in: under the grate, and around the hatch */
+  private keepOut: { x: number; z: number; r: number; except?: BuriedItem }[] = [];
   /** the buried chests of the treasure map only exist for someone who holds the map */
   secretsOpen = false;
   /** the captain's strongbox only exists for someone who holds the map from the bottle */
@@ -97,7 +99,55 @@ export class LootSpawner {
 
   /** Buries a find at a chosen spot. */
   addBuried(def: ItemDef, x: number, z: number, depth: number): void {
-    this.items.push({ id: this.nextId++, def, x, z, targetDepth: depth, revealed: false, collected: false, popT: 0 });
+    const it: BuriedItem = { id: this.nextId++, def, x, z, targetDepth: depth, revealed: false, collected: false, popT: 0 };
+    this.items.push(it);
+    if (this.inKeepOut(it.x, it.z, it)) this.rebury(it);
+  }
+
+  /**
+   * Keeps every find out of a circle, now and from then on: whatever lies there, even one already
+   * dug up but not taken, is buried again a little way off. Nothing can end up stuck under the
+   * grate or beside the hatch, where it could never be dug out and the story could not be finished.
+   */
+  keepClear(x: number, z: number, r: number, except?: BuriedItem): void {
+    this.keepOut.push({ x, z, r, except });
+    for (const it of this.items) {
+      if (it.collected || it.targetDepth < 0 || !this.inKeepOut(it.x, it.z, it)) continue;
+      this.rebury(it);
+    }
+  }
+
+  private inKeepOut(x: number, z: number, it: BuriedItem): boolean {
+    return this.keepOut.some((k) => k.except !== it && Math.hypot(x - k.x, z - k.z) < k.r);
+  }
+
+  /** Moves a find to the nearest open spot on the diggable beach, outside every kept-clear circle. */
+  private rebury(it: BuriedItem): void {
+    this.disposeMesh(it);
+    it.revealed = false;
+    it.popT = 0;
+    const zMin = it.def.zone === 'wet' ? WET_Z + 0.5 : DIG_MIN_Z + 1;
+    const zMax = it.def.zone === 'dry' ? 6 : SHORE_Z - 3;
+    const free = (x: number, z: number, gap: number): boolean =>
+      Math.abs(x) < HALF - 4 && z > zMin && z < zMax && !this.inKeepOut(x, z, it) &&
+      this.items.every((o) => o === it || o.collected || Math.hypot(o.x - x, o.z - z) > gap);
+    // widening rings around where it was; if the beach there is crowded, settle for less room between finds
+    for (const gap of [1.5, 0.6, 0]) {
+      for (let ring = 1; ring <= 60; ring++) {
+        const rad = ring * 0.5;
+        const n = 8 + ring * 2;
+        const off = Math.random() * Math.PI * 2;
+        for (let k = 0; k < n; k++) {
+          const a = off + (k / n) * Math.PI * 2;
+          const x = it.x + Math.cos(a) * rad;
+          const z = it.z + Math.sin(a) * rad;
+          if (!free(x, z, gap)) continue;
+          it.x = x;
+          it.z = z;
+          return;
+        }
+      }
+    }
   }
 
   /** Adds a find that lies out in the open from the start, like the ones on the island. */
@@ -145,6 +195,8 @@ export class LootSpawner {
   checkReveals(): BuriedItem[] {
     const fresh: BuriedItem[] = [];
     for (const it of this.items) {
+      // once found, the hatch always sits at the bottom of a neat pit, however the sand around it was dug
+      if (it.revealed && !it.collected && it.def.id === 'captain_chest') this.tidyHatchPit(it);
       if (it.revealed || it.collected) continue;
       if (this.locked(it)) continue;
       // a buried chest is wide, so a hole dug next to the cross turns it up too, not only one dug exactly on top of it
@@ -154,6 +206,7 @@ export class LootSpawner {
       if (depth >= it.targetDepth) {
         it.revealed = true;
         it.popT = 0;
+        if (it.def.id === 'captain_chest') this.tidyHatchPit(it);
         // the strongbox is buried under a wooden hatch; everything else shows as sand-covered
         const mesh = it.def.id === 'captain_chest' ? buildItem('captain_hatch') : buildDirty(it.def.id);
         const proxy = new THREE.Mesh(new THREE.SphereGeometry(0.65, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
@@ -167,6 +220,11 @@ export class LootSpawner {
       }
     }
     return fresh;
+  }
+
+  /** Digs the sand around the hatch into a clean round pit with a flat floor, so the frame lies flush on it and no wall cuts through it. */
+  private tidyHatchPit(it: BuriedItem): void {
+    this.beach.shapePit(it.x, it.z, Math.max(0.38, it.targetDepth + 0.05), 0.95, 1.9, 2.7);
   }
 
   /** Lifts the captain's hatch: the closed door is swapped for the open one with the strongbox inside. */

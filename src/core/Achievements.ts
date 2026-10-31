@@ -50,7 +50,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'HATCH', name: 'A Door Under the Sand', desc: 'Dig up the hidden hatch.', icon: '🚪', page: 'captain_hatch' },
   { id: 'UNDERGROUND', name: 'Under the Dunes', desc: 'Climb down into the stone room.', icon: '🔥', page: 'underground_first' },
   { id: 'JOURNAL', name: 'The Captain’s Story', desc: 'Read the captain’s journal.', icon: '📖', page: 'captain_journal' },
-  { id: 'DOOR', name: 'To Be Continued…', desc: 'Try the great door.', icon: '✨', secret: true, page: 'great_door' },
+  { id: 'DOOR', name: 'Knock Knock', desc: 'Try the great door.', icon: '✨', secret: true, page: 'great_door' },
+  { id: 'DOOR_OPEN', name: 'High Noon', desc: 'Open the great door.', icon: '☀️', secret: true, page: 'door_open' },
+  { id: 'HOARD', name: 'The Marigold\u2019s Gold', desc: 'Find the lost gold.', icon: '💰', secret: true, page: 'hoard_found' },
 ];
 
 const KEY = 'cozy-treasure-hunter-achievements-v1';

@@ -571,6 +571,46 @@ export class Beach {
     this.geo.attributes.normal.needsUpdate = true;
   }
 
+  /**
+   * Shapes a neat, round pit: a flat floor `floor` deep out to `flatR`, smooth sand walls up to
+   * the surface at `wallR` with a low rim, and a band out to `blendR` where whatever was dug before
+   * eases into it. The shape is a clamp of the old ground, so doing it again changes nothing.
+   * With a floor and rim of 0 it simply keeps the sand there untouched, as under something set in it.
+   */
+  shapePit(x: number, z: number, floor: number, flatR: number, wallR: number, blendR: number, rim = 0.07): void {
+    const minC = Math.max(0, Math.floor((x - blendR + HALF) / this.step));
+    const maxC = Math.min(this.n - 1, Math.ceil((x + blendR + HALF) / this.step));
+    const minR = Math.max(0, Math.floor((z - blendR + HALF) / this.step));
+    const maxR = Math.min(this.n - 1, Math.ceil((z + blendR + HALF) / this.step));
+    let changed = false;
+    for (let r = minR; r <= maxR; r++) {
+      for (let c = minC; c <= maxC; c++) {
+        const i = r * this.n + c;
+        const d = Math.hypot(this.pos.getX(i) - x, this.pos.getZ(i) - z);
+        if (d >= blendR) continue;
+        // the clean bowl, with a little heap of sand around its edge
+        const want = floor * (1 - smooth(flatR, wallR, d)) - rim * Math.exp(-(((d - wallR) / 0.35) ** 2));
+        // inside the walls the ground is exactly the bowl; further out the old ground is let back in bit by bit
+        const s = smooth(wallR, blendR, d);
+        const lo = want + (MIN_DUG - want) * s;
+        const hi = want + (MAX_DUG - want) * s;
+        const v = Math.min(hi, Math.max(lo, this.dug[i]));
+        if (Math.abs(v - this.dug[i]) < 1e-4) continue;
+        this.dug[i] = v;
+        this.pos.setY(i, this.base[i] - v);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    this.noteDug(minR, maxR, minC, maxC);
+    this.refreshColors(minR, maxR, minC, maxC);
+    this.updateNormals(Math.max(0, minR - 1), Math.min(this.n - 1, maxR + 1), Math.max(0, minC - 1), Math.min(this.n - 1, maxC + 1));
+    this.pos.needsUpdate = true;
+    this.colAttr.needsUpdate = true;
+    this.dampAttr.needsUpdate = true;
+    this.geo.attributes.normal.needsUpdate = true;
+  }
+
   /** Recomputes normals only around a dig, straight from the height field. */
   private updateNormals(minR: number, maxR: number, minC: number, maxC: number): void {
     const nrm = this.geo.attributes.normal as THREE.BufferAttribute;

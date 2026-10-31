@@ -62,6 +62,8 @@ const tuftGeometry = (): THREE.BufferGeometry => {
 export class Grass {
   readonly group = new THREE.Group();
   private mesh: THREE.InstancedMesh | null = null;
+  private tufts: { x: number; z: number; alive: boolean }[] = [];
+  private zero = new THREE.Matrix4().makeScale(0, 0, 0);
   private uniforms = { uTime: { value: 0 } };
   private mat: THREE.MeshLambertMaterial;
   private geo = tuftGeometry();
@@ -134,7 +136,31 @@ export class Grass {
     mesh.receiveShadow = true;
     mesh.frustumCulled = false;
     this.mesh = mesh;
+    this.tufts = tufts.map((t) => ({ x: t.x, z: t.z, alive: true }));
     this.group.add(mesh);
+    this.trimDug();
+  }
+
+  /** Clears away any tuft whose sand has been dug out from under it. */
+  trimDug(): void {
+    if (!this.mesh) return;
+    let changed = false;
+    for (let i = 0; i < this.tufts.length; i++) {
+      const t = this.tufts[i];
+      if (!t.alive) continue;
+      const dug =
+        this.beach.depthAt(t.x, t.z) > 0.02 ||
+        this.beach.depthAt(t.x + 0.14, t.z) > 0.02 ||
+        this.beach.depthAt(t.x - 0.14, t.z) > 0.02 ||
+        this.beach.depthAt(t.x, t.z + 0.14) > 0.02 ||
+        this.beach.depthAt(t.x, t.z - 0.14) > 0.02;
+      if (dug) {
+        t.alive = false;
+        this.mesh.setMatrixAt(i, this.zero);
+        changed = true;
+      }
+    }
+    if (changed) this.mesh.instanceMatrix.needsUpdate = true;
   }
 
   update(t: number): void {

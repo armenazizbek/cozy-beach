@@ -277,6 +277,13 @@ export class Sky {
 
   /** Underground the sky stays (it shows through the hatch), but the room is lit by torches, not by the day. */
   underground = false;
+  /** 0 deep in the stone room .. 1 in the sea cave, where the daylight and the open air come in */
+  openAir = 0;
+
+  /** The cloud materials, so a view from below can show the same clouds in the same light. */
+  get cloudMaterials(): THREE.SpriteMaterial[] {
+    return this.cloudMats;
+  }
 
   setUnderground(on: boolean): void {
     this.underground = on;
@@ -290,7 +297,7 @@ export class Sky {
 
   /** True once it is dark enough for lanterns and window lights. */
   get isDark(): boolean {
-    return this.starAmount > 0.3;
+    return this.starAmount > 0.3 || this.rain > 0.4;
   }
 
   update(dt: number): void {
@@ -385,9 +392,11 @@ export class Sky {
       this.cloudMats.forEach((m) => (m.opacity = 0.92));
     }
     if (this.underground) {
-      this.hemi.intensity *= 0.16;
-      this.fog.color.set(0x0c0907);
-      this.fog.density = 0.02;
+      const k = this.openAir;
+      this.hemi.intensity *= 0.16 + 0.5 * k;
+      this.tmp.copy(this.fog.color);
+      this.fog.color.set(0x0c0907).lerp(this.tmp, k);
+      this.fog.density = 0.02 + (this.fog.density * 0.6 - 0.02) * k;
     }
     if (this.underwater) {
       // the fog becomes the water: a clear blue-green that swallows everything past a few dozen metres, and dims at night

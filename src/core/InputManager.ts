@@ -10,7 +10,7 @@ export interface InputHandlers {
   onKey?: (key: string) => void;
 }
 
-const BLOCK_DEFAULT = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab']);
+const BLOCK_DEFAULT = new Set(['F1', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab']);
 const DRAG_THRESHOLD = 5;
 
 export class InputManager {

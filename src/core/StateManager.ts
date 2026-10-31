@@ -2,7 +2,7 @@ import { DEF_BY_ID, ITEM_DEFS, QUEST_DEFS, SHARD_SETS } from './items';
 import { BOOK_SHOW_ALL, INITIAL_PAGE_IDS } from './Journal';
 import type { Category, QuestDef } from './items';
 
-export type LightingMode = 'cycle' | 'golden' | 'day' | 'sunset' | 'night';
+export type LightingMode = 'cycle' | 'golden' | 'day' | 'rain' | 'sunset' | 'night';
 export type TierKey = 'detector' | 'digging' | 'cleaning' | 'gear';
 
 export interface InventoryItem {
@@ -44,6 +44,12 @@ export interface GameData {
   hasBottleMap: boolean;
   /** bought the mask, snorkel, fins and harpoon, so the player can dive */
   ownsDiveGear: boolean;
+  /** the great door has been opened */
+  doorOpen: boolean;
+  /** the gold in the sea cave has been taken, which opens the Luxury shop */
+  hoardTaken: boolean;
+  /** luxuries bought so far (ids from LUXURY) */
+  luxury: string[];
   /** camp decorations bought so far (ids from DECOR) */
   decor: string[];
   /** which of SIGN_TEXTS the camp sign shows */
@@ -70,6 +76,16 @@ export interface GameData {
   found: Record<string, number>;
   nextUid: number;
 }
+
+/** What the gold can buy. These only go on sale once it has been found. */
+export const LUXURY: { id: string; name: string; desc: string; cost: number }[] = [
+  { id: 'gold_detector', name: 'Golden Detector', desc: 'Your detector, finished in gold. It finds exactly what it always found, in style.', cost: 2500 },
+  { id: 'gold_trowel', name: 'Golden Trowel', desc: 'A gilded blade and a dark wooden handle, for the most elegant holes on the coast.', cost: 1500 },
+  { id: 'gold_cart', name: 'Gilded Golf Cart', desc: 'Gold paint, cream seats and no shame at all.', cost: 3000 },
+  { id: 'marigold_boat', name: 'The Marigold II', desc: 'Your boat in the colours of the captain\u2019s ship, with her name on the stern.', cost: 4000 },
+  { id: 'monster_skull', name: 'The Monster\u2019s Skull', desc: 'A team of very confused movers brings it up from the cave and sets it up at camp.', cost: 3000 },
+  { id: 'gold_bone', name: 'Golden Bone', desc: 'The dog carries it everywhere and will not be parted from it.', cost: 1000 },
+];
 
 export const TIER_COSTS = [0, 250, 800];
 export const GUN_COST = 150;
@@ -161,6 +177,9 @@ const defaultData = (): GameData => ({
   hasTreasureMap: false,
   hasBottleMap: false,
   ownsDiveGear: false,
+  doorOpen: false,
+  hoardTaken: false,
+  luxury: [],
   decor: [],
   signText: 0,
   flags: 0,
@@ -449,6 +468,15 @@ export class StateManager {
   useBone(): boolean {
     if ((this.data.bones ?? 0) <= 0) return false;
     this.data.bones--;
+    this.emit();
+    return true;
+  }
+
+  buyLuxury(id: string): boolean {
+    const l = LUXURY.find((x) => x.id === id);
+    if (!l || !this.data.hoardTaken || this.data.luxury.includes(id) || this.data.coins < l.cost) return false;
+    this.data.coins -= l.cost;
+    this.data.luxury = [...this.data.luxury, id];
     this.emit();
     return true;
   }
