@@ -19,6 +19,20 @@ const limb = (a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material
 
 const v = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
 
+/**
+ * A soft-edged solid cut from a side-on outline. The outline's x runs forward (toward -z) and its y is height, so it can be drawn just as
+ * the object looks from the side; `x` centres it left to right and `wide` is its full thickness.
+ */
+const sideCut = (draw: (s: THREE.Shape) => void, x: number, wide: number, mat: THREE.Material, soft = 0.012): THREE.Mesh => {
+  const shape = new THREE.Shape();
+  draw(shape);
+  const depth = wide - soft * 2;
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: soft, bevelThickness: soft, bevelSegments: 3, curveSegments: 10 });
+  geo.rotateY(Math.PI / 2);
+  geo.translate(x - depth / 2, 0, 0);
+  return new THREE.Mesh(geo, mat);
+};
+
 /** What an arm is made of: the hand, the forearm, and a wider band over part of the forearm (0 at the wrist, 1 at the elbow). */
 interface ArmStyle {
   hand: THREE.Material;
@@ -158,30 +172,89 @@ export class ViewModel {
     parent.add(limb(wrist.clone().lerp(elbow, style.from), wrist.clone().lerp(elbow, style.to), (at(style.from) + 0.007) * k, style.band, (at(style.to) + 0.007) * k));
   }
 
-  /** A diver's spear gun: a long steel barrel with a spear in it, a black housing and a pistol grip. */
+  /** A diver's spear gun: a slim dark barrel, a moulded grip and trigger, two rubber bands stretched back to a steel spear, and a line reel. */
   private buildHarpoon(): void {
     const g = this.harpoon;
-    const steel = new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 0.85, roughness: 0.3 });
-    const black = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.6, metalness: 0.2 });
+    const X = 0.26;
+    const steel = new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 0.7, roughness: 0.32 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.55, metalness: 0.2 });
+    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x2d3a48, roughness: 0.4, metalness: 0.4 });
     const yellow = new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: 0.5 });
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.95, 10), steel);
-    barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0.26, -0.26, -0.95);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.2, 8), steel);
+    const rubber = new THREE.MeshStandardMaterial({ color: 0xb5482f, roughness: 0.65 });
+    const along = (r: number, r2: number, z0: number, z1: number, y: number, mat: THREE.Material, seg = 16): THREE.Mesh => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r2, Math.abs(z1 - z0), seg), mat);
+      m.rotation.x = -Math.PI / 2; // the +y end of the cylinder points forward
+      m.position.set(X, y, (z0 + z1) / 2);
+      return m;
+    };
+    // the barrel and the blunt muzzle block the bands loop through
+    g.add(along(0.026, 0.026, -0.8, -1.32, -0.275, barrelMat));
+    g.add(along(0.04, 0.036, -1.32, -1.37, -0.268, black));
+    g.add(along(0.042, 0.042, -1.335, -1.35, -0.268, yellow));
+    // the receiver and grip in one moulded piece, raked back like a pistol's
+    g.add(
+      sideCut(
+        (o) => {
+          o.moveTo(0.53, -0.25);
+          o.lineTo(0.82, -0.25);
+          o.quadraticCurveTo(0.845, -0.25, 0.845, -0.275);
+          o.quadraticCurveTo(0.845, -0.3, 0.82, -0.3);
+          o.lineTo(0.68, -0.3);
+          o.lineTo(0.625, -0.45);
+          o.quadraticCurveTo(0.612, -0.48, 0.585, -0.48);
+          o.lineTo(0.55, -0.48);
+          o.quadraticCurveTo(0.525, -0.48, 0.532, -0.45);
+          o.lineTo(0.568, -0.3);
+          o.quadraticCurveTo(0.51, -0.295, 0.51, -0.27);
+          o.quadraticCurveTo(0.51, -0.25, 0.53, -0.25);
+        },
+        X,
+        0.06,
+        black,
+      ),
+    );
+    // the trigger and its guard, in the gap in front of the grip
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.007, 8, 18, Math.PI * 1.05), black);
+    guard.rotation.set(0, Math.PI / 2, Math.PI);
+    guard.position.set(X, -0.3, -0.735);
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.045, 0.012), yellow);
+    trigger.position.set(X, -0.325, -0.725);
+    trigger.rotation.x = -0.25;
+    g.add(guard, trigger);
+    // the spear lies along the top, with a barbed point and a flopper
+    g.add(along(0.0065, 0.0065, -0.5, -1.56, -0.232, steel, 8));
+    const point = along(0.0135, 0.0065, -1.61, -1.56, -0.232, steel, 10);
+    point.rotation.x = Math.PI / 2;
+    g.add(point);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.0135, 0.075, 10), steel);
     tip.rotation.x = -Math.PI / 2;
-    tip.position.set(0.26, -0.26, -1.52);
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.28), black);
-    housing.position.set(0.26, -0.285, -0.68);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.05), black);
-    grip.position.set(0.26, -0.36, -0.6);
-    grip.rotation.x = 0.25;
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.008, 6, 14), yellow);
-    band.position.set(0.26, -0.26, -0.85);
-    const band2 = band.clone();
-    band2.position.z = -1.15;
-    g.add(barrel, tip, housing, grip, band, band2);
-    this.armOn(g, v(0.26, -0.36, -0.6), v(0, Math.cos(0.25), Math.sin(0.25)), v(0.56, -0.95, 0.35), 1, 0.028, 1, DIVER);
-    g.position.y = 0.04;
+    tip.position.set(X, -0.232, -1.645);
+    g.add(tip);
+    for (const side of [-1, 1]) {
+      const barb = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.006, 0.08), steel);
+      barb.position.set(X + side * 0.013, -0.232, -1.6);
+      barb.rotation.y = -side * 0.3;
+      g.add(barb);
+      // a rubber band stretched from the muzzle back to a notch in the spear
+      const band = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3([v(X + side * 0.036, -0.262, -1.35), v(X + side * 0.024, -0.25, -1.1), v(X + side * 0.008, -0.235, -0.86)]), 16, 0.0065, 8),
+        rubber,
+      );
+      g.add(band);
+    }
+    // the line reel under the barrel
+    const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.03, 18), yellow);
+    reel.rotation.z = Math.PI / 2;
+    reel.position.set(X, -0.33, -1.0);
+    const reelHub = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.04, 10), black);
+    reelHub.rotation.z = Math.PI / 2;
+    reelHub.position.copy(reel.position);
+    const reelArm = limb(v(X, -0.3, -1.0), v(X, -0.33, -1.0), 0.008, black);
+    g.add(reel, reelHub, reelArm);
+    this.armOn(g, v(X, -0.385, -0.598), v(0, Math.cos(0.3), -Math.sin(0.3)), v(0.56, -0.95, 0.35), 1, 0.028, 1, DIVER);
+    // turned in toward the aim, so the barrel and spear run across the view
+    g.position.set(0.13, 0.04, 0);
+    g.rotation.y = 0.17;
     g.visible = false;
   }
 
@@ -539,22 +612,81 @@ export class ViewModel {
     this.group.visible = this.tool !== 0 && !raised;
   }
 
+  /** A chunky plastic toy pistol: a rounded red body, a blue grip, a yellow barrel tip so nobody mistakes it, and a little hammer. */
   private buildGun(): void {
     const g = this.gun;
-    const metal = new THREE.MeshStandardMaterial({ color: 0x2f3338, roughness: 0.35, metalness: 0.8 });
-    const grip = new THREE.MeshStandardMaterial({ color: 0x7a4a2a, roughness: 0.8 });
-    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.075, 0.36), metal);
-    slide.position.set(0.26, -0.27, -0.64);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.12, 10), metal);
+    const X = 0.26;
+    const red = new THREE.MeshStandardMaterial({ color: 0xdf4a35, roughness: 0.38 });
+    const blue = new THREE.MeshStandardMaterial({ color: 0x2f79c9, roughness: 0.45 });
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xf7c948, roughness: 0.42 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x2b2f35, roughness: 0.5 });
+    const body = sideCut(
+      (o) => {
+        o.moveTo(0.44, -0.232);
+        o.lineTo(0.85, -0.232);
+        o.quadraticCurveTo(0.885, -0.232, 0.885, -0.262);
+        o.lineTo(0.885, -0.282);
+        o.quadraticCurveTo(0.885, -0.31, 0.855, -0.31);
+        o.lineTo(0.47, -0.31);
+        o.quadraticCurveTo(0.41, -0.31, 0.41, -0.268);
+        o.quadraticCurveTo(0.41, -0.232, 0.44, -0.232);
+      },
+      X,
+      0.082,
+      red,
+      0.018,
+    );
+    // the grip rakes back toward the shooter's hand
+    const handle = sideCut(
+      (o) => {
+        o.moveTo(0.585, -0.3);
+        o.lineTo(0.525, -0.465);
+        o.quadraticCurveTo(0.512, -0.495, 0.485, -0.495);
+        o.lineTo(0.44, -0.495);
+        o.quadraticCurveTo(0.41, -0.495, 0.42, -0.465);
+        o.lineTo(0.465, -0.3);
+        o.closePath();
+      },
+      X,
+      0.066,
+      blue,
+      0.016,
+    );
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.075, 18), red);
     barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0.26, -0.27, -0.88);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.17, 0.075), grip);
-    handle.position.set(0.26, -0.39, -0.5);
-    handle.rotation.x = 0.28;
-    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.02, 0.02), metal);
-    sight.position.set(0.26, -0.225, -0.8);
-    g.add(slide, barrel, handle, sight);
-    this.armOn(g, v(0.26, -0.39, -0.5), v(0, Math.cos(0.28), Math.sin(0.28)), v(0.62, -1.05, 0.3), 1, 0.03, 0.72);
+    barrel.position.set(X, -0.27, -0.91);
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.037, 0.037, 0.03, 18), yellow);
+    tip.rotation.x = Math.PI / 2;
+    tip.position.set(X, -0.27, -0.95);
+    const bore = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.005, 14), dark);
+    bore.rotation.x = Math.PI / 2;
+    bore.position.set(X, -0.27, -0.967);
+    const stripe = sideCut(
+      (o) => {
+        o.moveTo(0.46, -0.262);
+        o.lineTo(0.84, -0.262);
+        o.lineTo(0.84, -0.274);
+        o.lineTo(0.46, -0.274);
+        o.closePath();
+      },
+      X,
+      0.086,
+      yellow,
+      0.001,
+    );
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.009, 8, 18, Math.PI * 1.05), red);
+    guard.rotation.set(0, Math.PI / 2, Math.PI);
+    guard.position.set(X, -0.305, -0.645);
+    const trigger = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.05, 0.016), yellow);
+    trigger.position.set(X, -0.332, -0.635);
+    trigger.rotation.x = -0.25;
+    const hammer = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.042, 0.03), dark);
+    hammer.position.set(X, -0.225, -0.43);
+    hammer.rotation.x = 0.4;
+    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.022, 0.03), yellow);
+    sight.position.set(X, -0.222, -0.84);
+    g.add(body, handle, barrel, tip, bore, stripe, guard, trigger, hammer, sight);
+    this.armOn(g, v(X, -0.39, -0.48), v(0, Math.cos(0.3), -Math.sin(0.3)), v(0.62, -1.05, 0.3), 1, 0.03, 0.72);
     this.flash = new THREE.Mesh(
       new THREE.ConeGeometry(0.06, 0.2, 8),
       new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -566,7 +698,9 @@ export class ViewModel {
     this.muzzle.position.set(0.26, -0.27, -0.96);
     g.add(this.muzzle);
     g.scale.setScalar(0.72);
-    g.position.set(-0.02, -0.02, -0.1);
+    // held out to the right and turned in toward the aim, so its side shows rather than just its back
+    g.position.set(0.16, -0.03, -0.12);
+    g.rotation.y = 0.28;
   }
 
   /** Recoil and muzzle flash. */
