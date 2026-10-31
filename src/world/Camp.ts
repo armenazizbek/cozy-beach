@@ -33,7 +33,7 @@ export class Camp {
   private flames: THREE.Mesh[] = [];
   private radio = new THREE.Group();
   private radioLed = new THREE.MeshStandardMaterial({ color: 0x401010, emissive: 0xff3a2a, emissiveIntensity: 0 });
-  private radioAntenna = new THREE.Mesh();
+  private radioAntenna = new THREE.Group();
   private radioOn = false;
   private bookCover = new THREE.MeshStandardMaterial({ color: 0x7b2d26, roughness: 0.7, emissive: 0xffb347, emissiveIntensity: 0 });
   private bookNew = false;
@@ -238,8 +238,19 @@ export class Camp {
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.012, 6, 14, Math.PI), dark);
     handle.position.set(0, 0.3, 0);
     r.add(handle);
-    this.radioAntenna = cyl(0.006, 0.006, 0.45, new THREE.MeshStandardMaterial({ color: 0xc9ced3, metalness: 0.8, roughness: 0.3 }), 6);
-    this.radioAntenna.position.set(0.22, 0.52, -0.06);
+    // the aerial pivots at its foot, which sits in a small socket on the shell, so it reads as part of the radio
+    const metal = new THREE.MeshStandardMaterial({ color: 0xc9ced3, metalness: 0.8, roughness: 0.3 });
+    const socket = cyl(0.022, 0.028, 0.03, dark, 10);
+    socket.position.set(0.2, 0.312, -0.05);
+    r.add(socket);
+    const rod = cyl(0.006, 0.006, 0.5, metal, 6);
+    rod.position.y = 0.23;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), metal);
+    tip.position.y = 0.48;
+    const stub = cyl(0.011, 0.011, 0.05, metal, 8);
+    stub.position.y = 0.01;
+    this.radioAntenna.add(rod, tip, stub);
+    this.radioAntenna.position.set(0.2, 0.32, -0.05);
     this.radioAntenna.rotation.z = -0.35;
     r.add(this.radioAntenna);
     r.position.set(0.72, 1.06, -0.12);

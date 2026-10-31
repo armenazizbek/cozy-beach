@@ -18,11 +18,7 @@ export class AudioManager {
   /** the detector may only make sound while it is the tool in hand */
   detectorEnabled = false;
   private musicGain!: GainNode;
-  private musicFilter!: BiquadFilterNode;
-  private musicTimer = 0;
   private musicOn = false;
-  private nextStep = 0;
-  private step = 0;
   private musicLevel = 0;
   private musicDuck = 1;
 
@@ -33,6 +29,8 @@ export class AudioManager {
     };
     window.addEventListener('pointerdown', unlock);
     window.addEventListener('keydown', unlock);
+    // the desktop app lets sound start without a click, so the title music can begin at once
+    if ((window as unknown as { desktop?: unknown }).desktop) this.init();
   }
 
   get ready(): boolean {
@@ -53,39 +51,12 @@ export class AudioManager {
     const d = this.noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
 
-    this.musicFilter = this.ctx.createBiquadFilter();
-    this.musicFilter.type = 'lowpass';
-    this.musicFilter.frequency.value = 800;
     this.musicGain = this.ctx.createGain();
     this.musicGain.gain.value = 0;
-    // dry path
-    this.musicFilter.connect(this.musicGain);
-    // a generated room reverb makes everything softer and roomier
-    const reverb = this.ctx.createConvolver();
-    const rl = this.ctx.sampleRate * 3;
-    const ir = this.ctx.createBuffer(2, rl, this.ctx.sampleRate);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = ir.getChannelData(ch);
-      for (let i = 0; i < rl; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / rl, 2.6);
-    }
-    reverb.buffer = ir;
-    const wet = this.ctx.createGain();
-    wet.gain.value = 0.55;
-    this.musicFilter.connect(reverb).connect(wet).connect(this.musicGain);
-    // a slow, quiet echo
-    const echo = this.ctx.createDelay(1.5);
-    echo.delayTime.value = 0.62;
-    const fb = this.ctx.createGain();
-    fb.gain.value = 0.32;
-    const send = this.ctx.createGain();
-    send.gain.value = 0.22;
-    this.musicFilter.connect(send).connect(echo);
-    echo.connect(fb).connect(echo);
-    echo.connect(this.musicGain);
     this.musicGain.connect(this.master);
 
     this.startOcean();
-    if (this.musicOn) this.runMusic();
+    if (this.playing) this.runMusic();
   }
 
   // ------------------------------------------------------------------ radio music
@@ -96,124 +67,57 @@ export class AudioManager {
 
   setRadio(on: boolean): void {
     this.musicOn = on;
+    this.refreshMusic();
+  }
+
+  private menuOn = false;
+
+  /** The title screen plays the main theme whether or not the radio is on. */
+  setMenu(on: boolean): void {
+    if (on === this.menuOn) return;
+    this.menuOn = on;
+    this.refreshMusic();
+  }
+
+  private get playing(): boolean {
+    return this.musicOn || this.menuOn;
+  }
+
+  private refreshMusic(): void {
     if (!this.ctx) return;
-    if (on) this.runMusic();
+    if (this.playing) this.runMusic();
     else this.stopMusic();
   }
 
-  /** 0..1 from how close the player stands; also muffles the sound with distance. */
+  /** Master level of the radio, 0..1 (the pause menu turns it down). */
   setMusicLevel(level: number, duck = 1): void {
     this.musicLevel = level;
     this.musicDuck = duck;
     if (!this.ctx || !this.musicGain) return;
-    const t = this.ctx.currentTime;
-    this.musicGain.gain.setTargetAtTime(this.musicOn ? level * duck * 0.8 * this.musicScale : 0, t, 0.25);
-    this.musicFilter.frequency.setTargetAtTime(450 + level * level * 3800, t, 0.15);
+    this.musicGain.gain.setTargetAtTime(this.playing ? level * duck * 0.8 * this.musicScale : 0, this.ctx.currentTime, 0.25);
   }
 
-  private runMusic(): void {
-    if (!this.ctx || this.musicTimer) return;
-    this.nextStep = this.ctx.currentTime + 0.1;
-    this.step = 0;
-    this.setMusicLevel(this.musicLevel, this.musicDuck);
-    this.musicTimer = window.setInterval(() => this.scheduleMusic(), 90);
-  }
-
-  private stopMusic(): void {
-    window.clearInterval(this.musicTimer);
-    this.musicTimer = 0;
-    if (this.ctx) this.musicGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
-  }
-
-  private mTone(freq: number, dur: number, type: OscillatorType, vol: number, at: number, attack = 0.01, detune = 0): void {
-    const ctx = this.ctx!;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = type;
-    o.frequency.value = freq;
-    o.detune.value = detune;
-    g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(vol, at + attack);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    o.connect(g).connect(this.musicFilter);
-    o.start(at);
-    o.stop(at + dur + 0.05);
-  }
-
-  private mNoise(dur: number, vol: number, type: BiquadFilterType, freq: number, at: number): void {
-    const ctx = this.ctx!;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuf;
-    src.loop = true;
-    const f = ctx.createBiquadFilter();
-    f.type = type;
-    f.frequency.value = freq;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(vol, at);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-    src.connect(f).connect(g).connect(this.musicFilter);
-    src.start(at, Math.random());
-    src.stop(at + dur + 0.05);
-  }
-
-  /** Warm electric-piano note: a soft sine body, a quiet octave and a faint bell on top. */
-  private mKeys(freq: number, vol: number, at: number, dur = 2.2): void {
-    this.mTone(freq, dur, 'sine', vol, at, 0.012);
-    this.mTone(freq * 2, dur * 0.5, 'sine', vol * 0.22, at, 0.01);
-    this.mTone(freq * 4.01, 0.35, 'sine', vol * 0.06, at, 0.004);
-  }
-
-  /** Slow, shimmering chord tone: two gently detuned sines with a long swell. */
-  private mPad(freq: number, dur: number, vol: number, at: number): void {
-    this.mTone(freq, dur, 'sine', vol, at, 1.1, -6);
-    this.mTone(freq, dur, 'sine', vol, at, 1.1, 6);
-    this.mTone(freq * 2, dur, 'triangle', vol * 0.18, at, 1.4);
-  }
-
-  /** A plucked, guitar-like note: a quick triangle with a soft octave. */
-  private mPluck(freq: number, vol: number, at: number, dur = 1.1): void {
-    this.mTone(freq, dur, 'triangle', vol, at, 0.004);
-    this.mTone(freq * 2, dur * 0.4, 'sine', vol * 0.22, at, 0.003);
-  }
-
-  /** The radio's stations. Each one is a short chord loop with its own mood, tempo and way of playing it. */
-  static readonly TRACKS: { name: string; mood: 'dreamy' | 'sunset' | 'night' | 'bossa' | 'rain' | 'folk'; bpm: number; chords: number[][]; melody: number[] }[] = [
-    {
-      name: 'Morning Tide', mood: 'dreamy', bpm: 62,
-      chords: [[48, 55, 59, 62, 64], [45, 52, 55, 59, 64], [41, 48, 52, 57, 62], [43, 50, 53, 57, 60]],
-      melody: [72, 74, 76, 79, 81, 84],
-    },
-    {
-      name: 'Lazy Sunset', mood: 'sunset', bpm: 56,
-      chords: [[50, 57, 61, 64, 66], [47, 54, 57, 61, 66], [43, 50, 54, 59, 62], [45, 52, 55, 59, 62]],
-      melody: [74, 76, 78, 81, 83, 86],
-    },
-    {
-      name: 'Starlit Night', mood: 'night', bpm: 48,
-      chords: [[45, 52, 55, 59, 64], [41, 48, 52, 57, 60], [48, 55, 59, 62, 64], [40, 47, 50, 55, 59]],
-      melody: [69, 72, 74, 76, 79, 81, 84],
-    },
-    {
-      name: 'Beach Bossa', mood: 'bossa', bpm: 104,
-      chords: [[50, 53, 57, 60, 64], [43, 47, 53, 57, 64], [48, 52, 55, 59, 62], [45, 52, 55, 61, 64]],
-      melody: [74, 77, 79, 81, 84],
-    },
-    {
-      name: 'Rainy Window', mood: 'rain', bpm: 56,
-      chords: [[41, 48, 52, 57, 60], [40, 47, 50, 55, 59], [38, 50, 53, 57, 64], [36, 48, 52, 55, 59]],
-      melody: [72, 74, 77, 79, 81],
-    },
-    {
-      name: 'Campfire Strum', mood: 'folk', bpm: 84,
-      chords: [[43, 50, 55, 59, 62], [40, 47, 52, 55, 59], [48, 55, 60, 64, 67], [50, 57, 62, 66, 69]],
-      melody: [79, 81, 83, 86, 88],
-    },
-  ];
-
+  // The radio plays recorded tracks. Two players take turns so one tune can fade into the next.
+  private slots: { el: HTMLAudioElement; gain: GainNode; file: number }[] = [];
+  private activeSlot = 0;
+  /** 0 = follow the place the player is in, 1.. = a fixed tune */
   private trackIdx = 0;
+  private place = 1;
+
+  /** The stations: the first follows the player, the rest are fixed. `file` indexes RADIO_FILES. */
+  static readonly STATIONS: { name: string; file: number }[] = [
+    { name: 'Wherever you are', file: -1 },
+    { name: 'Beach Day', file: 1 },
+    { name: 'Camp Night', file: 2 },
+    { name: 'Under the Water', file: 3 },
+    { name: 'Under the Dunes', file: 4 },
+    { name: 'Cozy Treasure Hunter', file: 0 },
+  ];
+  private static readonly RADIO_FILES = ['01-main-theme', '02-beach-day', '03-camp-night', '04-underwater', '05-underground'];
 
   get trackName(): string {
-    return AudioManager.TRACKS[this.trackIdx].name;
+    const st = AudioManager.STATIONS[this.trackIdx];
+    return st.file < 0 ? `${AudioManager.STATIONS[this.place].name} (follows you)` : st.name;
   }
 
   get trackNumber(): number {
@@ -221,115 +125,79 @@ export class AudioManager {
   }
 
   get trackCount(): number {
-    return AudioManager.TRACKS.length;
+    return AudioManager.STATIONS.length;
   }
 
-  /** Switches the radio to another station; the last notes of the old tune ring out under the new one. */
   setTrack(i: number): void {
-    const n = AudioManager.TRACKS.length;
+    const n = AudioManager.STATIONS.length;
     this.trackIdx = ((Math.round(i) % n) + n) % n;
-    this.step = 0;
-    if (this.ctx) this.nextStep = this.ctx.currentTime + 0.25;
+    this.syncTrack();
   }
 
-  /** One scheduling pass of the current station: queues notes a moment ahead of the clock. */
-  private scheduleMusic(): void {
-    const ctx = this.ctx;
-    if (!ctx || !this.musicOn) return;
-    const tr = AudioManager.TRACKS[this.trackIdx];
-    const midi = (n: number): number => 440 * Math.pow(2, (n - 69) / 12);
-    const sixteenth = 60 / tr.bpm / 4;
-    while (this.nextStep < ctx.currentTime + 0.4) {
-      const s = this.step % 64;
-      const bar = Math.floor(s / 16);
-      const k = s % 16;
-      const chord = tr.chords[bar];
-      const pent = tr.melody;
-      const t = this.nextStep + (Math.random() - 0.5) * 0.012; // human, not metronomic
-      const bell = (chance: number, dur = 3): void => {
-        if (Math.random() < chance) this.mKeys(midi(pent[Math.floor(Math.random() * pent.length)]), 0.045, t, dur);
-      };
+  /** Tells the radio where the player is: 1 beach by day, 2 beach by night, 3 underwater, 4 underground. */
+  setPlace(place: number): void {
+    if (place === this.place) return;
+    this.place = place;
+    this.syncTrack();
+  }
 
-      switch (tr.mood) {
-        case 'dreamy': {
-          // soft chords, a lazy piano arpeggio, sparse bells and a gentle heartbeat
-          if (k === 0) {
-            chord.forEach((n, i) => this.mPad(midi(n + (i < 2 ? 0 : 12)), sixteenth * 17, 0.035, t + i * 0.05));
-            this.mTone(midi(chord[0] - 12), sixteenth * 14, 'sine', 0.2, t, 0.05);
-            this.mTone(95, 0.3, 'sine', 0.1, t, 0.01);
-          }
-          if (k === 8) this.mTone(midi(chord[0] - 12), sixteenth * 6, 'sine', 0.12, t, 0.05);
-          const arp = [2, 5, 8, 11, 14].indexOf(k);
-          if (arp >= 0 && Math.random() > 0.18) this.mKeys(midi(chord[(arp + bar) % chord.length] + 12), 0.055 + Math.random() * 0.025, t);
-          if (k === 4 || k === 12) bell(0.38);
-          if (k % 4 === 2) this.mNoise(0.09, 0.012, 'bandpass', 4200, t);
-          if (Math.random() < 0.05) this.mNoise(0.012, 0.02, 'highpass', 5000, t + Math.random() * sixteenth);
-          break;
-        }
-        case 'sunset': {
-          // warm and unhurried: long pads, a plucked figure that rolls over the chord, a lazy tune on top
-          if (k === 0) {
-            chord.forEach((n, i) => this.mPad(midi(n + (i < 2 ? 0 : 12)), sixteenth * 17, 0.04, t + i * 0.06));
-            this.mTone(midi(chord[0] - 12), sixteenth * 15, 'sine', 0.22, t, 0.06);
-          }
-          if (k === 8) this.mTone(midi(chord[0] - 12 + 7), sixteenth * 6, 'sine', 0.1, t, 0.05);
-          const fig = [0, 3, 6, 8, 11, 14].indexOf(k);
-          if (fig >= 0 && Math.random() > 0.12) this.mPluck(midi(chord[(fig + bar * 2) % chord.length] + 12), 0.05 + Math.random() * 0.02, t, 1.4);
-          if (k === 4 || k === 12) bell(0.5, 2.6);
-          if (k % 8 === 6) this.mNoise(0.1, 0.01, 'bandpass', 3800, t);
-          break;
-        }
-        case 'night': {
-          // very sparse: deep pads, a drone, and the odd high bell like a star coming out
-          if (k === 0) {
-            chord.forEach((n, i) => this.mPad(midi(n + (i < 2 ? 0 : 12)), sixteenth * 17, 0.045, t + i * 0.08));
-            this.mTone(midi(chord[0] - 12), sixteenth * 16, 'sine', 0.2, t, 0.1);
-          }
-          if (k === 0 || k === 6 || k === 10) bell(0.42, 4);
-          if (k === 8 && Math.random() < 0.5) this.mKeys(midi(chord[2] + 12), 0.04, t, 3);
-          break;
-        }
-        case 'bossa': {
-          // a light, swaying beat: offbeat chord stabs, a walking bass and a ticking shaker
-          const root = chord[0] - 12;
-          if (k === 0 || k === 8) this.mTone(midi(root), sixteenth * 6, 'sine', 0.18, t, 0.015);
-          if (k === 6 || k === 14) this.mTone(midi(root + 7), sixteenth * 4, 'sine', 0.13, t, 0.015);
-          if ([0, 3, 6, 10, 12].includes(k)) chord.slice(1, 4).forEach((n, i) => this.mKeys(midi(n + 12), 0.032, t + i * 0.012, 0.5));
-          if (k % 2 === 0) this.mNoise(0.05, 0.011, 'bandpass', 5200, t);
-          if (k === 3 || k === 6 || k === 10 || k === 13) this.mNoise(0.03, 0.02, 'bandpass', 2400, t);
-          if (k === 8 || k === 12) bell(0.35, 1.6);
-          break;
-        }
-        case 'rain': {
-          // slow electric-piano chords under a soft hiss of rain
-          if (k === 0) {
-            chord.forEach((n, i) => this.mPad(midi(n + (i < 2 ? 0 : 12)), sixteenth * 17, 0.03, t + i * 0.05));
-            this.mTone(midi(chord[0] - 12), sixteenth * 15, 'sine', 0.18, t, 0.06);
-          }
-          if (k % 4 === 0) this.mKeys(midi(chord[(k / 4 + bar) % chord.length] + 12), 0.05, t, 2.6);
-          if (k % 2 === 0) this.mNoise(0.16, 0.007, 'highpass', 6500, t);
-          if (k === 6 || k === 14) bell(0.3, 3);
-          break;
-        }
-        case 'folk': {
-          // an acoustic strum around the fire, with a soft thump underneath
-          const strum = (dir: number, vol: number): void => {
-            const order = dir > 0 ? [0, 1, 2, 3, 4] : [4, 3, 2, 1, 0];
-            order.forEach((ci, i) => this.mPluck(midi(chord[ci] + (ci < 2 ? 0 : 12)), vol, t + i * 0.022, 1.3));
-          };
-          if (k === 0) { strum(1, 0.05); this.mTone(midi(chord[0] - 12), 0.4, 'sine', 0.2, t, 0.01); this.mTone(80, 0.22, 'sine', 0.13, t, 0.005); }
-          if (k === 6) strum(-1, 0.03);
-          if (k === 8) { strum(1, 0.04); this.mTone(midi(chord[0] - 12 + 7), 0.35, 'sine', 0.14, t, 0.01); this.mTone(80, 0.2, 'sine', 0.1, t, 0.005); }
-          if (k === 10 || k === 14) strum(-1, 0.026);
-          if (k === 4 || k === 12) this.mNoise(0.07, 0.014, 'bandpass', 3800, t);
-          if (k === 2 || k === 10) bell(0.22, 1.8);
-          break;
-        }
+  private wantedFile(): number {
+    if (this.menuOn) return 0;
+    const st = AudioManager.STATIONS[this.trackIdx];
+    return st.file >= 0 ? st.file : this.place;
+  }
+
+  private runMusic(): void {
+    if (!this.ctx || !this.playing) return;
+    if (!this.slots.length) {
+      for (let i = 0; i < 2; i++) {
+        const el = new Audio();
+        el.loop = true;
+        el.preload = 'auto';
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0;
+        this.ctx.createMediaElementSource(el).connect(gain).connect(this.musicGain);
+        this.slots.push({ el, gain, file: -1 });
       }
-
-      this.nextStep += sixteenth;
-      this.step++;
     }
+    this.setMusicLevel(this.musicLevel, this.musicDuck);
+    this.syncTrack();
+  }
+
+  private stopMusic(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    for (const sl of this.slots) {
+      sl.gain.gain.setTargetAtTime(0, t, 0.5);
+      const el = sl.el;
+      window.setTimeout(() => {
+        if (!this.playing) el.pause();
+      }, 2500);
+    }
+    this.musicGain.gain.setTargetAtTime(0, t, 0.1);
+  }
+
+  /** Fades to the right tune for the current station and place. */
+  private syncTrack(): void {
+    if (!this.ctx || !this.playing || !this.slots.length) return;
+    const want = this.wantedFile();
+    const cur = this.slots[this.activeSlot];
+    if (cur.file === want && !cur.el.paused) return;
+    const t = this.ctx.currentTime;
+    cur.gain.gain.setTargetAtTime(0, t, 1.2);
+    const old = cur.el;
+    window.setTimeout(() => {
+      if (this.slots[this.activeSlot].el !== old) old.pause();
+    }, 6000);
+    this.activeSlot = 1 - this.activeSlot;
+    const next = this.slots[this.activeSlot];
+    next.file = want;
+    next.el.src = `./music/${AudioManager.RADIO_FILES[want]}.mp3`;
+    next.el.currentTime = 0;
+    void next.el.play().catch(() => undefined);
+    next.gain.gain.cancelScheduledValues(t);
+    next.gain.gain.setValueAtTime(0, t);
+    next.gain.gain.linearRampToValueAtTime(1, t + 3);
   }
 
   /** 4 second looping brown-noise surf, low-passed by a slow LFO between 120Hz and 550Hz. */

@@ -123,7 +123,7 @@ export const HELP_TOPICS: HelpTopic[] = [
           'The recycling bin: turn trash into coins.',
           'The camper: the shop. Buy upgrades for your detector, digging, cleaning and gear, plus a golf cart key, a boat key, a bow, a toy pistol, marker flags, a bucket and spade, diving gear, bones for the dog and decorations.',
           'The post: letters that arrive after you return lost things.',
-          'The radio: six stations. Stand close for more volume. Use E to change the song.',
+          'The radio: once it is on, the music follows you everywhere, and the tune changes with the place (the beach by day, the camp at night, under the water, under the dunes). Use E to pick a fixed song instead.',
           'The hammock: sleep until morning.',
           'The lantern: switch it on or off.',
           'The journal: everything you have discovered.',

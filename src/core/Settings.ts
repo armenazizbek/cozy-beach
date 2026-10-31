@@ -20,7 +20,7 @@ export interface GameSettings {
 
 export const DEFAULT_SETTINGS: GameSettings = {
   master: 1,
-  music: 1,
+  music: 0.4,
   ambience: 1,
   sensitivity: 1,
   shadows: true,

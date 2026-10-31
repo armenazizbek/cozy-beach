@@ -1073,7 +1073,7 @@ export class Game {
       this.camp.setRadio(on);
       if (on) this.discover('radio_on');
       this.audio.ui();
-      this.ui.toast(on ? `📻 ${this.audio.trackName}. The music gets louder the closer you stand.` : 'Radio off.');
+      this.ui.toast(on ? `📻 ${this.audio.trackName}` : 'Radio off.');
       return;
     }
     const tab = tabs[kind];
@@ -3181,14 +3181,17 @@ export class Game {
   }
 
 
-  /** louder the closer the player is to the radio; silent beyond about 40m */
+  /** with the radio on the music plays everywhere; the tune follows the place the player is in */
   private updateMusic(): void {
+    const menu = this.gameState === 'MENU';
+    this.audio.setMenu(menu);
+    if (menu) {
+      this.audio.setMusicLevel(1, 1);
+      return;
+    }
     if (!this.audio.radioOn) return;
-    const r = this.camp.radioPosition(this.radioPos);
-    const d = Math.hypot(this.player.x - r.x, this.player.z - r.z);
-    let level = d < 2.5 ? 1 : Math.pow(Math.max(0, 1 - (d - 2.5) / 38), 2);
-    if (this.hammock) level = Math.max(level, 0.85); // lying back, the music is all around you
-    this.audio.setMusicLevel(level, 1);
+    this.audio.setPlace(this.underground ? 4 : this.diving ? 3 : this.sky.isDark ? 2 : 1);
+    this.audio.setMusicLevel(this.paused ? 0.08 : 1, 1);
   }
 
   private updateHover(): void {
