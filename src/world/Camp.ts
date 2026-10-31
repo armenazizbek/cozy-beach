@@ -623,59 +623,104 @@ export class Camp {
     }
   }
 
-  /** A striped hammock slung between two posts. Press F to lie in it and sleep until morning. */
+  /** A striped hammock slung between two posts on spreader bars. Press F to lie in it and sleep until morning. */
   private buildHammock(): void {
     const g = this.hammockGroup;
     const rope = new THREE.MeshStandardMaterial({ color: 0xcdbd95, roughness: 0.9 });
-    const half = 1.55;
-    const anchor = 1.4;
-    const sag = 0.62;
+    const bar = wood(0x8a6240);
+    const post = wood(0x6b4a2f);
+    const half = 1.3; // half the length of the cloth, between the bars
+    const wide = 0.4; // half its width
+    const drop = 0.14; // how far the bars hang below the knots on the posts
+    const sag = 0.6;
+    const strand = (a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material): THREE.Mesh => {
+      const d = b.clone().sub(a);
+      const m = cyl(r, r, d.length(), mat, 6);
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+      return m;
+    };
+    // the cloth and everything that hangs with it swing from the line between the two knots
+    this.hammockCloth.position.y = 1.52;
     for (const s of [-1, 1]) {
-      const pole = box(0.14, 1.9, 0.14, wood(0x6b4a2f), s * 1.72, 0.95, 0);
-      pole.rotation.z = -s * 0.04;
+      const pole = cyl(0.07, 0.095, 2.05, post, 10);
+      pole.position.set(s * 1.72, 1.02, 0);
+      pole.rotation.z = -s * 0.03;
+      pole.castShadow = true;
       g.add(pole);
-      g.add(box(0.2, 0.05, 0.2, wood(0x4f3722), s * 1.72, 1.9, 0));
-      // ropes from the post to each end of the cloth
-      for (const dz of [-0.2, 0.2]) {
-        const r = cyl(0.012, 0.012, 0.3, rope, 6);
-        r.position.set(s * 1.64, anchor + 0.1, dz);
-        r.rotation.z = s * 1.2;
-        g.add(r);
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 6), post);
+      top.scale.y = 0.45;
+      top.position.set(s * 1.75, 2.05, 0);
+      g.add(top);
+      // rope lashed around the post, then a fan of cords from the knot to the bar
+      for (let i = 0; i < 3; i++) {
+        const turn = new THREE.Mesh(new THREE.TorusGeometry(0.086, 0.011, 6, 16), rope);
+        turn.rotation.x = Math.PI / 2;
+        turn.position.set(s * 1.735, 1.5 + i * 0.022, 0);
+        g.add(turn);
       }
+      const knot = new THREE.Vector3(s * 1.655, 0, 0);
+      const k = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), rope);
+      k.position.copy(knot);
+      this.hammockCloth.add(k);
+      for (let i = 0; i < 5; i++) this.hammockCloth.add(strand(knot, new THREE.Vector3(s * half, -drop, (i - 2) * 0.18), 0.007, rope));
+      const spreader = cyl(0.02, 0.02, wide * 2 + 0.1, bar, 8);
+      spreader.rotation.x = Math.PI / 2;
+      spreader.position.set(s * half, -drop, 0);
+      spreader.castShadow = true;
+      this.hammockCloth.add(spreader);
     }
-    // striped cloth: a long strip that sags in the middle and curls up at the sides
+    // the stripes run the length of the cloth, the way a woven hammock's do
     const tex = (() => {
       const c = document.createElement('canvas');
-      c.width = 128;
-      c.height = 8;
+      c.width = 8;
+      c.height = 128;
       const x = c.getContext('2d')!;
-      const cols = ['#e9d9b4', '#3f9a8d', '#e9d9b4', '#d9704a', '#e9d9b4', '#3f9a8d'];
+      const cols = ['#d9704a', '#e9d9b4', '#3f9a8d', '#e9d9b4', '#d9704a', '#e9d9b4', '#3f9a8d', '#e9d9b4', '#d9704a'];
       cols.forEach((col, i) => {
         x.fillStyle = col;
-        x.fillRect((i * 128) / cols.length, 0, 128 / cols.length + 1, 8);
+        x.fillRect(0, (i * 128) / cols.length, 8, 128 / cols.length + 1);
       });
       const t = new THREE.CanvasTexture(c);
       t.colorSpace = THREE.SRGBColorSpace;
       return t;
     })();
-    const geo = new THREE.PlaneGeometry(2 * half, 0.95, 24, 8);
+    // the cloth hangs in a long curve between the bars, and its sides rise into a cradle in the middle
+    const surface = (u: number, v: number): THREE.Vector3 => {
+      const bowl = 1 - u * u;
+      return new THREE.Vector3(u * half, -drop - sag * bowl + 0.2 * v * v * bowl, v * wide * (1 - 0.12 * bowl));
+    };
+    const geo = new THREE.PlaneGeometry(2 * half, 2 * wide, 32, 12);
     const p = geo.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < p.count; i++) {
-      const u = p.getX(i) / half; // -1..1 along the length
-      const v = p.getY(i) / 0.475; // -1..1 across
-      const bowl = 1 - u * u;
-      const width = 0.55 + 0.45 * bowl; // narrower toward the ends
-      p.setXYZ(i, u * half, anchor - sag * bowl + 0.14 * v * v * bowl, v * 0.475 * width);
+      const at = surface(p.getX(i) / half, p.getY(i) / wide);
+      p.setXYZ(i, at.x, at.y, at.z);
     }
     geo.computeVertexNormals();
     const cloth = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9, side: THREE.DoubleSide }));
     cloth.castShadow = true;
     cloth.receiveShadow = true;
     this.hammockCloth.add(cloth);
-    // a pillow at one end
-    const pillow = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshStandardMaterial({ color: 0xf3ead2, roughness: 0.9 }));
-    pillow.scale.set(1.3, 0.55, 0.9);
-    pillow.position.set(-1.05, anchor - sag * (1 - 0.46) + 0.1, 0);
+    // a rope hem down each long edge gives the cloth some weight
+    for (const v of [-1, 1]) {
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 20; i++) pts.push(surface(i / 10 - 1, v));
+      const hem = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.012, 6), rope);
+      this.hammockCloth.add(hem);
+    }
+    // a soft pillow up at the head end, plumped by squashing a ball and denting its middle
+    const pillowGeo = new THREE.SphereGeometry(0.2, 18, 12);
+    const q = pillowGeo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < q.count; i++) {
+      const dent = 1 - 0.28 * Math.exp(-(q.getX(i) ** 2 + q.getZ(i) ** 2) / 0.02);
+      q.setY(i, q.getY(i) * dent);
+    }
+    pillowGeo.computeVertexNormals();
+    const pillow = new THREE.Mesh(pillowGeo, new THREE.MeshStandardMaterial({ color: 0xf3ead2, roughness: 0.9 }));
+    pillow.scale.set(0.95, 0.55, 1.45);
+    const head = surface(-0.62, 0);
+    pillow.position.set(head.x, head.y + 0.085, 0);
+    pillow.rotation.z = -0.32;
     pillow.castShadow = true;
     this.hammockCloth.add(pillow);
     g.add(this.hammockCloth);
