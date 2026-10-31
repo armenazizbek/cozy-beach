@@ -124,14 +124,21 @@ export const solidSurface = (f: (x: number, y: number, z: number) => number, lo:
   const nor = new Float32Array(pos.length);
   const e = 0.001;
   for (let i = 0; i < pos.length; i += 3) {
-    const [x, y, z] = [pos[i], pos[i + 1], pos[i + 2]];
+    const x = pos[i];
+    const y = pos[i + 1];
+    const z = pos[i + 2];
     // four samples at the corners of a little tetrahedron give the same slope as six along the axes
     const a = f(x + e, y - e, z - e);
     const b = f(x - e, y - e, z + e);
     const c = f(x - e, y + e, z - e);
     const d = f(x + e, y + e, z + e);
-    const g = new THREE.Vector3(a - b - c + d, -a - b + c + d, -a + b - c + d).normalize();
-    nor.set([g.x, g.y, g.z], i);
+    const gx = a - b - c + d;
+    const gy = -a - b + c + d;
+    const gz = -a + b - c + d;
+    const inv = 1 / (Math.hypot(gx, gy, gz) || 1);
+    nor[i] = gx * inv;
+    nor[i + 1] = gy * inv;
+    nor[i + 2] = gz * inv;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));

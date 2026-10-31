@@ -7,4 +7,18 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 export default defineConfig({
   base: './',
   define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_YEAR__: JSON.stringify(String(new Date().getFullYear())) },
+  server: {
+    watch: {
+      ignored: ['**/release/**'],
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+        },
+      },
+    },
+  },
 });

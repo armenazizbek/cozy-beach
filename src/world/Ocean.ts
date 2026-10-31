@@ -119,7 +119,7 @@ export class Ocean {
   private time = { value: 0 };
   private foam: THREE.Mesh;
   private foamTex: THREE.CanvasTexture;
-  private foamPos: THREE.BufferAttribute;
+  private foamUniform = { value: new THREE.Vector4() };
   private level = WATER_LEVEL;
 
   /** current height of the water surface */
@@ -265,12 +265,36 @@ export class Ocean {
     }
     // Foam strip hugging the contour where the water meets the sand.
     const fg = new THREE.PlaneGeometry(BEACH_W, 1, this.foamCols, 1);
-    this.foamPos = fg.attributes.position as THREE.BufferAttribute;
+    const foamPos = fg.attributes.position as THREE.BufferAttribute;
+    const shoreSpan = new Float32Array(foamPos.count);
+    for (let i = 0; i <= this.foamCols; i++) {
+      const x = -HALF + (i / this.foamCols) * HALF * 2;
+      const low = this.shoreLow[i];
+      const span = this.shoreHigh[i] - low;
+      foamPos.setXYZ(i, x, 0, low);
+      foamPos.setXYZ(i + this.foamCols + 1, x, 1, low);
+      shoreSpan[i] = span;
+      shoreSpan[i + this.foamCols + 1] = span;
+    }
+    fg.setAttribute('aShoreSpan', new THREE.BufferAttribute(shoreSpan, 1));
     this.foamTex = foamTexture();
-    this.foam = new THREE.Mesh(
-      fg,
-      new THREE.MeshBasicMaterial({ map: this.foamTex, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide }),
-    );
+    const foamMat = new THREE.MeshBasicMaterial({ map: this.foamTex, transparent: true, depthWrite: false, opacity: 0.9, side: THREE.DoubleSide });
+    foamMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uFoam = this.foamUniform;
+      sh.vertexShader = sh.vertexShader
+        .replace(
+          '#include <common>',
+          `#include <common>
+          attribute float aShoreSpan;
+          uniform vec4 uFoam;`,
+        )
+        .replace(
+          '#include <begin_vertex>',
+          `float foamZ = position.z + aShoreSpan * uFoam.y + sin(position.x * 0.6 + uFoam.x * 1.4) * 0.18 + position.y * uFoam.z;
+          vec3 transformed = vec3(position.x, uFoam.w, foamZ);`,
+        );
+    };
+    this.foam = new THREE.Mesh(fg, foamMat);
     this.foam.renderOrder = 2;
     this.foam.frustumCulled = false;
     this.group.add(this.foam);
@@ -297,18 +321,11 @@ export class Ocean {
     this.water.position.y = this.level;
     this.time.value = t;
 
-    // foam band follows the shoreline contour
+    // foam band follows the shoreline contour in the vertex shader
     const surge = 0.5 + 0.5 * Math.sin(t * 0.9 + 1.1);
     const width = 0.6 + surge * 1.6;
     const tide = (this.level - WATER_LEVEL + TIDE) / (TIDE * 2);
-    for (let i = 0; i <= this.foamCols; i++) {
-      const x = -HALF + (i / this.foamCols) * HALF * 2;
-      const z0 = this.shoreLow[i] + (this.shoreHigh[i] - this.shoreLow[i]) * tide;
-      const wob = Math.sin(x * 0.6 + t * 1.4) * 0.18;
-      this.foamPos.setXYZ(i, x, this.level + 0.02, z0 + wob);
-      this.foamPos.setXYZ(i + this.foamCols + 1, x, this.level + 0.02, z0 + wob + width);
-    }
-    this.foamPos.needsUpdate = true;
+    this.foamUniform.value.set(t, tide, width, this.level + 0.02);
     this.foamTex.offset.x = t * 0.02;
     (this.foam.material as THREE.MeshBasicMaterial).opacity = 0.55 + surge * 0.4;
   }

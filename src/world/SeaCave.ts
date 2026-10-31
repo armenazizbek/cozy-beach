@@ -118,10 +118,18 @@ const coinTexture = (): THREE.CanvasTexture => {
 };
 
 /** Distance to a capsule that tapers from `ra` to `rb`. */
-const capsule = (p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, ra: number, rb: number): number => {
-  const ab = b.clone().sub(a);
-  const t = Math.min(1, Math.max(0, p.clone().sub(a).dot(ab) / ab.lengthSq()));
-  return p.distanceTo(a.clone().addScaledVector(ab, t)) - (ra + (rb - ra) * t);
+const capsule = (px: number, py: number, pz: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number, ra: number, rb: number): number => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const qx = px - ax;
+  const qy = py - ay;
+  const qz = pz - az;
+  const t = Math.min(1, Math.max(0, (qx * dx + qy * dy + qz * dz) / (dx * dx + dy * dy + dz * dz)));
+  const rx = qx - dx * t;
+  const ry = qy - dy * t;
+  const rz = qz - dz * t;
+  return Math.sqrt(rx * rx + ry * ry + rz * rz) - (ra + (rb - ra) * t);
 };
 
 let skullGeo: { head: THREE.BufferGeometry; jaw: THREE.BufferGeometry; upper: THREE.BufferGeometry; lower: THREE.BufferGeometry } | null = null;
@@ -130,31 +138,27 @@ let skullGeo: { head: THREE.BufferGeometry; jaw: THREE.BufferGeometry; upper: TH
 const skullParts = (): NonNullable<typeof skullGeo> => {
   if (skullGeo) return skullGeo;
   const V = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
-  const p = new THREE.Vector3();
   const head = (x: number, yy: number, z: number): number => {
     // the skull is the same on both sides, and it faces -z
-    p.set(Math.abs(x), yy, z);
-    let d = capsule(p, V(0, 0.55, 0.9), V(0, 0.6, 0.4), 0.62, 0.55);
-    d = blendShapes(d, capsule(p, V(0, 0.35, 0.2), V(0, 0.2, -1.5), 0.42, 0.2), 0.25);
-    d = blendShapes(d, capsule(p, V(0.36, 0.78, 0.4), V(0.3, 0.66, -0.25), 0.2, 0.13), 0.14);
-    d = blendShapes(d, capsule(p, V(0.52, 0.2, 0.6), V(0.24, 0.12, -0.7), 0.17, 0.1), 0.16);
+    const px = Math.abs(x);
+    let d = capsule(px, yy, z, 0, 0.55, 0.9, 0, 0.6, 0.4, 0.62, 0.55);
+    d = blendShapes(d, capsule(px, yy, z, 0, 0.35, 0.2, 0, 0.2, -1.5, 0.42, 0.2), 0.25);
+    d = blendShapes(d, capsule(px, yy, z, 0.36, 0.78, 0.4, 0.3, 0.66, -0.25, 0.2, 0.13), 0.14);
+    d = blendShapes(d, capsule(px, yy, z, 0.52, 0.2, 0.6, 0.24, 0.12, -0.7, 0.17, 0.1), 0.16);
     // the horns sweep back from the brow
-    d = blendShapes(d, capsule(p, V(0.42, 0.9, 0.55), V(0.72, 1.2, 1.25), 0.13, 0.08), 0.1);
-    d = blendShapes(d, capsule(p, V(0.72, 1.2, 1.25), V(0.72, 1.12, 1.95), 0.08, 0.015), 0.04);
+    d = blendShapes(d, capsule(px, yy, z, 0.42, 0.9, 0.55, 0.72, 1.2, 1.25, 0.13, 0.08), 0.1);
+    d = blendShapes(d, capsule(px, yy, z, 0.72, 1.2, 1.25, 0.72, 1.12, 1.95, 0.08, 0.015), 0.04);
     // the sockets, the nostrils and the hollow behind the eye
-    const cut = (c: THREE.Vector3, r: number): void => {
-      d = -blendShapes(-d, p.distanceTo(c) - r, 0.05);
-    };
-    cut(V(0.46, 0.6, 0.02), 0.27);
-    cut(V(0.13, 0.42, -1.4), 0.08);
-    cut(V(0.66, 0.4, 0.92), 0.22);
+    d = -blendShapes(-d, Math.hypot(px - 0.46, yy - 0.6, z - 0.02) - 0.27, 0.05);
+    d = -blendShapes(-d, Math.hypot(px - 0.13, yy - 0.42, z + 1.4) - 0.08, 0.05);
+    d = -blendShapes(-d, Math.hypot(px - 0.66, yy - 0.4, z - 0.92) - 0.22, 0.05);
     return d;
   };
   const jaw = (x: number, yy: number, z: number): number => {
-    p.set(Math.abs(x), yy, z);
-    let d = capsule(p, V(0.52, -0.1, 0.95), V(0.14, -0.2, -1.32), 0.13, 0.09);
-    d = blendShapes(d, capsule(p, V(0.52, -0.1, 0.95), V(0.58, 0.22, 1.05), 0.12, 0.09), 0.1);
-    d = blendShapes(d, capsule(p, V(0, -0.2, -1.35), V(0.14, -0.2, -1.32), 0.09, 0.09), 0.1);
+    const px = Math.abs(x);
+    let d = capsule(px, yy, z, 0.52, -0.1, 0.95, 0.14, -0.2, -1.32, 0.13, 0.09);
+    d = blendShapes(d, capsule(px, yy, z, 0.52, -0.1, 0.95, 0.58, 0.22, 1.05, 0.12, 0.09), 0.1);
+    d = blendShapes(d, capsule(px, yy, z, 0, -0.2, -1.35, 0.14, -0.2, -1.32, 0.09, 0.09), 0.1);
     return d;
   };
   const headGeo = solidSurface(head, V(-1.1, -0.4, -1.9), V(1.1, 1.5, 2.1), 0.045);
