@@ -5,6 +5,8 @@
 interface DesktopStore {
   get(key: string): string | null;
   set(key: string, value: string): boolean;
+  /** writes in the background, without waiting to hear how it went */
+  setLater(key: string, value: string): void;
   remove(key: string): void;
 }
 
@@ -51,6 +53,20 @@ export const store = {
     } catch {
       return false;
     }
+  },
+
+  /** For small things saved in the middle of play: the game does not stop to wait for the disk. */
+  setItemLater(key: string, value: string): void {
+    const d = desktop();
+    if (d) {
+      try {
+        d.setLater(key, value);
+      } catch {
+        /* the next change writes it again */
+      }
+      return;
+    }
+    this.setItem(key, value);
   },
 
   removeItem(key: string): void {

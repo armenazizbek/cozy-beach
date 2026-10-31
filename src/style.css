@@ -104,7 +104,6 @@ body[data-mode='EXPLORE']:not(.nolock) #scene { cursor: none; }
   border-radius: 16px;
   background: var(--glass);
   box-shadow: 0 6px 24px rgba(60, 30, 10, 0.25);
-  backdrop-filter: blur(6px);
 }
 
 .row { display: flex; align-items: center; gap: 8px; }
@@ -330,7 +329,6 @@ button.chip { cursor: pointer; }
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at 50% 40%, rgba(255, 214, 150, 0.35), rgba(40, 24, 12, 0.7));
-  backdrop-filter: blur(4px);
   transition: opacity 0.6s;
   pointer-events: auto;
 }
@@ -360,7 +358,6 @@ button.chip { cursor: pointer; }
   align-items: center;
   justify-content: center;
   background: rgba(30, 18, 8, 0.55);
-  backdrop-filter: blur(4px);
   pointer-events: auto;
 }
 .intro.gone { opacity: 0; pointer-events: none; }
@@ -593,13 +590,17 @@ button.chip { cursor: pointer; }
 .set-check { width: 20px; height: 20px; accent-color: var(--accent); justify-self: start; }
 .set-row:has(.set-check) { grid-template-columns: 150px 24px 1fr; }
 .set-row:has(.set-check) .set-val { text-align: left; }
+.set-options { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px 162px; }
+.set-option { padding: 6px 12px; border: 0; border-radius: 8px; background: rgba(120, 80, 40, 0.14); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.set-option.on { font-weight: 700; }
 .farewell { z-index: 6; }
 .credits { z-index: 6; }
 .credits .credit { font-style: italic; margin: 10px 0 22px; opacity: 0.9; line-height: 1.5; }
 
 /* ---------- controller focus ---------- */
 body.usingpad button:focus,
-body.usingpad input:focus { outline: 3px solid #ffd27a; outline-offset: 3px; }
+body.usingpad input:focus,
+body.usingpad select:focus { outline: 3px solid #ffd27a; outline-offset: 3px; }
 body.usingpad .mm-btn:focus { transform: translateX(8px); background: #fff; padding-left: 26px; }
 body.usingpad canvas { cursor: none; }
 .map-cursor {

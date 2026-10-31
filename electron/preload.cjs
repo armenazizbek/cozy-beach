@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('desktop', {
   store: {
     get: (key) => ipcRenderer.sendSync('store:get', key),
     set: (key, value) => ipcRenderer.sendSync('store:set', key, value) === true,
+    setLater: (key, value) => ipcRenderer.send('store:set-later', key, value),
     remove: (key) => void ipcRenderer.sendSync('store:remove', key),
   },
   /** only present when Steam started the game */

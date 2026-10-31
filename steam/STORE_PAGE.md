@@ -81,7 +81,7 @@ Recommended:
 - Graphics: GeForce GTX 1050 or similar
 - Storage: 700 MB available space
 
-(The install is about 320 MB; the rest is room for saves and updates.)
+(The install is about 350 MB; the rest is room for saves and updates.)
 
 ## Languages
 

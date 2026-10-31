@@ -18,6 +18,8 @@ export class InputManager {
   readonly keys = new Set<string>();
   handlers: InputHandlers = {};
   buttons = 0;
+  /** the controller is moving the pointer, so the mouse leaves it and the held buttons alone */
+  padPointer = false;
   /** pointer speed in px/s, smoothed */
   speed = 0;
   private raycaster = new THREE.Raycaster();
@@ -67,6 +69,10 @@ export class InputManager {
 
   private move = (e: PointerEvent): void => {
     const locked = document.pointerLockElement === this.el;
+    if (this.padPointer) {
+      this.handlers.onPointerMove?.(e.movementX, e.movementY, e.buttons);
+      return;
+    }
     if (locked) this.pointer.set(0, 0);
     else this.setPointer(e);
     const now = performance.now();

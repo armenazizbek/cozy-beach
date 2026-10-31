@@ -110,6 +110,9 @@ const rippleTexture = (): THREE.DataTexture => {
   return t;
 };
 
+/** how far the tide rises and falls from the middle */
+const TIDE = 0.08;
+
 export class Ocean {
   readonly group = new THREE.Group();
   private water: THREE.Mesh;
@@ -124,6 +127,9 @@ export class Ocean {
     return this.level;
   }
   private foamCols = 300;
+  /** the shoreline at the lowest and the highest the tide goes, worked out once; each frame reads between the two */
+  private shoreLow = new Float32Array(this.foamCols + 1);
+  private shoreHigh = new Float32Array(this.foamCols + 1);
 
   /** The swell alone, without the tide, at a point on the open sea. */
   swellAt(x: number, z: number, t = this.time.value): number {
@@ -248,11 +254,15 @@ export class Ocean {
         );
     };
     this.water = new THREE.Mesh(wg, mat);
-    this.water.frustumCulled = false;
     this.water.position.set(0, WATER_LEVEL, 220);
     this.water.receiveShadow = true;
     this.group.add(this.water);
 
+    for (let i = 0; i <= this.foamCols; i++) {
+      const x = -HALF + (i / this.foamCols) * HALF * 2;
+      this.shoreLow[i] = beach.shoreZ(x, WATER_LEVEL - TIDE);
+      this.shoreHigh[i] = beach.shoreZ(x, WATER_LEVEL + TIDE);
+    }
     // Foam strip hugging the contour where the water meets the sand.
     const fg = new THREE.PlaneGeometry(BEACH_W, 1, this.foamCols, 1);
     this.foamPos = fg.attributes.position as THREE.BufferAttribute;
@@ -282,9 +292,10 @@ export class Ocean {
     // foam band follows the shoreline contour
     const surge = 0.5 + 0.5 * Math.sin(t * 0.9 + 1.1);
     const width = 0.6 + surge * 1.6;
+    const tide = (this.level - WATER_LEVEL + TIDE) / (TIDE * 2);
     for (let i = 0; i <= this.foamCols; i++) {
       const x = -HALF + (i / this.foamCols) * HALF * 2;
-      const z0 = this.beach.shoreZ(x, this.level);
+      const z0 = this.shoreLow[i] + (this.shoreHigh[i] - this.shoreLow[i]) * tide;
       const wob = Math.sin(x * 0.6 + t * 1.4) * 0.18;
       this.foamPos.setXYZ(i, x, this.level + 0.02, z0 + wob);
       this.foamPos.setXYZ(i + this.foamCols + 1, x, this.level + 0.02, z0 + wob + width);

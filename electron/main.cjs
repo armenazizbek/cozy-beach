@@ -51,22 +51,28 @@ ipcMain.on('store:get', (e, key) => {
   }
 });
 
-ipcMain.on('store:set', (e, key, value) => {
+const writeStore = (key, value) => {
   const f = fileFor(key);
-  if (!f || typeof value !== 'string') {
-    e.returnValue = false;
-    return;
-  }
+  if (!f || typeof value !== 'string') return false;
   try {
     fs.mkdirSync(savesDir(), { recursive: true });
     // write beside it first, then rename, so a crash never leaves half a save
     const tmp = `${f}.tmp`;
     fs.writeFileSync(tmp, value);
     fs.renameSync(tmp, f);
-    e.returnValue = true;
+    return true;
   } catch {
-    e.returnValue = false;
+    return false;
   }
+};
+
+ipcMain.on('store:set', (e, key, value) => {
+  e.returnValue = writeStore(key, value);
+});
+
+// the game carries on at once; the write happens here, away from its drawing
+ipcMain.on('store:set-later', (_e, key, value) => {
+  writeStore(key, value);
 });
 
 ipcMain.on('store:remove', (e, key) => {

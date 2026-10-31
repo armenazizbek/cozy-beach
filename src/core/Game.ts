@@ -70,6 +70,10 @@ const CRAB_REWARD = 1;
 const BIRD_REWARD = 2;
 const BIRD_AIR_REWARD = 5;
 const COCONUT_REWARD = 0.5;
+/** Above this the extra sharpness is barely visible, and the cost keeps climbing. */
+const MAX_PIXEL_RATIO = 1.5;
+const NO_TARGETS: THREE.Object3D[] = [];
+
 /** the chance that a bone sends the dog after a Lost & Found item instead of a coin or trash */
 const DOG_LOST_CHANCE = 0.06;
 const SHARK_REWARD = 5;
@@ -173,6 +177,10 @@ export class Game {
   readonly pad = new GamepadInput();
   /** the last thing the player touched was the controller */
   usingPad = false;
+  /** the controller is holding the cleaning brush */
+  private padBrush = false;
+  /** the dropdown whose choices are open for the controller */
+  private padSelect: HTMLSelectElement | null = null;
   private padKeys = new Set<string>();
   private padCalling = false;
   private mapCursor = { u: 0.5, v: 0.5 };
@@ -208,7 +216,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement, uiRoot: HTMLElement) {
     this.canvas = canvas;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -367,8 +375,93 @@ export class Game {
     if (import.meta.env.DEV) (window as unknown as { game: Game }).game = this;
   }
 
-  start(): void {
+  /** Gets everything ready behind the loading screen, then starts the game. Nothing runs yet, so nothing has to compete for the machine. */
+  async start(): Promise<void> {
+    try {
+      await this.prepareEverything();
+    } catch {
+      /* the game can still run: whatever was not prepared is simply built the first time it is seen */
+    }
     this.renderer.setAnimationLoop(() => this.frame());
+    const boot = document.getElementById('boot');
+    boot?.classList.add('gone');
+    window.setTimeout(() => boot?.remove(), 700);
+  }
+
+  /**
+   * Lights are built into shaders, so a place with a different set of lights needs every material rebuilt, and things are only sent to the
+   * graphics chip the first time they are drawn. Both are done here once, so the game never has to stop for them while playing.
+   */
+  private async prepareEverything(): Promise<void> {
+    const bar = document.getElementById('boot-bar');
+    const places: { camp: boolean; near: boolean; under: boolean; cellar: boolean }[] = [
+      { camp: true, near: false, under: false, cellar: false },
+      { camp: false, near: false, under: true, cellar: false },
+      { camp: false, near: false, under: false, cellar: true },
+      { camp: true, near: true, under: false, cellar: false },
+    ];
+    const steps = places.length + 2;
+    const done = (n: number): void => {
+      if (bar) bar.style.width = `${(n / steps) * 100}%`;
+    };
+    for (let i = 0; i < places.length; i++) {
+      const p = places[i];
+      this.camp.group.visible = p.camp;
+      this.cart.group.visible = p.camp;
+      this.under.group.visible = p.under;
+      this.cellar.group.visible = p.cellar;
+      this.camp.setLightsNear(p.near);
+      await this.renderer.compileAsync(this.scene, this.camera);
+      done(i + 1);
+    }
+    // the last place was the camp as it stands at the start
+    this.under.group.visible = false;
+    this.cellar.group.visible = false;
+    await this.station.prepare(this.renderer, this.spawner.group);
+    done(places.length + 1);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    this.sendEverythingToGpu();
+    done(steps);
+  }
+
+  /** Draws the whole world once into a one-pixel image, with everything shown: all that is uploaded, and it costs almost nothing to fill. */
+  private sendEverythingToGpu(): void {
+    const shown: THREE.Object3D[] = [];
+    const unculled: THREE.Object3D[] = [];
+    this.scene.traverse((o) => {
+      if (!o.visible) {
+        o.visible = true;
+        shown.push(o);
+      }
+      if (o.frustumCulled) {
+        o.frustumCulled = false;
+        unculled.push(o);
+      }
+    });
+    // their torches stay out, so this uses the shaders made for the camp
+    const dark: THREE.Object3D[] = [];
+    for (const world of [this.under.group, this.cellar.group]) {
+      world.traverse((o) => {
+        if (o instanceof THREE.Light && o.visible) {
+          o.visible = false;
+          dark.push(o);
+        }
+      });
+    }
+    const target = new THREE.WebGLRenderTarget(1, 1);
+    try {
+      this.renderer.setRenderTarget(target);
+      for (let lod = 2; lod >= 0; lod--) {
+        this.beach.setAllDetail(lod);
+        this.renderer.render(this.scene, this.camera);
+      }
+    } finally {
+      this.renderer.setRenderTarget(null);
+      target.dispose();
+      for (const o of shown) o.visible = false;
+      for (const o of unculled) o.frustumCulled = true;
+      for (const o of dark) o.visible = true;
+    }
   }
 
   private resize(): void {
@@ -507,6 +600,8 @@ export class Game {
     if (!this.started || this.paused) return;
     if (this.gameState === 'INSPECT') {
       if (buttons & 2) this.station.rotate(dx * 0.0045, dy * 0.0045);
+      // a real push of the mouse takes the brush back from the controller; a nudge of the desk does not
+      if (this.padBrush && Math.abs(dx) + Math.abs(dy) > 6) this.setUsingPad(false);
       return;
     }
     // mouse look: with the pointer locked, or right-drag while the cursor is free
@@ -1212,8 +1307,40 @@ export class Game {
     return list.reduce<HTMLElement | null>((best, el) => (!best || best.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING ? el : best), null);
   }
 
+  /** A dropdown cannot be opened from code, so a controller gets its choices as a short list of buttons under the row. */
+  private openPadOptions(sel: HTMLSelectElement): void {
+    const list = document.createElement('div');
+    list.className = 'set-options';
+    Array.from(sel.options).forEach((o, i) => {
+      const b = document.createElement('button');
+      b.className = i === sel.selectedIndex ? 'set-option on' : 'set-option';
+      b.textContent = o.textContent;
+      b.onclick = (): void => {
+        const changed = i !== sel.selectedIndex;
+        sel.selectedIndex = i;
+        this.closePadOptions(list);
+        if (changed) sel.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      list.append(b);
+    });
+    this.padSelect = sel;
+    (sel.closest('.set-row') ?? sel).after(list);
+    list.querySelector<HTMLElement>('.on')?.focus();
+    list.scrollIntoView({ block: 'nearest' });
+    this.audio.ui();
+  }
+
+  private closePadOptions(list: HTMLElement): void {
+    list.remove();
+    this.padSelect?.focus();
+    this.padSelect = null;
+    this.audio.ui();
+  }
+
   private padFocusables(root: HTMLElement): HTMLElement[] {
-    return Array.from(root.querySelectorAll<HTMLElement>('button, input, select')).filter((e) => {
+    // while a list of choices is open, only its choices can be reached
+    const scope = root.querySelector<HTMLElement>('.set-options') ?? root;
+    return Array.from(scope.querySelectorAll<HTMLElement>('button, input, select')).filter((e) => {
       if ((e as HTMLButtonElement).disabled) return false;
       const r = e.getBoundingClientRect();
       return r.width > 0 && r.height > 0;
@@ -1236,31 +1363,29 @@ export class Game {
       cur.dispatchEvent(new Event('input', { bubbles: true }));
       return;
     }
-    if (cur instanceof HTMLSelectElement && (d === 'left' || d === 'right')) {
-      const n = Math.min(cur.options.length - 1, Math.max(0, cur.selectedIndex + (d === 'right' ? 1 : -1)));
-      if (n !== cur.selectedIndex) {
-        cur.selectedIndex = n;
-        cur.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-      return;
-    }
     const c = cur.getBoundingClientRect();
     const cx = c.left + c.width / 2;
     const cy = c.top + c.height / 2;
-    let best: HTMLElement | null = null;
-    let bestScore = Infinity;
+    const vertical = d === 'up' || d === 'down';
+    const options: { el: HTMLElement; along: number; across: number }[] = [];
     for (const it of items) {
       if (it === cur) continue;
       const r = it.getBoundingClientRect();
       const dx = r.left + r.width / 2 - cx;
       const dy = r.top + r.height / 2 - cy;
       const along = d === 'up' ? -dy : d === 'down' ? dy : d === 'left' ? -dx : dx;
-      const across = d === 'up' || d === 'down' ? Math.abs(dx) : Math.abs(dy);
-      if (along <= 2) continue;
-      const score = along + across * 2.2;
+      if (along > 2) options.push({ el: it, along, across: vertical ? Math.abs(dx) : Math.abs(dy) });
+    }
+    let best: HTMLElement | null = null;
+    let bestScore = Infinity;
+    // up and down go to the very next row, whatever is in it: a small checkbox off to one side must not be skipped for a wide slider further on
+    const nearest = options.length ? Math.min(...options.map((o) => o.along)) : 0;
+    for (const o of options) {
+      if (vertical && o.along > nearest + 14) continue;
+      const score = vertical ? o.across : o.along + o.across * 2.2;
       if (score < bestScore) {
         bestScore = score;
-        best = it;
+        best = o.el;
       }
     }
     if (best) {
@@ -1287,9 +1412,14 @@ export class Game {
       if (!down) return;
       if (b === 'a') {
         const cur = document.activeElement as HTMLElement | null;
-        if (cur && root.contains(cur) && cur.tagName !== 'BODY') cur.click();
+        if (cur instanceof HTMLSelectElement) this.openPadOptions(cur);
+        else if (cur && root.contains(cur) && cur.tagName !== 'BODY') cur.click();
         else this.padFocusables(root)[0]?.focus();
-      } else if (b === 'b') this.padBack(root);
+      } else if (b === 'b') {
+        const open = root.querySelector<HTMLElement>('.set-options');
+        if (open) this.closePadOptions(open);
+        else this.padBack(root);
+      }
       else if (b === 'lb' && this.bookOpen) this.ui.bookTurn(-1);
       else if (b === 'rb' && this.bookOpen) this.ui.bookTurn(1);
       else if (b === 'start' && this.paused) this.padKey('Escape');
@@ -1367,11 +1497,21 @@ export class Game {
     }
   }
 
+  /** The controller lets go of the cleaning brush: the mouse has the pointer again and the trigger no longer counts as held. */
+  private releasePadBrush(): void {
+    if (!this.padBrush) return;
+    this.padBrush = false;
+    this.input.padPointer = false;
+    this.input.buttons &= ~1;
+    this.station.brushScale = 1;
+  }
+
   /** Per-frame controller work: menu focus, looking, driving and the map cursor. */
   private padUpdate(dt: number): void {
     const pad = this.pad;
     if (!pad.connected || !this.usingPad) {
       for (const c of Array.from(this.padKeys)) this.setPadKey(c, false);
+      this.releasePadBrush();
       return;
     }
     const root = this.overlayRoot();
@@ -1407,19 +1547,27 @@ export class Game {
     if (this.gameState === 'INSPECT') {
       // left stick turns the find, right stick moves the brush, RT scrubs
       const m = pad.move;
-      this.setPadKey('ArrowRight', m.x > 0.4);
-      this.setPadKey('ArrowLeft', m.x < -0.4);
-      this.setPadKey('ArrowDown', m.y > 0.4);
-      this.setPadKey('ArrowUp', m.y < -0.4);
       const l = pad.look;
-      this.input.pointer.x = Math.max(-1, Math.min(1, this.input.pointer.x + l.x * dt * 1.4));
-      this.input.pointer.y = Math.max(-1, Math.min(1, this.input.pointer.y - l.y * dt * 1.4));
+      if (!this.padBrush) {
+        this.padBrush = true;
+        this.input.padPointer = true;
+        this.input.pointer.set(0, 0);
+        this.station.brushScale = 1.7;
+      }
+      this.station.rotate(m.x * dt * 2.2, m.y * dt * 1.8);
+      // the same speed on screen both ways, and never off the find
+      const aspect = this.canvas.clientWidth / Math.max(1, this.canvas.clientHeight);
+      this.input.pointer.x = Math.max(-1, Math.min(1, this.input.pointer.x + (l.x * dt * 1.6) / aspect));
+      this.input.pointer.y = Math.max(-1, Math.min(1, this.input.pointer.y - l.y * dt * 1.6));
+      if (l.x || l.y) this.station.keepOnItem(this.input.pointer);
       if (pad.rt > 0.3) {
         this.input.buttons |= 1;
-        this.input.speed = Math.max(this.input.speed, Math.hypot(l.x, l.y) * 500);
+        // holding the trigger is enough: a stick is not a mouse, and it can rest while the find turns under the brush
+        this.input.speed = Math.max(this.input.speed, 120, Math.hypot(l.x, l.y) * 500, Math.hypot(m.x, m.y) * 500);
       } else this.input.buttons &= ~1;
       return;
     }
+    this.releasePadBrush();
     for (const c of ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp']) this.setPadKey(c, false);
     if (!this.started || this.paused || this.transitioning || this.gameState !== 'EXPLORE') return;
 
@@ -1448,7 +1596,7 @@ export class Game {
   private applySettings(): void {
     const st = this.settings;
     this.audio.setVolumes(st.master, st.music, st.ambience);
-    this.renderer.setPixelRatio(st.sharp ? Math.min(window.devicePixelRatio, 2) : 1);
+    this.renderer.setPixelRatio((st.sharp ? Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO) : 1) * st.renderScale);
     this.resize();
     const changed = this.renderer.shadowMap.enabled !== st.shadows;
     this.renderer.shadowMap.enabled = st.shadows;
@@ -2804,6 +2952,8 @@ export class Game {
   }
 
   private mapPaintT = 0;
+  private mapListT = 0;
+  private campLightsNear = true;
   private lastCastleNote = { msg: '', at: 0 };
 
   /** A short warning from the bucket, never repeated while the player keeps clicking. */
@@ -3382,6 +3532,13 @@ export class Game {
       this.under.setDaylight(0.18 + 0.82 * (1 - this.sky.starAmount));
     } else {
       this.ocean.update(t);
+      this.beach.updateDetail(this.camera.position.x, this.camera.position.z);
+      // past the reach of the camp's lights (with a little give so they do not flicker at the edge)
+      const fromCamp = Math.hypot(this.camera.position.x, this.camera.position.z - CAMP_Z);
+      if (fromCamp > (this.campLightsNear ? 34 : 30) === this.campLightsNear) {
+        this.campLightsNear = !this.campLightsNear;
+        this.camp.setLightsNear(this.campLightsNear);
+      }
       this.camp.update(dt, this.sky.fireBoost, this.lanternOn, this.sky.starAmount);
       this.ecology.update(dt, this.player.x, this.player.z);
       this.scenery.update(t, this.sky.fog.color, dt, this.camera.position.x, this.camera.position.z);
@@ -3457,19 +3614,25 @@ export class Game {
     }
     this.dig.update(dt);
     this.hearts.update(dt);
-    if (!this.alt) this.arrows.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, this.scenery.trunks, {
+    const targets = !this.alt && (this.arrows.busy || this.bullets.busy) ? [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()] : NO_TARGETS;
+    if (!this.alt) this.arrows.update(dt, targets, this.beach, this.scenery.trunks, {
       onHit: (o, at) => this.onBulletHit(o, at, 0.2),
       onStick: () => this.audio.thud(),
     });
-    if (!this.alt) this.bullets.update(dt, [...this.ecology.crabTargets(), ...this.birds.targets(), ...this.sea.targets(), ...this.scenery.targets(), ...this.castles.targets()], this.beach, {
+    if (!this.alt) this.bullets.update(dt, targets, this.beach, {
       onHit: (o, at) => this.onBulletHit(o, at, 0.14),
       onGround: (p) => this.dig.particles.burst(p.setY(p.y + 0.05), 10, 1, 1.6, 0.5, new THREE.Color(0xe6ccb2)),
     });
     this.spawner.update(dt, t, this.hoveredItem);
     if (!this.alt) {
       this.flags.update(t);
-      this.mapView.captain = this.state.data.hasBottleMap ? this.spawner.items.filter((i) => i.def.id === 'captain_chest' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
-    this.mapView.treasures = this.state.data.hasTreasureMap ? this.spawner.items.filter((i) => i.def.id === 'treasure_cache' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
+      // the buried chests on the maps barely change, so a couple of looks a second is plenty
+      this.mapListT -= dt;
+      if (this.mapListT <= 0) {
+        this.mapListT = 0.5;
+        this.mapView.captain = this.state.data.hasBottleMap ? this.spawner.items.filter((i) => i.def.id === 'captain_chest' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
+        this.mapView.treasures = this.state.data.hasTreasureMap ? this.spawner.items.filter((i) => i.def.id === 'treasure_cache' && !i.collected).map((i) => [i.x, i.z] as [number, number]) : [];
+      }
       this.island.update(t, this.ocean.surfaceY, this.sky.fog.color, this.sky.fog.density, this.camera.position.x, this.camera.position.z, dt);
       this.castles.update(dt, this.rain.amount, (x, z, byRain) => {
         this.dig.particles.burst(new THREE.Vector3(x, this.beach.heightAt(x, z) + 0.2, z), 24, 1.6, 1.4, 0.9, new THREE.Color(0xdcc38f));

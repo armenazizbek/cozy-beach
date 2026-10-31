@@ -57,9 +57,20 @@ const surface = (f: (x: number, y: number, z: number) => number, lo: THREE.Vecto
   const nz = Math.ceil((hi.z - lo.z) / step) + 1;
   const at = (i: number, j: number, k: number): number => i + nx * (j + ny * k);
   const field = new Float32Array(nx * ny * nz);
-  for (let k = 0; k < nz; k++) {
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) field[at(i, j, k)] = f(lo.x + i * step, lo.y + j * step, lo.z + k * step);
+  // blocks that a coarse sample shows are nowhere near the surface are filled in without asking the function about every point
+  const B = 4;
+  const reach = (Math.sqrt(3) * B * step) / 2 + 0.01;
+  for (let bk = 0; bk < nz; bk += B) {
+    for (let bj = 0; bj < ny; bj += B) {
+      for (let bi = 0; bi < nx; bi += B) {
+        const mid = f(lo.x + (bi + B / 2) * step, lo.y + (bj + B / 2) * step, lo.z + (bk + B / 2) * step);
+        const far = Math.abs(mid) > reach;
+        for (let k = bk; k < Math.min(nz, bk + B); k++) {
+          for (let j = bj; j < Math.min(ny, bj + B); j++) {
+            for (let i = bi; i < Math.min(nx, bi + B); i++) field[at(i, j, k)] = far ? mid : f(lo.x + i * step, lo.y + j * step, lo.z + k * step);
+          }
+        }
+      }
     }
   }
   // one vertex in every cell the surface passes through, at the average of where it crosses the cell's edges
@@ -114,7 +125,12 @@ const surface = (f: (x: number, y: number, z: number) => number, lo: THREE.Vecto
   const e = 0.001;
   for (let i = 0; i < pos.length; i += 3) {
     const [x, y, z] = [pos[i], pos[i + 1], pos[i + 2]];
-    const g = new THREE.Vector3(f(x + e, y, z) - f(x - e, y, z), f(x, y + e, z) - f(x, y - e, z), f(x, y, z + e) - f(x, y, z - e)).normalize();
+    // four samples at the corners of a little tetrahedron give the same slope as six along the axes
+    const a = f(x + e, y - e, z - e);
+    const b = f(x - e, y - e, z + e);
+    const c = f(x - e, y + e, z - e);
+    const d = f(x + e, y + e, z + e);
+    const g = new THREE.Vector3(a - b - c + d, -a - b + c + d, -a + b - c + d).normalize();
     nor.set([g.x, g.y, g.z], i);
   }
   const geo = new THREE.BufferGeometry();

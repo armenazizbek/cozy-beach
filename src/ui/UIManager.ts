@@ -405,7 +405,7 @@ export class UIManager {
     const card = el('div', 'intro-card save-card settings-card');
     card.append(el('h1', '', 'Settings'));
     const rows = el('div', 'set-rows');
-    const slider = (label: string, key: 'master' | 'music' | 'ambience' | 'sensitivity', min: number, max: number, step: number, fmt: (v: number) => string): void => {
+    const slider = (label: string, key: 'master' | 'music' | 'ambience' | 'sensitivity' | 'renderScale', min: number, max: number, step: number, fmt: (v: number) => string): void => {
       const row = el('label', 'set-row');
       const name = el('span', 'set-name', label);
       const input = el('input', 'set-range');
@@ -474,6 +474,7 @@ export class UIManager {
     rows.append(el('h3', '', 'Graphics'));
     toggle('Shadows', 'turn off for a smoother game on slower computers', 'shadows');
     toggle('Sharp picture', 'full screen resolution, heavier to draw', 'sharp');
+    slider('Render scale', 'renderScale', 0.5, 1, 0.05, pct);
     const back = el('button', 'btn', 'Done');
     back.onclick = (): void => {
       this.closeSettings();

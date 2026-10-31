@@ -4,10 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cozy Treasure Hunter</title>
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: radial-gradient(circle at 50% 40%, #e9b26b, #6b3f1f);
+        color: #fff4de;
+        font-family: Georgia, 'Times New Roman', serif;
+        transition: opacity 0.5s;
+      }
+      #boot.gone { opacity: 0; pointer-events: none; }
+      #boot h1 { margin: 0; font-size: 42px; font-weight: normal; }
+      #boot p { margin: 0; font-size: 18px; opacity: 0.85; }
+      #boot-track { width: 260px; height: 8px; border-radius: 4px; background: rgba(60, 30, 10, 0.4); overflow: hidden; }
+      #boot-bar { width: 0; height: 100%; background: #fff4de; transition: width 0.3s; }
+    </style>
   </head>
   <body>
     <canvas id="scene"></canvas>
     <div id="ui"></div>
+    <div id="boot">
+      <h1>Cozy Treasure Hunter</h1>
+      <p>Getting the beach ready...</p>
+      <div id="boot-track"><div id="boot-bar"></div></div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

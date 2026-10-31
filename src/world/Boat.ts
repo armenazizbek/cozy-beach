@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { ParticleSystem } from '../core/Particles';
+import { mergeStatic } from './merge';
 
 export interface BoatInput {
   throttle: number;
@@ -307,6 +308,8 @@ export class Boat {
     add(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshStandardMaterial({ color: 0x2a9d4a, emissive: 0x007a2a, emissiveIntensity: 0.6 }), beamAt(lightT) + 0.02, lightY, BOW_Z + HULL_LEN * lightT);
     add(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), dark, 0.74, 1.3, 2.14);
     add(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshStandardMaterial({ color: 0xe63946, side: THREE.DoubleSide }), 0.91, 1.66, 2.14);
+    mergeStatic(this.group, new Set([this.wheel]));
+    mergeStatic(this.motor, new Set([this.prop]));
   }
 
   /** World position of the helmsman's eyes. */

@@ -33,6 +33,11 @@ export class Bullets {
     this.group.add(this.trail.points);
   }
 
+  /** true while anything is flying or stuck in flight, so targets are only gathered when they can be hit */
+  get busy(): boolean {
+    return this.bullets.length > 0;
+  }
+
   spawn(origin: THREE.Vector3, dir: THREE.Vector3): void {
     const mesh = new THREE.Mesh(this.geo, this.mat);
     mesh.scale.set(1, 1, 4);

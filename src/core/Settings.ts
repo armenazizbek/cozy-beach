@@ -12,6 +12,8 @@ export interface GameSettings {
   shadows: boolean;
   /** render at the screen's full pixel density (sharper, heavier) */
   sharp: boolean;
+  /** 0.5..1 how much of that resolution is actually drawn; the picture is stretched back up to fill the screen */
+  renderScale: number;
   /** how the game window is shown (desktop app; the browser can only do fullscreen or not) */
   displayMode: 'fullscreen' | 'windowed' | 'borderless';
   /** window size in windowed mode, "widthxheight" */
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   sensitivity: 1,
   shadows: true,
   sharp: true,
+  renderScale: 1,
   displayMode: 'fullscreen',
   windowSize: '1280x720',
 };

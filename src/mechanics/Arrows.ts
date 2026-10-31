@@ -55,6 +55,11 @@ export class Arrows {
   private c = new THREE.Vector3();
   private tmp = new THREE.Vector3();
 
+  /** true while anything is flying or stuck in flight, so targets are only gathered when they can be hit */
+  get busy(): boolean {
+    return this.arrows.length > 0;
+  }
+
   spawn(origin: THREE.Vector3, dir: THREE.Vector3, speed: number): void {
     const mesh = buildArrow();
     mesh.position.copy(origin);

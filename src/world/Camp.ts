@@ -1,11 +1,20 @@
 import * as THREE from 'three';
+import { mergeStatic } from './merge';
 import { ParticleSystem } from '../core/Particles';
 import { CAMP_Y, CAMP_Z } from './Beach';
 
 export type CampKind = 'fire' | 'bin' | 'board' | 'bench' | 'lantern' | 'camper' | 'radio' | 'coffee' | 'book' | 'post' | 'hammock' | 'sign';
 
-const wood = (c = 0x6b4a2f): THREE.MeshStandardMaterial =>
-  new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, metalness: 0 });
+/** Wood of one colour is one shared material, so the props made from it can be welded together. */
+const woods = new Map<number, THREE.MeshStandardMaterial>();
+const wood = (c = 0x6b4a2f): THREE.MeshStandardMaterial => {
+  let m = woods.get(c);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, metalness: 0 });
+    woods.set(c, m);
+  }
+  return m;
+};
 
 const box = (w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh => {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -103,6 +112,7 @@ export class Camp {
 
     this.embers = new ParticleSystem(80, 0.07, -0.4, true);
     this.group.add(this.embers.points);
+    this.weldProps();
   }
 
   private mark(obj: THREE.Object3D, kind: CampKind, radius = 1.1, y = 0.8): void {
@@ -591,6 +601,21 @@ export class Camp {
     this.signMat.map?.dispose();
     this.signMat.map = tex;
     this.signMat.needsUpdate = true;
+  }
+
+  /** Past their reach the camp's lights only cost time, so they switch off once the player is well away. */
+  setLightsNear(near: boolean): void {
+    this.fireLight.visible = this.lanternLight.visible = this.camperLight.visible = near;
+  }
+
+  /** Welds the fixed parts of each prop together; what moves or lights up on its own stays separate. */
+  private weldProps(): void {
+    const keep = new Set<THREE.Object3D>([...this.flames, ...this.tikiFlames, this.mailFlag, this.radioAntenna, this.hammockCloth, this.lanternGlass, this.shelf]);
+    for (const prop of [...this.group.children, this.radio, this.hammockCloth]) {
+      keep.delete(prop);
+      mergeStatic(prop, keep);
+      if (prop === this.hammockCloth) keep.add(prop);
+    }
   }
 
   /** Shows the decorations the player has bought, and what the sign says. */

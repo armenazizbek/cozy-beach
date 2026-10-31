@@ -72,6 +72,7 @@ export class Underwater {
   constructor() {
     const rand = seeded(2024);
     this.group.visible = false;
+    this.group.matrixWorldAutoUpdate = false;
 
     // ---- the floor
     // the floor runs far past the swimming area, with fine cells near the middle and coarse ones far off, so its edge is never in view
@@ -145,6 +146,7 @@ export class Underwater {
 
   setActive(on: boolean): void {
     this.group.visible = on;
+    this.group.matrixWorldAutoUpdate = on;
     if (!on) for (const s of this.spears) {
       s.active = false;
       s.mesh.visible = false;

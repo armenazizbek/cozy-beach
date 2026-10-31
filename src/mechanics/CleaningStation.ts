@@ -4,6 +4,7 @@ import { ParticleSystem } from '../core/Particles';
 import type { BuriedItem } from '../world/LootSpawner';
 import { buildItem, newCrustCanvas, wrapWithCrust } from './LootGenerator';
 import type { CrustRig } from './LootGenerator';
+import { ITEM_DEFS } from '../core/items';
 
 export const CLEAN_THRESHOLD = 0.92;
 const SAMPLE_EVERY_MS = 150;
@@ -28,6 +29,8 @@ export class CleaningStation {
   private rig: CrustRig | null = null;
   private item: BuriedItem | null = null;
   private brushPx = 16;
+  /** a stick covers ground far more slowly than a mouse, so with a controller the brush is wider */
+  brushScale = 1;
   private lastUV: THREE.Vector2 | null = null;
   private sinceSample = 0;
   private raycaster = new THREE.Raycaster();
@@ -90,6 +93,23 @@ export class CleaningStation {
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Readies the bench's shaders ahead of time. The bench has its own lights, so everything drawn here needs its own versions of them:
+   * every find (`finds`), plus a sample find in its crust, drawn once so the crust is on the graphics chip too.
+   */
+  async prepare(renderer: THREE.WebGLRenderer, finds: THREE.Object3D): Promise<void> {
+    const sample = wrapWithCrust(buildItem(ITEM_DEFS[0].id), newCrustCanvas());
+    this.pivot.add(sample.root);
+    await renderer.compileAsync(this.scene, this.camera);
+    await renderer.compileAsync(finds, this.camera, this.scene);
+    const target = new THREE.WebGLRenderTarget(1, 1);
+    renderer.setRenderTarget(target);
+    renderer.render(this.scene, this.camera);
+    renderer.setRenderTarget(null);
+    target.dispose();
+    this.pivot.remove(sample.root);
+  }
+
   enter(item: BuriedItem, brushPx: number): void {
     this.exit();
     this.item = item;
@@ -125,6 +145,27 @@ export class CleaningStation {
   }
 
   private ndc = new THREE.Vector2();
+  private centre = new THREE.Vector3();
+
+  /** Pulls a stick-driven brush back onto the find, so it can never wander off the edge out of sight. */
+  keepOnItem(ndc: THREE.Vector2): void {
+    if (!this.rig) return;
+    const hits = (p: THREE.Vector2): boolean => {
+      this.raycaster.setFromCamera(p, this.camera);
+      return this.raycaster.intersectObject(this.rig!.crust, false).length > 0;
+    };
+    if (hits(ndc)) return;
+    this.rig.crust.getWorldPosition(this.centre).project(this.camera);
+    const inside = new THREE.Vector2(this.centre.x, this.centre.y);
+    const outside = ndc.clone();
+    const mid = new THREE.Vector2();
+    for (let i = 0; i < 7; i++) {
+      mid.copy(inside).add(outside).multiplyScalar(0.5);
+      if (hits(mid)) inside.copy(mid);
+      else outside.copy(mid);
+    }
+    ndc.copy(inside);
+  }
 
   /** Pointer position in NDC; moves the brush mesh and, when `down`, scrubs. */
   pointer(ndc: THREE.Vector2, down: boolean, speed: number): boolean {
@@ -159,7 +200,7 @@ export class CleaningStation {
       const x = u * S;
       const y = (1 - v) * S;
       const theta = (1 - v) * Math.PI;
-      const ry = this.brushPx;
+      const ry = this.brushPx * this.brushScale;
       // a circle on the sphere is wider in UV space near the poles; sphere u spans 2*PI, v spans PI
       const rx = Math.min(S / 2, (ry * 2) / Math.max(0.25, Math.sin(theta)));
       ctx.save();

@@ -92,7 +92,7 @@ export class Achievements {
     const def = ACHIEVEMENTS.find((a) => a.id === id);
     if (!def) return;
     this.done.add(id);
-    store.setItem(KEY, JSON.stringify([...this.done]));
+    store.setItemLater(KEY, JSON.stringify([...this.done]));
     steam()?.unlock(id);
     this.onUnlock(def);
   }

@@ -92,6 +92,7 @@ export class Underground {
   constructor() {
     this.group.position.y = UG.y;
     this.group.visible = false;
+    this.group.matrixWorldAutoUpdate = false;
     const wall = new THREE.MeshStandardMaterial({ map: stoneTexture([122, 112, 100], 4, 2, 11), roughness: 0.95 });
     const floor = new THREE.MeshStandardMaterial({ map: stoneTexture([96, 90, 82], 4, 4, 23), roughness: 0.9 });
     const roof = new THREE.MeshStandardMaterial({ map: stoneTexture([82, 76, 70], 4, 2, 37), roughness: 1 });
@@ -211,6 +212,7 @@ export class Underground {
 
   setActive(on: boolean): void {
     this.group.visible = on;
+    this.group.matrixWorldAutoUpdate = on;
   }
 
   update(t: number): void {

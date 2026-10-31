@@ -68,6 +68,62 @@ export const baseHeightMain = (x: number, z: number): number => {
 /** Height of everything: the beach, the sea floor and the island. */
 export const baseHeight = (x: number, z: number): number => Math.max(baseHeightMain(x, z), islandHeight(x, z));
 
+/** The beach is cut into squares of this many grid cells, each drawn at the detail its distance needs. */
+const CHUNK_CELLS = 52;
+/** every how many grid cells a detail level keeps a vertex */
+const LOD_STEPS = [1, 2, 4];
+/** metres from the camera at which a chunk drops to the next level */
+const LOD_NEAR = 16;
+const LOD_MID = 45;
+/** a chunk with holes in it stays at this level or finer, so a hole keeps its shape from afar */
+const LOD_DUG = 1;
+
+/**
+ * The triangles of one chunk at one detail level. The rim of a chunk is always kept at full detail, so neighbours at different levels meet
+ * exactly and no gap can open between them; the coarser middle is stitched to that rim.
+ */
+const chunkIndex = (r0: number, c0: number, step: number, n: number): number[] => {
+  const N = CHUNK_CELLS;
+  const at = (r: number, c: number): number => (r0 + r) * n + c0 + c;
+  const idx: number[] = [];
+  const quad = (r: number, c: number, s: number): void => {
+    const a = at(r, c);
+    const b = at(r + s, c);
+    const e = at(r + s, c + s);
+    const d = at(r, c + s);
+    idx.push(a, b, d, b, e, d);
+  };
+  if (step === 1) {
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) quad(r, c, 1);
+    return idx;
+  }
+  for (let r = step; r < N - step; r += step) for (let c = step; c < N - step; c += step) quad(r, c, step);
+  const ring = (lo: number, hi: number, s: number): number[] => {
+    const out: number[] = [];
+    for (let c = lo; c < hi; c += s) out.push(at(lo, c));
+    for (let r = lo; r < hi; r += s) out.push(at(r, hi));
+    for (let c = hi; c > lo; c -= s) out.push(at(hi, c));
+    for (let r = hi; r > lo; r -= s) out.push(at(r, lo));
+    return out;
+  };
+  const outer = ring(0, N, 1);
+  const inner = ring(step, N - step, step);
+  let i = 0;
+  let j = 0;
+  while (i < outer.length || j < inner.length) {
+    const o = outer[i % outer.length];
+    const w = inner[j % inner.length];
+    if (j >= inner.length || (i < outer.length && (i + 1) / outer.length <= (j + 1) / inner.length)) {
+      idx.push(outer[(i + 1) % outer.length], o, w);
+      i++;
+    } else {
+      idx.push(w, inner[(j + 1) % inner.length], o);
+      j++;
+    }
+  }
+  return idx;
+};
+
 const DRY = new THREE.Color('#e6ccb2');
 const WET = new THREE.Color('#b08968');
 const DARK = new THREE.Color('#7f5539');
@@ -243,8 +299,18 @@ const dampTexture = (): THREE.CanvasTexture => {
   return t;
 };
 
+interface Chunk {
+  mesh: THREE.Mesh;
+  lods: THREE.BufferGeometry[];
+  x: number;
+  z: number;
+  lod: number;
+  dug: boolean;
+}
+
 export class Beach {
-  readonly mesh: THREE.Mesh;
+  readonly mesh = new THREE.Group();
+  private chunks: Chunk[] = [];
   private geo: THREE.PlaneGeometry;
   private pos: THREE.BufferAttribute;
   private colAttr: THREE.BufferAttribute;
@@ -284,11 +350,76 @@ export class Beach {
     this.refreshColors();
     this.geo.computeVertexNormals();
 
-    this.mesh = new THREE.Mesh(
-      this.geo,
-      this.makeMaterial(),
-    );
-    this.mesh.receiveShadow = true;
+    this.buildChunks(this.makeMaterial());
+  }
+
+  /** Every chunk draws from the one shared grid of vertices, so a dug hole shows up at once whatever detail level is in use. */
+  private buildChunks(mat: THREE.Material): void {
+    const size = CHUNK_CELLS * this.step;
+    const across = BEACH_SEGMENTS / CHUNK_CELLS;
+    for (let row = 0; row < across; row++) {
+      for (let col = 0; col < across; col++) {
+        const r0 = row * CHUNK_CELLS;
+        const c0 = col * CHUNK_CELLS;
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let r = 0; r <= CHUNK_CELLS; r++) {
+          for (let c = 0; c <= CHUNK_CELLS; c++) {
+            const y = this.base[(r0 + r) * this.n + c0 + c];
+            lo = Math.min(lo, y);
+            hi = Math.max(hi, y);
+          }
+        }
+        const x = -HALF + (col + 0.5) * size;
+        const z = -HALF + (row + 0.5) * size;
+        const sphere = new THREE.Sphere(new THREE.Vector3(x, (lo + hi) / 2, z), Math.hypot(size * 0.71, (hi - lo) / 2 + MAX_DUG));
+        const lods = LOD_STEPS.map((step) => {
+          const g = new THREE.BufferGeometry();
+          for (const name of ['position', 'normal', 'color', 'damp']) g.setAttribute(name, this.geo.attributes[name]);
+          g.setIndex(chunkIndex(r0, c0, step, this.n));
+          g.boundingSphere = sphere;
+          return g;
+        });
+        const mesh = new THREE.Mesh(lods[0], mat);
+        mesh.receiveShadow = true;
+        this.mesh.add(mesh);
+        this.chunks.push({ mesh, lods, x, z, lod: 0, dug: false });
+      }
+    }
+  }
+
+  /** Puts every chunk on one detail level, so that loading can send them all to the graphics chip. The next frame sets them right. */
+  setAllDetail(lod: number): void {
+    for (const c of this.chunks) {
+      c.lod = lod;
+      c.mesh.geometry = c.lods[lod];
+    }
+  }
+
+  /** Picks each chunk's detail for where the camera is. */
+  updateDetail(camX: number, camZ: number): void {
+    const half = (CHUNK_CELLS * this.step) / 2;
+    for (const c of this.chunks) {
+      const d = Math.hypot(Math.max(0, Math.abs(camX - c.x) - half), Math.max(0, Math.abs(camZ - c.z) - half));
+      // a few metres of give, so a chunk standing at the edge does not flicker between two levels
+      const give = c.lod === 0 ? 3 : 0;
+      const give2 = c.lod <= 1 ? 3 : 0;
+      let lod = d > LOD_MID + give2 ? 2 : d > LOD_NEAR + give ? 1 : 0;
+      if (c.dug) lod = Math.min(lod, LOD_DUG);
+      if (lod !== c.lod) {
+        c.lod = lod;
+        c.mesh.geometry = c.lods[lod];
+      }
+    }
+  }
+
+  /** Remembers which chunks have been dug. */
+  private noteDug(minR: number, maxR: number, minC: number, maxC: number): void {
+    const across = BEACH_SEGMENTS / CHUNK_CELLS;
+    const last = across - 1;
+    for (let r = Math.min(last, Math.floor(minR / CHUNK_CELLS)); r <= Math.min(last, Math.floor(maxR / CHUNK_CELLS)); r++) {
+      for (let c = Math.min(last, Math.floor(minC / CHUNK_CELLS)); c <= Math.min(last, Math.floor(maxC / CHUNK_CELLS)); c++) this.chunks[r * across + c].dug = true;
+    }
   }
 
   /** Sand material that blends in a detailed damp-sand texture wherever the ground has been dug. */
@@ -409,6 +540,7 @@ export class Beach {
         this.pos.setY(i, this.base[i] - this.dug[i]);
       }
     }
+    this.noteDug(minR, maxR, minC, maxC);
     this.refreshColors(minR, maxR, minC, maxC);
     this.updateNormals(Math.max(0, minR - 1), Math.min(this.n - 1, maxR + 1), Math.max(0, minC - 1), Math.min(this.n - 1, maxC + 1));
     this.pos.needsUpdate = true;
@@ -489,6 +621,12 @@ export class Beach {
     this.dug.fill(0);
     for (const [i, v] of list) this.dug[i] = v;
     for (let i = 0; i < this.dug.length; i++) this.pos.setY(i, this.base[i] - this.dug[i]);
+    for (const c of this.chunks) c.dug = false;
+    for (const [i] of list) {
+      const r = Math.floor(i / this.n);
+      const c = i % this.n;
+      this.noteDug(r, r, c, c);
+    }
     this.refreshColors();
     this.geo.computeVertexNormals();
     this.pos.needsUpdate = true;

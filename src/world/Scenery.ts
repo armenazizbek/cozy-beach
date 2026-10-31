@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CAMP_Z, baseHeight } from './Beach';
 
 /** tiny deterministic PRNG so the island looks the same every visit */
@@ -30,9 +31,12 @@ interface Palm {
   x: number;
   z: number;
   /** the small parts that only matter up close: the rings on the trunk, and the coconuts */
-  rings: THREE.Group;
+  rings: THREE.Mesh;
   nuts: THREE.Group;
-  fronds: THREE.Mesh[];
+  /** half the fronds, kept at every distance */
+  crownA: THREE.Mesh;
+  /** the other half, which shrink away far off */
+  crownB: THREE.Mesh;
   /** 0 = every part, 1 = no rings or coconuts, 2 = and half the fronds */
   lod: number;
   /** 0..1 how much of the small detail is showing: the rings, coconuts and every other frond ease in and out instead of popping */
@@ -80,9 +84,8 @@ export class Scenery {
   private buildPalms(): void {
     const rand = rng(7);
     const frondGeo = this.frondGeometry();
-    const frondMats = [0x3f8f3a, 0x4d9d41, 0x35802f].map(
-      (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, side: THREE.DoubleSide }),
-    );
+    const frondCols = [0x3f8f3a, 0x4d9d41, 0x35802f].map((c) => new THREE.Color(c));
+    const frondMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6a46, roughness: 1 });
     const nutMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: 0.7 });
 
@@ -113,33 +116,40 @@ export class Scenery {
       trunk.receiveShadow = true;
       g.add(trunk);
       // rings along the trunk
-      const rings = new THREE.Group();
-      g.add(rings);
+      const ringGeos: THREE.BufferGeometry[] = [];
       for (let i = 1; i < 12; i++) {
         const pt = curve.getPoint(i / 12);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.21 - i * 0.004, 0.03, 5, 10), trunkMat);
-        ring.position.copy(pt);
-        ring.rotation.x = Math.PI / 2;
-        rings.add(ring);
+        const ring = new THREE.TorusGeometry(0.21 - i * 0.004, 0.03, 5, 10);
+        ring.rotateX(Math.PI / 2);
+        ring.translate(pt.x, pt.y, pt.z);
+        ringGeos.push(ring);
       }
+      const rings = new THREE.Mesh(mergeGeometries(ringGeos), trunkMat);
+      g.add(rings);
       const crown = new THREE.Group();
       crown.position.copy(curve.getPoint(1));
-      const frondMeshes: THREE.Mesh[] = [];
+      const halves: THREE.BufferGeometry[][] = [[], []];
       const nutGroup = new THREE.Group();
       crown.add(nutGroup);
       const fronds = 9;
       for (let i = 0; i < fronds; i++) {
-        const f = new THREE.Mesh(frondGeo, frondMats[i % 3]);
+        const f = new THREE.Object3D();
         f.rotation.order = 'YXZ';
         f.rotation.y = (i / fronds) * Math.PI * 2 + rand() * 0.3;
-        f.rotation.x = -(0.45 + rand() * 0.35) - Math.PI / 2 + Math.PI / 2; // lean outward
         f.rotation.x = Math.PI / 2 - (0.35 + rand() * 0.4);
         f.scale.setScalar(0.9 + rand() * 0.35);
-        f.userData.s0 = f.scale.x;
-        f.castShadow = true;
-        crown.add(f);
-        frondMeshes.push(f);
+        f.updateMatrix();
+        const shade = frondCols[i % 3];
+        const geo = frondGeo.clone().applyMatrix4(f.matrix);
+        const tint = new Float32Array(geo.attributes.position.count * 3);
+        for (let k = 0; k < tint.length; k += 3) tint.set([shade.r, shade.g, shade.b], k);
+        geo.setAttribute('color', new THREE.BufferAttribute(tint, 3));
+        halves[i % 2].push(geo);
       }
+      const crownA = new THREE.Mesh(mergeGeometries(halves[0]), frondMat);
+      const crownB = new THREE.Mesh(mergeGeometries(halves[1]), frondMat);
+      crownA.castShadow = crownB.castShadow = true;
+      crown.add(crownA, crownB);
       const nuts = 3 + Math.floor(rand() * 3);
       for (let i = 0; i < nuts; i++) {
         const nut = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), nutMat);
@@ -156,7 +166,7 @@ export class Scenery {
       g.position.set(x, baseHeight(x, z) - 0.1, z);
       g.rotation.y = rand() * Math.PI * 2;
       this.group.add(g);
-      this.palms.push({ group: g, crown, phase: rand() * 6, x, z, rings, nuts: nutGroup, fronds: frondMeshes, lod: 0, k: 1, kf: 1 });
+      this.palms.push({ group: g, crown, phase: rand() * 6, x, z, rings, nuts: nutGroup, crownA, crownB, lod: 0, k: 1, kf: 1 });
       this.trunks.push({ x, z });
     }
   }
@@ -320,13 +330,8 @@ export class Scenery {
         p.rings.visible = p.k > 0.01;
         p.nuts.visible = p.k > 0.01;
         p.nuts.scale.setScalar(k);
-        for (const r of p.rings.children) r.scale.setScalar(k);
-        p.fronds.forEach((f, i) => {
-          const s0 = (f.userData.s0 as number | undefined) ?? 1;
-          const kk = i % 2 === 0 ? 1 : Math.max(p.kf, 0.001);
-          f.visible = i % 2 === 0 || p.kf > 0.01;
-          f.scale.setScalar(s0 * kk);
-        });
+        p.crownB.visible = p.kf > 0.01;
+        p.crownB.scale.setScalar(Math.max(p.kf, 0.001));
       }
       p.crown.rotation.z = Math.sin(t * 0.8 + p.phase) * 0.03;
       p.crown.rotation.x = Math.cos(t * 0.6 + p.phase) * 0.025;
