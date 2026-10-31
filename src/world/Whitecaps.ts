@@ -125,7 +125,7 @@ export class Whitecaps {
     p.yaw = (Math.random() - 0.5) * 0.6;
   }
 
-  update(dt: number, level: number, px: number, pz: number, night: number): void {
+  update(dt: number, level: number, px: number, pz: number, night: number, swell: (x: number, z: number) => number): void {
     const drift = 0.35;
     for (let i = 0; i < COUNT; i++) {
       const p = this.patches[i];
@@ -139,7 +139,7 @@ export class Whitecaps {
       const a = Math.sin(Math.PI * Math.min(1, u)) ** 0.7;
       this.alpha.array[i] = a * 0.8;
       const grow = 0.75 + 0.35 * u;
-      this.dummy.position.set(p.x, level + 0.07, p.z);
+      this.dummy.position.set(p.x, level + swell(p.x, p.z) + 0.07, p.z);
       this.dummy.rotation.set(0, p.yaw, 0);
       this.dummy.scale.set(p.len * grow, 1, p.len * grow * 0.34);
       this.dummy.updateMatrix();

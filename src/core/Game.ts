@@ -2395,7 +2395,7 @@ export class Game {
         steer: (k.has('KeyA') ? 1 : 0) - (k.has('KeyD') ? 1 : 0),
         brake: k.has('Space'),
       },
-      this.ocean.surfaceY,
+      this.ocean.heightAt(boat.x, boat.z),
       (x, z) => {
         const r = this.resolveBoat(x, z);
         if (r.hit && Math.abs(boat.speed) > 2.5) this.audio.thud();
@@ -3389,7 +3389,7 @@ export class Game {
       this.birds.update(dt, t, this.player.x, this.player.z, (d) => this.audio.gull(d));
       this.tracks.update(dt, this.sky.starAmount);
       this.sea.update(dt, t, this.ocean.surfaceY, this.player.x, this.player.z, (d) => this.audio.splash(d));
-      this.whitecaps.update(dt, this.ocean.surfaceY, this.player.x, this.player.z, this.sky.starAmount);
+      this.whitecaps.update(dt, this.ocean.surfaceY, this.player.x, this.player.z, this.sky.starAmount, (x, z) => this.ocean.swellAt(x, z));
       const chest = this.treasure.update(dt, t, this.ocean.surfaceY, this.vehicle === 'boat' ? { x: this.boat.x, z: this.boat.z } : null);
       if (chest) {
         this.state.addCoins(CHEST_REWARD);
@@ -3402,7 +3402,7 @@ export class Game {
       }
       // when nobody is driving, the boat just bobs gently at its mooring
       if (!(this.vehicle === 'boat' && this.driving)) {
-        this.boat.update(dt, t, null, this.ocean.surfaceY, (x, z) => (this.vehicle === 'boat' ? this.resolveBoat(x, z) : { x, z, hit: false }));
+        this.boat.update(dt, t, null, this.ocean.heightAt(this.boat.x, this.boat.z), (x, z) => (this.vehicle === 'boat' ? this.resolveBoat(x, z) : { x, z, hit: false }));
         if (this.vehicle === 'boat') {
           const sp = Math.abs(this.boat.speed) / 14;
           this.audio.setEngine(sp > 0.03, sp, true);
