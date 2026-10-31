@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildArrow } from './Arrows';
+import { buildFist, wristAt } from './Hand';
 
 const Y = new THREE.Vector3(0, 1, 0);
 const SLEEVE = new THREE.MeshStandardMaterial({ color: 0x4f7396, roughness: 0.9 });
@@ -7,22 +8,52 @@ const SKIN = new THREE.MeshStandardMaterial({ color: 0xe0b08a, roughness: 0.8 })
 const DARK = new THREE.MeshStandardMaterial({ color: 0x3a3f45, roughness: 0.5, metalness: 0.6 });
 const BRASS = new THREE.MeshStandardMaterial({ color: 0xb08a4a, roughness: 0.4, metalness: 0.7 });
 
-/** A cylinder stretched between two points. */
-const limb = (a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material): THREE.Mesh => {
+/** A cylinder stretched between two points, optionally tapering to radius `rb` at `b`. */
+const limb = (a: THREE.Vector3, b: THREE.Vector3, r: number, mat: THREE.Material, rb = r): THREE.Mesh => {
   const dir = b.clone().sub(a);
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, dir.length(), 10), mat);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rb, r, dir.length(), 14), mat);
   m.position.copy(a).add(b).multiplyScalar(0.5);
   m.quaternion.setFromUnitVectors(Y, dir.normalize());
   return m;
 };
 
-const ball = (p: THREE.Vector3, r: number, mat: THREE.Material): THREE.Mesh => {
-  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), mat);
-  m.position.copy(p);
-  return m;
+const v = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+
+/** What an arm is made of: the hand, the forearm, and a wider band over part of the forearm (0 at the wrist, 1 at the elbow). */
+interface ArmStyle {
+  hand: THREE.Material;
+  fore: THREE.Material;
+  band: THREE.Material;
+  from: number;
+  to: number;
+}
+
+/** A bare forearm with a rolled-up shirt sleeve. */
+const BARE: ArmStyle = { hand: SKIN, fore: SKIN, band: SLEEVE, from: 0.42, to: 1 };
+/** A diver's glove and wetsuit, with a yellow cuff at the wrist. */
+const DIVER: ArmStyle = {
+  hand: new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.8 }),
+  fore: new THREE.MeshStandardMaterial({ color: 0x1f3a4d, roughness: 0.7 }),
+  band: new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: 0.6 }),
+  from: 0.03,
+  to: 0.075,
 };
 
-const v = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+const BINOC_SCALE = 0.72;
+const BOW_SCALE = 0.55;
+const BOW_HAND_Y = -0.05;
+const BOW_ELBOW = v(0.85, -1.15, 1.25);
+
+/** How a hand takes a handle that runs on from the forearm, as in a handshake: the back of the hand out and up, the fingers under, the thumb over. */
+interface Handshake {
+  back: THREE.Vector3;
+  slant: number;
+}
+
+const HANDSHAKE: Handshake = { back: v(0.7, 0.7, 0), slant: 0.08 };
+
+const WRIST_R = 0.03;
+const ELBOW_R = 0.043;
 
 /**
  * First-person hands and tools (parented to the camera) plus an invisible body
@@ -43,7 +74,10 @@ export class ViewModel {
   private bowString: THREE.Mesh[] = [];
   private bowArrow = new THREE.Group();
   private bowHand = new THREE.Mesh();
+  /** where the wrist of the drawing hand sits relative to the hand */
+  private bowWrist = new THREE.Vector3();
   private bowForearm = new THREE.Mesh();
+  private bowSleeve = new THREE.Mesh();
   private raised = false;
   private flash = new THREE.Mesh();
   /** sits at the very tip of the barrel; bullets start here */
@@ -87,13 +121,49 @@ export class ViewModel {
     this.setTool(1);
   }
 
+  /**
+   * A hand closed on a rod, with its forearm running back to `elbow`. `axis` points out of the thumb side of the fist, so a rod that runs
+   * forward from a low arm takes an axis pointing back at the player. `scale` is the scale of `parent`, so hands stay one size on every tool.
+   * With `shake` the rod points where the thumb points, and the hand closes on it from the top and outside.
+   */
+  private hold(parent: THREE.Object3D, grip: THREE.Vector3, axis: THREE.Vector3, elbow: THREE.Vector3, side: 1 | -1, r: number, scale = 1, style = BARE, shake?: Handshake): { hand: THREE.Mesh; wrist: THREE.Vector3 } {
+    const k = 1 / scale;
+    const a = axis.clone().normalize();
+    const toElbow = elbow.clone().sub(grip);
+    const f = toElbow.addScaledVector(a, -toElbow.dot(a)).normalize().negate();
+    const y = f.clone().cross(a);
+    if (shake) {
+      y.copy(shake.back).addScaledVector(a, -shake.back.dot(a)).normalize();
+      f.crossVectors(a, y);
+    }
+    const slant = shake?.slant ?? 0;
+    const w = wristAt(r * scale, slant);
+    const wrist = grip.clone().addScaledVector(a, w.x * k).addScaledVector(y, side * w.y * k).addScaledVector(f, w.z * k);
+    const d = elbow.clone().sub(wrist).normalize();
+    const hand = buildFist(r * scale, v(d.dot(a), side * d.dot(y), d.dot(f)), style.hand, slant);
+    hand.position.copy(grip);
+    hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(a, y, f));
+    // a left hand is a right hand mirrored through its palm
+    hand.scale.set(k, side * k, k);
+    parent.add(hand);
+    return { hand, wrist };
+  }
+
+  /** The same, with a fixed forearm. */
+  private armOn(parent: THREE.Object3D, grip: THREE.Vector3, axis: THREE.Vector3, elbow: THREE.Vector3, side: 1 | -1, r: number, scale = 1, style = BARE, shake?: Handshake): void {
+    const { wrist } = this.hold(parent, grip, axis, elbow, side, r, scale, style, shake);
+    const k = 1 / scale;
+    const at = (u: number): number => WRIST_R + (ELBOW_R - WRIST_R) * u;
+    parent.add(limb(wrist, elbow, WRIST_R * k, style.fore, ELBOW_R * k));
+    parent.add(limb(wrist.clone().lerp(elbow, style.from), wrist.clone().lerp(elbow, style.to), (at(style.from) + 0.007) * k, style.band, (at(style.to) + 0.007) * k));
+  }
+
   /** A diver's spear gun: a long steel barrel with a spear in it, a black housing and a pistol grip. */
   private buildHarpoon(): void {
     const g = this.harpoon;
     const steel = new THREE.MeshStandardMaterial({ color: 0xcfd6dc, metalness: 0.85, roughness: 0.3 });
     const black = new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.6, metalness: 0.2 });
     const yellow = new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: 0.5 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xd9a47a, roughness: 0.8 });
     const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.95, 10), steel);
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0.26, -0.26, -0.95);
@@ -109,20 +179,9 @@ export class ViewModel {
     band.position.set(0.26, -0.26, -0.85);
     const band2 = band.clone();
     band2.position.z = -1.15;
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skin);
-    hand.position.set(0.26, -0.4, -0.58);
-    // the arm in a wetsuit sleeve, coming up from the bottom right corner of the view, and a glove on the hand
-    const suit = new THREE.MeshStandardMaterial({ color: 0x1f3a4d, roughness: 0.7 });
-    const cuff = new THREE.MeshStandardMaterial({ color: 0xf2c14e, roughness: 0.6 });
-    const glove = new THREE.MeshStandardMaterial({ color: 0x22262b, roughness: 0.8 });
-    (hand as THREE.Mesh).material = glove;
-    hand.scale.set(1.15, 1, 1.3);
-    const wrist = v(0.27, -0.42, -0.5);
-    const elbow = v(0.42, -0.62, 0.05);
-    const arm = limb(wrist, elbow, 0.052, suit);
-    const sleeve = limb(wrist, v(0.31, -0.49, -0.34), 0.058, cuff);
-    const upper = limb(elbow, v(0.5, -0.85, 0.5), 0.062, suit);
-    g.add(barrel, tip, housing, grip, band, band2, hand, arm, sleeve, upper);
+    g.add(barrel, tip, housing, grip, band, band2);
+    this.armOn(g, v(0.26, -0.36, -0.6), v(0, Math.cos(0.25), Math.sin(0.25)), v(0.56, -0.95, 0.35), 1, 0.028, 1, DIVER);
+    g.position.y = 0.04;
     g.visible = false;
   }
 
@@ -151,19 +210,22 @@ export class ViewModel {
     handle.position.set(0.3, -0.28, -0.55);
     handle.rotation.set(0, 0, 0);
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.36, 8), yellow);
-    stick.position.set(0.37, -0.15, -0.58);
-    stick.rotation.set(0.1, 0, -0.35);
+    stick.position.set(0.23, -0.15, -0.58);
+    stick.rotation.set(0.1, 0, 0.35);
     const blade = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.012, 0.11), yellow);
-    blade.position.set(0.43, 0.02, -0.6);
-    blade.rotation.set(0.2, 0, -0.35);
+    blade.position.set(0.17, 0.02, -0.6);
+    blade.rotation.set(0.2, 0, 0.35);
     g.add(pail, rim, band, fill, bottom, handle, stick, blade);
+    // carried by the top of the bail, hanging a little lower in the view
+    this.armOn(g, v(0.33, -0.163, -0.55), v(-1, 0, 0), v(0.66, -0.95, 0.2), 1, 0.008);
+    g.position.set(-0.08, -0.06, 0);
     g.visible = false;
   }
 
   private buildFlag(): void {
     const g = this.flag;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.012, 0.6, 8), new THREE.MeshStandardMaterial({ color: 0xd9c9a3, roughness: 0.8 }));
-    pole.position.set(0.3, -0.45, -0.55);
+    pole.position.set(0.26, -0.27, -0.55);
     pole.rotation.x = -0.25;
     const shape = new THREE.Shape();
     shape.moveTo(0, 0);
@@ -171,12 +233,10 @@ export class ViewModel {
     shape.lineTo(0, -0.05);
     shape.closePath();
     const cloth = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.7, side: THREE.DoubleSide }));
-    cloth.position.set(0.292, -0.165, -0.63);
+    cloth.position.set(0.252, 0.015, -0.63);
     g.add(pole, cloth);
-    // the grip hand
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd9a47a, roughness: 0.8 }));
-    hand.position.set(0.3, -0.5, -0.5);
-    g.add(hand);
+    const up = v(0, Math.cos(0.25), -Math.sin(0.25));
+    this.armOn(g, pole.position.clone().addScaledVector(up, -0.07), up, v(0.64, -0.95, 0.2), 1, 0.012);
   }
 
   private buildDetector(): void {
@@ -255,10 +315,10 @@ export class ViewModel {
     // coil cable looping back to the control box
     g.add(tube([v(0.14, -0.55, -1.55), v(0.2, -0.5, -1.3), v(0.31, -0.4, -1.05), v(0.3, -0.29, -0.95)], 0.006, rubber));
 
-    // hands
-    g.add(limb(v(0.5, -0.9, 0.3), v(0.34, -0.5, -0.1), 0.034, SLEEVE));
-    g.add(limb(v(0.34, -0.5, -0.1), v(0.31, -0.31, -0.45), 0.032, SLEEVE), ball(v(0.3, -0.3, -0.48), 0.052, SKIN));
-    g.add(limb(v(-0.1, -0.95, 0.2), v(0.2, -0.3, -0.82), 0.032, SLEEVE), ball(v(0.19, -0.29, -0.83), 0.05, SKIN));
+    // the right hand on the grip, its forearm lying in the armrest
+    this.armOn(g, v(0.3, -0.295, -0.5), v(0, 0.05, -1), v(0.43, -0.72, 0.3), 1, 0.034, 0.78, BARE, HANDSHAKE);
+    // the other hand steadies the shaft from the left, just behind the control box
+    this.armOn(g, v(0.272, -0.284, -0.72), v(0.16, -0.04, 1), v(-0.3, -1.1, 0.05), -1, 0.0175, 0.78);
   }
 
   private coil = new THREE.Group();
@@ -274,50 +334,104 @@ export class ViewModel {
     this.signalKind = kind;
   }
 
-  /** A garden trowel: orange grip, steel ferrule and shank, and a flat pointed blade. */
+  /** A garden trowel: a shaped orange handle, a steel neck that cranks down, and a dished, pointed blade. */
   private buildTrowel(): void {
     const g = this.trowel;
-    const grip = new THREE.MeshStandardMaterial({ color: 0xe0732f, roughness: 0.55 });
-    const steel = new THREE.MeshStandardMaterial({ color: 0xc4cad1, roughness: 0.28, metalness: 0.9 });
+    const orange = new THREE.MeshStandardMaterial({ color: 0xe0732f, roughness: 0.55 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0xd6dbe1, roughness: 0.42, metalness: 0.35, side: THREE.DoubleSide });
 
     const tool = new THREE.Group();
-    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.028, 0.22, 14), grip);
-    handle.rotation.x = Math.PI / 2;
-    handle.position.z = 0.02;
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.034, 12, 8), grip);
-    cap.position.z = 0.13;
-    const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.04, 14), steel);
+    // the handle swells in the palm, narrows, and flares at the butt; lathed along y, then laid along z with the blade toward -z
+    const profile = [[0.017, -0.08], [0.0185, -0.06], [0.0215, -0.03], [0.0225, 0], [0.0215, 0.03], [0.0195, 0.052], [0.0215, 0.068], [0.024, 0.076], [0.02, 0.084], [0, 0.087]];
+    const handleGeo = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), 18);
+    handleGeo.rotateX(Math.PI / 2);
+    const handle = new THREE.Mesh(handleGeo, orange);
+    const ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.0185, 0.0185, 0.03, 16), steel);
     ferrule.rotation.x = Math.PI / 2;
-    ferrule.position.z = -0.1;
-    const shank = limb(v(0, 0, -0.11), v(0, -0.045, -0.25), 0.012, steel);
-
-    // leaf-shaped blade, drawn in XY (tip at +y) then laid flat so the tip points forward (-z)
-    const shape = new THREE.Shape();
-    shape.moveTo(-0.032, 0);
-    shape.lineTo(-0.058, 0.07);
-    shape.quadraticCurveTo(-0.062, 0.19, 0, 0.32);
-    shape.quadraticCurveTo(0.062, 0.19, 0.058, 0.07);
-    shape.lineTo(0.032, 0);
-    shape.closePath();
-    const bladeGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.008, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.003, bevelSegments: 1 });
-    bladeGeo.rotateX(-Math.PI / 2);
-    const blade = new THREE.Mesh(bladeGeo, steel);
-    blade.position.set(0, -0.055, -0.235);
-    blade.rotation.x = -0.18;
-    // a raised rib down the middle gives it the scooped look
-    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.2), steel);
-    rib.position.set(0, -0.052, -0.34);
-    rib.rotation.x = -0.18;
-    tool.add(handle, cap, ferrule, shank, blade, rib);
-    // held with the tip pointing forward and down
-    tool.position.set(0.26, -0.17, -0.55);
-    tool.rotation.x = -0.32;
-    tool.rotation.y = 0.06;
+    ferrule.position.z = -0.09;
+    // the neck drops from the ferrule to the blade, then carries on as the pressed spine, flattening and fading out along the hollow
+    const neckCurve = new THREE.CatmullRomCurve3([v(0, 0, -0.095), v(0, -0.004, -0.112), v(0, -0.03, -0.128), v(0, -0.046, -0.146), v(0, -0.0525, -0.17), v(0, -0.0565, -0.21), v(0, -0.058, -0.26), v(0, -0.058, -0.31)]);
+    const neckPos: number[] = [];
+    const neckIdx: number[] = [];
+    const steps = 48;
+    const around = 10;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const c = neckCurve.getPointAt(t);
+      const tan = neckCurve.getTangentAt(t);
+      const fade = Math.min(1, (1 - t) / 0.55);
+      const r = 0.0075 * (0.02 + 0.98 * fade * fade * (3 - 2 * fade));
+      const up = 1 - 0.45 * Math.min(1, t / 0.5);
+      for (let j = 0; j < around; j++) {
+        const th = (j / around) * Math.PI * 2;
+        const side = Math.cos(th) * r * (1 + (1 - fade) * 0.6);
+        const out = Math.sin(th) * r * up;
+        neckPos.push(side, c.y + tan.z * out, c.z - tan.y * out);
+        if (i < steps) {
+          const a = i * around + j;
+          const b = i * around + ((j + 1) % around);
+          neckIdx.push(a, a + around, b, b, a + around, b + around);
+        }
+      }
+    }
+    const neckGeo = new THREE.BufferGeometry();
+    neckGeo.setAttribute('position', new THREE.Float32BufferAttribute(neckPos, 3));
+    neckGeo.setIndex(neckIdx);
+    neckGeo.computeVertexNormals();
+    const neck = new THREE.Mesh(neckGeo, steel);
+    // the blade is one dished sheet that grows out of the neck: it swells to rounded shoulders, then tapers to a point, straight to the tip.
+    // It is brushed steel, darker down the hollow and lighter toward the edges, with a fine rolled rim around it
+    const LEN = 0.23;
+    const halfWidth = (u: number): number => 0.064 * (0.14 + 0.86 * Math.sin(Math.min(1, u / 0.17) * Math.PI * 0.5)) * Math.pow(1 - Math.pow(u, 1.6), 0.9);
+    const lift = (u: number, s: number): number => -0.058 + 0.012 * Math.pow(Math.max(0, 1 - u / 0.17), 2) + 0.024 * (halfWidth(u) / 0.064) * s * s;
+    const atZ = (u: number): number => -0.15 - u * LEN;
+    const hollow = new THREE.Color(0x87909b);
+    const edge = new THREE.Color(0xd9dee3);
+    const shade = new THREE.Color();
+    const pos: number[] = [];
+    const col: number[] = [];
+    const idx: number[] = [];
+    const rows = 26;
+    const cols = 14;
+    for (let i = 0; i <= rows; i++) {
+      const u = i / rows;
+      for (let j = 0; j <= cols; j++) {
+        const s = (j / cols) * 2 - 1;
+        pos.push(s * halfWidth(u), lift(u, s), atZ(u));
+        shade.copy(hollow).lerp(edge, s * s);
+        col.push(shade.r, shade.g, shade.b);
+      }
+    }
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const a = i * (cols + 1) + j;
+        const b = a + cols + 1;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const bladeGeo = new THREE.BufferGeometry();
+    bladeGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    bladeGeo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    bladeGeo.setIndex(idx);
+    bladeGeo.computeVertexNormals();
+    const blade = new THREE.Mesh(bladeGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.4, side: THREE.DoubleSide }));
+    const outline: THREE.Vector3[] = [];
+    for (const side of [-1, 1]) {
+      for (let i = 0; i <= rows; i++) {
+        const u = side < 0 ? i / rows : 1 - i / rows;
+        outline.push(v(side * halfWidth(u), lift(u, side), atZ(u)));
+      }
+    }
+    const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(outline, true, 'catmullrom', 0.2), 120, 0.002, 6, true), steel);
+    tool.add(handle, ferrule, neck, blade, rim);
+    // held out ahead with the tip turned in toward the middle of the view, rolled a little so the face of the blade shows
+    tool.position.set(0.19, -0.26, -0.6);
+    tool.rotation.x = -0.04;
+    tool.rotation.y = 0.5;
+    tool.rotation.z = 0.3;
+    tool.updateMatrix();
     g.add(tool);
-
-    // right hand wraps the grip, left hand rests nearby
-    g.add(limb(v(0.5, -0.9, 0.2), v(0.27, -0.2, -0.5), 0.04, SLEEVE), ball(v(0.26, -0.17, -0.52), 0.052, SKIN));
-    g.add(limb(v(-0.45, -0.95, 0.2), v(-0.25, -0.45, -0.55), 0.04, SLEEVE), ball(v(-0.24, -0.44, -0.57), 0.05, SKIN));
+    this.armOn(g, v(0, 0, 0.015).applyMatrix4(tool.matrix), v(0, 0, -1).transformDirection(tool.matrix), v(0.56, -0.68, 0.25), 1, 0.021, 1, BARE, HANDSHAKE);
   }
 
   /** Stretches a unit-height cylinder between two points. */
@@ -349,16 +463,18 @@ export class ViewModel {
     this.bowArrow = buildArrow();
     this.bowArrow.rotation.y = Math.PI; // tip forward (-z)
     g.add(this.bowArrow);
-    // hands: the left holds the grip, the right draws the string
-    g.add(ball(v(0.0, -0.02, -0.07), 0.07, SKIN));
-    g.add(limb(v(-0.55, -1.0, 1.0), v(-0.01, -0.06, -0.04), 0.055, SLEEVE));
-    this.bowHand = ball(v(0, 0, 0), 0.065, SKIN);
-    g.add(this.bowHand);
-    this.bowForearm = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 1, 10), SLEEVE);
-    g.add(this.bowForearm);
-    g.position.set(-0.1, -0.2, -0.95);
-    g.rotation.set(0.0, 0.08, -0.08);
-    g.scale.setScalar(0.55);
+    // the left hand holds the grip, the right hooks the string; its forearm follows the draw
+    this.armOn(g, v(0, -0.01, -0.07), v(0, 1, 0), v(-0.8, -1.2, 1.1), -1, 0.03, BOW_SCALE);
+    const start = v(0, BOW_HAND_Y, 0.15);
+    const right = this.hold(g, start, v(0, 1, 0), BOW_ELBOW, 1, 0.006, BOW_SCALE);
+    this.bowHand = right.hand;
+    this.bowWrist = right.wrist.sub(start);
+    const k = 1 / BOW_SCALE;
+    this.bowForearm = new THREE.Mesh(new THREE.CylinderGeometry(ELBOW_R * k, WRIST_R * k, 1, 14), SKIN);
+    this.bowSleeve = new THREE.Mesh(new THREE.CylinderGeometry((ELBOW_R + 0.007) * k, (ELBOW_R + 0.001) * k, 1, 14), SLEEVE);
+    g.add(this.bowForearm, this.bowSleeve);
+    g.rotation.set(0.0, -0.12, -0.12);
+    g.scale.setScalar(BOW_SCALE);
     g.visible = false;
     this.setDraw(0);
   }
@@ -369,11 +485,12 @@ export class ViewModel {
     this.stretch(this.bowString[0], v(0, 0.46, 0.15), nock);
     this.stretch(this.bowString[1], v(0, -0.46, 0.15), nock);
     this.bowArrow.position.set(0, 0, nock.z - 0.38);
-    const hand = v(0.03, -0.02, nock.z + 0.03);
-    this.bowHand.position.copy(hand);
-    this.stretch(this.bowForearm, v(0.55, -1.0, 1.0), hand);
+    this.bowHand.position.set(0, BOW_HAND_Y, nock.z);
+    const wrist = this.bowHand.position.clone().add(this.bowWrist);
+    this.stretch(this.bowForearm, wrist, BOW_ELBOW);
+    this.stretch(this.bowSleeve, wrist.clone().lerp(BOW_ELBOW, 0.42), BOW_ELBOW);
     // drawing the bow pulls it a little toward the shooter and lifts it
-    this.bow.position.set(-0.1, -0.2 + d * 0.01, -0.95 + d * 0.04);
+    this.bow.position.set(-0.16, -0.27 + d * 0.01, -0.95 + d * 0.04);
   }
 
   /** The kick of letting the string go. */
@@ -402,9 +519,8 @@ export class ViewModel {
       eye.rotation.x = Math.PI / 2;
       eye.position.set(x, -0.2, -0.4);
       g.add(barrel, lens, glassDisc, eye);
-      // a hand cupping each barrel from underneath
-      g.add(ball(v(sx * 0.1, -0.27, -0.55), 0.058, SKIN));
-      g.add(limb(v(sx * 0.42, -0.9, 0.15), v(sx * 0.12, -0.3, -0.5), 0.036, SLEEVE));
+      // a hand around each barrel from underneath
+      this.armOn(g, v(x, -0.2, -0.56), v(0, 0, 1), v(sx * 0.8, -1.35, 0.2), sx < 0 ? -1 : 1, 0.06, BINOC_SCALE);
     }
     const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.045, 0.2), body);
     bridge.position.set(0, -0.2, -0.58);
@@ -412,8 +528,8 @@ export class ViewModel {
     wheel.position.set(0, -0.172, -0.6);
     g.add(bridge, wheel);
     g.rotation.x = 0.12;
-    g.scale.setScalar(0.5);
-    g.position.set(0, -0.12, -0.1);
+    g.scale.setScalar(BINOC_SCALE);
+    g.position.set(0, -0.16, -0.16);
     g.visible = false;
   }
 
@@ -433,13 +549,12 @@ export class ViewModel {
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0.26, -0.27, -0.88);
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.17, 0.075), grip);
-    handle.position.set(0.28, -0.39, -0.5);
+    handle.position.set(0.26, -0.39, -0.5);
     handle.rotation.x = 0.28;
     const sight = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.02, 0.02), metal);
     sight.position.set(0.26, -0.225, -0.8);
     g.add(slide, barrel, handle, sight);
-    g.add(limb(v(0.5, -0.9, 0.2), v(0.29, -0.37, -0.48), 0.04, SLEEVE), ball(v(0.29, -0.36, -0.5), 0.05, SKIN));
-    g.add(limb(v(-0.1, -0.95, 0.2), v(0.23, -0.4, -0.52), 0.04, SLEEVE), ball(v(0.23, -0.39, -0.54), 0.05, SKIN));
+    this.armOn(g, v(0.26, -0.39, -0.5), v(0, Math.cos(0.28), Math.sin(0.28)), v(0.62, -1.05, 0.3), 1, 0.03, 0.72);
     this.flash = new THREE.Mesh(
       new THREE.ConeGeometry(0.06, 0.2, 8),
       new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
@@ -541,8 +656,10 @@ export class ViewModel {
     // underwater the hands always drift a little, and sway wider and slower when kicking
     const sw = this.swim ? 0.5 + this.moving : this.moving;
     const amp = this.swim ? 2.6 : 1;
-    this.root.position.set(Math.cos(this.bob * 0.5) * 0.012 * sw * amp, 0.2 + Math.sin(this.bob) * 0.014 * sw * amp - s * 0.06, 0.1 + s * 0.1);
-    this.root.rotation.x = this.tool === 2 ? -s * 0.55 : this.tool === 4 || this.tool === 9 ? this.kickT * 0.22 : Math.sin(this.bob * 0.5) * 0.01 * sw * amp;
+    // the trowel stabs forward and a little down, so it stays in view through the dig
+    const dig = this.tool === 2;
+    this.root.position.set(Math.cos(this.bob * 0.5) * 0.012 * sw * amp, 0.2 + Math.sin(this.bob) * 0.014 * sw * amp - s * (dig ? 0.03 : 0.06), 0.1 + s * (dig ? -0.08 : 0.1));
+    this.root.rotation.x = dig ? -s * 0.12 : this.tool === 4 || this.tool === 9 ? this.kickT * 0.22 : Math.sin(this.bob * 0.5) * 0.01 * sw * amp;
     if (this.tool === 4 || this.tool === 9) this.root.position.z += this.kickT * 0.08;
     this.root.rotation.z = Math.cos(this.bob * 0.5) * 0.01 * sw * amp;
 

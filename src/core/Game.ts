@@ -2590,7 +2590,7 @@ export class Game {
     for (const r of [3.6, 4.4, 5.2]) {
       for (let a = 0; a < 16; a++) spots.push([Math.cos((a / 16) * Math.PI * 2) * r, CAMP_Z + Math.sin((a / 16) * Math.PI * 2) * r]);
     }
-    spots.sort((p, q) => Math.hypot(p[0] + 2.5, p[1] - CAMP_Z - 3) - Math.hypot(q[0] + 2.5, q[1] - CAMP_Z - 3));
+    spots.sort((p, q) => Math.hypot(p[0] + 1.2, p[1] - CAMP_Z - 3) - Math.hypot(q[0] + 1.2, q[1] - CAMP_Z - 3));
     const [x, z] = spots.find(([sx, sz]) => this.camp.obstacles.every((o) => Math.hypot(sx - o.x, sz - o.z) > o.r + 0.9)) ?? spots[0];
     this.dog.setHome(x, z, Math.atan2(-(0 - x), -(CAMP_Z - z)));
   }

@@ -109,12 +109,53 @@ const loft = (axis: 'z' | 'y', keys: Ring[], low: number, high: number, steps = 
   return geo;
 };
 
-/** A leg with an upper and a lower part, so it can bend at the knee. */
+/** The three bones of a leg. The fur over them is one skinned surface, so a leg bends instead of coming apart at the joints. */
 interface Leg {
-  top: THREE.Group;
-  knee: THREE.Group;
-  paw: THREE.Group;
+  top: THREE.Bone;
+  knee: THREE.Bone;
+  paw: THREE.Bone;
 }
+
+/** How far below the hip the knee sits, and how far below the knee the ankle sits. */
+const THIGH = 0.228;
+const SHIN = 0.24;
+
+/** 0 above a joint, 1 below it, with a smooth blend over `width` either side. */
+const jointBlend = (y: number, joint: number, width: number): number => {
+  const u = Math.min(1, Math.max(0, (joint + width - y) / (2 * width)));
+  return u * u * (3 - 2 * u);
+};
+
+/** A shoulder or haunch that starts thin inside the body and swells out through the flank, so there is no edge where the leg begins. */
+const FRONT_LEG: Ring[] = [
+  { t: 0.15, c: 0.0, a: 0.012, b: 0.03 },
+  { t: 0.1, c: 0.0, a: 0.045, b: 0.085 },
+  { t: 0.03, c: 0.0, a: 0.085, b: 0.125 },
+  { t: -0.07, c: 0.0, a: 0.075, b: 0.105 },
+  { t: -0.16, c: 0.008, a: 0.056, b: 0.074 },
+  { t: -THIGH, c: 0.0, a: 0.045, b: 0.054 },
+  { t: -0.31, c: 0.0, a: 0.039, b: 0.045 },
+  { t: -0.4, c: 0.0, a: 0.036, b: 0.041 },
+  { t: -0.44, c: -0.004, a: 0.04, b: 0.046 },
+  { t: -0.456, c: -0.02, a: 0.05, b: 0.066 },
+  { t: -0.47, c: -0.026, a: 0.052, b: 0.075 },
+  { t: -0.482, c: -0.026, a: 0.036, b: 0.052 },
+];
+
+const HIND_LEG: Ring[] = [
+  { t: 0.17, c: 0.0, a: 0.012, b: 0.03 },
+  { t: 0.12, c: 0.005, a: 0.05, b: 0.095 },
+  { t: 0.05, c: 0.015, a: 0.09, b: 0.125 },
+  { t: -0.05, c: 0.025, a: 0.082, b: 0.115 },
+  { t: -0.15, c: 0.02, a: 0.06, b: 0.08 },
+  { t: -THIGH, c: 0.0, a: 0.046, b: 0.054 },
+  { t: -0.31, c: 0.0, a: 0.039, b: 0.045 },
+  { t: -0.4, c: 0.0, a: 0.036, b: 0.041 },
+  { t: -0.44, c: -0.004, a: 0.04, b: 0.046 },
+  { t: -0.456, c: -0.02, a: 0.05, b: 0.066 },
+  { t: -0.47, c: -0.026, a: 0.052, b: 0.075 },
+  { t: -0.482, c: -0.026, a: 0.036, b: 0.052 },
+];
 
 /** The camp dog. It sits by the camp until given a bone, then follows its nose to a buried find and barks until the player digs it up. */
 export class Dog {
@@ -172,7 +213,6 @@ export class Dog {
     const furMat = coat();
     const earMat = coat();
     const deepMat = new THREE.MeshStandardMaterial({ color: DEEP, roughness: 0.95 });
-    const pawMat = new THREE.MeshStandardMaterial({ color: PALE, roughness: 0.95 });
     const black = new THREE.MeshStandardMaterial({ color: 0x17120e, roughness: 0.3 });
     const brown = new THREE.MeshStandardMaterial({ color: 0x3a2412, roughness: 0.3 });
     const shine = new THREE.MeshBasicMaterial({ color: 0xffffff });
@@ -307,66 +347,47 @@ export class Dog {
       this.ears.push(ear);
     }
 
-    // ---- legs: each is a smooth tapered upper part and lower part, a knee, and a paw; the top starts inside the body
-    const LEG = 1.2; // longer legs than the first try: retrievers stand tall
-    const stretch = (ks: Ring[]): Ring[] => ks.map((k) => ({ ...k, t: k.t * LEG }));
-    const makeLeg = (x: number, y: number, z: number, front: boolean): Leg => {
-      const top = new THREE.Group();
+    // ---- legs: hip to toe is one skinned surface over three bones; its colour runs from the flank's gold to pale paws
+    const flank = new THREE.Color(PALE).lerp(new THREE.Color(GOLD), 0.42);
+    const toe = new THREE.Color(PALE);
+    const tint = new THREE.Color();
+    const makeLeg = (x: number, y: number, z: number, keys: Ring[]): Leg => {
+      const geo = loft('y', keys, PALE, PALE, 5, 18);
+      const pos = geo.getAttribute('position');
+      const col = geo.getAttribute('color');
+      const index: number[] = [];
+      const weight: number[] = [];
+      for (let i = 0; i < pos.count; i++) {
+        const vy = pos.getY(i);
+        const k = jointBlend(vy, -THIGH, 0.05);
+        const a = jointBlend(vy, -THIGH - SHIN, 0.03);
+        index.push(0, 1, 2, 0);
+        weight.push(1 - k, k * (1 - a), k * a, 0);
+        tint.copy(toe).lerp(flank, Math.min(1, Math.max(0, (vy + 0.42) / 0.42)));
+        col.setXYZ(i, tint.r, tint.g, tint.b);
+      }
+      geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(index, 4));
+      geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weight, 4));
+      const top = new THREE.Bone();
+      const knee = new THREE.Bone();
+      const paw = new THREE.Bone();
       top.position.set(x, y, z);
-      mesh(
-        top,
-        loft(
-          'y',
-          stretch(front
-            ? [
-                { t: 0.1, c: 0.0, a: 0.085, b: 0.12 },
-                { t: -0.02, c: 0.0, a: 0.075, b: 0.1 },
-                { t: -0.12, c: 0.01, a: 0.058, b: 0.078 },
-                { t: -0.2, c: 0.0, a: 0.05, b: 0.058 },
-              ]
-            : [
-                { t: 0.1, c: 0.0, a: 0.09, b: 0.12 },
-                { t: 0.0, c: 0.02, a: 0.088, b: 0.12 },
-                { t: -0.1, c: 0.03, a: 0.062, b: 0.085 },
-                { t: -0.2, c: 0.0, a: 0.05, b: 0.058 },
-              ]),
-          PALE,
-          GOLD,
-          5,
-          18,
-        ),
-        furMat,
-      );
-      const knee = new THREE.Group();
-      knee.position.set(0, -0.19 * LEG, 0);
-      ball(knee, 0.05, furMat, 0, 0, 0);
-      mesh(
-        knee,
-        loft(
-          'y',
-          stretch([
-            { t: 0.01, c: 0.0, a: 0.05, b: 0.058 },
-            { t: -0.09, c: 0.0, a: 0.04, b: 0.045 },
-            { t: -0.18, c: 0.0, a: 0.04, b: 0.048 },
-          ]),
-          PALE,
-          PALE,
-          4,
-          16,
-        ),
-        furMat,
-      );
-      const paw = new THREE.Group();
-      paw.position.set(0, -0.2 * LEG, 0);
-      ball(paw, 0.05, pawMat, 0, -0.012, -0.025, 0.95, 0.65, 1.5);
-      knee.add(paw);
+      knee.position.y = -THIGH;
+      paw.position.y = -SHIN;
       top.add(knee);
-      b.add(top);
+      knee.add(paw);
+      const skin = new THREE.SkinnedMesh(geo, furMat);
+      skin.position.set(x, y, z);
+      skin.castShadow = true;
+      skin.frustumCulled = false;
+      b.add(top, skin);
+      this.group.updateMatrixWorld(true);
+      skin.bind(new THREE.Skeleton([top, knee, paw]));
       return { top, knee, paw };
     };
     for (const s of [-1, 1]) {
-      this.front.push(makeLeg(s * 0.12, 0.05, -0.44, true));
-      this.hind.push(makeLeg(s * 0.12, 0.05, 0.02, false));
+      this.front.push(makeLeg(s * 0.11, 0.05, -0.44, FRONT_LEG));
+      this.hind.push(makeLeg(s * 0.1, 0.05, 0.02, HIND_LEG));
     }
 
     // ---- tail: a long, feathered plume that is slim at the root, full in the middle and tapers to a point

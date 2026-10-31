@@ -10,6 +10,16 @@ import type { SaveMeta } from '../core/SaveGame';
 
 const MINI_PX = 150;
 
+/** There is no trowel emoji, so the tool badge draws one: an orange handle, a steel neck and a pointed blade. */
+const TROWEL_ICON =
+  '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><path d="M3 29C2 20 7 13 14 11L21 18C19 25 12 30 3 29Z" fill="#c9cfd6" stroke="#5f6771" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.5 27.5L16 16" stroke="#8d95a0" stroke-width="1.4" stroke-linecap="round"/><path d="M16 16L22 10" stroke="#8d95a0" stroke-width="2.6"/><path d="M21 11L23 9" stroke="#dfe3e8" stroke-width="5"/><path d="M23.5 8.5L28.5 3.5" stroke="#e0732f" stroke-width="5.4" stroke-linecap="round"/></svg>';
+
+/** Shows a tool's icon: an emoji, or one of the drawings above. */
+const showIcon = (target: HTMLElement, icon: string): void => {
+  if (icon.startsWith('<')) target.innerHTML = icon;
+  else target.textContent = icon;
+};
+
 export type UIMode = 'EXPLORE' | 'INSPECT' | 'CAMP' | 'MENU';
 
 export interface UIHooks {
@@ -200,7 +210,7 @@ export class UIManager {
   setTool(n: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 0): void {
     const info: Record<number, [string, string]> = {
       1: ['📡', 'Detector'],
-      2: ['⛏️', 'Trowel'],
+      2: [TROWEL_ICON, 'Trowel'],
       3: ['⛺', 'Camp'],
       4: ['🔫', 'Gun'],
       5: ['🔭', 'Binoculars'],
@@ -213,7 +223,7 @@ export class UIManager {
     this.badge.classList.toggle('hidden', n === 0 || pad.on);
     this.updatePadTools();
     if (n !== 0) {
-      this.badgeIcon.textContent = info[n][0];
+      showIcon(this.badgeIcon, info[n][0]);
       this.badgeName.textContent = n === 7 ? `Flags x${this.state.data.flags ?? 0}` : info[n][1];
     }
     this.scope.classList.toggle('hidden', n !== 1);
@@ -236,7 +246,7 @@ export class UIManager {
     this.padTools.classList.toggle('hidden', !show);
     if (!show) return;
     const icons: Record<number, [string, string]> = {
-      1: ['📡', 'Detector'], 2: ['⛏️', 'Trowel'], 5: ['🔭', 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
+      1: ['📡', 'Detector'], 2: [TROWEL_ICON, 'Trowel'], 5: ['🔭', 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
     };
     const others = this.padOtherTools();
     const leftTool = others.includes(this.curTool as 8 | 7 | 6 | 4) ? (this.curTool as 8 | 7 | 6 | 4) : others[0];
@@ -244,7 +254,7 @@ export class UIManager {
     (Object.keys(this.padSlots) as ('up' | 'right' | 'down' | 'left')[]).forEach((k) => {
       const t = slotTool[k];
       const slot = this.padSlots[k];
-      slot.textContent = t ? icons[t][0] : '·';
+      showIcon(slot, t ? icons[t][0] : '·');
       if (t === 7) slot.append(el('small', '', `x${this.state.data.flags ?? 0}`));
       if (k === 'left' && others.length > 1) slot.append(el('em', '', '⟳'));
       slot.classList.toggle('on', t === this.curTool);

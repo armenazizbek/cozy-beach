@@ -85,8 +85,8 @@ export class Camp {
     const solid = (lx: number, lz: number, r: number): void => {
       this.obstacles.push({ x: lx, z: CAMP_Z + lz, r });
     };
-    solid(-4.2, -1.8, 0.7); // recycling bin
-    solid(-6.4, 1.2, 1.0); // notice board
+    solid(-12.4, 4.4, 0.7); // recycling bin
+    solid(-4.7, 1.2, 1.0); // notice board
     solid(3.7, 0.8, 1.3); // workbench (and the journal on it)
     solid(1.7, 0.9, 0.45); // coffee stump
     solid(2.2, -1.6, 0.25); // lantern pole
@@ -198,10 +198,6 @@ export class Camp {
       for (const sz of [-0.38, 0.38]) g.add(box(0.12, 1.0, 0.12, wood(0x5e4128), sx * 0.95, 0.5, sz));
     }
     g.add(box(2.0, 0.08, 0.7, wood(0x5e4128), 0, 0.35, 0));
-    // vise + tools
-    g.add(box(0.2, 0.18, 0.2, new THREE.MeshStandardMaterial({ color: 0x555a5f, metalness: 0.7, roughness: 0.4 }), -0.7, 1.15, 0.2));
-    const brush = box(0.34, 0.06, 0.1, wood(0xb98b57), 0.3, 1.09, 0.2);
-    g.add(brush);
     // back shelf for trophies
     g.add(box(2.2, 0.08, 0.4, wood(0x7a5538), 0, 2.0, -0.4));
     g.add(box(0.08, 1.0, 0.08, wood(0x5e4128), -1.0, 1.5, -0.55), box(0.08, 1.0, 0.08, wood(0x5e4128), 1.0, 1.5, -0.55));
@@ -769,15 +765,61 @@ export class Camp {
     body.position.y = 0.45;
     const lid = cyl(0.54, 0.54, 0.08, new THREE.MeshStandardMaterial({ color: 0x2f7347, roughness: 0.7 }), 16);
     lid.position.y = 0.94;
+    // the recycling symbol, painted on: a patch of the bin's own curved wall, a hair proud of it
     const sign = new THREE.Mesh(
-      new THREE.TorusGeometry(0.17, 0.035, 8, 3),
-      new THREE.MeshStandardMaterial({ color: 0xeaf6ea, emissive: 0x335533 }),
+      new THREE.CylinderGeometry(0.494, 0.45, 0.5, 8, 1, true, -0.54, 1.08),
+      new THREE.MeshStandardMaterial({ map: this.recycleLogo(), alphaTest: 0.5, roughness: 0.7 }),
     );
-    sign.position.set(0, 0.5, 0.47);
+    sign.position.y = 0.45;
     g.add(body, lid, sign);
-    g.position.set(-4.2, 0, -1.8);
+    // this spot is outside the levelled camp pad, where the sand lies a little lower
+    g.position.set(-12.4, -0.24, 4.4);
+    g.rotation.y = 0.9;
     this.mark(g, 'bin');
     this.group.add(g);
+  }
+
+  /** Three arrows chasing each other around a triangle, white on nothing, as a texture. */
+  private recycleLogo(): THREE.CanvasTexture {
+    const cv = document.createElement('canvas');
+    cv.width = 256;
+    cv.height = 256;
+    const c = cv.getContext('2d')!;
+    c.translate(128, 150);
+    c.fillStyle = c.strokeStyle = '#ffffff';
+    c.lineWidth = 27;
+    const R = 112;
+    const top = { x: 0, y: -R };
+    const left = { x: -R * Math.sin(Math.PI / 3), y: R / 2 };
+    const right = { x: -left.x, y: R / 2 };
+    const along = (p: { x: number; y: number }, q: { x: number; y: number }, u: number): { x: number; y: number } => ({
+      x: p.x + (q.x - p.x) * u,
+      y: p.y + (q.y - p.y) * u,
+    });
+    // each arrow bends around one corner of the triangle and stops short of the tail of the next
+    const from = along(left, top, 0.6);
+    const shaft = along(top, right, 0.3);
+    const tip = along(top, right, 0.58);
+    const dx = (right.x - top.x) / (R * Math.sqrt(3));
+    const dy = (right.y - top.y) / (R * Math.sqrt(3));
+    for (let i = 0; i < 3; i++) {
+      c.beginPath();
+      c.moveTo(from.x, from.y);
+      c.arcTo(top.x, top.y, shaft.x, shaft.y, 12);
+      c.lineTo(shaft.x, shaft.y);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(tip.x, tip.y);
+      c.lineTo(shaft.x - dy * 34, shaft.y + dx * 34);
+      c.lineTo(shaft.x + dy * 34, shaft.y - dx * 34);
+      c.closePath();
+      c.fill();
+      c.rotate((Math.PI * 2) / 3);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    return tex;
   }
 
   private buildBoard(): void {
@@ -795,14 +837,29 @@ export class Camp {
       note.rotation.z = (Math.random() - 0.5) * 0.3;
       g.add(note);
     });
-    const hint = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.6, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0xf6efe0, roughness: 1 }),
-    );
-    hint.position.set(0, 2.25, 0.12);
-    g.add(hint);
-    g.position.set(-6.4, 0, 1.2);
-    g.rotation.y = 0.6;
+    // the title, painted on a cream plate along the top beam
+    const cv = document.createElement('canvas');
+    cv.width = 768;
+    cv.height = 112;
+    const c = cv.getContext('2d')!;
+    c.fillStyle = '#f6efe0';
+    c.fillRect(0, 0, cv.width, cv.height);
+    c.strokeStyle = '#5e4128';
+    c.lineWidth = 6;
+    c.strokeRect(9, 9, cv.width - 18, cv.height - 18);
+    c.fillStyle = '#4a3020';
+    c.font = 'bold 66px Georgia, serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('LOST & FOUND', cv.width / 2, cv.height / 2 + 3);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const title = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.2625), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
+    title.position.set(0, 2.25, 0.105);
+    g.add(title);
+    g.position.set(-4.7, 0, 1.2);
+    g.rotation.y = 0.9;
     this.mark(g, 'board');
     this.group.add(g);
   }
