@@ -135,7 +135,7 @@ export const solidSurface = (f: (x: number, y: number, z: number) => number, lo:
     const gx = a - b - c + d;
     const gy = -a - b + c + d;
     const gz = -a + b - c + d;
-    const inv = 1 / (Math.hypot(gx, gy, gz) || 1);
+    const inv = 1 / (Math.sqrt(gx * gx + gy * gy + gz * gz) || 1);
     nor[i] = gx * inv;
     nor[i + 1] = gy * inv;
     nor[i + 2] = gz * inv;

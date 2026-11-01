@@ -3492,7 +3492,7 @@ export class Game {
       return;
     }
     const ray = this.input.ray(this.camera, this.gameState === 'EXPLORE');
-    const nearCamp = this.gameState !== 'EXPLORE' || Math.hypot(this.player.x, this.player.z - CAMP_Z) < 18;
+    const nearCamp = this.gameState !== 'EXPLORE' || Math.hypot(this.player.x, this.player.z - CAMP_Z) < 22;
     const beachHit = this.beach.raycast(ray.ray.origin, ray.ray.direction, 12);
     const beachDist = beachHit ? beachHit.distanceTo(ray.ray.origin) : Infinity;
     const itemHit = this.gameState === 'EXPLORE' ? ray.intersectObjects(this.spawner.pickables(), true)[0] : undefined;

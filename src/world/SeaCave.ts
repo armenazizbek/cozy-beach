@@ -149,9 +149,9 @@ const skullParts = (): NonNullable<typeof skullGeo> => {
     d = blendShapes(d, capsule(px, yy, z, 0.42, 0.9, 0.55, 0.72, 1.2, 1.25, 0.13, 0.08), 0.1);
     d = blendShapes(d, capsule(px, yy, z, 0.72, 1.2, 1.25, 0.72, 1.12, 1.95, 0.08, 0.015), 0.04);
     // the sockets, the nostrils and the hollow behind the eye
-    d = -blendShapes(-d, Math.hypot(px - 0.46, yy - 0.6, z - 0.02) - 0.27, 0.05);
-    d = -blendShapes(-d, Math.hypot(px - 0.13, yy - 0.42, z + 1.4) - 0.08, 0.05);
-    d = -blendShapes(-d, Math.hypot(px - 0.66, yy - 0.4, z - 0.92) - 0.22, 0.05);
+    d = -blendShapes(-d, Math.sqrt((px - 0.46) ** 2 + (yy - 0.6) ** 2 + (z - 0.02) ** 2) - 0.27, 0.05);
+    d = -blendShapes(-d, Math.sqrt((px - 0.13) ** 2 + (yy - 0.42) ** 2 + (z + 1.4) ** 2) - 0.08, 0.05);
+    d = -blendShapes(-d, Math.sqrt((px - 0.66) ** 2 + (yy - 0.4) ** 2 + (z - 0.92) ** 2) - 0.22, 0.05);
     return d;
   };
   const jaw = (x: number, yy: number, z: number): number => {

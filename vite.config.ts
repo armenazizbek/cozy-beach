@@ -12,13 +12,4 @@ export default defineConfig({
       ignored: ['**/release/**'],
     },
   },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three'],
-        },
-      },
-    },
-  },
 });
