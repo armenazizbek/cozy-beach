@@ -41,6 +41,7 @@ export class CampModal {
   private tabs = document.createElement('div');
   private tab: CampTab = 'rest';
   private _open = false;
+  private shownTab: CampTab | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -94,7 +95,34 @@ export class CampModal {
     return b;
   }
 
+  /** Moves to the next page along (a controller's bumpers). */
+  stepTab(dir: 1 | -1): void {
+    const ids = TABS.map(([id]) => id).filter((id) => id !== 'luxury' || this.state.data.hoardTaken);
+    this.tab = ids[(ids.indexOf(this.tab) + dir + ids.length) % ids.length];
+    this.audio.ui();
+    (document.activeElement as HTMLElement | null)?.blur();
+    this.render();
+    this.panel.querySelector<HTMLElement>('.tab.on')?.focus();
+  }
+
+  /** The whole page is rebuilt whenever the game state changes; this keeps the controller's place and the scroll through that. */
   private render(): void {
+    const active = document.activeElement as HTMLElement | null;
+    const focused = active && this.panel.contains(active) && active !== this.panel ? active : null;
+    const buttons = (): HTMLElement[] => Array.from(this.panel.querySelectorAll<HTMLElement>('button'));
+    const label = focused?.textContent ?? '';
+    const sameLabel = focused ? buttons().filter((b) => b.textContent === label).indexOf(focused) : -1;
+    const scroll = this.shownTab === this.tab ? this.body.scrollTop : 0;
+    this.shownTab = this.tab;
+    this.paint();
+    this.body.scrollTop = scroll;
+    if (focused && !this.panel.contains(focused)) {
+      const same = buttons().filter((b) => b.textContent === label && !(b as HTMLButtonElement).disabled);
+      (same[Math.max(0, sameLabel)] ?? same[0] ?? this.panel.querySelector<HTMLElement>('.tab.on'))?.focus({ preventScroll: true });
+    }
+  }
+
+  private paint(): void {
     this.tabs.innerHTML = '';
     for (const [id, label] of TABS) {
       if (id === 'luxury' && !this.state.data.hoardTaken) continue;

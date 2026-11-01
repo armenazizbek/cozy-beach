@@ -1373,6 +1373,12 @@ export class Game {
     });
   }
 
+  /** The part of a menu that scrolls, if it is long enough to need it. */
+  private padScroller(root: HTMLElement): HTMLElement | null {
+    const all = Array.from(root.querySelectorAll<HTMLElement>('.camp-body, .help-body, .ach-list'));
+    return all.find((e) => e.scrollHeight > e.clientHeight + 1) ?? null;
+  }
+
   private padNav(d: PadDir): void {
     const root = this.overlayRoot();
     if (!root) return;
@@ -1381,6 +1387,12 @@ export class Game {
     const cur = items.find((e) => e === document.activeElement);
     if (!cur) {
       items[0].focus();
+      return;
+    }
+    // from outside a scrolled list, up first rolls the list back before leaving for what is above it
+    const scroller = this.padScroller(root);
+    if (scroller && d === 'up' && scroller.scrollTop > 0 && !scroller.contains(cur)) {
+      scroller.scrollBy(0, -150);
       return;
     }
     if (cur instanceof HTMLInputElement && cur.type === 'range' && (d === 'left' || d === 'right')) {
@@ -1418,6 +1430,9 @@ export class Game {
       best.focus();
       best.scrollIntoView({ block: 'nearest' });
       this.audio.ui();
+    } else if (scroller && (d === 'up' || d === 'down')) {
+      // nothing further to move to: a page of plain text, like the notes on the board, just scrolls
+      scroller.scrollBy(0, d === 'down' ? 150 : -150);
     }
   }
 
@@ -1447,6 +1462,7 @@ export class Game {
         if (open) this.closePadOptions(open);
         else this.padBack(root);
       }
+      else if ((b === 'lb' || b === 'rb') && this.campModal.isOpen) this.campModal.stepTab(b === 'rb' ? 1 : -1);
       else if (b === 'lb' && this.bookOpen) this.ui.bookTurn(-1);
       else if (b === 'rb' && this.bookOpen) this.ui.bookTurn(1);
       else if (b === 'start' && this.paused) this.padKey('Escape');
@@ -1546,7 +1562,10 @@ export class Game {
       for (const c of Array.from(this.padKeys)) this.setPadKey(c, false);
       const items = this.padFocusables(root);
       const cur = document.activeElement as HTMLElement | null;
-      if (items.length && (!cur || !items.includes(cur))) items[0].focus();
+      // the camp opens on its current page, not on the Close button at the top
+      if (items.length && (!cur || !items.includes(cur))) (root.querySelector<HTMLElement>('.tab.on') ?? items[0]).focus();
+      // the right stick scrolls whatever long list is showing
+      if (pad.look.y) this.padScroller(root)?.scrollBy(0, pad.look.y * dt * 700);
       return;
     }
     if (this.mapOpen) {
