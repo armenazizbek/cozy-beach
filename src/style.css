@@ -448,6 +448,32 @@ button.chip { cursor: pointer; }
 }
 .note:nth-child(even) { background: #ffd0dc; transform: rotate(0.7deg); }
 .note.done { opacity: 0.5; }
+.note.has-photo { position: relative; padding-right: 118px; min-height: 112px; }
+.polaroid {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 92px;
+  padding: 6px 6px 4px;
+  background: #fdfbf4;
+  box-shadow: 0 3px 8px rgba(50, 30, 10, 0.35);
+  transform: rotate(var(--tilt));
+}
+/* the pin */
+.polaroid::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8d7e, #c8362a 65%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+.polaroid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
+.polaroid span { display: block; margin-top: 3px; font: italic 10px/1.15 Georgia, serif; color: #4a3020; text-align: center; }
 .upgrades { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ucol h3 { margin: 0 0 6px; font-size: 14px; }
 .ucell { padding: 8px 10px; border-radius: 10px; background: var(--paper2); margin-bottom: 6px; font-size: 12px; }

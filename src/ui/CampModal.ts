@@ -42,6 +42,8 @@ export class CampModal {
   private tab: CampTab = 'rest';
   private _open = false;
   private shownTab: CampTab | null = null;
+  /** a picture of each Lost & Found item, taken while the game loads */
+  photos = new Map<string, string>();
 
   constructor(
     parent: HTMLElement,
@@ -258,17 +260,33 @@ export class CampModal {
 
   private renderBoard(): void {
     this.body.append(this.p('Sticky notes from the locals. Find and clean the item and it is delivered for you, with the reward paid at once.'));
-    for (const q of QUEST_DEFS) {
+    QUEST_DEFS.forEach((q, i) => {
       const done = this.state.data.questsDone.includes(q.id);
       const prog = this.state.questProgress(q);
       const note = document.createElement('div');
       note.className = `note ${done ? 'done' : ''}`;
+      const defId = q.need.defId;
+      const src = defId ? this.photos.get(defId) : undefined;
+      if (src) {
+        // a polaroid of what is missing, pinned to the note at its own slight angle
+        const photo = document.createElement('div');
+        photo.className = 'polaroid';
+        photo.style.setProperty('--tilt', `${[-5, 3.5, -2.5, 6, -4, 2][i % 6]}deg`);
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        const name = document.createElement('span');
+        name.textContent = DEF_BY_ID.get(defId ?? '')?.name ?? '';
+        photo.append(img, name);
+        note.append(photo);
+        note.classList.add('has-photo');
+      }
       note.append(
         this.p(`“${q.text}”`),
         this.p(`— ${q.giver}   ·   Reward: ${q.reward}g   ·   ${done ? 'Already found ✓ reward paid' : `${prog}/${q.need.count} found`}`, 'faint'),
       );
       this.body.append(note);
-    }
+    });
   }
 
   private renderUpgrades(): void {

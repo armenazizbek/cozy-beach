@@ -9,6 +9,7 @@ import { CampModal } from '../ui/CampModal';
 import type { CampTab } from '../ui/CampModal';
 import { UIManager } from '../ui/UIManager';
 import { HOARD_VALUE, buildGrate } from '../world/SeaCave';
+import { takeItemPhotos } from '../ui/ItemPhotos';
 import { BEACH_SEGMENTS, Beach, CAMP_Z, HALF, SHORE_Z, ISLAND, SEA, WATER_LEVEL, createSkirt, createSurround } from '../world/Beach';
 import { Birds } from '../world/Birds';
 import { Boat } from '../world/Boat';
@@ -435,6 +436,7 @@ export class Game {
     this.under.group.visible = false;
     this.cellar.group.visible = false;
     await this.station.prepare(this.renderer, this.spawner.group);
+    this.campModal.photos = takeItemPhotos(QUEST_DEFS.flatMap((q) => q.need.defId ?? []));
     done(places.length + 1);
     await new Promise((resolve) => setTimeout(resolve, 30));
     this.sendEverythingToGpu();
