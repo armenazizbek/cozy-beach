@@ -32,6 +32,10 @@ export class CleaningStation {
   /** a stick covers ground far more slowly than a mouse, so with a controller the brush is wider */
   brushScale = 1;
   private lastUV: THREE.Vector2 | null = null;
+  private lastUVVec = new THREE.Vector2();
+  private sampleCv = document.createElement('canvas');
+  private sampleCtx: CanvasRenderingContext2D;
+  private brushGrad: CanvasGradient;
   private sinceSample = 0;
   private raycaster = new THREE.Raycaster();
   private sparkles = new ParticleSystem(240, 0.12, -0.5, true);
@@ -86,6 +90,13 @@ export class CleaningStation {
 
     this.camera.position.set(0, 3.1, 4.6);
     this.camera.lookAt(0, -0.2, 0);
+
+    this.sampleCv.width = this.sampleCv.height = 64;
+    this.sampleCtx = this.sampleCv.getContext('2d', { willReadFrequently: true })!;
+    this.brushGrad = this.sampleCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    this.brushGrad.addColorStop(0, 'rgba(0,0,0,0.9)');
+    this.brushGrad.addColorStop(0.65, 'rgba(0,0,0,0.5)');
+    this.brushGrad.addColorStop(1, 'rgba(0,0,0,0)');
   }
 
   resize(w: number, h: number): void {
@@ -178,7 +189,7 @@ export class CleaningStation {
       this.lastUV = null;
       return false;
     }
-    this.brushMesh.position.copy(hit.point).addScaledVector(hit.face!.normal.clone().transformDirection(this.rig.crust.matrixWorld), 0.08);
+    this.brushMesh.position.copy(hit.point).addScaledVector(this.axis.copy(hit.face!.normal).transformDirection(this.rig.crust.matrixWorld), 0.08);
     if (!down || this.phase !== 'brushing') {
       this.lastUV = null;
       return false;
@@ -196,6 +207,7 @@ export class CleaningStation {
     const rig = this.rig!;
     const ctx = rig.canvas.getContext('2d')!;
     const S = rig.canvas.width;
+    ctx.fillStyle = this.brushGrad;
     const stamp = (u: number, v: number): void => {
       const x = u * S;
       const y = (1 - v) * S;
@@ -205,14 +217,9 @@ export class CleaningStation {
       const rx = Math.min(S / 2, (ry * 2) / Math.max(0.25, Math.sin(theta)));
       ctx.save();
       ctx.translate(x, y);
-      ctx.scale(rx / ry, 1);
-      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
-      grad.addColorStop(0, 'rgba(0,0,0,0.9)');
-      grad.addColorStop(0.65, 'rgba(0,0,0,0.5)');
-      grad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = grad;
+      ctx.scale(rx, ry);
       ctx.beginPath();
-      ctx.arc(0, 0, ry, 0, Math.PI * 2);
+      ctx.arc(0, 0, 1, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       // wrap seam
@@ -220,10 +227,9 @@ export class CleaningStation {
         const off = x - rx < 0 ? S : -S;
         ctx.save();
         ctx.translate(x + off, y);
-        ctx.scale(rx / ry, 1);
-        ctx.fillStyle = grad;
+        ctx.scale(rx, ry);
         ctx.beginPath();
-        ctx.arc(0, 0, ry, 0, Math.PI * 2);
+        ctx.arc(0, 0, 1, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
@@ -238,7 +244,7 @@ export class CleaningStation {
     } else {
       stamp(uv.x, uv.y);
     }
-    this.lastUV = uv.clone();
+    this.lastUV = this.lastUVVec.copy(uv);
     rig.texture.needsUpdate = true;
   }
 
@@ -248,8 +254,9 @@ export class CleaningStation {
       this.progress = 0;
       return;
     }
-    const S = this.rig.canvas.width;
-    const data = this.rig.canvas.getContext('2d')!.getImageData(0, 0, S, S).data;
+    const S = 64;
+    this.sampleCtx.drawImage(this.rig.canvas, 0, 0, S, S);
+    const data = this.sampleCtx.getImageData(0, 0, S, S).data;
     let clean = 0;
     let total = 0;
     const N = 16; // logical 16x16 grid, each cell sampled at its centre area
@@ -259,8 +266,8 @@ export class CleaningStation {
       for (let gx = 0; gx < N; gx++) {
         let sum = 0;
         let cnt = 0;
-        for (let y = gy * cell; y < (gy + 1) * cell; y += 4) {
-          for (let x = gx * cell; x < (gx + 1) * cell; x += 4) {
+        for (let y = gy * cell; y < (gy + 1) * cell; y++) {
+          for (let x = gx * cell; x < (gx + 1) * cell; x++) {
             sum += data[(y * S + x) * 4];
             cnt++;
           }

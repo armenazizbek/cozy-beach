@@ -39,6 +39,7 @@ export const SEA = { x: 150, z: 250 };
 export const islandHeight = (x: number, z: number): number => {
   const dx = x - ISLAND.x;
   const dz = z - ISLAND.z;
+  if (Math.abs(dx) > ISLAND.R * 1.2 || Math.abs(dz) > ISLAND.R * 1.2) return -10;
   const d = Math.hypot(dx, dz);
   if (d > ISLAND.R * 1.2) return -10;
   const a = Math.atan2(dz, dx);
@@ -477,12 +478,14 @@ export class Beach {
     return z > DIG_MIN_Z && z < SHORE_Z - 2;
   }
 
+  private rayPt = new THREE.Vector3();
+
   /** Marches a ray against the height field. */
-  raycast(origin: THREE.Vector3, dir: THREE.Vector3): THREE.Vector3 | null {
+  raycast(origin: THREE.Vector3, dir: THREE.Vector3, maxDist = 140): THREE.Vector3 | null {
     const step = 0.2;
-    const p = new THREE.Vector3();
+    const p = this.rayPt;
     let prevT = 0;
-    for (let t = 0; t < 140; t += step) {
+    for (let t = 0; t < maxDist; t += step) {
       p.copy(dir).multiplyScalar(t).add(origin);
       const inGrid = Math.abs(p.x) <= HALF && Math.abs(p.z) <= HALF;
       if (!inGrid && Math.hypot(p.x - ISLAND.x, p.z - ISLAND.z) > ISLAND.R * 1.2) {
@@ -505,6 +508,22 @@ export class Beach {
       prevT = t;
     }
     return null;
+  }
+
+  /** Marks only the modified vertex row span for GPU upload instead of the entire 521x521 grid. */
+  private markRowsDirty(minR: number, maxR: number): void {
+    const r0 = Math.max(0, minR - 1);
+    const r1 = Math.min(this.n - 1, maxR + 1);
+    const start = r0 * this.n;
+    const count = (r1 - r0 + 1) * this.n;
+    this.pos.addUpdateRange(start * 3, count * 3);
+    this.colAttr.addUpdateRange(start * 3, count * 3);
+    this.dampAttr.addUpdateRange(start, count);
+    (this.geo.attributes.normal as THREE.BufferAttribute).addUpdateRange(start * 3, count * 3);
+    this.pos.needsUpdate = true;
+    this.colAttr.needsUpdate = true;
+    this.dampAttr.needsUpdate = true;
+    this.geo.attributes.normal.needsUpdate = true;
   }
 
   /**
@@ -543,10 +562,7 @@ export class Beach {
     this.noteDug(minR, maxR, minC, maxC);
     this.refreshColors(minR, maxR, minC, maxC);
     this.updateNormals(Math.max(0, minR - 1), Math.min(this.n - 1, maxR + 1), Math.max(0, minC - 1), Math.min(this.n - 1, maxC + 1));
-    this.pos.needsUpdate = true;
-    this.colAttr.needsUpdate = true;
-    this.dampAttr.needsUpdate = true;
-    this.geo.attributes.normal.needsUpdate = true;
+    this.markRowsDirty(minR, maxR);
   }
 
   /** Smooths away every hole and heap within `radius` of a point, so the ground there is untouched again. */
@@ -565,10 +581,7 @@ export class Beach {
     }
     this.refreshColors(minR, maxR, minC, maxC);
     this.updateNormals(Math.max(0, minR - 1), Math.min(this.n - 1, maxR + 1), Math.max(0, minC - 1), Math.min(this.n - 1, maxC + 1));
-    this.pos.needsUpdate = true;
-    this.colAttr.needsUpdate = true;
-    this.dampAttr.needsUpdate = true;
-    this.geo.attributes.normal.needsUpdate = true;
+    this.markRowsDirty(minR, maxR);
   }
 
   /**
@@ -605,10 +618,7 @@ export class Beach {
     this.noteDug(minR, maxR, minC, maxC);
     this.refreshColors(minR, maxR, minC, maxC);
     this.updateNormals(Math.max(0, minR - 1), Math.min(this.n - 1, maxR + 1), Math.max(0, minC - 1), Math.min(this.n - 1, maxC + 1));
-    this.pos.needsUpdate = true;
-    this.colAttr.needsUpdate = true;
-    this.dampAttr.needsUpdate = true;
-    this.geo.attributes.normal.needsUpdate = true;
+    this.markRowsDirty(minR, maxR);
   }
 
   /** Recomputes normals only around a dig, straight from the height field. */

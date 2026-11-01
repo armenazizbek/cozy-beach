@@ -3250,16 +3250,24 @@ export class Game {
     if ((this.state.data.bones ?? 0) <= 0 && this.petCount % 3 === 1) this.ui.toast('A bone from the camper shop would get it fetching.');
   }
 
+  private dogEnv: DogEnv = {
+    playerX: 0,
+    playerZ: 0,
+    resolve: (x, z) => this.resolveCart(x, z, 0.35),
+    bark: (d) => this.audio.bark(d),
+    dust: (p) => this.dig.particles.burst(p, 7, 0.9, 1.3, 0.55, this.dogDustColor),
+    print: (x, z, yaw, left) => this.tracks.paw(x, z, yaw, left),
+  };
+  private dogDustColor = new THREE.Color(0xe6ccb2);
+  private dogMapPos = { x: 0, z: 0 };
+  private static readonly CAMP_REACH: Record<CampKind, number> = {
+    fire: 3.2, bin: 2.4, board: 2.8, bench: 2.4, lantern: 2.2, camper: 3.6, radio: 2.6, coffee: 2.2, book: 2.6, post: 2.6, hammock: 2.8, sign: 2.6,
+  };
+
   private updateDog(dt: number, t: number): void {
-    const env: DogEnv = {
-      playerX: this.player.x,
-      playerZ: this.player.z,
-      resolve: (x, z) => this.resolveCart(x, z, 0.35),
-      bark: (d) => this.audio.bark(d),
-      dust: (p) => this.dig.particles.burst(p, 7, 0.9, 1.3, 0.55, new THREE.Color(0xe6ccb2)),
-      print: (x, z, yaw, left) => this.tracks.paw(x, z, yaw, left),
-    };
-    this.dog.update(dt, t, env);
+    this.dogEnv.playerX = this.player.x;
+    this.dogEnv.playerZ = this.player.z;
+    this.dog.update(dt, t, this.dogEnv);
     if (this.dog.state === 'find' && this.dogWas === 'run') {
       this.discover('dog_found');
       this.ui.toast('Woof! The dog has found something. Follow the paw on your map and dig there.');
@@ -3270,7 +3278,13 @@ export class Game {
       this.ui.toast('Good dog! It trots back to camp.');
     }
     this.dogWas = this.dog.state;
-    this.mapView.dog = this.dog.away ? { x: this.dog.x, z: this.dog.z } : null;
+    if (this.dog.away) {
+      this.dogMapPos.x = this.dog.x;
+      this.dogMapPos.z = this.dog.z;
+      this.mapView.dog = this.dogMapPos;
+    } else {
+      this.mapView.dog = null;
+    }
   }
 
   private radioPos = new THREE.Vector3();
@@ -3335,34 +3349,34 @@ export class Game {
       this.ui.setPrompt(this.interaction.label);
       return;
     }
-    const reach: Record<CampKind, number> = {
-      fire: 3.2, bin: 2.4, board: 2.8, bench: 2.4, lantern: 2.2, camper: 3.6, radio: 2.6, coffee: 2.2, book: 2.6, post: 2.6, hammock: 2.8, sign: 2.6,
-    };
-    const labels: Record<CampKind, string> = {
-      fire: 'Rest by the campfire',
-      bin: 'Recycle your trash',
-      board: 'Read the Lost & Found board',
-      bench: 'Use the workbench',
-      lantern: this.lanternOn ? 'Turn the lantern off' : 'Turn the lantern on',
-      camper: 'Open the camper (upgrades)',
-      radio: this.audio.radioOn ? `Turn the radio off (${this.audio.trackName})` : 'Turn the radio on',
-      coffee: 'Drink the coffee (rest and warm up)',
-      hammock: 'Lie in the hammock (sleep until morning)',
-      sign: 'Change the sign',
-      post: (this.state.data.unreadLetters?.length ?? 0) > 0 ? `Check the post (${this.state.data.unreadLetters.length} new)` : 'Check the post',
-      book: (this.state.data.unreadPages?.length ?? 0) > 0 ? `Read the journal (${this.state.data.unreadPages.length} new)` : 'Read the journal',
-    };
     let best = Infinity;
-    for (const obj of this.camp.clickables) {
-      const kind = obj.userData.kind as CampKind;
-      obj.getWorldPosition(this.tmpPos);
-      const score = Math.hypot(this.player.x - this.tmpPos.x, this.player.z - this.tmpPos.z) / reach[kind];
-      // the radio sits on the workbench, so it wins ties when you stand right next to it
-      const rank = kind === 'radio' || kind === 'coffee' || kind === 'book' || kind === 'post' ? score * 0.6 : score;
-      if (score < 1 && rank < best) {
-        best = rank;
-        this.interaction = { label: labels[kind], run: () => this.useCampObject(kind) };
-        this.interaction2 = kind === 'radio' ? { label: 'Change the song', run: () => this.changeSong() } : null;
+    if (Math.hypot(this.player.x, this.player.z - CAMP_Z) < 16) {
+      const reach = Game.CAMP_REACH;
+      const labels: Record<CampKind, string> = {
+        fire: 'Rest by the campfire',
+        bin: 'Recycle your trash',
+        board: 'Read the Lost & Found board',
+        bench: 'Use the workbench',
+        lantern: this.lanternOn ? 'Turn the lantern off' : 'Turn the lantern on',
+        camper: 'Open the camper (upgrades)',
+        radio: this.audio.radioOn ? `Turn the radio off (${this.audio.trackName})` : 'Turn the radio on',
+        coffee: 'Drink the coffee (rest and warm up)',
+        hammock: 'Lie in the hammock (sleep until morning)',
+        sign: 'Change the sign',
+        post: (this.state.data.unreadLetters?.length ?? 0) > 0 ? `Check the post (${this.state.data.unreadLetters.length} new)` : 'Check the post',
+        book: (this.state.data.unreadPages?.length ?? 0) > 0 ? `Read the journal (${this.state.data.unreadPages.length} new)` : 'Read the journal',
+      };
+      for (const obj of this.camp.clickables) {
+        const kind = obj.userData.kind as CampKind;
+        obj.getWorldPosition(this.tmpPos);
+        const score = Math.hypot(this.player.x - this.tmpPos.x, this.player.z - this.tmpPos.z) / reach[kind];
+        // the radio sits on the workbench, so it wins ties when you stand right next to it
+        const rank = kind === 'radio' || kind === 'coffee' || kind === 'book' || kind === 'post' ? score * 0.6 : score;
+        if (score < 1 && rank < best) {
+          best = rank;
+          this.interaction = { label: labels[kind], run: () => this.useCampObject(kind) };
+          this.interaction2 = kind === 'radio' ? { label: 'Change the song', run: () => this.changeSong() } : null;
+        }
       }
     }
     {
@@ -3478,10 +3492,11 @@ export class Game {
       return;
     }
     const ray = this.input.ray(this.camera, this.gameState === 'EXPLORE');
-    const beachHit = this.beach.raycast(ray.ray.origin, ray.ray.direction);
+    const nearCamp = this.gameState !== 'EXPLORE' || Math.hypot(this.player.x, this.player.z - CAMP_Z) < 22;
+    const beachHit = this.beach.raycast(ray.ray.origin, ray.ray.direction, 12);
     const beachDist = beachHit ? beachHit.distanceTo(ray.ray.origin) : Infinity;
     const itemHit = this.gameState === 'EXPLORE' ? ray.intersectObjects(this.spawner.pickables(), true)[0] : undefined;
-    const campHit = ray.intersectObjects(this.camp.clickables, true)[0];
+    const campHit = nearCamp ? ray.intersectObjects(this.camp.clickables, true)[0] : undefined;
     if (itemHit && itemHit.distance < 6 && itemHit.distance < (campHit?.distance ?? Infinity)) {
       this.hoveredItem = this.spawner.itemFromObject(itemHit.object);
     } else if (campHit && campHit.distance < 8 && campHit.distance < beachDist + 0.5) {
@@ -3505,11 +3520,16 @@ export class Game {
     return px > window.innerWidth - Math.min(496, window.innerWidth * 0.94);
   }
 
+  private zeroNDC = new THREE.Vector2(0, 0);
+  private mapPlayer = { x: 0, z: 0, yaw: 0 };
+  private mapCart = { x: 0, z: 0 };
+  private mapBoat = { x: 0, z: 0 };
+
   /** Distance to whatever is under the binocular reticle. Measured every few frames. */
   private updateRange(): void {
     if (this.rangeTick++ % 6 !== 0) return;
     this.camera.updateMatrixWorld(true);
-    this.rayCaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
+    this.rayCaster.setFromCamera(this.zeroNDC, this.camera);
     const ray = this.rayCaster.ray;
     let best = Infinity;
     const beachHit = this.beach.raycast(ray.origin, ray.direction);
@@ -3770,7 +3790,16 @@ export class Game {
         this.ui.toast('You have reached your destination.');
       }
     }
-    if (!this.alt) this.mapView.drawMini(this.ui.miniCtx, 150, { x: this.player.x, z: this.player.z, yaw: this.player.yaw }, this.holes, this.waypoint, { x: this.cart.x, z: this.cart.z }, { x: this.boat.x, z: this.boat.z });
+    if (!this.alt) {
+      this.mapPlayer.x = this.player.x;
+      this.mapPlayer.z = this.player.z;
+      this.mapPlayer.yaw = this.player.yaw;
+      this.mapCart.x = this.cart.x;
+      this.mapCart.z = this.cart.z;
+      this.mapBoat.x = this.boat.x;
+      this.mapBoat.z = this.boat.z;
+      this.mapView.drawMini(this.ui.miniCtx, 150, this.mapPlayer, this.holes, this.waypoint, this.mapCart, this.mapBoat);
+    }
     this.updateHint();
     this.canvas.classList.toggle('pointer', !!(this.hoveredItem || this.hoveredCamp));
     if (this.audio.ready) {

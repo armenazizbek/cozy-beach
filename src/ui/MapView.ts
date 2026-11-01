@@ -41,11 +41,27 @@ export class MapView {
     this.base.width = this.base.height = BASE_PX;
     const g = this.base.getContext('2d')!;
     const img = g.createImageData(BASE_PX, BASE_PX);
+    const data = img.data;
     const m = EXT / BASE_PX;
+    const islBox = ISLAND.R * 1.2;
     for (let v = 0; v < BASE_PX; v++) {
+      const z = EXT_Z0 + (v + 0.5) * m;
+      const deepSeaRow = z > 88 && Math.abs(z - ISLAND.z) > islBox;
+      if (deepSeaRow) {
+        const rowBase = v * BASE_PX * 4;
+        for (let u = 0; u < BASE_PX; u++) {
+          const i = rowBase + u * 4;
+          data[i] = 30; data[i + 1] = 95; data[i + 2] = 155; data[i + 3] = 255;
+        }
+        continue;
+      }
       for (let u = 0; u < BASE_PX; u++) {
         const x = EXT_X0 + (u + 0.5) * m;
-        const z = EXT_Z0 + (v + 0.5) * m;
+        if (z > 88 && Math.abs(x - ISLAND.x) > islBox) {
+          const i = (v * BASE_PX + u) * 4;
+          data[i] = 30; data[i + 1] = 95; data[i + 2] = 155; data[i + 3] = 255;
+          continue;
+        }
         const h = baseHeight(x, z);
         let r: number;
         let gr: number;
@@ -61,26 +77,39 @@ export class MapView {
           r = 232 - wet * 50 - hill * 70; gr = 206 - wet * 55 - hill * 36; b = 170 - wet * 40 - hill * 62;
         }
         const i = (v * BASE_PX + u) * 4;
-        img.data[i] = r; img.data[i + 1] = gr; img.data[i + 2] = b; img.data[i + 3] = 255;
+        data[i] = r; data[i + 1] = gr; data[i + 2] = b; data[i + 3] = 255;
       }
     }
     g.putImageData(img, 0, 0);
     // palms
     g.fillStyle = 'rgba(52,120,52,0.9)';
+    g.beginPath();
     for (const t of trunks) {
-      g.beginPath();
-      g.arc((t.x - EXT_X0) * PPM, (t.z - EXT_Z0) * PPM, 2.4, 0, Math.PI * 2);
-      g.fill();
+      const px = (t.x - EXT_X0) * PPM;
+      const pz = (t.z - EXT_Z0) * PPM;
+      g.moveTo(px + 2.4, pz);
+      g.arc(px, pz, 2.4, 0, Math.PI * 2);
     }
+    g.fill();
   }
 
-  private drawHoles(ctx: CanvasRenderingContext2D, holes: [number, number][], radius: number): void {
+  private drawHoles(ctx: CanvasRenderingContext2D, holes: [number, number][], radius: number, cx?: number, cz?: number, maxR?: number): void {
+    if (holes.length === 0) return;
     ctx.fillStyle = 'rgba(95,60,34,0.85)';
-    for (const [x, z] of holes) {
-      ctx.beginPath();
-      ctx.arc(x, z, radius, 0, Math.PI * 2);
-      ctx.fill();
+    ctx.beginPath();
+    if (cx !== undefined && cz !== undefined && maxR !== undefined) {
+      for (const [x, z] of holes) {
+        if (Math.abs(x - cx) > maxR || Math.abs(z - cz) > maxR) continue;
+        ctx.moveTo(x + radius, z);
+        ctx.arc(x, z, radius, 0, Math.PI * 2);
+      }
+    } else {
+      for (const [x, z] of holes) {
+        ctx.moveTo(x + radius, z);
+        ctx.arc(x, z, radius, 0, Math.PI * 2);
+      }
     }
+    ctx.fill();
   }
 
   /** A map pin: a red teardrop with a white centre. Drawn in world units, tip at (x, z). */
@@ -319,8 +348,14 @@ export class MapView {
     ctx.restore();
   }
 
+  private lastMiniKey = '';
+
   /** Round mini-map that turns so that "forward" is always up. */
   drawMini(ctx: CanvasRenderingContext2D, size: number, p: MapPlayer, holes: [number, number][], dest: Waypoint | null = null, cart: Waypoint | null = null, boat: Waypoint | null = null): void {
+    const key = `${size}|${(p.x * 40) | 0},${(p.z * 40) | 0},${(p.yaw * 400) | 0}|${holes.length}|${this.flags.length}|${dest ? `${(dest.x * 10) | 0},${(dest.z * 10) | 0}` : ''}|${cart ? `${(cart.x * 20) | 0},${(cart.z * 20) | 0}` : ''}|${boat ? `${(boat.x * 20) | 0},${(boat.z * 20) | 0}` : ''}|${this.dog ? `${(this.dog.x * 20) | 0},${(this.dog.z * 20) | 0}` : ''}`;
+    if (key === this.lastMiniKey) return;
+    this.lastMiniKey = key;
+
     const r = size / 2;
     const sc = size / 60; // 60 metres across
     ctx.clearRect(0, 0, size, size);
@@ -339,7 +374,7 @@ export class MapView {
     ctx.scale(sc, sc);
     ctx.translate(-p.x, -p.z);
     ctx.drawImage(this.base, EXT_X0, EXT_Z0, EXT, EXT);
-    this.drawHoles(ctx, holes, 0.9);
+    this.drawHoles(ctx, holes, 0.9, p.x, p.z, 34);
     this.drawCamp(ctx, 0, CAMP_Z, 1.2);
     if (cart) this.drawCart(ctx, cart.x, cart.z, 1.2);
     if (boat) this.drawBoat(ctx, boat.x, boat.z, 1.3);

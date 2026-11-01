@@ -1093,7 +1093,8 @@ export interface CrustRig {
 export const newCrustCanvas = (): HTMLCanvasElement => {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
-  const g = c.getContext('2d')!;
+  // the bench reads this back often to measure progress, so it is kept in ordinary memory
+  const g = c.getContext('2d', { willReadFrequently: true })!;
   g.fillStyle = '#fff';
   g.fillRect(0, 0, 256, 256);
   return c;
