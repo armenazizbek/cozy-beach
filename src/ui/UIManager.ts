@@ -17,6 +17,12 @@ const DETECTOR_ICON =
 const TROWEL_ICON =
   '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><path d="M3 29C2 20 7 13 14 11L21 18C19 25 12 30 3 29Z" fill="#c9cfd6" stroke="#5f6771" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.5 27.5L16 16" stroke="#8d95a0" stroke-width="1.4" stroke-linecap="round"/><path d="M16 16L22 10" stroke="#8d95a0" stroke-width="2.6"/><path d="M21 11L23 9" stroke="#dfe3e8" stroke-width="5"/><path d="M23.5 8.5L28.5 3.5" stroke="#e0732f" stroke-width="5.4" stroke-linecap="round"/></svg>';
 
+const SCOOP_ICON =
+  '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><path d="M3 18L19 11L25 21C21 30 8 31 3 25Z" fill="#dfe4ea" stroke="#5f6771" stroke-width="1.4" stroke-linejoin="round"/><g fill="#5f6771"><circle cx="9" cy="21" r="1.3"/><circle cx="14" cy="19" r="1.3"/><circle cx="12" cy="25" r="1.3"/><circle cx="18" cy="23" r="1.3"/><circle cx="7" cy="26" r="1.1"/></g><path d="M19 13L22 9" stroke="#9aa3ad" stroke-width="2.6"/><path d="M22 9L28 3.5" stroke="#1f2124" stroke-width="5.4" stroke-linecap="round"/></svg>';
+
+const SHOVEL_ICON =
+  '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><path d="M5 17L13 14L19 20C18 28 10 31 5 29C3 25 3 20 5 17Z" fill="#c9cfd6" stroke="#5f6771" stroke-width="1.4" stroke-linejoin="round"/><path d="M12 19L25 6" stroke="#9aa3ad" stroke-width="2.6" stroke-linecap="round"/><path d="M22 9L26.5 4.5" stroke="#1f2124" stroke-width="4.4" stroke-linecap="round"/><path d="M23.5 3L29 8.5" stroke="#1f2124" stroke-width="3.4" stroke-linecap="round"/></svg>';
+
 const BINOC_ICON =
   '<svg viewBox="0 0 32 32" width="1.1em" height="1.1em" style="vertical-align:-0.2em"><rect x="6" y="4" width="6" height="4" rx="1.2" fill="#15181a"/><rect x="20" y="4" width="6" height="4" rx="1.2" fill="#15181a"/><rect x="11" y="10" width="10" height="4.5" rx="1" fill="#15181a"/><circle cx="16" cy="12.2" r="2.2" fill="#3a4440" stroke="#15181a" stroke-width="1"/><path d="M5.5 7.5H12.5L13.8 22H3.5Z" fill="#2b3430" stroke="#15181a" stroke-width="1.3" stroke-linejoin="round"/><path d="M19.5 7.5H26.5L28.5 22H18.2Z" fill="#2b3430" stroke="#15181a" stroke-width="1.3" stroke-linejoin="round"/><ellipse cx="8.6" cy="23.5" rx="5.4" ry="3.2" fill="#15181a"/><ellipse cx="23.4" cy="23.5" rx="5.4" ry="3.2" fill="#15181a"/><ellipse cx="8.6" cy="23.8" rx="3.8" ry="2.1" fill="#6aa8d8"/><ellipse cx="23.4" cy="23.8" rx="3.8" ry="2.1" fill="#6aa8d8"/></svg>';
 
@@ -211,12 +217,25 @@ export class UIManager {
     this.bones.textContent = `${d.bones ?? 0}`;
     this.boneChip.classList.toggle('hidden', (d.bones ?? 0) <= 0);
     this.instantBtn.classList.toggle('hidden', this.state.tier('cleaning') < 3);
+    // buying a digging upgrade changes the tool already in hand
+    if (this.curTool === 2 && !this.badgeOverride) {
+      const [icon, name] = this.digTool();
+      showIcon(this.badgeIcon, icon);
+      this.badgeName.textContent = name;
+      this.updatePadTools();
+    }
+  }
+
+  /** The digging tool in hand follows the digging upgrade: trowel, sand scoop, beach shovel. */
+  private digTool(): [string, string] {
+    const t = this.state.tier('digging');
+    return t >= 3 ? [SHOVEL_ICON, 'Beach Shovel'] : t === 2 ? [SCOOP_ICON, 'Sand Scoop'] : [TROWEL_ICON, 'Trowel'];
   }
 
   setTool(n: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 0): void {
     const info: Record<number, [string, string]> = {
       1: [DETECTOR_ICON, 'Detector'],
-      2: [TROWEL_ICON, 'Trowel'],
+      2: this.digTool(),
       3: ['⛺', 'Camp'],
       4: ['🔫', 'Gun'],
       5: [BINOC_ICON, 'Binoculars'],
@@ -252,7 +271,7 @@ export class UIManager {
     this.padTools.classList.toggle('hidden', !show);
     if (!show) return;
     const icons: Record<number, [string, string]> = {
-      1: [DETECTOR_ICON, 'Detector'], 2: [TROWEL_ICON, 'Trowel'], 5: [BINOC_ICON, 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
+      1: [DETECTOR_ICON, 'Detector'], 2: this.digTool(), 5: [BINOC_ICON, 'Binoculars'], 6: ['🏹', 'Bow'], 4: ['🔫', 'Gun'], 7: ['🚩', 'Flags'], 8: ['🪣', 'Bucket'],
     };
     const others = this.padOtherTools();
     const leftTool = others.includes(this.curTool as 8 | 7 | 6 | 4) ? (this.curTool as 8 | 7 | 6 | 4) : others[0];
