@@ -359,7 +359,8 @@ export class Boat {
 
     this.steerAngle += (inp.steer * 1 - this.steerAngle) * Math.min(1, dt * 3);
     // a boat only turns when water flows past the rudder
-    const grip = Math.min(1, Math.abs(this.speed) / 3.5);
+    // (a little still bites at a standstill, so a boat nosed into the shore can swing round)
+    const grip = Math.max(0.3, Math.min(1, Math.abs(this.speed) / 3.5));
     this.heading += this.steerAngle * 0.75 * grip * Math.sign(this.speed || 1) * dt;
 
     // it carries on sideways a little in a turn: velocity chases the heading

@@ -190,6 +190,8 @@ export class Game {
   /** the dropdown whose choices are open for the controller */
   private padSelect: HTMLSelectElement | null = null;
   private padKeys = new Set<string>();
+  private padRun = false;
+  private padL3Was = false;
   private padCalling = false;
   private mapCursor = { u: 0.5, v: 0.5 };
   private mapCursorEl: HTMLElement | null = null;
@@ -1626,7 +1628,12 @@ export class Game {
       const sy = Math.sign(l.y) * Math.abs(l.y) ** 1.6;
       this.applyLook(sx * dt * 950, sy * dt * 650);
     }
-    this.setPadKey('ShiftLeft', pad.isDown('l3') && !this.driving);
+    // L3 is a tap: it latches running while the stick is held, and letting go of the stick ends the run
+    const l3 = pad.isDown('l3');
+    if (l3 && !this.padL3Was) this.padRun = true;
+    this.padL3Was = l3;
+    if (this.driving || (pad.move.x === 0 && pad.move.y === 0)) this.padRun = false;
+    this.setPadKey('ShiftLeft', this.padRun);
     if (this.driving) {
       const m = pad.move;
       this.setPadKey('KeyW', pad.rt > 0.15 || m.y < -0.5);
@@ -2566,20 +2573,36 @@ export class Game {
   private resolveBoat(nx: number, nz: number): { x: number; z: number; hit: boolean } {
     const b = this.boat;
     const level = this.ocean.surfaceY;
-    const floats = (x: number, z: number): boolean => {
-      if (Math.abs(x) > SEA.x || z > SEA.z) return false;
-      const fx = -Math.sin(b.heading);
-      const fz = -Math.cos(b.heading);
-      const rx = Math.cos(b.heading);
-      const rz = -Math.sin(b.heading);
+    const fx = -Math.sin(b.heading);
+    const fz = -Math.cos(b.heading);
+    const rx = Math.cos(b.heading);
+    const rz = -Math.sin(b.heading);
+    /** depth of water under the shallowest point of the hull; at least -0.02 means it floats */
+    const clearance = (x: number, z: number): number => {
+      if (Math.abs(x) > SEA.x || z > SEA.z) return -Infinity;
+      let m = Infinity;
       for (const [al, side] of [[0, 0], [2.3, 0], [-2.3, 0], [0, 0.9], [0, -0.9]] as const) {
-        if (this.beach.heightAt(x + fx * al + rx * side, z + fz * al + rz * side) > level - 0.02) return false;
+        m = Math.min(m, level - this.beach.heightAt(x + fx * al + rx * side, z + fz * al + rz * side));
       }
-      return true;
+      return m;
     };
+    const floats = (x: number, z: number): boolean => clearance(x, z) >= 0.02;
     if (floats(nx, nz)) return { x: nx, z: nz, hit: false };
     if (floats(nx, b.z)) return { x: nx, z: b.z, hit: true };
     if (floats(b.x, nz)) return { x: b.x, z: nz, hit: true };
+    // already aground (turned onto the sand, or pushed in by a wave): any move towards deeper water is allowed,
+    // so the boat can always work itself free instead of sticking for good
+    const here = clearance(b.x, b.z);
+    if (here < 0.02) {
+      let best = { x: b.x, z: b.z, c: here };
+      const tries: [number, number][] = [[nx, nz], [nx, b.z], [b.x, nz]];
+      for (let i = 0; i < 12; i++) tries.push([b.x + Math.cos((i * Math.PI) / 6) * 0.25, b.z + Math.sin((i * Math.PI) / 6) * 0.25]);
+      for (const [x, z] of tries) {
+        const c = clearance(x, z);
+        if (c > best.c + 1e-4) best = { x, z, c };
+      }
+      return { x: best.x, z: best.z, hit: true };
+    }
     return { x: b.x, z: b.z, hit: true };
   }
 
@@ -3312,8 +3335,25 @@ export class Game {
   private interaction: { label: string; run: () => void } | null = null;
   private tmpPos = new THREE.Vector3();
 
+  private aimDir = new THREE.Vector3();
+  private aimTo = new THREE.Vector3();
+
+  /**
+   * How well the crosshair covers something of about `r` metres at this spot: 1 dead centre, up to 2 at the edge of the
+   * allowance, null when it is looked away from. Standing right on top of it always counts.
+   */
+  private aim(x: number, y: number, z: number, r: number): number | null {
+    const to = this.aimTo.set(x, y, z).sub(this.camera.position);
+    const dist = to.length();
+    if (dist < r * 0.6) return 1.5;
+    const ang = Math.acos(Math.min(1, Math.max(-1, to.dot(this.camera.getWorldDirection(this.aimDir)) / dist)));
+    const tol = Math.atan2(r, dist) + 0.2;
+    return ang > tol ? null : 1 + ang / tol;
+  }
+
   /** Works out what the player is standing close enough to use (the F prompt). */
   private updateInteraction(): void {
+    this.view.setDigTier(this.state.tier('digging'));
     this.interaction = null;
     this.interaction2 = null;
     this.ui.setPrompt2(null);
@@ -3392,8 +3432,9 @@ export class Game {
         obj.getWorldPosition(this.tmpPos);
         const score = Math.hypot(this.player.x - this.tmpPos.x, this.player.z - this.tmpPos.z) / reach[kind];
         // the radio sits on the workbench, so it wins ties when you stand right next to it
-        const rank = kind === 'radio' || kind === 'coffee' || kind === 'book' || kind === 'post' ? score * 0.6 : score;
-        if (score < 1 && rank < best) {
+        const aim = score < 1 ? this.aim(this.tmpPos.x, this.tmpPos.y, this.tmpPos.z, Math.max(0.7, reach[kind] * 0.4)) : null;
+        const rank = (kind === 'radio' || kind === 'coffee' || kind === 'book' || kind === 'post' ? score * 0.6 : score) * (aim ?? 0);
+        if (aim !== null && rank < best) {
           best = rank;
           this.interaction = { label: labels[kind], run: () => this.useCampObject(kind) };
           this.interaction2 = kind === 'radio' ? { label: 'Change the song', run: () => this.changeSong() } : null;
@@ -3402,8 +3443,9 @@ export class Game {
     }
     {
       const score = Math.hypot(this.player.x - this.cart.x, this.player.z - this.cart.z) / 3.6;
-      if (score < 1 && score * 0.8 < best) {
-        best = score * 0.8;
+      const aim = score < 1 ? this.aim(this.cart.x, this.beach.heightAt(this.cart.x, this.cart.z) + 0.8, this.cart.z, 1.6) : null;
+      if (aim !== null && score * 0.8 * aim < best) {
+        best = score * 0.8 * aim;
         this.interaction = this.state.data.ownsCartKey
           ? { label: 'Drive the golf cart', run: () => this.enterVehicle('cart') }
           : {
@@ -3417,8 +3459,9 @@ export class Game {
     }
     {
       const score = Math.hypot(this.player.x - this.boat.x, this.player.z - this.boat.z) / 12;
-      if (score < 1 && score * 0.85 < best) {
-        best = score * 0.85;
+      const aim = score < 1 ? this.aim(this.boat.x, 0.5, this.boat.z, 4) : null;
+      if (aim !== null && score * 0.85 * aim < best) {
+        best = score * 0.85 * aim;
         this.interaction = this.state.data.ownsBoatKey
           ? { label: 'Drive the boat', run: () => this.enterVehicle('boat') }
           : {
@@ -3447,8 +3490,9 @@ export class Game {
     }
     {
       const score = Math.hypot(this.player.x - this.dog.x, this.player.z - this.dog.z) / 2.8;
-      if (!this.dog.away && score < 1 && score * 0.8 < best) {
-        best = score * 0.8;
+      const aim = !this.dog.away && score < 1 ? this.aim(this.dog.x, this.beach.heightAt(this.dog.x, this.dog.z) + 0.4, this.dog.z, 0.8) : null;
+      if (aim !== null && score * 0.8 * aim < best) {
+        best = score * 0.8 * aim;
         if ((this.state.data.bones ?? 0) > 0) this.interaction = { label: 'Give the dog a bone', run: () => this.giveBone() };
         // the second button (E, or X on a controller) is always for a little love
         this.interaction2 = { label: 'Pet the dog', run: () => this.petDog() };
@@ -3471,8 +3515,9 @@ export class Game {
     for (const it of this.spawner.items) {
       if (!it.revealed || it.collected) continue;
       const score = Math.hypot(this.player.x - it.x, this.player.z - it.z) / 2.2;
-      if (score < 1 && score < best) {
-        best = score;
+      const aim = score < 1 ? this.aim(it.x, this.beach.heightAt(it.x, it.z), it.z, it.def.id === 'captain_chest' ? 1.5 : 0.6) : null;
+      if (aim !== null && score * aim < best) {
+        best = score * aim;
         this.interaction = it.def.id === 'captain_chest'
           ? { label: it.opened ? 'Climb down the ladder' : 'Open the hatch', run: () => this.useFind(it) }
           : { label: 'Pick up and clean this find', run: () => this.enterInspect(it) };

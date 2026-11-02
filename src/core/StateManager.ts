@@ -132,7 +132,7 @@ export const TIER_INFO: Record<TierKey, { label: string; names: string[]; desc: 
   },
   digging: {
     label: 'Digging',
-    names: ['Plastic Scoop', 'Trench Trowel', 'Heavy Sand Sifter'],
+    names: ['Garden Trowel', 'Sand Scoop', 'Heavy-Duty Beach Shovel'],
     desc: [
       'Radius 0.7m, 0.12m per click, costs 6 Warmth.',
       'Radius 1.2m, 0.25m per click, costs 4 Warmth.',

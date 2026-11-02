@@ -109,7 +109,11 @@ export class ViewModel {
   private tool: 0 | 1 | 2 | 4 | 5 | 6 | 7 | 8 | 9 = 1;
   private detectorGold: THREE.MeshStandardMaterial[] = [];
   private trowelSteel: THREE.MeshStandardMaterial[] = [];
-  private trowelGrip = new THREE.MeshStandardMaterial();
+  private trowelGrips: THREE.MeshStandardMaterial[] = [];
+  private trowelModels: THREE.Group[] = [];
+  private shovelHand = new THREE.Group();
+  private trowelGilded = false;
+  private digTier = 0;
   private harpoon = new THREE.Group();
   /** swimming: the hands drift and sway slowly instead of bobbing with footsteps */
   private swim = false;
@@ -415,7 +419,7 @@ export class ViewModel {
   private buildTrowel(): void {
     const g = this.trowel;
     const orange = new THREE.MeshStandardMaterial({ color: 0xe0732f, roughness: 0.55 });
-    this.trowelGrip = orange;
+    this.trowelGrips = [orange];
     const steel = new THREE.MeshStandardMaterial({ color: 0xd6dbe1, roughness: 0.42, metalness: 0.35, side: THREE.DoubleSide });
 
     const tool = new THREE.Group();
@@ -503,7 +507,11 @@ export class ViewModel {
       }
     }
     const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(outline, true, 'catmullrom', 0.2), 120, 0.002, 6, true), steel);
-    tool.add(handle, ferrule, neck, blade, rim);
+    const model = new THREE.Group();
+    model.add(handle, ferrule, neck, blade, rim);
+    tool.add(model);
+    this.trowelModels = [model, this.buildScoop(), this.buildShovel()];
+    tool.add(this.trowelModels[1], this.trowelModels[2]);
     // held out ahead with the tip turned in toward the middle of the view, rolled a little so the face of the blade shows
     tool.position.set(0.19, -0.26, -0.6);
     tool.rotation.x = -0.04;
@@ -512,6 +520,10 @@ export class ViewModel {
     tool.updateMatrix();
     g.add(tool);
     this.armOn(g, v(0, 0, 0.015).applyMatrix4(tool.matrix), v(0, 0, -1).transformDirection(tool.matrix), v(0.56, -0.68, 0.25), 1, 0.021, 1, BARE, HANDSHAKE);
+    // the shovel is a two-handed tool: the left hand takes the shaft ahead of the grip
+    this.shovelHand.visible = false;
+    g.add(this.shovelHand);
+    this.armOn(this.shovelHand, v(0, 0, -0.17).applyMatrix4(tool.matrix), v(0, 0, 1).transformDirection(tool.matrix), v(-0.25, -0.95, 0.2), -1, 0.021);
   }
 
   /** Stretches a unit-height cylinder between two points. */
@@ -617,10 +629,170 @@ export class ViewModel {
   setGolden(detector: boolean, trowel: boolean): void {
     const gold = 0xf0c24a;
     if (detector) for (const m of this.detectorGold) m.color.set(gold);
+    this.trowelGilded = trowel;
     if (trowel) {
       for (const m of this.trowelSteel) m.color.set(gold);
-      this.trowelGrip.color.set(0x4a2c17);
+      for (const m of this.trowelGrips) m.color.set(0x4a2c17);
     }
+  }
+
+  /** The digging upgrade changes the tool in hand: 1 the garden trowel, 2 a deep sand scoop, 3 a heavy-duty metal beach shovel. */
+  setDigTier(tier: number): void {
+    if (tier === this.digTier) return;
+    this.digTier = tier;
+    const which = Math.min(2, Math.max(0, tier - 1));
+    this.trowelModels.forEach((m, i) => (m.visible = i === which));
+    this.shovelHand.visible = which === 2;
+  }
+
+  /** A honeycomb of holes as an alpha map (white solid, black hole), for the perforated sifting scoop. */
+  private hexHoles(): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 76;
+    c.height = 132;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#fff';
+    x.fillRect(0, 0, c.width, c.height);
+    x.fillStyle = '#000';
+    for (let row = 0; row <= 4; row++) {
+      for (let col = 0; col <= 2; col++) {
+        const cx = col * 38 + (row % 2 ? 19 : 0);
+        const cy = row * 33;
+        x.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (Math.PI / 3) * k + Math.PI / 6;
+          x.lineTo(cx + Math.cos(a) * 16, cy + Math.sin(a) * 16);
+        }
+        x.fill();
+      }
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  }
+
+  /** A stainless sand-sifting scoop: a honeycomb-perforated half-pipe with a closed top plate, and a foam grip on a post. */
+  private buildScoop(): THREE.Group {
+    const g = new THREE.Group();
+    const steel = new THREE.MeshStandardMaterial({ color: 0xe6eaee, roughness: 0.3, metalness: 0.4, side: THREE.DoubleSide });
+    const holes = this.hexHoles();
+    const mesh = steel.clone();
+    mesh.alphaMap = holes;
+    mesh.alphaTest = 0.5;
+    const foam = new THREE.MeshStandardMaterial({ color: 0x1b1d20, roughness: 0.85 });
+    this.trowelGrips.push(foam);
+    this.trowelSteel.push(steel, mesh);
+    const R = 0.075;
+    const len = 0.27;
+    const z0 = -0.07;
+    // the shell: the lower half of a cylinder lying along z. Its digging edge is cut in a sweeping curve, so the walls end near the
+    // top plate and the bottom runs out furthest, like the real thing
+    const frontAt = (th: number): number => z0 - len * (0.45 + 0.55 * Math.pow(Math.max(0, Math.cos(th)), 0.6));
+    const N = 40;
+    const M = 12;
+    const pos: number[] = [];
+    const uv: number[] = [];
+    const idx: number[] = [];
+    for (let i = 0; i <= N; i++) {
+      const th = -Math.PI / 2 + (Math.PI * i) / N;
+      const zf = frontAt(th);
+      for (let j = 0; j <= M; j++) {
+        const z = z0 + ((zf - z0) * j) / M;
+        pos.push(Math.sin(th) * R, -Math.cos(th) * R, z);
+        uv.push((th + Math.PI / 2) / Math.PI, (z0 - z) / len);
+      }
+    }
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < M; j++) {
+        const a = i * (M + 1) + j;
+        const b = a + M + 1;
+        idx.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const shellGeo = new THREE.BufferGeometry();
+    shellGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    shellGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    shellGeo.setIndex(idx);
+    shellGeo.computeVertexNormals();
+    holes.repeat.set(3, 3.5);
+    const shell = new THREE.Mesh(shellGeo, mesh);
+    shell.position.set(0, -R, 0);
+    // a rolled steel rim along the cut edge
+    const edge: THREE.Vector3[] = [];
+    for (let i = 0; i <= N; i++) {
+      const th = -Math.PI / 2 + (Math.PI * i) / N;
+      edge.push(v(Math.sin(th) * R, -Math.cos(th) * R, frontAt(th)));
+    }
+    const rim = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edge), 60, 0.0028, 6), steel);
+    rim.position.set(0, -R, 0);
+    const capGeo = new THREE.CircleGeometry(R, 24, Math.PI, Math.PI);
+    const cap = new THREE.Mesh(capGeo, mesh);
+    cap.position.set(0, -R, z0);
+    // the solid top plate over the back of the scoop, with a socket tube rising from it
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(R * 2, 0.004, 0.12), steel);
+    plate.position.set(0, -R, z0 - 0.06);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.075, 14), steel);
+    post.position.set(0, -R / 2 - 0.004, -0.1);
+    post.rotation.x = 0.35;
+    const gripGeo = new THREE.CylinderGeometry(0.021, 0.021, 0.17, 16);
+    gripGeo.rotateX(Math.PI / 2);
+    const grip = new THREE.Mesh(gripGeo, foam);
+    grip.position.set(0, -0.004, 0.025);
+    g.add(shell, rim, cap, plate, post, grip);
+    g.rotation.x = 0.1;
+    g.visible = false;
+    return g;
+  }
+
+  /** A heavy-duty metal beach shovel: a long steel shaft, a D-grip, a ribbed blade with step plates. */
+  private buildShovel(): THREE.Group {
+    const g = new THREE.Group();
+    const steel = new THREE.MeshStandardMaterial({ color: 0xc3cad2, roughness: 0.4, metalness: 0.35, side: THREE.DoubleSide });
+    const grip = new THREE.MeshStandardMaterial({ color: 0x222a30, roughness: 0.7 });
+    this.trowelSteel.push(steel);
+    this.trowelGrips.push(grip);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.52, 12), steel);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.z = -0.12;
+    // a T-handle across the end of the shaft, clear of the right forearm, with the foam sleeve running right up to it
+    const barGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.12, 14);
+    barGeo.rotateZ(Math.PI / 2);
+    const dGrip = new THREE.Mesh(barGeo, grip);
+    dGrip.position.z = 0.14;
+    const sleeveGeo = new THREE.CylinderGeometry(0.021, 0.021, 0.2, 14);
+    sleeveGeo.rotateX(Math.PI / 2);
+    const sleeve = new THREE.Mesh(sleeveGeo, grip);
+    sleeve.position.z = 0.04;
+    // the blade: a rounded-shoulder spade shape, thin and slightly dished, lowered toward the tip
+    const w = 0.115;
+    const sh = new THREE.Shape();
+    sh.moveTo(-w * 0.6, 0);
+    sh.lineTo(w * 0.6, 0);
+    sh.lineTo(w, -0.07);
+    sh.quadraticCurveTo(w * 1.02, -0.2, 0, -0.3);
+    sh.quadraticCurveTo(-w * 1.02, -0.2, -w, -0.07);
+    sh.closePath();
+    const bladeGeo = new THREE.ExtrudeGeometry(sh, { depth: 0.008, bevelEnabled: false });
+    bladeGeo.rotateX(Math.PI / 2);
+    const blade = new THREE.Mesh(bladeGeo, steel);
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.2), steel);
+    rib.position.set(0, 0.008, -0.12);
+    const socket = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.026, 0.1, 12), steel);
+    socket.rotation.x = Math.PI / 2;
+    socket.position.z = -0.01;
+    const bladeG = new THREE.Group();
+    bladeG.add(blade, rib, socket);
+    for (const sx of [-1, 1]) {
+      const step = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.05), steel);
+      step.position.set(sx * 0.05, 0.003, -0.06);
+      bladeG.add(step);
+    }
+    bladeG.position.z = -0.38;
+    bladeG.rotation.x = 0.22;
+    g.add(shaft, dGrip, sleeve, bladeG);
+    g.position.z = 0.04;
+    g.visible = false;
+    return g;
   }
 
   /** Hides the hand-held model while the player is looking through the binoculars. */
