@@ -3729,7 +3729,7 @@ export class Game {
     this.updateDayNight(dt);
     this.sky.update(dt);
     if (this.underground) {
-      this.ocean.update(t);
+      this.ocean.update(t, this.camera.position.x, this.camera.position.z);
       this.cellar.update(t, dt);
     } else if (this.diving) {
       // the land is hidden: only the water around the diver is alive
@@ -3738,7 +3738,7 @@ export class Game {
       (this.scene.background as THREE.Color | null)?.copy(this.sky.fog.color);
       this.under.setDaylight(0.18 + 0.82 * (1 - this.sky.starAmount));
     } else {
-      this.ocean.update(t);
+      this.ocean.update(t, this.camera.position.x, this.camera.position.z);
       this.beach.updateDetail(this.camera.position.x, this.camera.position.z);
       // past the reach of the camp's lights (with a little give so they do not flicker at the edge)
       const fromCamp = Math.hypot(this.camera.position.x, this.camera.position.z - CAMP_Z);

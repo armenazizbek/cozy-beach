@@ -113,6 +113,65 @@ const rippleTexture = (): THREE.DataTexture => {
 /** how far the tide rises and falls from the middle */
 const TIDE = 0.08;
 
+// The sea surface follows the viewer: a grid centred on the camera, dense underfoot and stretching
+// coarse toward the horizon. Detail sits where it is seen, instead of being spread evenly across water
+// too far off (and too lost in the haze) to resolve it. One flat plane would need ~16x the triangles
+// to hold this much detail near the shore.
+const SEA_REACH = 560; // how far the surface reaches from the viewer, in world units
+const SEA_GRID = 40; // cells from the centre to each edge, per axis; the grid is (2n+1) across
+const SEA_FALLOFF = 1.5; // >1 packs the detail toward the viewer
+
+/** A flat grid in the XZ plane, centred on the origin, whose spacing grows toward the edges. */
+const buildSeaGrid = (): { geo: THREE.BufferGeometry; localX: Float32Array; localZ: Float32Array } => {
+  const k = SEA_GRID;
+  const side = 2 * k + 1;
+  const n = side * side;
+  const position = new Float32Array(n * 3);
+  const normal = new Float32Array(n * 3);
+  const uv = new Float32Array(n * 2);
+  const localX = new Float32Array(n);
+  const localZ = new Float32Array(n);
+  // an index 0..2k maps to an offset that grows with its distance from the centre
+  const at = (i: number): number => {
+    const u = (i - k) / k;
+    return SEA_REACH * Math.sign(u) * Math.abs(u) ** SEA_FALLOFF;
+  };
+  let v = 0;
+  for (let iz = 0; iz < side; iz++) {
+    const z = at(iz);
+    for (let ix = 0; ix < side; ix++) {
+      const x = at(ix);
+      position[v * 3] = x;
+      position[v * 3 + 2] = z;
+      normal[v * 3 + 1] = 1;
+      uv[v * 2] = ix / (side - 1);
+      uv[v * 2 + 1] = iz / (side - 1);
+      localX[v] = x;
+      localZ[v] = z;
+      v++;
+    }
+  }
+  const index = new Uint16Array(2 * k * 2 * k * 6);
+  let o = 0;
+  for (let iz = 0; iz < 2 * k; iz++) {
+    for (let ix = 0; ix < 2 * k; ix++) {
+      const a = iz * side + ix;
+      const b = a + 1;
+      const c = a + side;
+      const d = c + 1;
+      // wound so the surface faces up (+y)
+      index[o++] = a; index[o++] = c; index[o++] = b;
+      index[o++] = b; index[o++] = c; index[o++] = d;
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  geo.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  return { geo, localX, localZ };
+};
+
 export class Ocean {
   readonly group = new THREE.Group();
   private water: THREE.Mesh;
@@ -121,6 +180,12 @@ export class Ocean {
   private foamTex: THREE.CanvasTexture;
   private foamUniform = { value: new THREE.Vector4() };
   private level = WATER_LEVEL;
+  /** per-vertex local offsets of the sea grid, and the sea-bed depth under each (refreshed as the viewer moves) */
+  private seaLocalX!: Float32Array;
+  private seaLocalZ!: Float32Array;
+  private seaDepth!: Float32Array;
+  private seaDepthAttr!: THREE.BufferAttribute;
+  private seaAt = { x: Infinity, z: Infinity };
 
   /** current height of the water surface */
   get surfaceY(): number {
@@ -146,13 +211,15 @@ export class Ocean {
   }
 
   constructor(private beach: Beach) {
-    const wg = new THREE.PlaneGeometry(900, 420, 240, 140);
-    wg.rotateX(-Math.PI / 2);
-    // how deep the sea is under each point, measured once: the colour, the clearness and the swell all follow the real shape of the sea bed
-    const pos = wg.attributes.position as THREE.BufferAttribute;
-    const depth = new Float32Array(pos.count);
-    for (let i = 0; i < pos.count; i++) depth[i] = WATER_LEVEL - beach.heightAt(pos.getX(i), pos.getZ(i) + 220);
-    wg.setAttribute('aDepth', new THREE.BufferAttribute(depth, 1));
+    const { geo: wg, localX, localZ } = buildSeaGrid();
+    this.seaLocalX = localX;
+    this.seaLocalZ = localZ;
+    // how deep the sea is under each point: the colour, the clearness and the swell all follow the sea bed.
+    // the grid follows the viewer, so this is refreshed as it moves (see update) rather than measured once.
+    this.seaDepth = new Float32Array(localX.length).fill(30);
+    this.seaDepthAttr = new THREE.BufferAttribute(this.seaDepth, 1);
+    this.seaDepthAttr.setUsage(THREE.DynamicDrawUsage);
+    wg.setAttribute('aDepth', this.seaDepthAttr);
     const mat = new THREE.MeshStandardMaterial({
       color: 0x1573c4,
       emissive: 0x0a3a78,
@@ -254,7 +321,7 @@ export class Ocean {
         );
     };
     this.water = new THREE.Mesh(wg, mat);
-    this.water.position.set(0, WATER_LEVEL, 220);
+    this.water.position.set(0, WATER_LEVEL, 0); // moved to the viewer each frame in update()
     this.water.receiveShadow = true;
     this.group.add(this.water);
 
@@ -315,11 +382,26 @@ export class Ocean {
     (this.water.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.55 * (1 - 0.85 * n);
   }
 
-  update(t: number): void {
+  update(t: number, camX = 0, camZ = 0): void {
     // slow tidal breathing; the waves and ripples themselves are drawn by the shader
     this.level = WATER_LEVEL + Math.sin(t * 0.9) * 0.05 + Math.sin(t * 0.37) * 0.03;
     this.water.position.y = this.level;
     this.time.value = t;
+
+    // the surface grid follows the viewer; the sea-bed depth under it is refreshed only when it has moved
+    if (this.water.visible) {
+      this.water.position.x = camX;
+      this.water.position.z = camZ;
+      if (Math.abs(camX - this.seaAt.x) > 0.5 || Math.abs(camZ - this.seaAt.z) > 0.5) {
+        this.seaAt.x = camX;
+        this.seaAt.z = camZ;
+        const depth = this.seaDepth;
+        const lx = this.seaLocalX;
+        const lz = this.seaLocalZ;
+        for (let i = 0; i < depth.length; i++) depth[i] = WATER_LEVEL - this.beach.heightAt(lx[i] + camX, lz[i] + camZ);
+        this.seaDepthAttr.needsUpdate = true;
+      }
+    }
 
     // foam band follows the shoreline contour in the vertex shader
     const surge = 0.5 + 0.5 * Math.sin(t * 0.9 + 1.1);
