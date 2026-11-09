@@ -186,7 +186,7 @@ public class StateManager
             "gear", new TierInfo
             {
                 label = "Thermos & Gear",
-                names = new[] { "Tin Mug (Tea)", "Insulated Thermos (Spiced Chai)", "Brass Espresso Flask" },
+                names = new[] { "Tin Mug (Coffee)", "Insulated Thermos (Spiced Chai)", "Brass Espresso Flask" },
                 desc = new[] { "100 Max Warmth. Wet sand drains 1.5x Warmth.", "180 Max Warmth. Waterproof boots negate the wet sand penalty.", "300 Max Warmth. Unlocks time-of-day control: freeze the sky at any time of day, or let the day and night cycle run." },
             }
         },

@@ -191,7 +191,7 @@ public class Dog
     private readonly THREE.Group jaw = new THREE.Group();
     private readonly THREE.Mesh tongue;
     private readonly List<THREE.Group> ears = new List<THREE.Group>();
-    private readonly List<THREE.Group> tail = new List<THREE.Group>();
+    private readonly List<THREE.Bone> tail = new List<THREE.Bone>();
     private readonly List<Leg> front = new List<Leg>();
     private readonly List<Leg> hind = new List<Leg>();
     private readonly THREE.Vector3 tmp = new THREE.Vector3();
@@ -351,24 +351,44 @@ public class Dog
             hind.Add(makeLeg(s * 0.1, 0.05, 0.02, HIND_LEG));
         }
 
-        // ---- tail: a long, feathered plume that is slim at the root, full in the middle and tapers to a point
-        THREE.Object3D parent = b;
-        var lens = new[] { 0.15, 0.15, 0.14 };
-        var shapes = new[]
+        // ---- tail: a long, feathered plume that is slim at the root, full in the middle and tapers to a point. Like the legs
+        // it is one skinned surface over three bones, so it bends in one smooth curve as it wags (three rigid pieces showed seams).
+        var tailKeys = new[]
         {
-            new[] { new Ring(0, 0, 0.04, 0.045), new Ring(0.15, 0, 0.045, 0.06) },
-            new[] { new Ring(0, 0, 0.045, 0.06), new Ring(0.15, -0.01, 0.04, 0.085) },
-            new[] { new Ring(0, -0.01, 0.04, 0.085), new Ring(0.07, -0.02, 0.03, 0.075), new Ring(0.14, -0.01, 0.006, 0.02) },
+            new Ring(0, 0, 0.04, 0.045),
+            new Ring(0.15, 0, 0.045, 0.06),
+            new Ring(0.3, -0.01, 0.04, 0.085),
+            new Ring(0.37, -0.02, 0.03, 0.075),
+            new Ring(0.44, -0.01, 0.006, 0.02),
         };
-        for (int i = 0; i < 3; i++)
+        var tailGeo = loft('y', tailKeys, GOLD, PALE, 4, 16);
+        var tailPos = tailGeo.getAttribute("position");
+        var tailIndex = new List<int>();
+        var tailWeight = new List<double>();
+        for (int i = 0; i < tailPos.count; i++)
         {
-            var seg = new THREE.Group();
-            seg.position.set(0, i == 0 ? 0.14 : lens[i - 1], i == 0 ? 0.2 : 0);
-            mesh(seg, loft('y', shapes[i], GOLD, PALE, 4, 16), furMat);
-            parent.add(seg);
-            parent = seg;
-            tail.Add(seg);
+            double vy = tailPos.getY(i);
+            double k = 1 - jointBlend(vy, 0.15, 0.04);
+            double a = 1 - jointBlend(vy, 0.3, 0.04);
+            tailIndex.AddRange(new[] { 0, 1, 2, 0 });
+            tailWeight.AddRange(new[] { 1 - k, k * (1 - a), k * a, 0 });
         }
+        tailGeo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute(tailIndex, 4));
+        tailGeo.setAttribute("skinWeight", new THREE.Float32BufferAttribute(tailWeight, 4));
+        var tailBones = new[] { new THREE.Bone(), new THREE.Bone(), new THREE.Bone() };
+        tailBones[0].position.set(0, 0.14, 0.2);
+        tailBones[1].position.y = 0.15;
+        tailBones[2].position.y = 0.15;
+        tailBones[0].add(tailBones[1]);
+        tailBones[1].add(tailBones[2]);
+        var tailSkin = new THREE.SkinnedMesh(tailGeo, furMat);
+        tailSkin.position.set(0, 0.14, 0.2);
+        tailSkin.castShadow = true;
+        tailSkin.frustumCulled = false;
+        b.add(tailBones[0], tailSkin);
+        group.updateMatrixWorld(true);
+        tailSkin.bind(new THREE.Skeleton(tailBones));
+        tail.AddRange(tailBones);
     }
 
     /// <summary>The Golden Bone from the Luxury shop: the dog carries it in its mouth from now on.</summary>

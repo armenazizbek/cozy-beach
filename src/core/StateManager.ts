@@ -150,7 +150,7 @@ export const TIER_INFO: Record<TierKey, { label: string; names: string[]; desc: 
   },
   gear: {
     label: 'Thermos & Gear',
-    names: ['Tin Mug (Tea)', 'Insulated Thermos (Spiced Chai)', 'Brass Espresso Flask'],
+    names: ['Tin Mug (Coffee)', 'Insulated Thermos (Spiced Chai)', 'Brass Espresso Flask'],
     desc: [
       '100 Max Warmth. Wet sand drains 1.5x Warmth.',
       '180 Max Warmth. Waterproof boots negate the wet sand penalty.',
