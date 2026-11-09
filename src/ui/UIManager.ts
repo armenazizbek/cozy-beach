@@ -218,13 +218,19 @@ export class UIManager {
     this.boneChip.classList.toggle('hidden', (d.bones ?? 0) <= 0);
     this.instantBtn.classList.toggle('hidden', this.state.tier('cleaning') < 3);
     // buying a digging upgrade changes the tool already in hand
-    if (this.curTool === 2 && !this.badgeOverride) {
-      const [icon, name] = this.digTool();
-      showIcon(this.badgeIcon, icon);
-      this.badgeName.textContent = name;
-      this.updatePadTools();
+    const dig = this.state.tier('digging');
+    if (dig !== this.shownDigTier) {
+      this.shownDigTier = dig;
+      if (this.curTool === 2 && !this.badgeOverride) {
+        const [icon, name] = this.digTool();
+        showIcon(this.badgeIcon, icon);
+        this.badgeName.textContent = name;
+        this.updatePadTools();
+      }
     }
   }
+
+  private shownDigTier = 0;
 
   /** The digging tool in hand follows the digging upgrade: trowel, sand scoop, beach shovel. */
   private digTool(): [string, string] {

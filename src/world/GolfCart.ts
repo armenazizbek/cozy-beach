@@ -44,6 +44,7 @@ export class GolfCart {
     this.heading = heading;
     this.build();
     this.headlight = new THREE.SpotLight(0xfff0c8, 0, 32, 0.55, 0.6, 1.5);
+    this.headlight.visible = false;
     this.headlight.position.set(0, 0.9, -1.4);
     this.headlight.target.position.set(0, 0.5, -10);
     this.group.add(this.headlight, this.headlight.target);
@@ -152,6 +153,8 @@ export class GolfCart {
 
   setHeadlights(on: boolean): void {
     this.headlight.intensity = on ? 35 : 0;
+    // a light that is off still costs every material in the scene a spot-light loop, so take it out of the render altogether
+    this.headlight.visible = on;
     for (const m of this.lampMats) m.emissiveIntensity = on ? 2 : 0.3;
   }
 

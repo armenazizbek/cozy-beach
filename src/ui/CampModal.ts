@@ -167,11 +167,11 @@ export class CampModal {
     );
     const lantern = document.createElement('div');
     lantern.className = 'section';
-    lantern.append(this.p(`Lantern: ${LIGHT_NAMES[this.state.data.lighting]}`));
+    lantern.append(this.p(`Time of day: ${LIGHT_NAMES[this.state.data.lighting]}`));
     if (this.state.lanternUnlocked) {
       lantern.append(this.btn('🏮 Switch lighting', () => this.hooks.onLighting()));
     } else {
-      lantern.append(this.p('Upgrade to the Brass Espresso Flask & Lantern to change the lighting.', 'faint'));
+      lantern.append(this.p('Upgrade to the Brass Espresso Flask to change the lighting.', 'faint'));
     }
     this.body.append(lantern);
   }
