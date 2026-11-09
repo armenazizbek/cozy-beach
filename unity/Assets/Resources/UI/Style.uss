@@ -1,0 +1,2482 @@
+/* ==========================================================================
+   Port of src/style.css + index.html (#boot) for Unity 6.3 UI Toolkit (USS)
+   ==========================================================================
+
+   1. Z-INDEX ORDERING (USS has no z-index; child order in parent determines stacking.
+      Also exposed in CssAnimations.ZIndex for the DOM layer):
+      - #boot                : 100
+      - .map-cursor          : 20
+      - .achievements        : 7
+      - .helpscreen          : 7
+      - .farewell            : 6
+      - .credits             : 6
+      - .bookview            : 6
+      - .teaser              : 6
+      - .pause.saves (.saves): 5
+      - .sleepveil           : 3
+
+   2. POINTER-EVENTS: NONE (DOM layer must set ve.pickingMode = PickingMode.Ignore.
+      Also exposed in CssAnimations.PointerEventsNone):
+      - #ui (except interactive descendants: .t-button, .camp, .intro-card, .card, .inspect, .chip, .intro, .pause, .mainmenu)
+      - .gone (#boot.gone, .intro.gone)
+      - .prompt
+      - .hud
+      - .result
+      - .fade
+      - .binoc
+      - .map-cursor
+      - .padtools
+      - .sleepveil
+      - .dive-tint
+      - .book-spread-crease (.book-spread::after)
+
+   3. SCROLLABLE CONTAINERS (overflow-y: auto in CSS; DOM layer should back with ScrollView):
+      - .camp-body
+      - .save-list
+      - .ach-list
+      - .help-body
+
+   4. UNSUPPORTED SELECTORS REWRITTEN FOR USS:
+      - Tag selectors <tag>                  -> .t-<tag>
+      - :disabled / [disabled]               -> .disabled
+      - :checked                             -> .checked
+      - body[data-mode='EXPLORE']:not(.nolock) #scene -> commented (cursor: none dropped)
+      - .btn:hover:not(:disabled)            -> .btn:hover + overridden by .btn.disabled:hover after it
+      - .btn:active:not(:disabled)           -> .btn:active + overridden by .btn.disabled:active after it
+      - .mm-btn:hover:not(:disabled)         -> .mm-btn:hover + overridden by .mm-btn.disabled:hover after it
+      - .mm-btn:active:not(:disabled)        -> .mm-btn:active + overridden by .mm-btn.disabled:active after it
+      - .ucell.owned:not(.current)           -> .ucell.owned { opacity: 0.7 } + .ucell.current { opacity: 1 } after it
+      - .note:nth-child(even)                -> .note.even, .note.nth-even (added by DOM layer / CssAnimations.OnAttached)
+      - .pt-center i:nth-child(1)            -> .pt-center .t-i.nth-1, .pt-center .t-i.first-child
+      - .pt-center i:nth-child(2)            -> .pt-center .t-i.nth-2, .pt-center .t-i.second-child
+      - .set-row:has(.set-check)             -> .set-row.has-check and .set-val.faint flex rules
+      - .polaroid::before                    -> .polaroid-pin, .polaroid > .before
+      - .book-spread::after                  -> .book-page.left right border + .book-spread-crease, .book-spread > .after
+   ========================================================================== */
+
+:root {
+  --ink: #3b2a1e;
+  --paper: #f7ecd6;
+  --paper2: #efdfc0;
+  --accent: #d9803f;
+  --accent2: #b9582a;
+  --leaf: #6ea84f;
+  --glass: rgba(255, 244, 222, 0.88);
+  /* font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; */
+}
+
+/* * { box-sizing: border-box; } -- UI Toolkit uses border-box by default */
+
+.t-html,
+.t-body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  /* background: #1b1410 in the browser sits under the WebGL canvas; here the UI is drawn over Unity's camera, so it must
+     stay clear or it hides the world. The camera's own clear colour shows wherever nothing is drawn. */
+  background-color: rgba(0, 0, 0, 0);
+  color: #3b2a1e;
+  font-size: 16px;
+  white-space: normal;
+  /* user-select: none; */
+}
+
+/* An element's text is drawn by a Unity Label inside it, and Unity's default theme gives labels a white-space of their own,
+   which beats the white-space they would inherit from the page: every paragraph ran on as one long line out of its box.
+   Text wraps again here; the page's nowrap rules repeat themselves for labels at the end of this file. */
+.t-html .unity-label {
+  white-space: normal;
+}
+
+/* Base HTML tag defaults for UI Toolkit VisualElements */
+.t-div,
+.t-p,
+.t-span,
+.t-li,
+.t-label {
+  white-space: normal;
+}
+
+.t-h1 {
+  -unity-font-style: bold;
+  font-size: 32px;
+  margin: 0 0 8px 0;
+  white-space: normal;
+}
+
+.t-h2 {
+  -unity-font-style: bold;
+  font-size: 24px;
+  margin: 0 0 8px 0;
+  white-space: normal;
+}
+
+.t-h3 {
+  -unity-font-style: bold;
+  font-size: 18px;
+  margin: 12px 0 6px 0;
+  white-space: normal;
+}
+
+.t-h4 {
+  -unity-font-style: bold;
+  font-size: 16px;
+  margin: 8px 0 6px 0;
+  white-space: normal;
+}
+
+.t-p {
+  margin: 0 0 10px 0;
+}
+
+.t-b {
+  -unity-font-style: bold;
+}
+
+.t-em {
+  -unity-font-style: italic;
+}
+
+.t-small {
+  font-size: 12px;
+}
+
+.t-ul {
+  margin: 0;
+  padding: 0;
+}
+
+/* ---------- boot screen (from index.html) ---------- */
+#boot {
+  /* position: fixed; inset: 0; z-index: 100; */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* gap: 18px; -> margins on children below */
+  /* background: radial-gradient(circle at 50% 40%, #e9b26b, #6b3f1f); */
+  background-color: #9c6838;
+  color: #fff4de;
+  /* font-family: Georgia, 'Times New Roman', serif; */
+  opacity: 1;
+  transition-property: opacity;
+  transition-duration: 0.5s;
+}
+
+#boot.gone {
+  opacity: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore for .gone */
+}
+
+#boot .t-h1 {
+  margin: 0 0 18px 0;
+  font-size: 42px;
+  -unity-font-style: normal;
+  -unity-text-align: middle-center;
+}
+
+#boot .t-p {
+  margin: 0 0 18px 0;
+  font-size: 18px;
+  opacity: 0.85;
+  -unity-text-align: middle-center;
+}
+
+#boot-track {
+  width: 260px;
+  height: 8px;
+  border-radius: 4px;
+  background-color: rgba(60, 30, 10, 0.4);
+  overflow: hidden;
+}
+
+#boot-bar {
+  width: 0;
+  height: 100%;
+  background-color: #fff4de;
+  transition-property: width;
+  transition-duration: 0.3s;
+}
+
+/* ---------- scene & root UI ---------- */
+#scene {
+  /* position: fixed; inset: 0; */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  /* touch-action: none; */
+}
+
+/* body[data-mode='EXPLORE']:not(.nolock) #scene { cursor: none; }
+   -- dropped: cursor is managed by Unity Cursor.lockState / Cursor.visible, and [attr]/:not() unsupported in USS */
+
+#ui {
+  /* position: fixed; inset: 0; */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore on #ui */
+}
+
+/* #ui button, #ui .camp, #ui .intro-card, #ui .card, #ui .inspect, #ui .chip { pointer-events: auto; }
+   -- DOM layer sets pickingMode = Position on these elements */
+
+.hidden {
+  display: none;
+}
+
+.cross {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border-width: 2px;
+  border-color: rgba(255, 255, 255, 0.85);
+  /* box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); */
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 0.2s;
+}
+
+.cross.on {
+  opacity: 1;
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  translate: -50% 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; -> child margin on .prompt .kbd */
+  padding: 8px 16px 8px 10px;
+  border-radius: 999px;
+  background-color: rgba(40, 24, 12, 0.72);
+  color: #fff3df;
+  -unity-font-style: bold;
+  opacity: 0;
+  transition-property: opacity, translate;
+  transition-duration: 0.18s, 0.18s;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  white-space: nowrap;
+}
+
+.prompt.on {
+  opacity: 1;
+  translate: -50% 0;
+}
+
+.prompt .kbd {
+  /* display: inline-grid; place-items: center; */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -unity-text-align: middle-center;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  border-radius: 8px;
+  background-color: #f7ecd6;
+  color: #3b2a1e;
+  -unity-font-style: bold;
+  border-bottom-width: 3px;
+  border-bottom-color: #cdb892;
+  /* box-shadow: 0 3px 0 #cdb892; */
+  /* animation: kbd 1.4s ease-in-out infinite; -> driven by CssAnimations.cs */
+}
+
+/* ---------- HUD ---------- */
+.hud {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+}
+
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  min-width: 230px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background-color: rgba(255, 244, 222, 0.88);
+  /* box-shadow: 0 6px 24px rgba(60, 30, 10, 0.25); */
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 8px; -> child margin below */
+}
+
+.row > * {
+  margin-right: 8px;
+}
+
+.row.col {
+  flex-direction: column;
+  align-items: stretch;
+  /* gap: 6px; */
+  margin-top: 8px;
+}
+
+.row.col > * {
+  margin-right: 0;
+  margin-bottom: 6px;
+}
+
+.row.between {
+  justify-content: space-between;
+}
+
+.row.gap {
+  /* gap: 10px; */
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.row.gap > * {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.ico {
+  font-size: 20px;
+}
+
+.val {
+  -unity-font-style: bold;
+  font-size: 18px;
+}
+
+.sub {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.bar {
+  height: 12px;
+  border-radius: 8px;
+  background-color: rgba(60, 40, 20, 0.2);
+  overflow: hidden;
+}
+
+.bar.big {
+  height: 16px;
+  margin-top: 8px;
+}
+
+.bar .fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+  /* background: linear-gradient(90deg, #f0a24a, #e8683a); */
+  background-color: #ec8542;
+  transition-property: width;
+  transition-duration: 0.25s;
+  transition-timing-function: ease;
+}
+
+.bar .fill.low {
+  /* background: linear-gradient(90deg, #7aa7d9, #5f7fd0); */
+  background-color: #6d93d5;
+}
+
+.right-chips {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 8px; */
+}
+
+.right-chips > * {
+  margin-left: 8px;
+}
+
+.chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background-color: rgba(255, 244, 222, 0.88);
+  -unity-font-style: bold;
+  border-width: 0;
+  font-size: 15px;
+  color: #3b2a1e;
+  white-space: nowrap;
+  /* box-shadow: 0 4px 16px rgba(60, 30, 10, 0.2); */
+}
+
+/* button.chip { cursor: pointer; } */
+
+.hotbar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: row;
+  /* gap: 10px; */
+}
+
+.hotbar > * {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.slot {
+  width: 96px;
+  padding: 10px 6px 8px 6px;
+  border-radius: 14px;
+  border-width: 2px;
+  border-color: rgba(0, 0, 0, 0);
+  background-color: rgba(255, 244, 222, 0.88);
+  color: #3b2a1e;
+  /* cursor: pointer; */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 2px; */
+  /* box-shadow: 0 4px 16px rgba(60, 30, 10, 0.25); */
+  transition-property: translate, border-color;
+  transition-duration: 0.15s, 0.15s;
+}
+
+.slot:hover {
+  translate: 0 -2px;
+}
+
+.slot.active {
+  border-color: #d9803f;
+  background-color: #fff3d6;
+}
+
+.slot .key {
+  -unity-font-style: bold;
+  font-size: 18px;
+  color: #b9582a;
+  margin-bottom: 2px;
+}
+
+.slot .lbl {
+  font-size: 13px;
+}
+
+.scope {
+  position: absolute;
+  left: 16px;
+  bottom: 18px;
+  padding: 8px;
+  border-radius: 12px;
+  background-color: #1c1f1d;
+  border-width: 2px;
+  border-color: #3b4a42;
+  /* box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 0 0 2px #3b4a42; */
+}
+
+.scope.dim {
+  opacity: 0.35;
+}
+
+.scope-title {
+  /* font: 10px monospace; */
+  font-size: 10px;
+  color: #8fe0a8;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+
+.wave {
+  display: flex;
+  border-radius: 6px;
+}
+
+.hint {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  translate: -50% 0;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background-color: rgba(40, 24, 12, 0.6);
+  color: #fff3df;
+  font-size: 14px;
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 0.2s;
+  white-space: nowrap;
+}
+
+.hint.show {
+  opacity: 1;
+}
+
+.toasts {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 8px; */
+}
+
+.toast {
+  padding: 10px 20px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background-color: rgba(255, 244, 222, 0.88);
+  /* box-shadow: 0 6px 20px rgba(60, 30, 10, 0.3); */
+  -unity-font-style: bold;
+  opacity: 0;
+  translate: 0 -10px;
+  transition-property: opacity, translate;
+  transition-duration: 0.4s, 0.4s;
+  transition-timing-function: ease, ease;
+  max-width: 520px;
+  -unity-text-align: middle-center;
+}
+
+.toast.in {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.tool-badge {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  padding: 10px 18px 10px 14px;
+  border-radius: 16px;
+  background-color: rgba(255, 244, 222, 0.88);
+  /* box-shadow: 0 6px 24px rgba(60, 30, 10, 0.25); */
+  -unity-font-style: bold;
+  font-size: 16px;
+}
+
+.tool-badge .tb-ico {
+  font-size: 24px;
+  margin-right: 10px;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  padding: 10px 18px;
+  border-width: 0;
+  border-bottom-width: 3px;
+  border-bottom-color: #b9582a;
+  border-radius: 12px;
+  /* background: linear-gradient(180deg, #f0a24a, var(--accent)); */
+  background-color: #e59145;
+  color: #ffffff;
+  -unity-font-style: bold;
+  -unity-text-align: middle-center;
+  white-space: nowrap;
+  /* cursor: pointer; */
+  /* box-shadow: 0 3px 0 var(--accent2), 0 6px 14px rgba(60, 30, 10, 0.25); */
+  transition-property: translate, background-color;
+  transition-duration: 0.1s, 0.15s;
+}
+
+/* Rewritten from .btn:hover:not(:disabled) and .btn:active:not(:disabled) using cascade override below */
+.btn:hover {
+  /* filter: brightness(1.08); */
+  background-color: #f29d4e;
+  translate: 0 -1px;
+}
+
+.btn:active {
+  translate: 0 2px;
+  border-bottom-width: 1px;
+  /* box-shadow: 0 1px 0 var(--accent2); */
+}
+
+.btn.ghost {
+  background-color: rgba(255, 244, 222, 0.9);
+  color: #3b2a1e;
+  border-bottom-color: #cdb892;
+  /* box-shadow: 0 3px 0 #cdb892; */
+}
+
+.btn.ghost:hover {
+  background-color: #fffaf0;
+}
+
+.btn.small {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.btn.big {
+  padding: 14px 26px;
+  font-size: 17px;
+}
+
+/* Rewritten from .btn:disabled (also overrides :hover and :active for :not(:disabled)) */
+.btn.disabled,
+.btn.disabled:hover,
+.btn.disabled:active {
+  opacity: 0.45;
+  translate: 0 0;
+  border-bottom-width: 0;
+  /* cursor: not-allowed; */
+  /* box-shadow: none; */
+}
+
+/* ---------- inspect ---------- */
+.inspect {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  translate: -50% 0;
+  /* width: min(460px, 92vw); -> 460px at 1920x1080 */
+  width: 460px;
+  max-width: 92%;
+  padding: 16px 20px;
+  border-radius: 18px;
+  background-color: rgba(255, 244, 222, 0.88);
+  /* box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); */
+}
+
+.inspect-title {
+  -unity-font-style: bold;
+  font-size: 20px;
+  -unity-text-align: middle-center;
+}
+
+.inspect-help {
+  font-size: 12px;
+  opacity: 0.7;
+  -unity-text-align: middle-center;
+  margin-top: 2px;
+}
+
+.result {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 24px;
+  /* background: radial-gradient(circle, rgba(255, 226, 140, 0.18), rgba(20, 10, 0, 0.35)); */
+  background-color: rgba(30, 18, 8, 0.28);
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+}
+
+.card {
+  /* width: min(380px, 90vw); -> 380px at 1920x1080 */
+  width: 380px;
+  max-width: 90%;
+  padding: 22px 26px;
+  border-radius: 20px;
+  background-color: #f7ecd6;
+  /* box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); */
+  -unity-text-align: middle-center;
+  align-items: center;
+  /* animation: pop 0.45s cubic-bezier(0.2, 1.4, 0.4, 1); -> driven by CssAnimations.cs */
+}
+
+.card .t-h2 {
+  margin: 4px 0 8px 0;
+  font-size: 24px;
+  -unity-text-align: middle-center;
+}
+
+.card .cat {
+  /* text-transform: uppercase; */
+  letter-spacing: 3px;
+  font-size: 11px;
+  opacity: 0.6;
+  -unity-text-align: middle-center;
+}
+
+.card .lore {
+  -unity-font-style: italic;
+  opacity: 0.85;
+  margin: 0 0 12px 0;
+  -unity-text-align: middle-center;
+}
+
+.card .worth {
+  -unity-font-style: bold;
+  font-size: 22px;
+  color: #b9582a;
+  margin-bottom: 14px;
+  -unity-text-align: middle-center;
+}
+
+.fade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #1b1410;
+  opacity: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  transition-property: opacity;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+
+.fade.on {
+  opacity: 1;
+}
+
+/* ---------- intro & pause ---------- */
+.intro {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  /* background: radial-gradient(circle at 50% 40%, rgba(255, 214, 150, 0.35), rgba(40, 24, 12, 0.7)); */
+  background-color: rgba(48, 30, 16, 0.58);
+  transition-property: opacity;
+  transition-duration: 0.6s;
+  /* pointer-events: auto; */
+}
+
+.keys {
+  /* display: grid; gap: 8px; */
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 20px 0;
+  -unity-text-align: middle-left;
+}
+
+.krow {
+  /* display: grid; grid-template-columns: 96px 1fr; column-gap: 16px; */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.krow .t-b {
+  width: 96px;
+  min-width: 0;
+  flex-shrink: 0;
+  margin: 0 16px 0 0;
+  padding: 4px 0;
+  -unity-text-align: middle-center;
+  white-space: nowrap;
+}
+
+.krow .t-span {
+  flex-grow: 1;
+  flex-shrink: 1;
+  -unity-text-align: middle-left;
+}
+
+.pause {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(30, 18, 8, 0.55);
+  /* pointer-events: auto; */
+}
+
+.intro.gone {
+  opacity: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore for .gone */
+}
+
+.intro-card {
+  /* width: min(520px, 92vw); -> 520px at 1920x1080 */
+  width: 520px;
+  max-width: 92%;
+  padding: 28px 34px;
+  border-radius: 24px;
+  background-color: #f7ecd6;
+  -unity-text-align: middle-center;
+  /* box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45); */
+}
+
+.intro-card > .btn {
+  align-self: center;
+}
+
+.intro-card .t-h1 {
+  margin: 0 0 4px 0;
+  font-size: 34px;
+  -unity-text-align: middle-center;
+}
+
+.intro-card .tag {
+  margin: 0 0 14px 0;
+  opacity: 0.75;
+  -unity-font-style: italic;
+  -unity-text-align: middle-center;
+}
+
+.intro-card .t-ul {
+  -unity-text-align: middle-left;
+  /* list-style: none; */
+  padding: 0;
+  margin: 0 0 18px 0;
+  /* line-height: 1.9; */
+}
+
+.intro-card .t-b {
+  min-width: 26px;
+  padding: 0 6px;
+  margin-right: 6px;
+  -unity-text-align: middle-center;
+  border-radius: 6px;
+  background-color: #efdfc0;
+  border-bottom-width: 2px;
+  border-bottom-color: #cdb892;
+  /* box-shadow: 0 2px 0 #cdb892; */
+}
+
+/* Restore .krow .t-b inside .intro-card so margin-right: 16px is preserved */
+.intro-card .krow .t-b {
+  width: 96px;
+  min-width: 0;
+  margin: 0 16px 0 0;
+  padding: 4px 0;
+}
+
+/* ---------- camp modal ---------- */
+.camp {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  /* width: min(480px, 94vw); -> 480px at 1920x1080 */
+  width: 480px;
+  max-width: 94%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  background-color: #f7ecd6;
+  /* box-shadow: 0 12px 40px rgba(30, 14, 0, 0.5); */
+  overflow: hidden;
+  /* animation: slide 0.35s ease; -> driven by CssAnimations.cs */
+}
+
+.camp-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 6px 20px;
+}
+
+.camp-head .t-h2 {
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  /* gap: 6px; */
+  padding: 6px 16px 10px 16px;
+  border-bottom-width: 2px;
+  border-bottom-color: #d8c39a;
+}
+
+.tabs > * {
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.btn.tab {
+  padding: 6px 10px;
+  font-size: 12px;
+  background-color: #efdfc0;
+  color: #3b2a1e;
+  border-bottom-width: 2px;
+  border-bottom-color: #cdb892;
+  /* box-shadow: 0 2px 0 #cdb892; */
+}
+
+.btn.tab.on {
+  background-color: #d9803f;
+  color: #ffffff;
+  border-bottom-width: 2px;
+  border-bottom-color: #b9582a;
+  /* box-shadow: 0 2px 0 var(--accent2); */
+}
+
+.camp-body {
+  padding: 14px 20px 20px 20px;
+  /* overflow-y: auto; -> DOM layer should use ScrollView */
+  overflow: hidden;
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+
+.camp-body > .btn,
+.section > .btn,
+.shard-row > .btn,
+.ucell > .btn {
+  align-self: flex-start;
+}
+
+.camp-body .t-p {
+  margin: 0 0 10px 0;
+  /* line-height: 1.45; */
+}
+
+.camp-body .t-h3 {
+  margin: 16px 0 8px 0;
+}
+
+.camp-body .faint {
+  opacity: 0.65;
+  font-size: 13px;
+}
+
+.camp-body .tag {
+  font-size: 12px;
+  -unity-font-style: bold;
+  color: #6ea84f;
+  margin: 6px 0 0 0;
+}
+
+.coins-line {
+  -unity-font-style: bold;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.section {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top-width: 2px;
+  border-top-color: #d8c39a;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  /* gap: 4px; */
+  margin: 8px 0 12px 0;
+}
+
+.list > * {
+  margin-bottom: 4px;
+}
+
+.item-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  padding: 6px 10px;
+  border-radius: 10px;
+  background-color: #efdfc0;
+}
+
+.item-row > * {
+  margin-right: 10px;
+}
+
+.item-row .right {
+  margin-left: auto;
+  -unity-font-style: bold;
+}
+
+.shard-row {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background-color: #efdfc0;
+  margin-bottom: 8px;
+}
+
+.shard-row .t-p {
+  margin-bottom: 6px;
+}
+
+.note {
+  position: relative;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background-color: #fff3a8;
+  border-radius: 4px;
+  /* box-shadow: 2px 4px 10px rgba(60, 30, 10, 0.25); */
+  rotate: -0.6deg;
+}
+
+/* Rewritten from .note:nth-child(even) — class .even added by CssAnimations.OnAttached / DOM layer */
+.note.even,
+.note.nth-even {
+  background-color: #ffd0dc;
+  rotate: 0.7deg;
+}
+
+.note.done {
+  opacity: 0.5;
+}
+
+.note.has-photo {
+  position: relative;
+  padding-right: 118px;
+  min-height: 112px;
+}
+
+.polaroid {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 92px;
+  padding: 6px 6px 4px 6px;
+  background-color: #fdfbf4;
+  /* box-shadow: 0 3px 8px rgba(50, 30, 10, 0.35); */
+  /* transform: rotate(var(--tilt)); -> default -3deg, custom --tilt applied in CssAnimations.OnAttached */
+  rotate: -3deg;
+}
+
+/* Rewritten from .polaroid::before (the pin) */
+.polaroid-pin,
+.polaroid > .before {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5px;
+  border-radius: 50%;
+  /* background: radial-gradient(circle at 35% 30%, #ff8d7e, #c8362a 65%); */
+  background-color: #d94b3e;
+  /* box-shadow: 0 2px 3px rgba(0, 0, 0, 0.4); */
+}
+
+.polaroid .t-img {
+  display: flex;
+  width: 80px;
+  height: 80px;
+  /* width: 100%; aspect-ratio: 1; object-fit: cover; */
+  -unity-background-scale-mode: scale-and-crop;
+}
+
+.polaroid .t-span {
+  display: flex;
+  margin-top: 3px;
+  /* font: italic 10px/1.15 Georgia, serif; */
+  -unity-font-style: italic;
+  font-size: 10px;
+  color: #4a3020;
+  -unity-text-align: middle-center;
+}
+
+.upgrades {
+  /* display: grid; grid-template-columns: 1fr 1fr; gap: 12px; */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.ucol {
+  width: 48%;
+  margin-bottom: 12px;
+}
+
+.ucol .t-h3 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+}
+
+.ucell {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background-color: #efdfc0;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.ucell .t-p {
+  margin: 2px 0 6px 0;
+  font-size: 11px;
+}
+
+/* Rewritten from .ucell.owned:not(.current) + .ucell.current using cascade order */
+.ucell.owned {
+  opacity: 0.7;
+}
+
+.ucell.current {
+  opacity: 1;
+  /* outline: 2px solid var(--accent); */
+  border-width: 2px;
+  border-color: #d9803f;
+  background-color: #fff3d6;
+}
+
+/* @media (max-width: 720px) {
+  .upgrades { grid-template-columns: 1fr; }
+  .scope { display: none; }
+} -- dropped: desktop wide-screen variant kept */
+
+.pause-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 12px; */
+}
+
+.pause-actions > * {
+  margin-bottom: 12px;
+}
+
+.pause-actions .row.gap {
+  margin-top: 0;
+  flex-wrap: wrap;
+}
+
+.pause-actions .row.gap > * {
+  margin: 4px 5px;
+}
+
+.confirm-q {
+  margin: 0 0 12px 0;
+  max-width: 360px;
+  /* line-height: 1.4; */
+  -unity-font-style: bold;
+  -unity-text-align: middle-center;
+}
+
+.save-info {
+  margin: 12px 0 0 0;
+  font-size: 12px;
+  opacity: 0.65;
+  -unity-text-align: middle-center;
+}
+
+/* ---------- saves ---------- */
+.pause.saves {
+  /* z-index: 5; */
+}
+
+.save-card {
+  /* width: min(520px, 94vw); -> 520px at 1920x1080 */
+  width: 520px;
+  max-width: 94%;
+}
+
+.save-new {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  margin: 6px 0 14px 0;
+}
+
+.save-name {
+  flex-grow: 1;
+  flex-shrink: 1;
+  margin-right: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-width: 2px;
+  border-color: #d8c39a;
+  background-color: #fffaf0;
+  color: #3b2a1e;
+  /* user-select: text; */
+}
+
+.save-name:focus {
+  /* outline: none; */
+  border-color: #d9803f;
+}
+
+.save-list {
+  display: flex;
+  flex-direction: column;
+  /* gap: 8px; */
+  max-height: 300px;
+  /* overflow-y: auto; -> DOM layer should use ScrollView */
+  overflow: hidden;
+  margin: 4px 0 12px 0;
+  padding-right: 4px;
+  -unity-text-align: middle-left;
+}
+
+.save-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  /* gap: 12px; */
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background-color: #efdfc0;
+}
+
+.save-row .si {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-shrink: 1;
+  margin-right: 12px;
+}
+
+.save-row .si .t-b {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  background-color: rgba(0, 0, 0, 0);
+  border-width: 0;
+  /* box-shadow: none; */
+  -unity-text-align: middle-left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -unity-text-overflow-position: end;
+  white-space: nowrap;
+}
+
+.save-row .si .t-span {
+  font-size: 12px;
+  opacity: 0.7;
+  -unity-text-align: middle-left;
+}
+
+.save-row .sb {
+  display: flex;
+  flex-direction: row;
+  /* gap: 6px; */
+  flex-shrink: 0;
+}
+
+.save-row .sb > * {
+  margin-left: 6px;
+}
+
+.save-empty {
+  margin: 14px 0;
+  opacity: 0.65;
+  -unity-text-align: middle-center;
+}
+
+.save-note {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  opacity: 0.65;
+  -unity-text-align: middle-center;
+}
+
+/* ---------- minimap & big map ---------- */
+.minimap {
+  position: absolute;
+  right: 20px;
+  bottom: 84px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  /* box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); */
+  background-color: rgba(13, 27, 38, 0.4);
+}
+
+.map-card {
+  width: auto;
+  max-width: 96%;
+  padding: 18px 22px;
+}
+
+.map-card .t-h1 {
+  font-size: 26px;
+  margin-bottom: 10px;
+}
+
+.bigmap-canvas {
+  display: flex;
+  align-self: center;
+  margin: 0 auto 10px auto;
+  border-radius: 14px;
+  /* box-shadow: 0 6px 22px rgba(60, 30, 10, 0.35); */
+}
+
+/* @media (max-width: 720px) { .minimap { width: 110px; height: 110px; bottom: 76px; } }
+   -- dropped: desktop wide-screen variant kept */
+
+.binoc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+}
+
+.drawbar {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 90px;
+  height: 6px;
+  margin-left: -45px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.35);
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.5);
+  /* box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); */
+  overflow: hidden;
+}
+
+.drawbar .fill {
+  height: 100%;
+  width: 0;
+  /* background: linear-gradient(90deg, #ffd27a, #ff7a3d); */
+  background-color: #ffa65c;
+  border-radius: 4px;
+  transition-property: none;
+  transition-duration: 0s;
+}
+
+.prompt.p2 {
+  /* top: calc(60% + 52px); -> 700px (64.8%) at 1920x1080 */
+  top: 65%;
+}
+
+/* ---------- main menu ---------- */
+.mainmenu {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* padding-left: clamp(24px, 7vw, 120px); -> 120px at 1920x1080 */
+  padding-left: 120px;
+  /* background: linear-gradient(90deg, rgba(24, 14, 6, 0.62) 0%, rgba(24, 14, 6, 0.28) 38%, rgba(24, 14, 6, 0) 62%); */
+  background-color: rgba(24, 14, 6, 0.28);
+  /* pointer-events: auto; */
+  /* animation: mmIn 0.9s ease both; -> driven by CssAnimations.cs */
+}
+
+.mm-panel {
+  /* width: min(400px, 90vw); -> 400px at 1920x1080 */
+  width: 400px;
+  max-width: 90%;
+  color: #fff6e4;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+.mm-kicker {
+  /* text-transform: uppercase; */
+  letter-spacing: 4px;
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.mm-title {
+  margin: 0;
+  /* font-size: clamp(34px, 5.2vw, 56px); -> 56px at 1920x1080 */
+  font-size: 56px;
+  /* line-height: 1.02; */
+  -unity-font-style: bold;
+}
+
+.mm-tag {
+  margin: 10px 0 26px 0;
+  -unity-font-style: italic;
+  opacity: 0.9;
+}
+
+.mm-buttons {
+  display: flex;
+  flex-direction: column;
+  /* gap: 10px; */
+}
+
+.mm-btn {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 14px; */
+  margin-bottom: 10px;
+  padding: 14px 20px;
+  border-width: 0;
+  border-bottom-width: 4px;
+  border-bottom-color: rgba(0, 0, 0, 0.22);
+  border-radius: 14px;
+  font-size: 18px;
+  -unity-font-style: bold;
+  color: #3b2a1e;
+  background-color: rgba(255, 244, 222, 0.92);
+  /* box-shadow: 0 4px 0 rgba(0, 0, 0, 0.22), 0 10px 24px rgba(0, 0, 0, 0.25); */
+  /* cursor: pointer; */
+  text-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition-property: translate, background-color, padding-left;
+  transition-duration: 0.12s, 0.15s, 0.15s;
+}
+
+/* Rewritten from .mm-btn:hover:not(:disabled) and .mm-btn:active:not(:disabled) using cascade override below */
+.mm-btn:hover {
+  translate: 8px 0;
+  background-color: #ffffff;
+  padding-left: 26px;
+}
+
+.mm-btn:active {
+  translate: 8px 2px;
+}
+
+.mm-btn.disabled,
+.mm-btn.disabled:hover,
+.mm-btn.disabled:active {
+  opacity: 0.45;
+  translate: 0 0;
+  background-color: rgba(255, 244, 222, 0.92);
+  padding-left: 20px;
+  /* cursor: not-allowed; */
+}
+
+.mm-ico {
+  font-size: 22px;
+  width: 28px;
+  margin-right: 14px;
+  -unity-text-align: middle-center;
+}
+
+.mm-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 18px;
+  -unity-text-align: middle-center;
+  font-size: 13px;
+  color: #fff6e4;
+  opacity: 0.8;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* ---------- settings ---------- */
+.settings-card {
+  /* width: min(540px, 94vw); -> 540px at 1920x1080 */
+  width: 540px;
+  max-width: 94%;
+}
+
+.set-rows {
+  -unity-text-align: middle-left;
+  margin: 4px 0 16px 0;
+}
+
+.set-rows .t-h3 {
+  margin: 14px 0 6px 0;
+  font-size: 13px;
+  /* text-transform: uppercase; */
+  letter-spacing: 2px;
+  opacity: 0.6;
+  -unity-text-align: middle-left;
+}
+
+.set-row {
+  /* display: grid; grid-template-columns: 150px 1fr 54px; align-items: center; gap: 12px; */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 5px 0;
+}
+
+.set-name {
+  width: 150px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  -unity-font-style: bold;
+  -unity-text-align: middle-left;
+}
+
+.set-val {
+  width: 54px;
+  flex-shrink: 0;
+  font-size: 13px;
+  -unity-text-align: middle-right;
+  opacity: 0.8;
+}
+
+.set-range {
+  flex-grow: 1;
+  flex-shrink: 1;
+  margin-right: 12px;
+  /* width: 100%; accent-color: var(--accent); */
+}
+
+.set-check {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-right: 16px;
+  border-radius: 4px;
+  border-width: 2px;
+  border-color: #b9582a;
+  background-color: #fff8ea;
+  /* accent-color: var(--accent); justify-self: start; */
+}
+
+.set-check.checked {
+  background-color: #d9803f;
+  border-color: #b9582a;
+}
+
+/* Rewritten from .set-row:has(.set-check) and .set-val.faint { grid-column: 3; } */
+.set-val.faint,
+.set-row.has-check .set-val {
+  flex-grow: 1;
+  flex-shrink: 1;
+  width: auto;
+  -unity-text-align: middle-left;
+}
+
+.set-options {
+  display: flex;
+  flex-direction: column;
+  /* gap: 4px; */
+  margin: 2px 0 8px 162px;
+}
+
+.set-option {
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  border-width: 0;
+  border-radius: 8px;
+  background-color: rgba(120, 80, 40, 0.14);
+  color: #3b2a1e;
+  -unity-text-align: middle-left;
+  /* cursor: pointer; */
+}
+
+.set-option.on {
+  -unity-font-style: bold;
+}
+
+.farewell {
+  /* z-index: 6; */
+}
+
+.credits {
+  /* z-index: 6; */
+}
+
+.credits .credit {
+  -unity-font-style: italic;
+  margin: 10px 0 22px 0;
+  opacity: 0.9;
+  /* line-height: 1.5; */
+  -unity-text-align: middle-center;
+}
+
+/* ---------- controller focus ---------- */
+/* Rewritten from body.usingpad button:focus, input:focus, select:focus { outline: 3px solid #ffd27a; outline-offset: 3px; } */
+.t-body.usingpad .t-button:focus,
+.t-body.usingpad .t-input:focus,
+.t-body.usingpad .t-select:focus,
+.usingpad .t-button:focus,
+.usingpad .t-input:focus,
+.usingpad .t-select:focus {
+  border-width: 3px;
+  border-color: #ffd27a;
+}
+
+.t-body.usingpad .mm-btn:focus,
+.usingpad .mm-btn:focus {
+  translate: 8px 0;
+  background-color: #ffffff;
+  padding-left: 26px;
+}
+
+/* body.usingpad canvas { cursor: none; } -- dropped: cursor not used in USS */
+
+.map-cursor {
+  /* position: fixed; z-index: 20; */
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-width: 3px;
+  border-color: #ffd27a;
+  border-radius: 50%;
+  /* box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 12px rgba(255, 210, 122, 0.8); */
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+}
+
+.set-select {
+  /* grid-column: 2 / span 2; */
+  flex-grow: 1;
+  flex-shrink: 1;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border-width: 2px;
+  border-color: rgba(80, 55, 30, 0.35);
+  background-color: #fff8ea;
+  color: #3b2a1e;
+}
+
+/* ---------- controller tool picker (d-pad) ---------- */
+.padtools {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 150px;
+  height: 172px;
+  /* display: grid; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(3, 46px) auto; gap: 4px; justify-content: end;
+     -> converted to exact absolute positioning inside the 150x172 container */
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+}
+
+.padtools.hidden {
+  display: none;
+}
+
+.pt {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -unity-text-align: middle-center;
+  font-size: 22px;
+  border-radius: 14px;
+  background-color: rgba(255, 244, 222, 0.88);
+  /* box-shadow: 0 4px 14px rgba(60, 30, 10, 0.22); */
+  opacity: 0.72;
+  transition-property: scale, opacity, background-color;
+  transition-duration: 0.15s, 0.15s, 0.15s;
+}
+
+.pt.up {
+  /* grid-column: 2; grid-row: 1; */
+  left: 54px;
+  top: 0;
+}
+
+.pt.left {
+  /* grid-column: 1; grid-row: 2; */
+  left: 4px;
+  top: 50px;
+}
+
+.pt.right {
+  /* grid-column: 3; grid-row: 2; */
+  left: 104px;
+  top: 50px;
+}
+
+.pt.down {
+  /* grid-column: 2; grid-row: 3; */
+  left: 54px;
+  top: 100px;
+}
+
+.pt.on {
+  opacity: 1;
+  scale: 1.14 1.14;
+  background-color: #fff6df;
+  border-width: 3px;
+  border-color: #ffb23f;
+  /* box-shadow: 0 0 0 3px #ffb23f, 0 6px 18px rgba(60, 30, 10, 0.35); */
+}
+
+.pt.empty {
+  opacity: 0.3;
+}
+
+.pt .t-small {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 11px;
+  -unity-font-style: bold;
+  color: #5a3a1e;
+}
+
+.pt .t-em {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  font-size: 11px;
+  -unity-font-style: normal;
+  color: #5a3a1e;
+}
+
+.pt-center {
+  /* grid-column: 2; grid-row: 2; */
+  position: absolute;
+  left: 54px;
+  top: 50px;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+}
+
+.pt-center .t-i {
+  position: absolute;
+  background-color: #3b2a1e;
+  border-radius: 3px;
+}
+
+/* Rewritten from .pt-center i:nth-child(1) and :nth-child(2) — classes nth-1 / nth-2 added by CssAnimations.OnAttached / DOM layer */
+.pt-center .t-i.nth-1,
+.pt-center .t-i.first-child {
+  left: 17px;
+  top: 6px;
+  width: 12px;
+  height: 34px;
+}
+
+.pt-center .t-i.nth-2,
+.pt-center .t-i.second-child {
+  left: 6px;
+  top: 17px;
+  width: 34px;
+  height: 12px;
+}
+
+.pt-caption {
+  /* grid-column: 1 / span 3; grid-row: 4; */
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 150px;
+  -unity-text-align: middle-center;
+  -unity-font-style: bold;
+  font-size: 14px;
+  color: #fff6e4;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* the d-pad picker is taller than the badge, so the mini-map moves up above it */
+.t-body.usingpad .minimap,
+.usingpad .minimap {
+  bottom: 232px;
+}
+
+/* ---------- the camp journal ---------- */
+.bookview {
+  /* z-index: 6; */
+}
+
+.book {
+  /* width: min(900px, 96vw); -> 900px at 1920x1080 */
+  width: 900px;
+  max-width: 96%;
+  padding: 22px 26px 16px 26px;
+  border-radius: 18px;
+  /* background: linear-gradient(135deg, #8a3b2e, #6b2a22); */
+  background-color: #7a3328;
+  border-width: 3px;
+  border-color: rgba(214, 169, 74, 0.55);
+  /* box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55), inset 0 0 0 3px rgba(214, 169, 74, 0.55); */
+}
+
+.book-spread {
+  /* display: grid; grid-template-columns: 1fr 1fr; min-height: min(430px, 62vh); -> 430px at 1920x1080 */
+  display: flex;
+  flex-direction: row;
+  min-height: 430px;
+  background-color: #f4ead0;
+  border-radius: 8px;
+  /* box-shadow: inset 0 0 40px rgba(120, 80, 30, 0.25); */
+  position: relative;
+}
+
+/* Rewritten from .book-spread::after (book spine crease) */
+.book-page.left {
+  border-right-width: 2px;
+  border-right-color: rgba(80, 50, 20, 0.22);
+}
+
+.book-spread-crease,
+.book-spread > .after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 18px;
+  margin-left: -9px;
+  /* background: linear-gradient(90deg, transparent, rgba(80, 50, 20, 0.28), transparent); */
+  background-color: rgba(80, 50, 20, 0.18);
+  /* pointer-events: none; */
+}
+
+/* @media (max-width: 760px) {
+  .book-spread { grid-template-columns: 1fr; }
+  .book-spread::after { display: none; }
+} -- dropped: desktop wide-screen variant kept */
+
+.book-page {
+  position: relative;
+  width: 50%;
+  flex-grow: 1;
+  flex-shrink: 1;
+  padding: 30px 34px 40px 34px;
+  color: #3b2a1e;
+  /* font-family: Georgia, 'Times New Roman', serif; */
+  -unity-text-align: middle-left;
+}
+
+.book-page .t-h2 {
+  margin: 6px 0 12px 0;
+  font-size: 24px;
+  /* line-height: 1.15; */
+  -unity-text-align: middle-left;
+}
+
+.book-page .t-p {
+  margin: 0;
+  font-size: 17px;
+  /* line-height: 1.55; */
+  -unity-text-align: middle-left;
+}
+
+.bp-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  /* text-transform: uppercase; */
+  opacity: 0.75;
+}
+
+.bp-head > * {
+  margin-right: 10px;
+}
+
+.bp-new {
+  background-color: #d6561f;
+  color: #ffffff;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 1;
+}
+
+.bp-num {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  -unity-text-align: middle-center;
+  font-size: 13px;
+  opacity: 0.55;
+}
+
+.book-nav {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  /* gap: 10px; */
+  margin-top: 14px;
+}
+
+.book-nav > * {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.book-count {
+  color: #f4ead0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.book-nav .btn.ghost {
+  background-color: rgba(244, 234, 208, 0.16);
+  color: #f4ead0;
+  border-bottom-width: 0;
+  /* box-shadow: none; */
+}
+
+.book-nav .btn.disabled {
+  opacity: 0.35;
+  /* cursor: default; */
+}
+
+.bp-todo {
+  border-width: 1px;
+  border-color: rgba(59, 42, 30, 0.45);
+  padding: 0 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+/* ---------- letters from the owners ---------- */
+.mail {
+  /* width: min(560px, 94vw); -> 560px at 1920x1080 */
+  width: 560px;
+  max-width: 94%;
+  padding: 20px 22px 14px 22px;
+  border-radius: 16px;
+  /* background: linear-gradient(135deg, #3b6ea5, #2f5a88); */
+  background-color: #356497;
+  border-width: 3px;
+  border-color: rgba(255, 255, 255, 0.35);
+  /* box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 3px rgba(255, 255, 255, 0.35); */
+}
+
+.mail-sheet {
+  /* min-height: min(380px, 56vh); -> 380px at 1920x1080 */
+  min-height: 380px;
+  padding: 26px 32px 28px 32px;
+  border-radius: 6px;
+  color: #3b2a1e;
+  -unity-text-align: middle-left;
+  /* background: repeating-linear-gradient(transparent 0 31px, rgba(80, 120, 160, 0.22) 31px 32px), #fbf5e2; */
+  background-color: #fbf5e2;
+  /* box-shadow: inset 0 0 30px rgba(120, 80, 30, 0.18); */
+  /* font-family: 'Segoe Script', 'Bradley Hand', 'Comic Sans MS', cursive; */
+}
+
+.mail-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.mail-head > * {
+  margin-right: 10px;
+}
+
+.mail-from {
+  -unity-font-style: bold;
+}
+
+.mail-stamp {
+  margin-left: auto;
+  font-size: 22px;
+  padding: 2px 8px;
+  border-width: 2px;
+  border-color: rgba(180, 70, 40, 0.6);
+  border-radius: 4px;
+  color: #b44628;
+}
+
+.mail-greeting {
+  margin: 14px 0 6px 0;
+  font-size: 18px;
+  -unity-text-align: middle-left;
+}
+
+.mail-body {
+  margin: 0;
+  font-size: 16px;
+  /* line-height: 32px; */
+  -unity-text-align: middle-left;
+}
+
+.mail-sign {
+  margin: 12px 0 0 0;
+  font-size: 17px;
+  -unity-text-align: middle-right;
+}
+
+.mail-empty {
+  margin: 60px 10px;
+  -unity-text-align: middle-center;
+  font-size: 17px;
+  /* line-height: 1.6; */
+  opacity: 0.8;
+}
+
+/* ---------- sleeping in the hammock ---------- */
+.sleepveil {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  /* background: radial-gradient(ellipse at center, rgba(10, 14, 30, 0) 35%, rgba(10, 14, 30, 0.55) 100%); */
+  background-color: rgba(10, 14, 30, 0.42);
+  /* animation: sleepIn 1.2s ease both; -> driven by CssAnimations.cs */
+  /* z-index: 3; */
+}
+
+.sleepmsg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12%;
+  -unity-text-align: middle-center;
+  color: #fff6e4;
+  font-size: 18px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.zz {
+  position: absolute;
+  left: 52%;
+  bottom: 30%;
+  color: #fff6e4;
+  -unity-font-style: bold;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  /* animation: zzUp 3.6s ease-in-out infinite; -> driven by CssAnimations.cs */
+}
+
+.zz1 {
+  /* animation-delay: 1.2s; -> handled in CssAnimations.cs */
+  margin-left: 24px;
+}
+
+.zz2 {
+  /* animation-delay: 2.4s; -> handled in CssAnimations.cs */
+  margin-left: 48px;
+}
+
+/* ---------- switching between the island map and the treasure map ---------- */
+.map-tabs {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  /* gap: 8px; */
+  margin: 2px 0 10px 0;
+}
+
+.map-tabs > * {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+.map-tabs .btn {
+  opacity: 0.7;
+}
+
+.map-tabs .btn.on {
+  /* background: linear-gradient(180deg, #f0a24a, var(--accent)); */
+  background-color: #e59145;
+  color: #ffffff;
+  border-bottom-width: 3px;
+  border-bottom-color: #b9582a;
+  /* box-shadow: 0 3px 0 var(--accent2); */
+  opacity: 1;
+}
+
+/* ---------- diving ---------- */
+.dive-tint {
+  /* position: fixed; inset: 0; */
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 0.6s;
+  /* background: radial-gradient(ellipse at center, rgba(40, 150, 190, 0) 45%, rgba(10, 70, 110, 0.4) 100%); */
+  background-color: rgba(15, 85, 125, 0.24);
+}
+
+.dive-tint.on {
+  opacity: 1;
+}
+
+.t-body.diving .minimap,
+.diving .minimap {
+  display: none;
+}
+
+.t-body.underground .minimap,
+.underground .minimap {
+  display: none;
+}
+
+.teaser {
+  /* z-index: 6; */
+  background-color: rgba(10, 6, 3, 0.82);
+}
+
+.teaser .credit {
+  -unity-font-style: italic;
+  margin: 10px 0 22px 0;
+  opacity: 0.9;
+  -unity-text-align: middle-center;
+}
+
+.teaser .t-h1 {
+  font-size: 40px;
+}
+
+/* ---------- achievements ---------- */
+.achievements {
+  /* z-index: 7; */
+}
+
+.ach-card {
+  /* width: min(620px, 94vw); max-height: 92vh; -> 620px / 92% (994px at 1080p) */
+  width: 620px;
+  max-width: 94%;
+  max-height: 92%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ach-list {
+  /* overflow-y: auto; display: grid; gap: 8px; -> DOM layer should use ScrollView */
+  overflow: hidden;
+  margin: 10px 0 14px 0;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  -unity-text-align: middle-left;
+}
+
+.ach-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 12px; */
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background-color: rgba(60, 40, 20, 0.07);
+  opacity: 0.55;
+}
+
+.ach-row.done {
+  opacity: 1;
+  background-color: rgba(230, 170, 60, 0.22);
+}
+
+.ach-icon {
+  font-size: 26px;
+  width: 34px;
+  margin-right: 12px;
+  -unity-text-align: middle-center;
+}
+
+.ach-text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+
+/* Rewritten from .ach-text b { all: unset; display: block; font-weight: 700; font-size: 15px; line-height: 1.3; } */
+.ach-text .t-b {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  border-width: 0;
+  background-color: rgba(0, 0, 0, 0);
+  display: flex;
+  -unity-font-style: bold;
+  font-size: 15px;
+  -unity-text-align: middle-left;
+  /* line-height: 1.3; */
+}
+
+.ach-text .t-span {
+  display: flex;
+  font-size: 13px;
+  opacity: 0.8;
+  -unity-text-align: middle-left;
+  /* line-height: 1.3; */
+}
+
+/* ---------- help ---------- */
+.helpscreen {
+  /* z-index: 7; */
+}
+
+.help-card {
+  /* width: min(760px, 95vw); max-height: 92vh; -> 760px / 92% (994px at 1080p) */
+  width: 760px;
+  max-width: 95%;
+  max-height: 92%;
+  display: flex;
+  flex-direction: column;
+  -unity-text-align: middle-left;
+}
+
+.help-card .t-h1 {
+  -unity-text-align: middle-center;
+}
+
+.help-tabs {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  /* gap: 6px; */
+  justify-content: center;
+  margin: 4px 0 10px 0;
+}
+
+.help-tabs > * {
+  margin: 3px;
+}
+
+.help-body {
+  /* overflow-y: auto; -> DOM layer should use ScrollView */
+  overflow: hidden;
+  padding-right: 8px;
+  margin-bottom: 12px;
+  min-height: 120px;
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+
+.help-body .t-h3 {
+  margin: 14px 0 6px 0;
+  font-size: 16px;
+  -unity-text-align: middle-left;
+}
+
+.help-p {
+  margin: 6px 0;
+  /* line-height: 1.5; */
+  font-size: 15px;
+  -unity-text-align: middle-left;
+}
+
+.help-list {
+  margin: 4px 0 6px 0;
+  padding-left: 20px;
+  /* line-height: 1.45; */
+  font-size: 15px;
+  -unity-text-align: middle-left;
+}
+
+.help-list .t-li {
+  margin: 4px 0;
+  -unity-text-align: middle-left;
+}
+
+.help-body .keys {
+  margin: 4px 0 8px 0;
+}
+
+.help-tabs .btn {
+  opacity: 0.7;
+}
+
+.help-tabs .btn.on {
+  /* background: linear-gradient(180deg, #f0a24a, var(--accent)); */
+  background-color: #e59145;
+  color: #ffffff;
+  border-bottom-width: 3px;
+  border-bottom-color: #b9582a;
+  /* box-shadow: 0 3px 0 var(--accent2); */
+  opacity: 1;
+}
+
+/* ---------- the new-game introduction ---------- */
+.intro-text {
+  -unity-text-align: middle-left;
+  margin: 0 0 16px 0;
+  max-width: 520px;
+}
+
+.intro-text .t-p {
+  margin: 0 0 10px 0;
+  /* line-height: 1.55; */
+  font-size: 15px;
+  -unity-text-align: middle-left;
+}
+
+.intro-first {
+  /* list-style: none; display: grid; gap: 6px; */
+  padding: 0;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.intro-first .t-li {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  /* gap: 10px; */
+  margin-bottom: 6px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background-color: rgba(60, 40, 20, 0.07);
+  font-size: 15px;
+  /* line-height: 1.3; */
+  -unity-text-align: middle-left;
+}
+
+.intro-first .t-li .t-span {
+  font-size: 20px;
+  width: 26px;
+  margin-right: 10px;
+  -unity-text-align: middle-center;
+}
+
+.intro-text .intro-hint {
+  opacity: 0.7;
+  -unity-font-style: italic;
+  font-size: 14px;
+  margin: 8px 0 0 0;
+  -unity-text-align: middle-center;
+}
+
+/* ---------- the ending card ---------- */
+.ending-stats {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  /* gap: 28px; */
+  margin: 14px 0;
+}
+
+.ending-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* gap: 6px; */
+  margin-left: 14px;
+  margin-right: 14px;
+}
+
+.ending-stat .t-b {
+  font-size: 26px;
+  margin: 0 0 6px 0;
+  padding: 0;
+  background-color: rgba(0, 0, 0, 0);
+  border-width: 0;
+}
+
+.ending-stat .t-span {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* ---------- labels inside the page's nowrap rules (see ".t-html .unity-label" near the top) ---------- */
+.t-html .prompt .unity-label,
+.t-html .chip .unity-label,
+.t-html .hint .unity-label,
+.t-html .btn .unity-label,
+.t-html .krow .t-b .unity-label {
+  white-space: nowrap;
+}
+
+.t-html .save-row .si .t-b .unity-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -unity-text-overflow-position: end;
+}
+
+/* ---------- scrollbars ----------
+   A slim rounded thumb in the page's ink colour on a faint track, with no arrow buttons, instead of Unity's grey default. */
+.t-html .unity-scroll-view .unity-scroller--vertical {
+  width: 10px;
+  min-width: 10px;
+  margin-left: 4px;
+  border-width: 0;
+  background-color: rgba(0, 0, 0, 0);
+}
+
+.t-html .unity-scroll-view .unity-scroller--horizontal {
+  display: none;
+}
+
+.t-html .unity-scroll-view .unity-scroller .unity-scroller__low-button,
+.t-html .unity-scroll-view .unity-scroller .unity-scroller__high-button {
+  display: none;
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-scroller__slider {
+  margin: 0;
+  padding: 0;
+  flex-grow: 1;
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__input {
+  margin: 0;
+  padding: 0;
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__tracker {
+  left: 2px;
+  right: 2px;
+  width: auto;
+  margin: 0;
+  border-width: 0;
+  border-radius: 3px;
+  background-color: rgba(59, 42, 30, 0.08);
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger-border {
+  display: none;
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger {
+  left: 1px;
+  width: 8px;
+  margin: 0;
+  border-width: 0;
+  border-radius: 4px;
+  background-color: rgba(59, 42, 30, 0.32);
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:hover {
+  background-color: rgba(59, 42, 30, 0.5);
+}
+
+.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:active {
+  background-color: #d9803f;
+}

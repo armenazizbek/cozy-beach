@@ -3346,7 +3346,7 @@ export class Game {
     const to = this.aimTo.set(x, y, z).sub(this.camera.position);
     const dist = to.length();
     if (dist < r * 0.6) return 1.5;
-    const ang = Math.acos(Math.min(1, Math.max(-1, to.dot(this.camera.getWorldDirection(this.aimDir)) / dist)));
+    const ang = Math.acos(Math.min(1, Math.max(-1, to.dot(this.aimDir) / dist)));
     const tol = Math.atan2(r, dist) + 0.2;
     return ang > tol ? null : 1 + ang / tol;
   }
@@ -3354,6 +3354,7 @@ export class Game {
   /** Works out what the player is standing close enough to use (the F prompt). */
   private updateInteraction(): void {
     this.view.setDigTier(this.state.tier('digging'));
+    this.camera.getWorldDirection(this.aimDir);
     this.interaction = null;
     this.interaction2 = null;
     this.ui.setPrompt2(null);

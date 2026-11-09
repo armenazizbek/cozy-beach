@@ -150,11 +150,11 @@ export const TIER_INFO: Record<TierKey, { label: string; names: string[]; desc: 
   },
   gear: {
     label: 'Thermos & Gear',
-    names: ['Tin Mug (Tea)', 'Insulated Thermos (Spiced Chai)', 'Brass Espresso Flask & Lantern'],
+    names: ['Tin Mug (Tea)', 'Insulated Thermos (Spiced Chai)', 'Brass Espresso Flask'],
     desc: [
       '100 Max Warmth. Wet sand drains 1.5x Warmth.',
       '180 Max Warmth. Waterproof boots negate the wet sand penalty.',
-      '300 Max Warmth. Unlocks the lantern: freeze the sky at any time of day, or let the day and night cycle run.',
+      '300 Max Warmth. Unlocks time-of-day control: freeze the sky at any time of day, or let the day and night cycle run.',
     ],
   },
 };
