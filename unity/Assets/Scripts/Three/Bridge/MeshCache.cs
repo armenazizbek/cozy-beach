@@ -30,8 +30,12 @@ namespace THREE.Bridge
 
         public const int PLAIN = 0, GROUPS = 1, LINES = 2, LINESTRIP = 3;
 
+        /// <summary>Goes up when the cache is emptied, so entries remembered on geometries are looked up again.</summary>
+        private static int gen = 1;
+
         public static void Release(BufferGeometry g)
         {
+            g.bridgeEntry = null;
             var dead = new List<(BufferGeometry, int)>();
             foreach (var k in cache.Keys) if (k.Item1 == g) dead.Add(k);
             foreach (var k in dead)
@@ -61,6 +65,7 @@ namespace THREE.Bridge
             foreach (var e in cache.Values) if (e.mesh != null) UnityEngine.Object.Destroy(e.mesh);
             foreach (var e in baked.Values) if (e.mesh != null) UnityEngine.Object.Destroy(e.mesh);
             foreach (var e in points.Values) if (e.mesh != null) UnityEngine.Object.Destroy(e.mesh);
+            gen++;
             cache.Clear();
             baked.Clear();
             points.Clear();
@@ -68,11 +73,19 @@ namespace THREE.Bridge
 
         public static UnityEngine.Mesh Get(BufferGeometry g, int variant)
         {
-            var key = (g, variant);
-            if (!cache.TryGetValue(key, out var e))
+            Entry e;
+            if (g.bridgeEntry is Entry known && g.bridgeVariant == variant && g.bridgeGen == gen) e = known;
+            else
             {
-                e = new Entry { mesh = new UnityEngine.Mesh { name = g.type } };
-                cache[key] = e;
+                var key = (g, variant);
+                if (!cache.TryGetValue(key, out e))
+                {
+                    e = new Entry { mesh = new UnityEngine.Mesh { name = g.type } };
+                    cache[key] = e;
+                }
+                g.bridgeEntry = e;
+                g.bridgeVariant = variant;
+                g.bridgeGen = gen;
             }
             int v = g.ContentVersion();
             if (v != e.version)

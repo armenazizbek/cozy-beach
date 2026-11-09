@@ -65,6 +65,15 @@ public static class DomHost
             rootVe.style.width = Length.Percent(100);
             rootVe.style.height = Length.Percent(100);
             rootVe.pickingMode = PickingMode.Ignore;
+            // UI Toolkit moves focus by itself on controller and keyboard navigation (stick, D-pad, Tab, Submit). The game
+            // does its own, as in the browser (Game.padNav, padButton), so the panel's built-in navigation is switched off:
+            // with both running, the highlighted button and the one A pressed drifted apart.
+            EventCallback<NavigationMoveEvent> noMove = e => { e.StopPropagation(); rootVe.focusController?.IgnoreEvent(e); };
+            EventCallback<NavigationSubmitEvent> noSubmit = e => { e.StopPropagation(); rootVe.focusController?.IgnoreEvent(e); };
+            EventCallback<NavigationCancelEvent> noCancel = e => { e.StopPropagation(); rootVe.focusController?.IgnoreEvent(e); };
+            rootVe.RegisterCallback(noMove, TrickleDown.TrickleDown);
+            rootVe.RegisterCallback(noSubmit, TrickleDown.TrickleDown);
+            rootVe.RegisterCallback(noCancel, TrickleDown.TrickleDown);
             // the theme brings Unity's own default font; keep the game's font for the whole page
             if (_textSettings != null && _textSettings.defaultFontAsset != null)
                 rootVe.style.unityFontDefinition = FontDefinition.FromSDFFont(_textSettings.defaultFontAsset);

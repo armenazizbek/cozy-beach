@@ -417,6 +417,7 @@ public class MapView
     }
 
     private string lastMiniKey = "";
+    private MiniMapGpu miniGpu;
 
     /// <summary>Round mini-map that turns so that "forward" is always up.</summary>
     public void drawMini(CanvasRenderingContext2D ctx, double size, MapPlayer p, IList<double[]> holes, Waypoint dest = null, Waypoint cart = null, Waypoint boat = null)
@@ -427,23 +428,22 @@ public class MapView
 
         var r = size / 2;
         var sc = size / 60; // 60 metres across
-        ctx.clearRect(0, 0, size, size);
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(r, r, r - 2, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = "#0d1b26";
-        ctx.fillRect(0, 0, size, size);
-
         var fx = -Math.Sin(p.yaw);
         var fz = -Math.Cos(p.yaw);
+        // The sea, the island and the dig holes are drawn by the GPU underneath (MiniMapGpu: one turned texture and a vector
+        // layer); this canvas only carries the markers, so it is cleared to transparent and the circle is cut by the layer.
+        if (this.miniGpu == null || this.miniGpu.Host != ctx.canvas.ve)
+            this.miniGpu = new MiniMapGpu(ctx.canvas, size, this._base, EXT_X0, EXT_Z0, EXT);
+        this.miniGpu.SetHoles(holes);
+        this.miniGpu.Place(p.x, p.z, -Math.PI / 2 - Math.Atan2(fz, fx), r);
+        ctx.clearRect(0, 0, size, size);
+        ctx.save();
+
         ctx.save();
         ctx.translate(r, r);
         ctx.rotate(-Math.PI / 2 - Math.Atan2(fz, fx));
         ctx.scale(sc, sc);
         ctx.translate(-p.x, -p.z);
-        ctx.drawImage(this._base, EXT_X0, EXT_Z0, EXT, EXT);
-        this.drawHoles(ctx, holes, 0.9, p.x, p.z, 34);
         this.drawCamp(ctx, 0, CAMP_Z, 1.2);
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.2);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 1.3);
@@ -507,19 +507,7 @@ public class MapView
         ctx.translate(r, r);
         this.arrow(ctx, size / 30);
         ctx.restore();
-        ctx.save();
-        ctx.globalCompositeOperation = "destination-out";
-        ctx.fillStyle = "#000";
-        ctx.beginPath();
-        ctx.rect(0, 0, size, size);
-        ctx.arc(r, r, r - 2, 0, Math.PI * 2);
-        ctx.fill("evenodd");
-        ctx.restore();
-        ctx.strokeStyle = "rgba(255,248,230,0.95)";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(r, r, r - 2, 0, Math.PI * 2);
-        ctx.stroke();
+        // the round cut and the rim are MiniMapGpu's clipping layer and border
     }
 
     /// <summary>The whole island, north (inland) at the top.</summary>

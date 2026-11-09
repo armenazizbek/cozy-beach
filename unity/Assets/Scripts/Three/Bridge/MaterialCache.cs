@@ -29,14 +29,19 @@ namespace THREE.Bridge
         public static void Clear()
         {
             foreach (var e in cache.Values) if (e.mat != null) UnityEngine.Object.Destroy(e.mat);
+            gen++;
             cache.Clear();
         }
         private static readonly Dictionary<string, Shader> shaders = new Dictionary<string, Shader>();
         private static int frame;
         public static void NextFrame() => frame++;
 
+        /// <summary>Goes up when the cache is emptied, so entries remembered on materials are looked up again.</summary>
+        private static int gen = 1;
+
         public static void Release(THREE.Material m)
         {
+            m.bridgeEntry = null;
             foreach (Kind k in Enum.GetValues(typeof(Kind)))
             {
                 if (cache.TryGetValue((m, k), out var e))
@@ -90,12 +95,20 @@ namespace THREE.Bridge
         public static UnityEngine.Material Get(THREE.Material m, Kind kind)
         {
             if (m == null) return null;
-            var key = (m, kind);
-            if (!cache.TryGetValue(key, out var e))
+            Entry e;
+            if (m.bridgeEntry is Entry known && m.bridgeKind == (int)kind && m.bridgeGen == gen) e = known;
+            else
             {
-                var sh = ShaderFor(m, kind);
-                e = new Entry { mat = new UnityEngine.Material(FindShader(sh)) { name = m.type + " " + m.name }, shader = sh };
-                cache[key] = e;
+                var key = (m, kind);
+                if (!cache.TryGetValue(key, out e))
+                {
+                    var sh = ShaderFor(m, kind);
+                    e = new Entry { mat = new UnityEngine.Material(FindShader(sh)) { name = m.type + " " + m.name }, shader = sh };
+                    cache[key] = e;
+                }
+                m.bridgeEntry = e;
+                m.bridgeKind = (int)kind;
+                m.bridgeGen = gen;
             }
             if (e.frame == frame) return e.mat;
             e.frame = frame;

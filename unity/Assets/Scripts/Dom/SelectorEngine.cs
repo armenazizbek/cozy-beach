@@ -285,7 +285,18 @@ internal static class SelectorEngine
         }
     }
 
+    // the game uses a handful of selector strings over and over (and text updates ask for one), so each is parsed once
+    private static readonly Dictionary<string, List<SelectorChain>> parsed = new Dictionary<string, List<SelectorChain>>();
+
     private static List<SelectorChain> ParseSelectorList(string selector)
+    {
+        if (parsed.TryGetValue(selector, out var known)) return known;
+        var list = ParseSelectorListUncached(selector);
+        if (parsed.Count < 512) parsed[selector] = list;
+        return list;
+    }
+
+    private static List<SelectorChain> ParseSelectorListUncached(string selector)
     {
         var result = new List<SelectorChain>();
         var parts = SplitTopLevel(selector, ',');

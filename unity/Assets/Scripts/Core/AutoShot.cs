@@ -93,6 +93,32 @@ public class AutoShot : MonoBehaviour
             yield break;
         }
 
+        // -autoshot-pad: drive the title menu with a virtual controller (D-pad down twice, then A) and check Settings opens
+        if (Array.IndexOf(args, "-autoshot-pad") >= 0)
+        {
+            var pad = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Gamepad>();
+            IEnumerator Press(UnityEngine.InputSystem.LowLevel.GamepadButton b)
+            {
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(pad, new UnityEngine.InputSystem.LowLevel.GamepadState().WithButton(b));
+                yield return Wait(0.15f);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(pad, new UnityEngine.InputSystem.LowLevel.GamepadState());
+                yield return Wait(0.35f);
+                Debug.Log("[AutoShot] pad " + b + " -> focused: " + (document.activeElement?.textContent ?? "(nothing)"));
+                Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
+            }
+            Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
+            yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.DpadDown);
+            yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.DpadDown);
+            yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.South);
+            yield return Wait(0.8f);
+            Debug.Log("[AutoShot] pad: settings open = " + (document.querySelector(".settings-card") != null));
+            yield return Shot("1p-pad.png");
+            yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.East);
+            yield return Wait(0.5f);
+            Debug.Log("[AutoShot] pad: settings closed by B = " + (document.querySelector(".settings-card") == null));
+            UnityEngine.InputSystem.InputSystem.RemoveDevice(pad);
+        }
+
         game.smokeTestAchievements();
         yield return Wait(1);
         yield return Shot("1b-achievements.png");

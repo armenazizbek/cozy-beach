@@ -113,8 +113,31 @@ no errors in the player log. Fixed on the way:
   and the waveform's background and label are drawn once and copied in. In a day-5 save, walking: 150 -> 178 fps (main
   thread 6.3 -> 5.5 ms; the GPU needs only 0.2 ms, so the main thread is the whole limit). What is left: walking ~3,600
   objects every frame (about 2 ms), the CPU-drawn minimap and waveform (about 1.9 ms) and Unity's own work (about 1.1 ms).
+  The mini-map and the detector screen then moved to the GPU. `UI/MiniMapGpu.cs` draws the sea, the island (one texture
+  turned with style transforms), the dig holes (a Painter2D layer redrawn only when you dig) and the rim; the canvas keeps
+  only the small markers. The detector line is a Painter2D layer over a canvas that is redrawn only when the label changes.
+  Day-5 save, walking: 178 -> 251 fps (main thread 5.5 -> 3.7 ms); new game, walking: 237 -> 344 fps.
+  Then: raycasts (hover and aim, every frame) refreshed each tested mesh's whole parent chain through `updateWorldMatrix`,
+  which recomposed every matrix, so 3,500 of 3,600 objects were recomposed per frame though only ~300 move; it now skips
+  unchanged ones (~570 recomposed). Each geometry and material also remembers its bridge cache entry
+  (`bridgeEntry`), so the sync no longer looks them up in dictionaries per object per frame. Day-5 save, walking: 251 ->
+  276 fps (main thread 3.15 ms). A new game now runs at the 360 Hz VSync cap (main thread 1.8 ms).
+  Left, if a handheld needs it: the sync still visits every object (~1 ms) although ~3,300 never change; skipping those
+  needs a way to mark objects static. Whitecaps and footprints still re-bake their instanced meshes (~0.3 ms).
   The build folder also holds `*_BackUpThisFolder_ButDontShipItWithYourGame` and `*_BurstDebugInformation_DoNotShip`
   (debug symbols, about 1.2 GB), which stay out of the Steam depot.
+- **Pills became ovals** (HUD chips, prompts, hints): CSS shrinks `border-radius: 999px` to half the shorter side, UI
+  Toolkit clamped it per axis. `HTMLElement.FitPillRadius` now sets such radii to half the shorter side.
+- **A controller could not move through menus:** UI Toolkit's focus-in event bubbles, and containers with the DOM layer's
+  focus handler claimed the focus from the button inside them, so the game's own navigation snapped back to the first
+  button. Only the element that itself gains or loses focus now claims it, and the panel's built-in controller navigation
+  is switched off (the game navigates itself, as in the browser). `-autoshot-pad` tests it with a virtual controller.
+- **Binoculars stuttered:** the full-screen overlay canvas was redrawn on the CPU whenever the zoom or distance changed.
+  The lenses, reticle and legend are now redrawn only when the screen or controls change; the readout has its own canvas.
+- **Uppercase text was lowercase** (main menu kicker, card categories, settings and journal headings): USS has no
+  text-transform. `HTMLElement.DisplayText` uppercases text inside those elements (parsed selectors are now cached).
+- **Shadows were hard and pixelated:** the URP asset had soft shadows off and a 2048 map shared by 2 cascades. ProjectSetup
+  now turns on soft shadows (medium, like PCFSoftShadowMap) and uses 4096, so each cascade gets the browser's 2048.
 - **Scrollbars** were Unity's grey default with arrow buttons and a sideways bar. They are now a slim rounded thumb in the
   page's ink colour (orange while dragging) with no arrows, and the page's scroll boxes never scroll sideways.
 

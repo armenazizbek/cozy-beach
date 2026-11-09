@@ -172,12 +172,20 @@ public class DetectorTool
     }
 
     /// <summary>Live oscilloscope trace.</summary>
-    /// <summary>The screen and its grid never change, so they are drawn once and copied in (this canvas is drawn on the CPU here).</summary>
+    // The detector screen. The browser redrew it all on a canvas every frame; here the CPU canvas holds only the screen and its
+    // grid (drawn once), the moving line is a GPU vector layer above it (Painter2D) and the label a small texture on top.
     private HTMLCanvasElement waveBg;
+    private UnityEngine.UIElements.VisualElement waveLine;
+    private UnityEngine.UIElements.VisualElement waveHost;
+    private readonly List<UnityEngine.Vector2> wavePts = new List<UnityEngine.Vector2>();
+    private UnityEngine.Color waveColor;
+    private float waveW = 1, waveH = 1;
+    private string labelText;
 
     public void drawWaveform(CanvasRenderingContext2D ctx, double w, double h, double t, int tier)
     {
-        if (waveBg == null || waveBg.width != (int)w || waveBg.height != (int)h)
+        var host = ctx.canvas.ve;
+        if (waveBg == null || waveBg.width != (int)w || waveBg.height != (int)h || !ReferenceEquals(host, waveHost))
         {
             waveBg = new HTMLCanvasElement((int)w, (int)h);
             var bg = waveBg.getContext("2d");
@@ -187,18 +195,23 @@ public class DetectorTool
             bg.lineWidth = 1;
             for (double x = 0; x < w; x += w / 10) { bg.beginPath(); bg.moveTo(x, 0); bg.lineTo(x, h); bg.stroke(); }
             for (double y = 0; y < h; y += h / 4) { bg.beginPath(); bg.moveTo(0, y); bg.lineTo(w, y); bg.stroke(); }
+            waveHost = host;
+            waveW = (float)w;
+            waveH = (float)h;
+            if (host != null)
+            {
+                waveLine = WaveLayer(host);
+                waveLine.generateVisualContent += DrawWaveLine;
+            }
+            labelText = null;
         }
-        ctx.drawImage(waveBg, 0, 0);
         double strength = signal.strength;
         string kind = signal.kind;
         double mid = h / 2;
         double amp = kind != null ? 0.12 + strength * 0.85 : 0.04;
         string color = kind == "trash" ? "#ff9a3c" : kind == "coin" ? "#a8ee7a" : kind == "deep" ? "#c79bff" : kind == "generic" ? "#b8d4c0" : "#4a7a5e";
-        ctx.strokeStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 6;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
+        UnityEngine.ColorUtility.TryParseHtmlString(color, out waveColor);
+        wavePts.Clear();
         for (double x = 0; x <= w; x += 2)
         {
             double a = x / w * Math.PI * 6 + t * 7;
@@ -211,26 +224,57 @@ public class DetectorTool
                 case "generic": v = Math.Sin(a) * 0.8 + (JS.Random() - 0.5) * 0.25; break;
                 default: v = (JS.Random() - 0.5) * 0.4; break;
             }
-            double y = mid - v * amp * (h / 2 - 4);
-            if (x == 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            wavePts.Add(new UnityEngine.Vector2((float)x, (float)(mid - v * amp * (h / 2 - 4))));
         }
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        waveLine?.MarkDirtyRepaint();
+
         string label = tier < 2 && kind != null ? "SIGNAL" : kind == "trash" ? "TRASH" : kind == "coin" ? "COIN / METAL" : kind == "deep" ? "DEEP ANTIQUE" : "NO SIGNAL";
-        // the label only changes with the signal, so its text is drawn once and copied in on top, as before
-        if (labelCv == null || labelText != label || labelCv.width != (int)w)
+        // the label only changes with the signal: the canvas (screen, grid and label) is redrawn only then, so it is
+        // uploaded only then too
+        if (labelText != label)
         {
             labelText = label;
-            labelCv = new HTMLCanvasElement((int)w, 18);
-            var lc = labelCv.getContext("2d");
-            lc.fillStyle = "rgba(160,255,200,0.7)";
-            lc.font = "10px monospace";
-            lc.fillText(label, 6, 12);
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(waveBg, 0, 0);
+            ctx.fillStyle = "rgba(160,255,200,0.7)";
+            ctx.font = "10px monospace";
+            ctx.fillText(label, 6, 12);
         }
-        ctx.drawImage(labelCv, 0, 0);
     }
 
-    private HTMLCanvasElement labelCv;
-    private string labelText;
+    private static UnityEngine.UIElements.VisualElement WaveLayer(UnityEngine.UIElements.VisualElement host)
+    {
+        var v = new UnityEngine.UIElements.VisualElement { pickingMode = UnityEngine.UIElements.PickingMode.Ignore };
+        v.style.position = UnityEngine.UIElements.Position.Absolute;
+        v.style.left = 0;
+        v.style.top = 0;
+        v.style.right = 0;
+        v.style.bottom = 0;
+        host.Add(v);
+        return v;
+    }
+
+    /// <summary>The line with its glow: the canvas used a 6 px shadow blur; soft wider strokes underneath look the same.</summary>
+    private void DrawWaveLine(UnityEngine.UIElements.MeshGenerationContext mgc)
+    {
+        if (wavePts.Count < 2) return;
+        var rect = waveLine.contentRect;
+        float sx = rect.width / waveW, sy = rect.height / waveH;
+        var p = mgc.painter2D;
+        p.lineJoin = UnityEngine.UIElements.LineJoin.Round;
+        p.lineCap = UnityEngine.UIElements.LineCap.Round;
+        var glow = new[] { (5.5f, 0.05f), (3.5f, 0.09f) };
+        foreach (var (width, alpha) in glow) Stroke(p, sx, sy, width, new UnityEngine.Color(waveColor.r, waveColor.g, waveColor.b, alpha));
+        Stroke(p, sx, sy, 2f, waveColor);
+    }
+
+    private void Stroke(UnityEngine.UIElements.Painter2D p, float sx, float sy, float width, UnityEngine.Color c)
+    {
+        p.strokeColor = c;
+        p.lineWidth = width * Math.Min(sx, sy);
+        p.BeginPath();
+        p.MoveTo(new UnityEngine.Vector2(wavePts[0].x * sx, wavePts[0].y * sy));
+        for (int i = 1; i < wavePts.Count; i++) p.LineTo(new UnityEngine.Vector2(wavePts[i].x * sx, wavePts[i].y * sy));
+        p.Stroke();
+    }
 }

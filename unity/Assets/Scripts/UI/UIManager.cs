@@ -176,6 +176,32 @@ public class UIManager
     private HTMLElement drawbar = el("div", "drawbar hidden");
     private HTMLElement drawFill = el("div", "fill");
     private HTMLCanvasElement binoc = el<HTMLCanvasElement>("canvas", "binoc hidden");
+    private HTMLCanvasElement binocText = el<HTMLCanvasElement>("canvas", "binoc-text hidden");
+    private string binocFrameKey = "";
+
+    /// <summary>The zoom and distance under the binoculars, on a small canvas of its own (see setBinoculars).</summary>
+    private void drawBinocReadout(string zoom, string range, int w, int h)
+    {
+        const int TW = 640, TH = 40, BASE = 28;
+        if (this.binocText.width != TW) this.binocText.width = TW;
+        if (this.binocText.height != TH) this.binocText.height = TH;
+        var ve = this.binocText.ve;
+        if (ve != null)
+        {
+            ve.pickingMode = UnityEngine.UIElements.PickingMode.Ignore;
+            ve.style.position = UnityEngine.UIElements.Position.Absolute;
+            ve.style.left = (w - TW) / 2f;
+            ve.style.top = h - 62 - BASE;
+            ve.style.width = TW;
+            ve.style.height = TH;
+        }
+        var t = this.binocText.getContext("2d");
+        t.clearRect(0, 0, TW, TH);
+        t.font = "600 20px \"Trebuchet MS\", sans-serif";
+        t.textAlign = "center";
+        t.fillStyle = "rgba(255,248,230,0.95)";
+        t.fillText($"{zoom}   ·   {range}", TW / 2.0, BASE);
+    }
     private string binocKey = "";
     public readonly HTMLCanvasElement miniCanvas = el<HTMLCanvasElement>("canvas", "minimap");
     private HTMLElement mapEl = null;
@@ -206,7 +232,7 @@ public class UIManager
         this.prompt.append(this.kbdF, this.promptText);
         this.prompt2.append(this.kbdE, this.prompt2Text);
         this.drawbar.append(this.drawFill);
-        root.append(this.binoc, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro);
+        root.append(this.binoc, this.binocText, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
@@ -1283,10 +1309,21 @@ public class UIManager
         if (key == this.binocKey) return;
         this.binocKey = key;
         this.binoc.classList.toggle("hidden", !on);
+        this.binocText.classList.toggle("hidden", !on);
         if (!on) return;
-        int w = this.binoc.width = (int)window.innerWidth;
-        int h = this.binoc.height = (int)window.innerHeight;
+        int w = (int)window.innerWidth;
+        int h = (int)window.innerHeight;
+        // The browser redrew this whole screen-sized canvas whenever the zoom or the distance changed, which is nearly every
+        // frame while looking around; drawn on the CPU here, that stuttered. The lenses, reticle and legend are redrawn only
+        // when the screen or the controls change, and the readout has a small canvas of its own.
+        this.drawBinocReadout(zoom, range, w, h);
+        var frameKey = $"{pad.on}|{w}x{h}";
+        if (frameKey == this.binocFrameKey) return;
+        this.binocFrameKey = frameKey;
+        if (this.binoc.width != w) this.binoc.width = w;
+        if (this.binoc.height != h) this.binoc.height = h;
         var g = this.binoc.getContext("2d");
+        g.clearRect(0, 0, w, h);
         var r = Math.Min(w * 0.27, h * 0.46);
         var off = r * 0.62;
         g.fillStyle = "rgba(4,6,8,0.97)";
@@ -1333,7 +1370,6 @@ public class UIManager
         g.font = "600 20px \"Trebuchet MS\", sans-serif";
         g.textAlign = "center";
         g.fillStyle = "rgba(255,248,230,0.95)";
-        g.fillText($"{zoom}   ·   {range}", w / 2.0, h - 62);
 
         // legend: how to use and how to put the binoculars down
         var items = pad.on

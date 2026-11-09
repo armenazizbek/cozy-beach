@@ -511,8 +511,35 @@ public class Game
         else document.querySelector(".pause")?.remove();
     }
 
+    /// <summary>For the -autoshot-pad test: the menu a controller would drive and the buttons it can reach, with their boxes.</summary>
+    internal string smokeTestPadInfo()
+    {
+        var root = overlayRoot();
+        if (root == null) return "no menu";
+        var items = padFocusables(root);
+        return $"menu '{root.className}', {items.Count} reachable: " + string.Join("; ", items.Take(8).Select(e =>
+        {
+            var r = e.getBoundingClientRect();
+            var label = (e.textContent ?? "").Trim();
+            return $"{(label.Length > 14 ? label.Substring(0, 14) : label)} [{r.left:0},{r.top:0} {r.width:0}x{r.height:0}]";
+        }));
+    }
+
     /// <summary>For the -autoshot smoke test: where the player stands.</summary>
     internal string smokeTestWhere() => $"x {player.x:0.0}, z {player.z:0.0}, state {gameState}{(paused ? " (paused)" : "")}";
+
+    /// <summary>
+    /// For the -autoshot-minimap smoke test: a few map-only dig holes around the player (some overlapping, none dug into the
+    /// sand) and a far destination, so the minimap shows holes, the dashed line and its edge markers.
+    /// </summary>
+    internal void smokeTestMinimapSetup()
+    {
+        double[][] offs = { new[] { 3.0, 0.0 }, new[] { 3.9, 0.4 }, new[] { 0.0, 6.0 }, new[] { -5.0, -2.0 }, new[] { -5.6, -2.6 }, new[] { 8.0, 8.0 }, new[] { -12.0, 9.0 }, new[] { 14.0, -6.0 } };
+        foreach (var o in offs) holes.Add(new[] { player.x + o[0], player.z + o[1] });
+        setWaypoint(new Waypoint { x = player.x + 45, z = player.z + 40 });
+    }
+
+    internal void smokeTestMinimapClear() => setWaypoint(null);
 
     /// <summary>For the -autoshot smoke test: turns the player to look somewhere.</summary>
     internal void smokeTestLook(double yaw, double pitch)
@@ -2080,9 +2107,9 @@ public class Game
             onSettings = () => openSettings(),
             onExit = () =>
             {
+                // as in the desktop app: the game really closes. The browser's farewell card ("you can close this tab")
+                // only ever made sense in a tab, and here it flashed up while the game shut down.
                 window.close();
-                ui.hideMainMenu();
-                ui.showFarewell(() => showMenu());
             },
         });
     }

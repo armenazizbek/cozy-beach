@@ -148,6 +148,7 @@ namespace THREE.Bridge
                 o.matrix.decompose(p, q, s);
                 px = p.x; py = p.y; pz = p.z; qx = q._x; qy = q._y; qz = q._z; qw = q._w; sx = s.x; sy = s.y; sz = s.z;
             }
+            if (px != n.px || py != n.py || pz != n.pz || qx != n.qx || qy != n.qy || qz != n.qz || qw != n.qw || sx != n.sx || sy != n.sy || sz != n.sz) BridgeStats.pushed++;
             if (px != n.px || py != n.py || pz != n.pz)
             {
                 n.px = px; n.py = py; n.pz = pz;

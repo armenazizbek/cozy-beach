@@ -270,6 +270,7 @@ namespace THREE
         {
             matrix.compose(position, quaternion, scale);
             matrixWorldNeedsUpdate = true;
+            Bridge.BridgeStats.composed++;
             _cpx = position.x; _cpy = position.y; _cpz = position.z;
             _cqx = quaternion._x; _cqy = quaternion._y; _cqz = quaternion._z; _cqw = quaternion._w;
             _csx = scale.x; _csy = scale.y; _csz = scale.z;
@@ -300,7 +301,8 @@ namespace THREE
         public virtual void updateWorldMatrix(bool updateParents, bool updateChildren)
         {
             if (updateParents && parent != null) parent.updateWorldMatrix(true, false);
-            if (matrixAutoUpdate) updateMatrix();
+            // raycasts call this on every mesh they test (hover and aim, every frame): recompose only what moved
+            if (matrixAutoUpdate && LocalChanged()) updateMatrix();
             if (matrixWorldAutoUpdate)
             {
                 if (parent == null) matrixWorld.copy(matrix);

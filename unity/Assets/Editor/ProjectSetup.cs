@@ -101,6 +101,18 @@ public static class ProjectSetup
         asset.msaaSampleCount = 4;
         asset.shadowDistance = 60f;
         asset.shadowCascadeCount = 2;
+        // The browser drew the sun's shadows soft (PCFSoftShadowMap) from a 2048 map. Without soft shadows URP draws them
+        // hard and pixelated, and its 2 cascades share one map, so 4096 gives each cascade the browser's 2048.
+        var so = new SerializedObject(asset);
+        void SetInt(string name, int value)
+        {
+            var prop = so.FindProperty(name);
+            if (prop != null && prop.intValue != value) prop.intValue = value;
+        }
+        SetInt("m_SoftShadowsSupported", 1);
+        SetInt("m_SoftShadowQuality", 2); // medium: close to PCFSoftShadowMap
+        SetInt("m_MainLightShadowmapResolution", 4096);
+        so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(asset);
 
         bool assigned = false;

@@ -63,6 +63,43 @@ public class HTMLElement
     public Action onclick;
     public Action<Event> onpointerdown, onpointerenter, onpointerleave, onkeydown, onwheel, oninput, onchange, onscroll;
 
+    private const string PILL = "t-pill";
+
+    /// <summary>
+    /// The page's text-transform: uppercase rules (USS has no text-transform): the main menu's small line above the title,
+    /// card categories, settings headings and journal page headings.
+    /// </summary>
+    private const string UPPERCASE = ".mm-kicker, .card .cat, .set-rows .t-h3, .bp-head";
+
+    /// <summary>The text as it is shown: uppercased where the page says so, emoji swapped for the colour sprites.</summary>
+    private string DisplayText()
+    {
+        string t = _directText ?? "";
+        if (t.Length > 0 && closest(UPPERCASE) != null) t = t.ToUpperInvariant();
+        return EmojiText.Apply(t);
+    }
+
+    /// <summary>
+    /// CSS shrinks an oversized corner radius (the usual border-radius: 999px for pill shapes) to half the box's shorter
+    /// side, so a wide chip gets round ends. UI Toolkit clamps it per axis instead, which turned the HUD chips, prompts and
+    /// hints into ovals. An element whose radius is more than half its shorter side is given exactly that, and keeps it as
+    /// its size changes.
+    /// </summary>
+    private static void FitPillRadius(GeometryChangedEvent e)
+    {
+        var v = (VisualElement)e.currentTarget;
+        float half = Mathf.Min(v.layout.width, v.layout.height) / 2f;
+        if (!(half > 0)) return;
+        if (!v.ClassListContains(PILL))
+        {
+            var rs = v.resolvedStyle;
+            if (rs.borderTopLeftRadius <= half + 0.5f && rs.borderTopRightRadius <= half + 0.5f &&
+                rs.borderBottomLeftRadius <= half + 0.5f && rs.borderBottomRightRadius <= half + 0.5f) return;
+            v.AddToClassList(PILL);
+        }
+        v.style.borderTopLeftRadius = v.style.borderTopRightRadius = v.style.borderBottomLeftRadius = v.style.borderBottomRightRadius = half;
+    }
+
     public HTMLElement(string tag = "DIV")
     {
         tagName = string.IsNullOrWhiteSpace(tag) ? "DIV" : tag.Trim().ToUpperInvariant();
@@ -71,6 +108,7 @@ public class HTMLElement
 
         string tagClass = "t-" + tagName.ToLowerInvariant();
         ve.AddToClassList(tagClass);
+        ve.RegisterCallback<GeometryChangedEvent>(FitPillRadius);
 
         classList = new DOMTokenList(this);
         dataset = new DOMStringMap(this);
@@ -266,10 +304,12 @@ public class HTMLElement
             _textLabel.style.paddingLeft = 0;
             _textLabel.style.paddingRight = 0;
             ElementByVe[_textLabel] = this;
+            // uppercase can depend on where the element ends up, so the text is worked out again once it is in the page
+            _textLabel.RegisterCallback<AttachToPanelEvent>(_ => { if (_textLabel != null) _textLabel.text = DisplayText(); });
         }
 
         _textLabel.enableRichText = true;
-        _textLabel.text = EmojiText.Apply(_directText);
+        _textLabel.text = DisplayText();
 
         var container = ChildContainer;
         if (container != null && _textLabel.parent != container)
@@ -1320,14 +1360,16 @@ public class HTMLElement
             }
         });
 
-        ve.RegisterCallback<FocusInEvent>(_ =>
+        // focus events bubble in UI Toolkit: only the element that itself gained or lost focus may claim it, or a container
+        // with this handler took the focus from the button inside it (a controller then could not move past the first button)
+        ve.RegisterCallback<FocusInEvent>(e =>
         {
-            document.activeElement = this;
+            if (e.target == ve) document.activeElement = this;
         });
 
-        ve.RegisterCallback<FocusOutEvent>(_ =>
+        ve.RegisterCallback<FocusOutEvent>(e =>
         {
-            if (document.activeElement == this)
+            if (e.target == ve && document.activeElement == this)
             {
                 document.activeElement = null;
             }

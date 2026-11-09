@@ -86,6 +86,22 @@ public class HTMLCanvasElement : HTMLElement
     private UnityEngine.Texture2D _uiTex;
     private int _uiUploadedVersion = -1;
     private byte[] _uiBuf;
+    private UnityEngine.UIElements.VisualElement _texTarget;
+
+    /// <summary>
+    /// Shows the canvas pixels on this element instead of the canvas's own background (the mini-map puts them on a layer
+    /// above the map that the GPU draws). Null puts them back.
+    /// </summary>
+    internal UnityEngine.UIElements.VisualElement textureTarget
+    {
+        get => _texTarget;
+        set
+        {
+            if (ve != null) ve.style.backgroundImage = UnityEngine.UIElements.StyleKeyword.Null;
+            _texTarget = value;
+            if (_uiTex != null) (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
+        }
+    }
 
     public HTMLCanvasElement(int width = 300, int height = 150) : base("CANVAS")
     {
@@ -138,7 +154,7 @@ public class HTMLCanvasElement : HTMLElement
                 wrapMode = UnityEngine.TextureWrapMode.Clamp,
                 filterMode = UnityEngine.FilterMode.Bilinear,
             };
-            ve.style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
+            (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
         }
         int len = _w * _h * 4;
         if (_uiBuf == null || _uiBuf.Length != len) _uiBuf = new byte[len];
