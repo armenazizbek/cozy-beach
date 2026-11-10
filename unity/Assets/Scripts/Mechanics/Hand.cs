@@ -148,6 +148,78 @@ public static class Hand
         public double x, rad, len;
     }
 
+    /// <summary>Where the wrist sits in the space of <see cref="buildCameraGrip"/>: out to the side of the camera's end, below it and behind it.</summary>
+    public static readonly THREE.Vector3 cameraWrist = new THREE.Vector3(0.05, -0.055, 0.052);
+
+    /// <summary>
+    /// A right hand holding the right-hand end of a camera, the way a camera is held: the palm against the end, the fingers flat across
+    /// the front, the thumb flat across the back. In its own space the middle of the camera's end is at the origin, x runs out to the
+    /// right, y is up and z comes back toward the photographer. `halfDepth` is half the camera's thickness and `top` how far its top is
+    /// above the origin. With `shutter` the first finger lies along the top instead, its tip on the shutter button. `toElbow` is the unit
+    /// direction the forearm leaves in. Mirror it in x for the left hand.
+    /// </summary>
+    public static THREE.Mesh buildCameraGrip(double halfDepth, double top, bool shutter, THREE.Vector3 toElbow, THREE.Material mat)
+    {
+        THREE.Vector3 v(double x, double y, double z) => new THREE.Vector3(x, y, z);
+        var W = cameraWrist;
+        // finger and thumb centres lie this far out, so their skin rests on the camera's faces
+        double front = -(halfDepth + 0.0125), back = halfDepth + 0.0135;
+        var palm = new List<Bone> { bone(W, W.clone().addScaledVector(toElbow, 0.09), 0.028, 0.03) };
+        var digits = new List<List<Bone>>();
+
+        // the fingers that wrap the front: from the knuckle at the camera's end, round its corner and flat along the front face
+        double[] heights = shutter ? new[] { 0.02, -0.002, -0.024 } : new[] { 0.03, 0.009, -0.012, -0.032 };
+        double[] rads = shutter ? new[] { 0.012, 0.0115, 0.0105 } : new[] { 0.0115, 0.012, 0.0115, 0.0105 };
+        double[] reach = shutter ? new[] { 0.026, 0.022, 0.012 } : new[] { 0.022, 0.026, 0.022, 0.012 };
+        for (int i = 0; i < heights.Length; i++)
+        {
+            double y = heights[i], r = rads[i];
+            var k = v(0.039, y, -0.004);
+            var p1 = v(0.03, y, front + 0.006);
+            var p2 = v(0.006, y, front);
+            var tip = v(-reach[i], y - 0.002, front + 0.001);
+            palm.Add(bone(v(W.x - 0.004, W.y + 0.012 + i * 0.004, W.z - 0.006), k, 0.0155, 0.014));
+            digits.Add(new List<Bone> { bone(k, p1, r, r * 0.96), bone(p1, p2, r * 0.96, r * 0.9), bone(p2, tip, r * 0.9, r * 0.82) });
+        }
+        if (shutter)
+        {
+            // the first finger goes up over the corner and lies along the top, its tip on the button
+            const double r = 0.0115;
+            var k = v(0.039, 0.036, 0.002);
+            var p1 = v(0.03, top + 0.008, -0.004);
+            var p2 = v(0.008, top + 0.0125, -0.006);
+            var tip = v(-0.02, top + 0.0115, -0.002);
+            palm.Add(bone(v(W.x - 0.004, W.y + 0.02, W.z - 0.004), k, 0.0155, 0.014));
+            digits.Add(new List<Bone> { bone(k, p1, r, r * 0.96), bone(p1, p2, r * 0.96, r * 0.9), bone(p2, tip, r * 0.9, r * 0.82) });
+        }
+
+        // the thumb comes off the heel of the hand and lies flat across the back, pointing up and in
+        var t0 = v(0.034, -0.014, back - 0.006);
+        var t1 = v(0.012, 0.004, back);
+        var t2 = v(-0.014, 0.016, back - 0.001);
+        palm.Add(bone(v(W.x - 0.006, W.y + 0.006, W.z), t0, 0.021, 0.0175));
+        // the pad on the little finger's side of the palm
+        palm.Add(bone(W, v(0.043, -0.04, 0.008), 0.018, 0.016));
+        var thumb = new List<Bone> { bone(t0, t1, 0.0165, 0.014), bone(t1, t2, 0.014, 0.0115) };
+
+        double dist(double x, double y, double z)
+        {
+            double hand = merged(digits[0], 0.003, x, y, z);
+            for (int i = 1; i < digits.Count; i++) hand = blendShapes(hand, merged(digits[i], 0.003, x, y, z), 0.006);
+            hand = blendShapes(hand, merged(palm, 0.018, x, y, z), 0.012);
+            return blendShapes(hand, merged(thumb, 0.004, x, y, z), 0.012);
+        }
+
+        var box = new THREE.Box3();
+        foreach (var s in palm.Concat(thumb).Concat(digits.SelectMany(d => d)))
+        {
+            box.expandByPoint(v(s.ax, s.ay, s.az));
+            box.expandByPoint(v(s.bx, s.by, s.bz));
+        }
+        box.expandByScalar(0.04);
+        return new THREE.Mesh(solidSurface(dist, box.min, box.max, 0.004), mat);
+    }
+
     /// <summary>
     /// A right hand closed around a rod of radius `r`, as one solid surface with the start of the forearm grown out of it. In its own space
     /// the rod runs along x with the thumb toward +x, the back of the hand faces +y and the fingers reach toward +z from the wrist, then

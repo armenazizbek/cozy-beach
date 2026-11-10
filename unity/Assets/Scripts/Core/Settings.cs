@@ -13,6 +13,13 @@ public class GameSettings
     public double ambience = 1;
     /// <summary>mouse-look speed multiplier</summary>
     public double sensitivity = 1;
+    /// <summary>pushing the mouse forward looks down instead of up</summary>
+    public bool invertMouse = false;
+    /// <summary>pushing the right stick forward looks down instead of up</summary>
+    public bool invertStick = false;
+    /// <summary>how wide the view is: the camera's vertical angle in degrees, FOV_MIN..FOV_MAX</summary>
+    public double fov = 50;
+    public const double FOV_MIN = 40, FOV_MAX = 70, FOV_DEFAULT = 50;
     public bool shadows = true;
     /// <summary>render at the screen's full pixel density (sharper, heavier)</summary>
     public bool sharp = true;

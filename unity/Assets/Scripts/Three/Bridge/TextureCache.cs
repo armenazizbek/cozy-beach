@@ -36,6 +36,8 @@ namespace THREE.Bridge
         {
             if (t == null || t.disposed) return null;
             if (t.userData.TryGetValue("renderTarget", out var rtObj) && rtObj is WebGLRenderTarget rt) return rt.Ensure();
+            // a picture Unity already holds (the camera's photos): used as it is, and owned by whoever made it
+            if (t.userData.TryGetValue("unity", out var uObj) && uObj is UnityEngine.Texture ut) return ut;
             if (!cache.TryGetValue(t, out var e))
             {
                 e = new Entry();

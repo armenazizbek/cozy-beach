@@ -87,6 +87,8 @@ public class GameData
     public string lighting = "cycle";
     public Dictionary<string, int> found = new Dictionary<string, int>();
     public int nextUid = 1;
+    /// <summary>photos taken with the camera, oldest first</summary>
+    public List<PhotoInfo> photos = new List<PhotoInfo>();
 
     public GameData DeepClone() => JsonConvert.DeserializeObject<GameData>(JsonConvert.SerializeObject(this, SaveGame.Json), SaveGame.Json);
 }
@@ -572,6 +574,34 @@ public class StateManager
     {
         data.lighting = mode;
         emit();
+    }
+
+    // ---------------------------------------------------------------- photos
+
+    public List<PhotoInfo> photos => data.photos ??= new List<PhotoInfo>();
+    public int pinnedCount => photos.Count(p => p.pinned);
+
+    /// <summary>Adds a new photo to the album, pinned to the board while it has room.</summary>
+    public void addPhoto(string id, string caption)
+    {
+        photos.Add(new PhotoInfo { id = id, caption = caption, pinned = pinnedCount < Photos.BOARD_SLOTS });
+        emit();
+    }
+
+    /// <summary>Pins a photo to the board or takes it down. False when the board is already full.</summary>
+    public bool togglePin(string id)
+    {
+        var p = photos.FirstOrDefault(x => x.id == id);
+        if (p == null) return false;
+        if (!p.pinned && pinnedCount >= Photos.BOARD_SLOTS) return false;
+        p.pinned = !p.pinned;
+        emit();
+        return true;
+    }
+
+    public void removePhoto(string id)
+    {
+        if (photos.RemoveAll(x => x.id == id) > 0) emit();
     }
 
     public int totalDefs => Items.ITEM_DEFS.Length;

@@ -34,6 +34,7 @@ public class AutoShot : MonoBehaviour
             : Path.Combine(Application.persistentDataPath, "autoshot");
         Directory.CreateDirectory(dir);
         Storage.UseFolder(Path.Combine(dir, "saves"));
+        Photos.exportRoot = Path.Combine(dir, "pictures");
 
         var go = new GameObject("AutoShot");
         DontDestroyOnLoad(go);
@@ -157,6 +158,107 @@ public class AutoShot : MonoBehaviour
                 game.smokeTestClose(what);
                 yield return Wait(0.8f);
             }
+        }
+
+        // -autoshot-photo: raise the camera, take three photos, look at the board and the album, then save, load and look again
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-photo") >= 0)
+        {
+            // the dog from a distance: lying down until the camera comes up, then sitting and posing
+            game.smokeTestFaceDog(9);
+            yield return Wait(3);
+            yield return Shot("4a-dog-far.png");
+            game.smokeTestRaiseCamera();
+            yield return Wait(3);
+            yield return Shot("4a-dog-far-pose.png");
+            game.smokeTestFaceDog(3);
+            yield return Wait(2.5f);
+            game.smokeTestTakePhoto();
+            yield return Wait(0.6f);
+            yield return Shot("4a-dog-close-pose.png");
+            Debug.Log("[AutoShot] photo copied to: " + (game.smokeTestExportPhoto() ?? "(failed)"));
+            game.smokeTestLook(0, -0.12);
+            yield return Wait(1.5f);
+            yield return Shot("4-viewfinder.png");
+            foreach (var yaw in new[] { 0.0, Math.PI, Math.PI / 2 })
+            {
+                game.smokeTestLook(yaw, -0.05);
+                yield return Wait(1.2f);
+                game.smokeTestTakePhoto();
+                yield return Wait(1.2f);
+            }
+            Debug.Log($"[AutoShot] photos in the album: {game.smokeTestPhotoCount}");
+            game.smokeTestLowerCamera();
+            game.smokeTestFacePhotoBoard();
+            yield return Wait(2);
+            yield return Shot("4b-board.png");
+            game.smokeTestOpen("camp:photos");
+            yield return Wait(1.5f);
+            yield return Shot("4c-album.png");
+            game.smokeTestClose("camp:photos");
+            yield return Wait(0.5f);
+            Debug.Log("[AutoShot] photo save written: " + game.smokeTestSave("phototest"));
+            Photos.clearCache();
+            SaveGame.requestLoad("phototest");
+            var before = game;
+            GameHost.Reload();
+            t0 = Time.realtimeSinceStartup;
+            while ((GameHost.Instance == null || GameHost.Instance.game == null || GameHost.Instance.game == before || !GameHost.Instance.game.loaded)
+                   && Time.realtimeSinceStartup - t0 < 180)
+                yield return null;
+            game = GameHost.Instance.game;
+            yield return Wait(4);
+            Debug.Log($"[AutoShot] photos after loading: {game.smokeTestPhotoCount}");
+            game.smokeTestFacePhotoBoard();
+            yield return Wait(2);
+            yield return Shot("4d-board-loaded.png");
+        }
+
+        // -autoshot-settings: the settings screen, then the same view at the narrowest, the usual and the widest field of view
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-settings") >= 0)
+        {
+            game.smokeTestSettings(true);
+            yield return Wait(1.5f);
+            yield return Shot("6-settings.png");
+            game.smokeTestSettings(false);
+            Debug.Log("[AutoShot] invert look: " + game.smokeTestInvert());
+            foreach (var fov in new[] { 40.0, 50.0, 70.0 })
+            {
+                game.smokeTestFov(fov);
+                yield return Wait(1.5f);
+                yield return Shot($"6-fov-{fov:0}.png");
+            }
+            game.smokeTestFov(50);
+        }
+
+        // -autoshot-photo-alt: the camera under the sea and in the room under the dunes
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-photo-alt") >= 0)
+        {
+            foreach (var place in new[] { "dive", "underground" })
+            {
+                game.smokeTestGo(place);
+                yield return Wait(3);
+                yield return Shot($"5-{place}-1-arrived.png");
+                game.smokeTestAltCamera(true);
+                yield return Wait(0.3f);
+                game.smokeTestLowerCamera();
+                yield return Wait(1.2f);
+                yield return Shot($"5-{place}-2-camera-in-hand.png");
+                game.smokeTestAltCamera(false);
+                game.smokeTestAltCamera(true);
+                yield return Wait(1.2f);
+                yield return Shot($"5-{place}-3-viewfinder.png");
+                int had = game.smokeTestPhotoCount;
+                game.smokeTestTakePhoto();
+                yield return Wait(1.2f);
+                Debug.Log($"[AutoShot] {place}: photos {had} -> {game.smokeTestPhotoCount}, copied to {game.smokeTestExportPhoto() ?? "(failed)"}");
+                game.smokeTestAltCamera(false);
+                yield return Wait(1);
+                yield return Shot($"5-{place}-4-put-away.png");
+                game.smokeTestGo("out");
+                yield return Wait(3);
+                Debug.Log($"[AutoShot] back from {place}: {game.smokeTestWhere()}");
+            }
+            yield return Shot("5-back-on-the-beach.png");
         }
 
         // three.js yaw: 0 looks toward -z (the camp), PI toward +z (the sea)

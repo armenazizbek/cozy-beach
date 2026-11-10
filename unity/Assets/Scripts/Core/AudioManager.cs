@@ -447,6 +447,15 @@ public class AudioManager
 
     public void ui() => tone(660, 0.07, Wave.Sine, 0.1);
 
+    /// <summary>The camera's shutter: a sharp click as it opens and a softer one as it closes, then the little film wind.</summary>
+    public void shutter()
+    {
+        noise(0.025, 0.45, Filter.Highpass, 4200, 1);
+        tone(2200, 0.02, Wave.Square, 0.05);
+        noise(0.035, 0.32, Filter.Bandpass, 2600, 1.4, 0.07);
+        noise(0.22, 0.07, Filter.Bandpass, 1400, 3, 0.16, 2200);
+    }
+
     public void error() => tone(200, 0.18, Wave.Sine, 0.12, 0, 150);
 
     public void coin()

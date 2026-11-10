@@ -52,10 +52,11 @@ public static class Help
                         new string[] { "W A S D", "Walk. Hold Shift to hurry." },
                         new string[] { "Mouse", "Look around. Click the game to take control of the mouse." },
                         new string[] { "Click", "Use the tool in your hands." },
-                        new string[] { "Right-click", "Let the bow string down, lower the binoculars, or knock down a sandcastle." },
+                        new string[] { "Right-click", "Let the bow string down, lower the binoculars or the camera, or knock down a sandcastle." },
                         new string[] { "F", "Use what is next to you: pick up a find, open the camp things, drive the cart or boat, dive." },
                         new string[] { "E", "A second action: change the radio song, pet the dog, step off the boat." },
                         new string[] { "1 and 2", "Detector and trowel. Space swaps between them." },
+                        new string[] { "3", "Camera. Click to raise it, click again to take a photo." },
                         new string[] { "5 6 7 8 4", "Binoculars, bow, flags, bucket, toy pistol (once you own them). Scroll also changes tool." },
                         new string[] { "M", "Open the map. T switches between the maps you have." },
                         new string[] { "N", "Mute the sound." },
@@ -74,7 +75,7 @@ public static class Help
                         new string[] { "X", "The second action (the same as E)." },
                         new string[] { "Y", "Open the map. LB and RB switch maps while it is open." },
                         new string[] { "LB / RB", "Change tool." },
-                        new string[] { "D-pad", "Up detector, right trowel, down binoculars, left the other tools." },
+                        new string[] { "D-pad", "Up detector, right trowel, down binoculars, left the camera and the other tools." },
                         new string[] { "Start / Back", "Pause / mute." },
                     },
                 },
@@ -164,7 +165,7 @@ public static class Help
                 new HelpBlock
                 {
                     h = "Other tools",
-                    list = new string[] { "Binoculars (5): click to zoom. They show the distance to what you are looking at.", "Bucket and spade (8): build sandcastles. Click to add to one. The sea and the rain wash them away.", "Bow (6): hold click to draw, release to shoot. Toy pistol (4): click to shoot. Crabs, gulls, sharks and coconuts pay a few coins when hit." },
+                    list = new string[] { "Camera (3): click to raise it, click again to take a photo. It also works underwater and in the room under the dunes. Your photos are on the board by the fire, where you can look at them, pin them, save them to your Pictures folder or throw them away.", "Binoculars (5): click to zoom. They show the distance to what you are looking at.", "Bucket and spade (8): build sandcastles. Click to add to one. The sea and the rain wash them away.", "Bow (6): hold click to draw, release to shoot. Toy pistol (4): click to shoot. Crabs, gulls, sharks and coconuts pay a few coins when hit." },
                 },
                 new HelpBlock
                 {

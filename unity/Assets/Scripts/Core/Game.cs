@@ -113,7 +113,8 @@ public class Game
     private Interaction interaction2 = null;
     private double lookOffset = 0;
     private double dustTimer = 0;
-    private double baseFov = 50;
+    /// <summary>the view angle when nothing zooms or widens it; the player sets it in Settings</summary>
+    private double baseFov => Math.Max(GameSettings.FOV_MIN, Math.Min(GameSettings.FOV_MAX, settings.fov));
     private Waypoint waypoint = null;
     private THREE.Mesh beam;
     public readonly Ecology ecology;
@@ -179,6 +180,19 @@ public class Game
     private bool wasRaining = false;
     private int zoomIdx = 0;
     private bool binocView = false;
+    /// <summary>the camera is raised to the eye, showing the viewfinder</summary>
+    private bool camView = false;
+    /// <summary>
+    /// Underwater and in the room under the hatch the beach tools stay behind, but the camera can be taken out (3). True while
+    /// it is in the hands there; <see cref="tool"/> keeps the beach tool for the way back.
+    /// </summary>
+    private bool altCamera = false;
+    private bool holdingCamera => alt ? altCamera : tool == 3;
+    /// <summary>a photo is taken right after this frame's picture is drawn, so it shows exactly what the player sees</summary>
+    private bool photoPending = false;
+    private double lastPhoto = -10000;
+    /// <summary>the pinned photos last put on the board, so it is only redone when they change</summary>
+    private string boardKey = null;
     private string rangeText = "—";
     private int rangeTick = 0;
     private THREE.Raycaster rayCaster = new THREE.Raycaster();
@@ -364,6 +378,8 @@ public class Game
         }
         state.subscribe(showDecor);
         showDecor();
+        state.subscribe(refreshPhotoBoard);
+        refreshPhotoBoard();
         achievements.onUnlock = a =>
         {
             audio.discover();
@@ -484,6 +500,100 @@ public class Game
 
     /// <summary>For the -autoshot smoke test: opens the achievements list (the screen with the most emoji).</summary>
     internal void smokeTestAchievements() => showAchievements();
+
+    /// <summary>For the -autoshot-photo test: picks up the camera and raises it.</summary>
+    internal void smokeTestRaiseCamera()
+    {
+        selectSlot(3);
+        setCamView(true);
+    }
+
+    /// <summary>For the -autoshot-photo test: takes a photo, as a click with the camera raised does.</summary>
+    internal void smokeTestTakePhoto()
+    {
+        lastPhoto = -10000;
+        takePhoto();
+    }
+
+    internal void smokeTestLowerCamera() => setBinocView(false);
+
+    internal int smokeTestPhotoCount => state.photos.Count;
+
+    /// <summary>For the -autoshot-photo test: stands a few steps from the dog, looking at it.</summary>
+    internal void smokeTestFaceDog(double dist)
+    {
+        // from the sea side, so the fire and the camp are behind the dog
+        player.x = dog.x + 0.6;
+        player.z = dog.z + dist;
+        player.yaw = Math.Atan2(-(dog.x - player.x), -(dog.z - player.z));
+        player.pitch = -0.22;
+    }
+
+    /// <summary>For the -autoshot-photo-alt test: goes under the sea or under the dunes, or back out, as the game does.</summary>
+    internal void smokeTestGo(string where)
+    {
+        if (where == "dive")
+        {
+            state.data.ownsDiveGear = true;
+            enterDive();
+        }
+        else if (where == "underground") enterUnderground();
+        else if (diving) leaveDive();
+        else if (underground) leaveUnderground();
+    }
+
+    /// <summary>For the -autoshot-photo-alt test: takes the camera out down there and raises it, or puts it away.</summary>
+    internal void smokeTestAltCamera(bool on)
+    {
+        setAltCamera(on);
+        if (on) setCamView(true);
+    }
+
+    /// <summary>For the -autoshot-settings test: changes the view angle for this run only (nothing is saved).</summary>
+    internal void smokeTestFov(double fov)
+    {
+        settings.fov = fov;
+        applySettings();
+    }
+
+    /// <summary>For the -autoshot-settings test: how far the same push forward tilts the view, plain and inverted, for the mouse and the stick.</summary>
+    internal string smokeTestInvert()
+    {
+        double tilt(bool stick, bool invert)
+        {
+            bool m = settings.invertMouse, s = settings.invertStick;
+            settings.invertMouse = settings.invertStick = invert;
+            double before = player.pitch;
+            applyLook(0, -40, stick);
+            double moved = player.pitch - before;
+            player.pitch = before;
+            settings.invertMouse = m;
+            settings.invertStick = s;
+            return moved;
+        }
+        return $"mouse forward: plain {tilt(false, false):0.000}, inverted {tilt(false, true):0.000}; stick forward: plain {tilt(true, false):0.000}, inverted {tilt(true, true):0.000}";
+    }
+
+    internal void smokeTestSettings(bool open)
+    {
+        if (open) openSettings();
+        else ui.closeSettings();
+    }
+
+    internal string smokeTestExportPhoto() => state.photos.Count > 0 ? Photos.export(state.photos[state.photos.Count - 1].id) : null;
+
+    /// <summary>For the -autoshot-photo test: saves the game under a fixed id, so it can be loaded again.</summary>
+    internal bool smokeTestSave(string id) => writeSave(snapshot(), "Photo test", id) != null;
+
+    /// <summary>For the -autoshot-photo test: stands in front of the photo board, looking at it.</summary>
+    internal void smokeTestFacePhotoBoard()
+    {
+        var at = camp.photoBoardFront(3.2);
+        player.x = at.x;
+        player.z = at.z;
+        player.yaw = at.yaw;
+        player.pitch = -0.08;
+    }
 
     /// <summary>
     /// For the -autoshot-tour smoke test: opens one of the text-heavy screens ("camp:board", "camp:sell", "book", "mail",
@@ -666,6 +776,13 @@ public class Game
         if (underground)
         {
             if (button == 0 && gameState == "EXPLORE" && !locked && !usingPad) requestLock(true);
+            if (altCamera && gameState == "EXPLORE") cameraClick(button);
+            return;
+        }
+        if (diving && altCamera && gameState == "EXPLORE")
+        {
+            if (button == 0 && !locked && !usingPad) requestLock(true);
+            cameraClick(button);
             return;
         }
         if (diving)
@@ -682,7 +799,7 @@ public class Game
         if (button == 2)
         {
             if (gameState == "EXPLORE" && tool == 8) knockCastle();
-            else if (binocView) setBinocView(false);
+            else if (binocView || camView) setBinocView(false);
             return;
         }
         if (button != 0) return;
@@ -694,6 +811,11 @@ public class Game
             if (!binocView) setBinocView(true);
             else zoomIdx = 1 - zoomIdx;
             audio.ui();
+            return;
+        }
+        if (gameState == "EXPLORE" && tool == 3)
+        {
+            cameraClick(0);
             return;
         }
         if (gameState == "EXPLORE" && tool == 6) return; // the bow works on press and release
@@ -808,12 +930,14 @@ public class Game
         }
         // mouse look: with the pointer locked, or right-drag while the cursor is free
         if (Math.Abs(dx) + Math.Abs(dy) > 1) setUsingPad(false);
-        if (locked || (buttons & 2) != 0) applyLook(dx, dy);
+        if (locked || (buttons & 2) != 0) applyLook(dx, dy, false);
     }
 
     /// <summary>Turns the view by a mouse-sized amount of movement (pixels); the controller's right stick feeds it too.</summary>
-    private void applyLook(double dx, double dy)
+    private void applyLook(double dx, double dy, bool fromStick)
     {
+        // inverted look: forward on the mouse or the stick looks down
+        if (fromStick ? settings.invertStick : settings.invertMouse) dy = -dy;
         if (driving)
         {
             lookOffset = Math.Min(1.5, Math.Max(-1.5, lookOffset - dx * 0.0022));
@@ -884,7 +1008,7 @@ public class Game
     /// <summary>The tools the player can scroll through, in order. Flags only while there are some left.</summary>
     private List<int> toolOrder()
     {
-        var order = new List<int> { 1, 2, 5 };
+        var order = new List<int> { 1, 2, 3, 5 };
         if (state.data.flags > 0) order.Add(7);
         if (state.data.ownsBucket) order.Add(8);
         if (state.data.ownsBow) order.Add(6);
@@ -897,8 +1021,14 @@ public class Game
     private void onWheel(double d)
     {
         double now = JS.Now();
-        if (!started || paused || driving || alt || gameState != "EXPLORE" || now - lastWheel < 180) return;
+        if (!started || paused || driving || gameState != "EXPLORE" || now - lastWheel < 180) return;
         lastWheel = now;
+        if (alt)
+        {
+            // down there the wheel only has the camera to take out or put away
+            setAltCamera(!altCamera);
+            return;
+        }
         var order = toolOrder();
         int i = Math.Max(0, order.IndexOf(tool));
         selectSlot(order[(i + (d > 0 ? 1 : order.Count - 1)) % order.Count]);
@@ -1045,7 +1175,8 @@ public class Game
         if (underground)
         {
             if (code == "KeyF") interaction?.run?.Invoke();
-            else if (code.StartsWith("Digit")) ui.toast("There is nothing to dig or shoot down here.");
+            else if (code == "Digit3") setAltCamera(!altCamera);
+            else if (code.StartsWith("Digit")) ui.toast("There is nothing to dig or shoot down here. Only the camera (3) works.");
             return;
         }
         if (diving)
@@ -1053,7 +1184,8 @@ public class Game
             // Q swims back up; F picks up what is in reach
             if (code == "KeyQ") leaveDive();
             else if (code == "KeyF") interaction?.run?.Invoke();
-            else if (code.StartsWith("Digit")) ui.toast("Down here the harpoon is your only tool.");
+            else if (code == "Digit3") setAltCamera(!altCamera);
+            else if (code.StartsWith("Digit")) ui.toast("Down here you only have the harpoon and the camera (3).");
             return;
         }
         if (driving && code != "KeyF" && code != "KeyE") return;
@@ -1073,6 +1205,7 @@ public class Game
                 break;
             case "Digit1": selectSlot(1); break;
             case "Digit2": selectSlot(2); break;
+            case "Digit3": selectSlot(3); break;
             case "Digit4": selectSlot(4); break;
             case "Digit5": selectSlot(5); break;
             case "Digit6": selectSlot(6); break;
@@ -1094,9 +1227,55 @@ public class Game
         if (drawing) cancelDraw();
         bool v = on && tool == 5;
         binocView = v;
+        // lowering the binoculars lowers the camera too, so every "put it down" in the game covers both
+        if (!on) camView = false;
         if (v) discover("binocs_first");
         if (v) zoomIdx = 0;
-        view.setRaised(v);
+        view.setRaised(v || camView);
+    }
+
+    /// <summary>Raises the camera to the eye (the viewfinder) or lowers it back into the hands.</summary>
+    private void setCamView(bool on)
+    {
+        if (drawing) cancelDraw();
+        binocView = false;
+        camView = on && holdingCamera;
+        view.setRaised(camView);
+        audio.ui();
+    }
+
+    /// <summary>A click with the camera in the hands: the first raises it to the eye, the next ones take photos; the right button lowers it.</summary>
+    private void cameraClick(int button)
+    {
+        if (button == 2)
+        {
+            if (camView) setBinocView(false);
+        }
+        else if (button == 0)
+        {
+            if (!camView) setCamView(true);
+            else takePhoto();
+        }
+    }
+
+    /// <summary>Underwater or under the dunes: takes the camera out, or puts it away again (the harpoon comes back underwater).</summary>
+    private void setAltCamera(bool on)
+    {
+        if (!alt || transitioning || gameState != "EXPLORE" || on == altCamera) return;
+        setBinocView(false);
+        altCamera = on;
+        if (on)
+        {
+            view.setTool(3);
+            ui.setBadgeText("📷", "Camera");
+        }
+        else if (diving) applyDiveHands();
+        else
+        {
+            view.setTool(0);
+            ui.setTool(0);
+        }
+        audio.ui();
     }
 
     private void selectSlot(int n)
@@ -1104,7 +1283,8 @@ public class Game
         if (!started && n != 1) return;
         if (alt)
         {
-            ui.toast(underground ? "There is nothing to dig or shoot down here." : "Down here the harpoon is your only tool.");
+            if (n == 3) setAltCamera(!altCamera);
+            else ui.toast(underground ? "There is nothing to dig or shoot down here. Only the camera works." : "Down here you only have the harpoon and the camera.");
             return;
         }
         if (n == 8 && !state.data.ownsBucket)
@@ -1129,16 +1309,10 @@ public class Game
         }
         if (vehicle == "boat" && (n == 1 || n == 2 || n == 7 || n == 8))
         {
-            ui.toast("Out on the boat you can only use the binoculars or a weapon.");
+            ui.toast("Out on the boat you can only use the binoculars, the camera or a weapon.");
             return;
         }
         if (gameState == "INSPECT" || transitioning) return;
-        if (n == 3)
-        {
-            if (gameState == "CAMP") closeCamp();
-            else openCamp("rest");
-            return;
-        }
         if (gameState == "CAMP") closeCamp();
         tool = n;
         setBinocView(false);
@@ -1147,6 +1321,76 @@ public class Game
         detector.setActive(n == 1);
         dig.setActive(n == 2);
         audio.ui();
+    }
+
+    // ---------------------------------------------------------------- photos
+
+    /// <summary>Asks for a photo of the next frame (see <see cref="capturePhoto"/>).</summary>
+    private void takePhoto()
+    {
+        double now = JS.Now();
+        if (now - lastPhoto < 700 || photoPending) return;
+        if (state.photos.Count >= Photos.MAX_PHOTOS)
+        {
+            audio.error();
+            ui.toast("Your album is full. Throw a few photos away at the photo board in camp.");
+            return;
+        }
+        lastPhoto = now;
+        photoPending = true;
+    }
+
+    /// <summary>Takes the photo: this frame's view of the world, without the hands or the page on top.</summary>
+    private void capturePhoto()
+    {
+        photoPending = false;
+        if (!(camView && holdingCamera && gameState == "EXPLORE")) return;
+        // underwater the page lays a soft blue over the whole view; the photo gets the same, so it shows what the diver saw
+        var tex = diving
+            ? renderer.CapturePhoto(camera, 900, new UnityEngine.Color32(15, 85, 125, 255), 0.24f)
+            : renderer.CapturePhoto(camera);
+        string id = tex != null ? Photos.save(tex) : null;
+        if (id == null)
+        {
+            audio.error();
+            ui.toast("The camera jammed. Try again.");
+            return;
+        }
+        audio.shutter();
+        ui.photoFlash();
+        dog.photographed();
+        state.addPhoto(id, photoCaption());
+        discover("photo_first");
+    }
+
+    /// <summary>Written under each photo: the day, the time of day and where it was taken.</summary>
+    private string photoCaption()
+    {
+        double t = dayTime;
+        string when = rain.amount > 0.4 ? "a rainy day"
+            : t < 0.08 || t > 0.94 ? "dawn"
+            : t < 0.2 ? "morning"
+            : t < 0.42 ? "midday"
+            : t < 0.5 ? "afternoon"
+            : t < 0.64 ? "sunset"
+            : "night";
+        if (underground) return $"Day {state.data.day} · under the dunes";
+        string where = diving ? "under the sea"
+            : onIsland ? "the island"
+            : vehicle == "boat" ? "out at sea"
+            : JS.Hypot(player.x, player.z - CAMP_Z) < 16 ? "camp"
+            : "the beach";
+        return $"Day {state.data.day} · {when} · {where}";
+    }
+
+    /// <summary>Puts the pinned photos on the camp's photo board, oldest first, when they have changed.</summary>
+    private void refreshPhotoBoard()
+    {
+        var pinned = state.photos.Where(p => p.pinned).Take(Photos.BOARD_SLOTS).ToList();
+        var key = string.Join(",", pinned.Select(p => p.id));
+        if (key == boardKey) return;
+        boardKey = key;
+        camp.setPhotos(pinned.Select(p => (UnityEngine.Texture)Photos.get(p.id)).Where(t => t != null).ToList());
     }
 
     // ---------------------------------------------------------------- shooting
@@ -1432,7 +1676,7 @@ public class Game
         {
             { "fire", "rest" }, { "bin", "recycle" }, { "board", "board" }, { "bench", "sell" },
             { "lantern", null }, { "camper", "upgrades" }, { "radio", null }, { "coffee", null },
-            { "book", null }, { "post", null }, { "hammock", null }, { "sign", null },
+            { "book", null }, { "post", null }, { "hammock", null }, { "sign", null }, { "photos", "photos" },
         };
         if (kind == "coffee")
         {
@@ -1859,6 +2103,7 @@ public class Game
         if (underground)
         {
             if (down && b == "a") padKey("KeyF");
+            else if (down && b == "left") setAltCamera(!altCamera);
             else if (down && b == "start") padKey("Escape");
             else if (down && b == "back") padKey("KeyN");
             return;
@@ -1870,6 +2115,7 @@ public class Game
             else if (b == "lb") lift.down = down;
             else if (down && b == "a") padKey("KeyF");
             else if (down && b == "x") padKey("KeyQ");
+            else if (down && b == "left") setAltCamera(!altCamera);
             else if (down && b == "start") padKey("Escape");
             else if (down && b == "back") padKey("KeyN");
             return;
@@ -1988,7 +2234,7 @@ public class Game
         {
             double sx = JS.Sign(lk.x) * Math.Pow(Math.Abs(lk.x), 1.6);
             double sy = JS.Sign(lk.y) * Math.Pow(Math.Abs(lk.y), 1.6);
-            applyLook(sx * dt * 950, sy * dt * 650);
+            applyLook(sx * dt * 950, sy * dt * 650, true);
         }
         // L3 is a tap: it latches running while the stick is held, and letting go of the stick ends the run
         bool l3 = pad.isDown("l3");
@@ -2022,6 +2268,14 @@ public class Game
         bool changed = renderer.shadowMap.enabled != st.shadows;
         renderer.shadowMap.enabled = st.shadows;
         sky.sun.castShadow = st.shadows;
+        // the view angle: shown at once unless something is zooming it, and the hands keep the size they were drawn for
+        if (!binocView && !drawing && gameState != "MENU")
+        {
+            camera.fov = baseFov;
+            camera.updateProjectionMatrix();
+        }
+        double hands = Math.Tan(THREE.MathUtils.degToRad(baseFov / 2)) / Math.Tan(THREE.MathUtils.degToRad(GameSettings.FOV_DEFAULT / 2));
+        view.group.scale.set(hands, hands, 1);
         if (changed)
         {
             // lit materials were compiled with or without shadows, so ask for a rebuild
@@ -2493,7 +2747,7 @@ public class Game
             double dz(double v, double zone) => Math.Abs(v) < zone ? 0 : JS.Sign(v) * (Math.Abs(v) - zone) / (1 - zone);
             double zk = camera.fov / baseFov;
             p.yaw -= dz(x, 0.15) * 2.6 * dt * zk * settings.sensitivity;
-            p.pitch = Math.Min(1.45, Math.Max(-1.45, p.pitch + dz(y, 0.2) * 1.5 * dt * zk * settings.sensitivity));
+            p.pitch = Math.Min(1.45, Math.Max(-1.45, p.pitch + dz(y, 0.2) * 1.5 * dt * zk * settings.sensitivity * (settings.invertMouse ? -1 : 1)));
         }
         if (started && gameState == "EXPLORE")
         {
@@ -2636,6 +2890,7 @@ public class Game
         {
             diveReturn = new PlayerPose { x = player.x, z = player.z, yaw = player.yaw, pitch = player.pitch };
             underground = true;
+            altCamera = false;
             hideLand(true);
             spawner.group.visible = false;
             cellar.setActive(true);
@@ -2666,6 +2921,8 @@ public class Game
         ui.fade(() =>
         {
             var r = diveReturn;
+            setBinocView(false);
+            altCamera = false;
             underground = false;
             cellar.setActive(false);
             sky.setUnderground(false);
@@ -2845,6 +3102,7 @@ public class Game
         {
             diveReturn = new PlayerPose { x = player.x, z = player.z, yaw = player.yaw, pitch = player.pitch };
             diving = true;
+            altCamera = false;
             hideLand(true);
             under.setActive(true);
             sky.setUnderwater(true);
@@ -2873,6 +3131,8 @@ public class Game
         ui.fade(() =>
         {
             var r = diveReturn;
+            setBinocView(false);
+            altCamera = false;
             diving = false;
             under.setActive(false);
             sky.setUnderwater(false);
@@ -3179,7 +3439,7 @@ public class Game
             double dz(double v, double zone) => Math.Abs(v) < zone ? 0 : JS.Sign(v) * (Math.Abs(v) - zone) / (1 - zone);
             double zk = camera.fov / baseFov;
             p.yaw -= dz(x, 0.15) * 2.6 * dt * zk * settings.sensitivity;
-            p.pitch = Math.Min(1.45, Math.Max(-1.45, p.pitch + dz(y, 0.2) * 1.5 * dt * zk * settings.sensitivity));
+            p.pitch = Math.Min(1.45, Math.Max(-1.45, p.pitch + dz(y, 0.2) * 1.5 * dt * zk * settings.sensitivity * (settings.invertMouse ? -1 : 1)));
         }
         // a few steps around the deck, relative to where the player is looking
         double f = Math.Max(-1, Math.Min(1, (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0) - pad.move.y));
@@ -3921,13 +4181,15 @@ public class Game
     private static readonly Dictionary<string, double> CAMP_REACH = new Dictionary<string, double>
     {
         { "fire", 3.2 }, { "bin", 2.4 }, { "board", 2.8 }, { "bench", 2.4 }, { "lantern", 2.2 }, { "camper", 3.6 },
-        { "radio", 2.6 }, { "coffee", 2.2 }, { "book", 2.6 }, { "post", 2.6 }, { "hammock", 2.8 }, { "sign", 2.6 },
+        { "radio", 2.6 }, { "coffee", 2.2 }, { "book", 2.6 }, { "post", 2.6 }, { "hammock", 2.8 }, { "sign", 2.6 }, { "photos", 2.8 },
     };
 
     private void updateDog(double dt, double t)
     {
         dogEnv.playerX = player.x;
         dogEnv.playerZ = player.z;
+        // a raised camera makes a resting dog sit up and pose
+        dog.cameraUp = camView && tool == 3 && gameState == "EXPLORE";
         dog.update(dt, t, dogEnv);
         if (dog.state == "find" && dogWas == "run")
         {
@@ -4053,6 +4315,7 @@ public class Game
                 { "fire", "Rest by the campfire" },
                 { "bin", "Recycle your trash" },
                 { "board", "Read the Lost & Found board" },
+                { "photos", state.photos.Count > 0 ? $"Look at your photos ({state.photos.Count})" : "Look at the photo board" },
                 { "bench", "Use the workbench" },
                 { "lantern", lanternOn ? "Turn the lantern off" : "Turn the lantern on" },
                 { "camper", "Open the camper (upgrades)" },
@@ -4282,6 +4545,9 @@ public class Game
 
     private void updateHint()
     {
+        bool finderOn = holdingCamera && camView && gameState == "EXPLORE" && started && !paused && !driving && hammock == null;
+        ui.setViewfinder(finderOn, state.photos.Count, Photos.MAX_PHOTOS);
+        ui.tickFlash();
         if (hammock != null)
         {
             ui.setHint("Resting... press any key to get up");
@@ -4306,19 +4572,40 @@ public class Game
         if (underground)
         {
             ui.setBinoculars(false, "", "");
-            ui.setHint(gameState == "INSPECT" ? null : "Climb the stairs and the ladder, then press F at the top to go back out");
+            if (finderOn)
+            {
+                ui.setHint(null);
+                ui.setCrosshair(false);
+                return;
+            }
+            string camKey = usingPad ? "D-pad left" : "3";
+            ui.setHint(gameState == "INSPECT" ? null
+                : altCamera ? $"Click to raise the camera · {camKey} puts it away"
+                : $"Climb the stairs and the ladder, then press F at the top to go back out · {camKey} takes out the camera");
             ui.setCrosshair(gameState == "EXPLORE");
             return;
         }
         if (diving)
         {
             ui.setBinoculars(false, "", "");
-            ui.setBadgeText("🔱", "Harpoon");
+            if (finderOn)
+            {
+                ui.setHint(null);
+                ui.setCrosshair(false);
+                return;
+            }
+            if (altCamera) ui.setBadgeText("📷", "Camera");
+            else ui.setBadgeText("🔱", "Harpoon");
+            string camKey = usingPad ? "D-pad left" : "3";
             ui.setHint(
                 gameState == "INSPECT" ? null
+                    : altCamera ? (usingPad
+                        ? $"Press RT to raise the camera · {camKey} brings back the harpoon · X swims back up"
+                        : $"Click to raise the camera · {camKey} brings back the harpoon · Q swims back up")
                     : hoveredItem != null ? "Click to pick it up"
                     : under.reloading ? "Reloading..."
-                    : "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down"
+                    : usingPad ? $"RT fires the harpoon · A picks up a find · X swims back up · left stick swims · RB up · LB down · {camKey} camera"
+                    : $"Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · {camKey} camera"
             );
             ui.setCrosshair(gameState == "EXPLORE");
             return;
@@ -4326,7 +4613,7 @@ public class Game
         bool binoc = tool == 5 && binocView && gameState == "EXPLORE";
         if (binoc) updateRange();
         ui.setBinoculars(binoc, $"x{JS.ToFixed(baseFov / camera.fov, 0)}", rangeText);
-        if (binoc)
+        if (binoc || finderOn)
         {
             ui.setHint(null);
             ui.setCrosshair(false);
@@ -4346,6 +4633,7 @@ public class Game
                 { "post", "Click: check the post" },
                 { "hammock", "Click: lie in the hammock" },
                 { "sign", "Click: change the sign" },
+                { "photos", "Click: photo board" },
             };
             campHints.TryGetValue(hoveredCamp, out hint);
         }
@@ -4373,6 +4661,10 @@ public class Game
         else if (gameState == "EXPLORE" && tool == 5)
         {
             hint = "Click to raise the binoculars and look through them";
+        }
+        else if (gameState == "EXPLORE" && tool == 3)
+        {
+            hint = "Click to raise the camera and look through the viewfinder";
         }
         else if (gameState == "EXPLORE" && tool == 4)
         {
@@ -4612,5 +4904,6 @@ public class Game
             if (near > 0 && JS.Random() < dt * (1.5 + near * 4)) audio.crackle(near);
         }
         using (THREE.Bridge.BridgeStats.Time("render(sync)")) renderer.render(scene, camera);
+        if (photoPending) capturePhoto();
     }
 }

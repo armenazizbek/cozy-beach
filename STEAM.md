@@ -13,11 +13,13 @@ What the game already does for Steam, and what is left to do on Steam's side.
 1. Pay the one-time fee and create the game in **Steamworks**. You get an **App ID**.
 2. While testing outside Steam, put the App ID in a file called `steam_appid.txt` next to the game's exe (one line, just the number). Do not ship this file to players.
 3. **Achievements:** in Steamworks open *Stats & Achievements* and create one achievement for each row of the table below, using the **API name** exactly as written (for example `FIRST_DIG`). Give each a name, a description and an icon.
-4. **Cloud saves:** open *Application > Cloud* and turn on *Steam Auto-Cloud*, then add a path:
-   - Root: `WinAppDataRoaming`
-   - Subdirectory: the game's folder under `%APPDATA%` plus `saves` (the app's name from `package.json`, so `cozy-treasure-hunter/saves`; check the real folder name on a machine that has run the game once)
-   - Pattern: `*.json`
-   - A quota of about 20 MB and 200 files is plenty.
+4. **Cloud saves:** open *Application > Cloud* and turn on *Steam Auto-Cloud*. The Unity build keeps its saves in
+   `%USERPROFILE%\AppData\LocalLow\Cozy Beach\Cozy Treasure Hunter\saves`, and the camera's photos in a `photos` folder inside it.
+   Add two paths:
+   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves`, pattern `*.json` (saves and achievements)
+   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves/photos`, pattern `*.jpg` (photos, about 100 KB each, up to 60 per game)
+   - A quota of about 200 MB and 1,000 files leaves room for several games full of photos.
+   (The Electron build kept its saves under `%APPDATA%\cozy-treasure-hunter\saves`; the Unity build copies them across on its first run.)
 5. **Uploading a build:** run `npm run dist:steam`. It makes the unpacked game folder at `release/win-unpacked`. Upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `Cozy Treasure Hunter.exe`.
 6. Fill in the store page (capsule art, screenshots, trailer, description) and the price, then submit for review.
 

@@ -240,6 +240,14 @@ public static class Journal
         },
         new JournalPage
         {
+            id = "photo_first",
+            group = "Journeys",
+            icon = "📷",
+            title = "Say Cheese",
+            text = "Click, and a moment stays put. The light, the sand, whatever the dog was doing. It is pinned on the board by the fire now, curling a little at the corners already.",
+        },
+        new JournalPage
+        {
             id = "bow_first",
             group = "Journeys",
             icon = "🏹",

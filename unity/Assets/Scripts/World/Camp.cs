@@ -7,7 +7,7 @@ using static Beach;
 
 public class Camp
 {
-    /// <summary>'fire' | 'bin' | 'board' | 'bench' | 'lantern' | 'camper' | 'radio' | 'coffee' | 'book' | 'post' | 'hammock' | 'sign'</summary>
+    /// <summary>'fire' | 'bin' | 'board' | 'photos' | 'bench' | 'lantern' | 'camper' | 'radio' | 'coffee' | 'book' | 'post' | 'hammock' | 'sign'</summary>
     public class Solid { public double x, z, r; }
 
     public struct HammockSpot { public double x, y, z, yaw, exitX, exitZ; }
@@ -94,6 +94,7 @@ public class Camp
         buildBench();
         buildBin();
         buildBoard();
+        buildPhotoBoard();
         buildPost();
         buildHammock();
         buildCamper();
@@ -106,6 +107,7 @@ public class Camp
         void solid(double lx, double lz, double r) => obstacles.Add(new Solid { x = lx, z = CAMP_Z + lz, r = r });
         solid(-12.4, 4.4, 0.7); // recycling bin
         solid(-4.7, 1.2, 1.0); // notice board
+        solid(PHOTO_AT.x, PHOTO_AT.z, 1.0); // photo board
         solid(3.7, 0.8, 1.3); // workbench (and the journal on it)
         solid(1.7, 0.9, 0.45); // coffee stump
         solid(2.2, -1.6, 0.25); // lantern pole
@@ -669,7 +671,8 @@ public class Camp
     /// <summary>Welds the fixed parts of each prop together; what moves or lights up on its own stays separate.</summary>
     private void weldProps()
     {
-        var keep = new HashSet<THREE.Object3D>(flames.Cast<THREE.Object3D>().Concat(tikiFlames).Concat(new THREE.Object3D[] { mailFlag, radioAntenna, hammockCloth, lanternGlass, shelf }));
+        var keep = new HashSet<THREE.Object3D>(flames.Cast<THREE.Object3D>().Concat(tikiFlames).Concat(new THREE.Object3D[] { mailFlag, radioAntenna, hammockCloth, lanternGlass, shelf })
+            .Concat(photoSlots.Select(p => (THREE.Object3D)p.slot)));
         foreach (var prop in group.children.ToList().Concat(new THREE.Object3D[] { radio, hammockCloth }))
         {
             keep.Remove(prop);
@@ -986,6 +989,96 @@ public class Camp
         g.rotation.y = 0.9;
         mark(g, "board");
         group.add(g);
+    }
+
+    /// <summary>where the photo board stands in the camp, and which way it faces</summary>
+    private static readonly (double x, double z, double rot) PHOTO_AT = (-3.4, -2.8, 0.53);
+    /// <summary>the polaroids on the photo board: each one's group and the material its picture is drawn with</summary>
+    private readonly List<(THREE.Group slot, THREE.MeshStandardMaterial pic)> photoSlots = new List<(THREE.Group, THREE.MeshStandardMaterial)>();
+    private readonly List<UnityEngine.Texture> shownPhotos = new List<UnityEngine.Texture>();
+
+    /// <summary>A cork board for the camera's photos, with room for eight polaroids, next to the fire.</summary>
+    private void buildPhotoBoard()
+    {
+        var g = new THREE.Group();
+        foreach (var sx in new[] { -1.08, 1.08 }) g.add(box(0.12, 2.2, 0.12, wood(0x5e4128), sx, 1.1, 0));
+        g.add(box(2.36, 1.36, 0.08, wood(0x5e4128), 0, 1.5, 0.0));
+        var cork = new THREE.MeshStandardMaterial { color = 0xc49a6c, roughness = 1 };
+        g.add(box(2.2, 1.2, 0.04, cork, 0, 1.5, 0.05));
+        g.add(box(2.5, 0.12, 0.2, wood(0x5e4128), 0, 2.25, 0));
+        var paper = new THREE.MeshStandardMaterial { color = 0xfdfbf4, roughness = 0.85 };
+        var pinMat = new THREE.MeshStandardMaterial { color = 0xd94b3e, roughness = 0.4 };
+        var tilts = new[] { -0.05, 0.04, -0.02, 0.06, 0.03, -0.06, 0.05, -0.03 };
+        for (int i = 0; i < Photos.BOARD_SLOTS; i++)
+        {
+            int col = i % 4, row = i / 4;
+            var slot = new THREE.Group();
+            var frame = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.42), paper);
+            frame.receiveShadow = true;
+            var pic = new THREE.MeshStandardMaterial { color = 0xffffff, roughness = 0.55 };
+            var picture = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3), pic);
+            picture.position.set(0, 0.03, 0.002);
+            picture.receiveShadow = true;
+            var pin = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), pinMat);
+            pin.position.set(0, 0.18, 0.02);
+            pin.castShadow = true;
+            slot.add(frame, picture, pin);
+            slot.position.set(-0.81 + col * 0.54, 1.78 - row * 0.56, 0.08);
+            slot.rotation.z = tilts[i];
+            slot.visible = false;
+            g.add(slot);
+            photoSlots.Add((slot, pic));
+        }
+        // the title, painted on a cream plate along the top beam, like the Lost & Found board
+        var cv = new HTMLCanvasElement(768, 112);
+        var c = cv.getContext("2d");
+        c.fillStyle = "#f6efe0";
+        c.fillRect(0, 0, cv.width, cv.height);
+        c.strokeStyle = "#5e4128";
+        c.lineWidth = 6;
+        c.strokeRect(9, 9, cv.width - 18, cv.height - 18);
+        c.fillStyle = "#4a3020";
+        c.font = "bold 66px Georgia, serif";
+        c.textAlign = "center";
+        c.textBaseline = "middle";
+        c.fillText("PHOTOS", cv.width / 2.0, cv.height / 2.0 + 3);
+        var tex = new THREE.CanvasTexture(cv) { colorSpace = THREE.ColorSpace.SRGBColorSpace, anisotropy = 4 };
+        var title = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.2625), new THREE.MeshStandardMaterial { map = tex, roughness = 1 });
+        title.position.set(0, 2.25, 0.105);
+        g.add(title);
+        g.position.set(PHOTO_AT.x, 0, PHOTO_AT.z);
+        g.rotation.y = PHOTO_AT.rot;
+        mark(g, "photos", 1.2, 1.4);
+        group.add(g);
+    }
+
+    /// <summary>A spot in front of the photo board, in world space, and the yaw that looks straight at it.</summary>
+    public (double x, double z, double yaw) photoBoardFront(double dist)
+    {
+        double r = PHOTO_AT.rot;
+        return (PHOTO_AT.x + Math.Sin(r) * dist, CAMP_Z + PHOTO_AT.z + Math.Cos(r) * dist, r);
+    }
+
+    /// <summary>Pins these pictures to the photo board, in order; the rest of the board stays empty.</summary>
+    public void setPhotos(IList<UnityEngine.Texture> pics)
+    {
+        for (int i = 0; i < photoSlots.Count; i++)
+        {
+            var (slot, mat) = photoSlots[i];
+            var tex = i < pics.Count ? pics[i] : null;
+            slot.visible = tex != null;
+            var was = i < shownPhotos.Count ? shownPhotos[i] : null;
+            if (tex == was) continue;
+            if (tex != null)
+            {
+                var t = new THREE.Texture { colorSpace = THREE.ColorSpace.SRGBColorSpace };
+                t.userData["unity"] = tex;
+                mat.map = t;
+                mat.needsUpdate = true;
+            }
+        }
+        shownPhotos.Clear();
+        for (int i = 0; i < photoSlots.Count; i++) shownPhotos.Add(i < pics.Count ? pics[i] : null);
     }
 
     /// <summary>A little house on wheels parked beside the fire.</summary>
