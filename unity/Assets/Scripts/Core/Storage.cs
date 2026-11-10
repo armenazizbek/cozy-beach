@@ -25,6 +25,15 @@ public static class Storage
         }
     }
 
+    /// <summary>The folder the saves are in (photos keep a folder of their own inside it).</summary>
+    internal static string Folder
+    {
+        get
+        {
+            lock (gate) return Dir;
+        }
+    }
+
     /// <summary>Keeps saves in another folder for this run (the -autoshot smoke test, so it never touches real saves).</summary>
     internal static void UseFolder(string folder)
     {

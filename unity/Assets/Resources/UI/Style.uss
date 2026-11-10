@@ -1108,6 +1108,85 @@
   -unity-text-align: middle-center;
 }
 
+/* The camera's album (camp page "Photos") and its full-screen flash. Unity only: the browser build has no camera. */
+.photo-flash {
+  background-color: #ffffff;
+}
+
+.photo-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.photo-card {
+  width: 48%;
+  margin-bottom: 12px;
+  padding: 7px 7px 6px 7px;
+  background-color: #fdfbf4;
+  border-radius: 3px;
+  border-width: 2px;
+  border-color: #fdfbf4;
+}
+
+.photo-card.pinned {
+  border-color: #d94b3e;
+}
+
+.photo-card .t-img {
+  display: flex;
+  width: 100%;
+  height: 150px;
+  -unity-background-scale-mode: scale-and-crop;
+}
+
+.photo-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 4px 0 14px 0;
+  padding: 10px 10px 8px 10px;
+  background-color: #fdfbf4;
+  border-radius: 3px;
+}
+
+.photo-big .t-img {
+  display: flex;
+  width: 100%;
+  height: 310px;
+  -unity-background-scale-mode: scale-to-fit;
+}
+
+.photo-cap {
+  display: flex;
+  margin: 5px 0 6px 0;
+  -unity-font-style: italic;
+  font-size: 12px;
+  color: #4a3020;
+  -unity-text-align: middle-center;
+}
+
+.photo-btns {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.photo-btns .btn {
+  margin: 2px 3px;
+}
+
+.photo-missing {
+  height: 150px;
+  font-size: 12px;
+  color: #8a6f55;
+  -unity-text-align: middle-center;
+  background-color: #efe4cc;
+}
+
 .upgrades {
   /* display: grid; grid-template-columns: 1fr 1fr; gap: 12px; */
   display: flex;

@@ -181,6 +181,25 @@ public class Dog
     private bool wantSit = false;
     /// <summary>seconds left of the happy reaction to being petted</summary>
     private double loveT = 0;
+    /// <summary>set by the game while the player has the camera raised: a resting dog nearby sits up and poses for it</summary>
+    public bool cameraUp = false;
+    /// <summary>how far away the dog still notices the camera</summary>
+    private const double POSE_RANGE = 14;
+    /// <summary>0..1, how much the dog is posing right now</summary>
+    private double poseAmt = 0;
+    /// <summary>which way the head tilts for this pose</summary>
+    private double tiltSide = 1;
+    private bool wasPosing = false;
+
+    /// <summary>True while the dog is sitting for a photo.</summary>
+    public bool posing => poseAmt > 0.5;
+
+    /// <summary>The shutter clicked while the dog was posing: the tail goes wild for a moment.</summary>
+    public void photographed()
+    {
+        if (state != "rest" || poseAmt < 0.3) return;
+        loveT = Math.Max(loveT, 0.55);
+    }
     private double dig = 0, sniffAmt = 0, kick = 0, barkT = 0, dustT = 0, workT = 0, pauseT = 0, pathT = 0, stride = 0;
     private bool stepSide = false;
     private List<Waypoint> path = new List<Waypoint>();
@@ -591,12 +610,17 @@ public class Dog
                 double dx = env.playerX - x, dz = env.playerZ - z;
                 // lie by the fire; sit up and look at the player once they come close, and settle again when they leave
                 double dist = JS.Hypot(dx, dz);
-                if (dist < 5.5 || loveT > 0) wantSit = true;
+                // a raised camera gets its attention from further off: it sits up and turns to it
+                bool pose = cameraUp && dist < POSE_RANGE;
+                if (pose && !wasPosing) tiltSide = JS.Random() < 0.5 ? -1 : 1;
+                wasPosing = pose;
+                poseAmt += ((pose ? 1 : 0) - poseAmt) * Math.Min(1, dt * 4);
+                if (dist < 5.5 || loveT > 0 || pose) wantSit = true;
                 else if (dist > 8) wantSit = false;
                 double want = wantSit ? Math.Atan2(-dx, -dz) : home.heading;
                 double diff = want - heading;
                 diff = Math.Atan2(Math.Sin(diff), Math.Cos(diff));
-                heading += diff * Math.Min(1, dt * 1.6);
+                heading += diff * Math.Min(1, dt * (pose ? 4 : 1.6));
             }
         }
 
@@ -641,6 +665,8 @@ public class Dog
     private void pose(double dt, double t, DogEnv env, bool digging, bool sniffing)
     {
         bool resting = state == "rest";
+        if (!resting) poseAmt = Math.Max(0, poseAmt - dt * 4);
+        double P = resting ? poseAmt * Math.Min(1, sit * 1.4) : 0;
         sit += ((resting && wantSit ? 1 : 0) - sit) * Math.Min(1, dt * 3.5);
         lie += ((resting && !wantSit ? 1 : 0) - lie) * Math.Min(1, dt * 3);
         double L = lie;
@@ -684,20 +710,27 @@ public class Dog
         // head: level when sitting, nose near the sand when sniffing, dipped at the dig, jerked up on a bark
         double bearing = Math.Atan2(-(env.playerX - x), -(env.playerZ - z)) - heading;
         double rel = Math.Atan2(Math.Sin(bearing), Math.Cos(bearing));
-        double look = resting && sit > 0.6 && JS.Hypot(env.playerX - x, env.playerZ - z) < 9 ? Math.Max(-0.7, Math.Min(0.7, rel * 0.6)) : 0;
+        // posing: the head turns all the way to the camera, from as far as it notices one
+        double look = resting && sit > 0.6 && JS.Hypot(env.playerX - x, env.playerZ - z) < (P > 0.1 ? POSE_RANGE + 2 : 9) ? Math.Max(-0.7, Math.Min(0.7, rel * (0.6 + P * 0.4))) : 0;
         double nose = Math.Sin(t * 13) * 0.07 * sniffAmt;
-        headPivot.rotation.x = -s * 0.6 - L * 0.12 - dig * 0.55 - sniffAmt * 0.95 + nose + kick * 0.5 + love * 0.2;
+        // posing: the sitting dog normally looks well up at someone standing over it; for the camera the head comes down to
+        // look into the lens, which is lower in its view the further away the player stands
+        double posePitch = P * (Math.Atan2(0.9, Math.Max(1.2, JS.Hypot(env.playerX - x, env.playerZ - z))) - 0.65);
+        headPivot.rotation.x = -s * 0.6 - L * 0.12 - dig * 0.55 - sniffAmt * 0.95 + nose + kick * 0.5 + love * 0.2 * (1 - P) + posePitch;
+        // the head tilts to one side for the photo
+        headPivot.rotation.z += (P * 0.3 * tiltSide - headPivot.rotation.z) * Math.Min(1, dt * 5);
         double headTurn = look + Math.Sin(t * 2.1) * 0.25 * sniffAmt + Math.Sin(t * 17) * 0.42 * shake;
         headPivot.rotation.y += (headTurn - headPivot.rotation.y) * Math.Min(1, dt * (loveT > 0 ? 22 : 5));
         // mouth: open on a bark, panting while it works
         double pant = resting ? 0.0 : 0.5 + Math.Sin(t * 14) * 0.15;
-        jaw.rotation.x = JS.Max(kick * 0.55, pant * 0.35 * (1 - sniffAmt * 0.6), love * 0.22);
-        tongue.visible = (!resting && sniffAmt < 0.5) || love > 0.3;
+        // posing: a happy open mouth with the tongue out
+        jaw.rotation.x = JS.Max(kick * 0.55, pant * 0.35 * (1 - sniffAmt * 0.6), love * 0.22, P * (0.2 + Math.Sin(t * 9) * 0.04));
+        tongue.visible = (!resting && sniffAmt < 0.5) || love > 0.3 || P > 0.5;
         // ears flop with the stride
         for (int i = 0; i < ears.Count; i++) ears[i].rotation.x = Math.Sin(gait * 2 + i) * 0.18 * run + kick * 0.25;
         // tail: lazy wag at rest, fast and loose when busy; each segment lags the one before
-        double wag = loveT > 0 ? 19 : resting ? 3.5 : 15;
-        double amp = loveT > 0 ? 0.75 : resting ? 0.3 : 0.5;
+        double wag = loveT > 0 ? 19 : resting ? 3.5 + P * 8 : 15;
+        double amp = loveT > 0 ? 0.75 : resting ? 0.3 + P * 0.3 : 0.5;
         for (int i = 0; i < tail.Count; i++)
         {
             var seg = tail[i];

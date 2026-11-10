@@ -62,6 +62,7 @@ public class ViewModel
     };
 
     private const double BINOC_SCALE = 0.72;
+    private const double CAMERA_SCALE = 0.5;
     private const double BOW_SCALE = 0.55;
     private const double BOW_HAND_Y = -0.05;
     private static readonly THREE.Vector3 BOW_ELBOW = v(0.85, -1.15, 1.25);
@@ -84,7 +85,7 @@ public class ViewModel
     public readonly THREE.Group proxy = new THREE.Group();
 
     private readonly THREE.Group root = new THREE.Group();
-    private readonly THREE.Group detector = new THREE.Group(), trowel = new THREE.Group(), gun = new THREE.Group(), binoc = new THREE.Group(), bow = new THREE.Group();
+    private readonly THREE.Group detector = new THREE.Group(), trowel = new THREE.Group(), gun = new THREE.Group(), binoc = new THREE.Group(), bow = new THREE.Group(), photoCam = new THREE.Group();
     private readonly List<THREE.Mesh> bowString = new List<THREE.Mesh>();
     private THREE.Group bowArrow = new THREE.Group();
     private THREE.Mesh bowHand = new THREE.Mesh();
@@ -111,7 +112,15 @@ public class ViewModel
     /// <summary>swimming: the hands drift and sway slowly instead of bobbing with footsteps</summary>
     private bool swim = false;
 
-    public void setSwim(bool on) => swim = on;
+    public void setSwim(bool on)
+    {
+        swim = on;
+        camArmsBare.visible = !on;
+        camArmsDiver.visible = on;
+    }
+
+    /// <summary>the camera's two pairs of arms: bare on land, in the wetsuit when diving</summary>
+    private readonly THREE.Group camArmsBare = new THREE.Group(), camArmsDiver = new THREE.Group();
 
     private readonly THREE.Group flag = new THREE.Group(), bucket = new THREE.Group();
 
@@ -121,11 +130,12 @@ public class ViewModel
         buildTrowel();
         buildGun();
         buildBinoculars();
+        buildCamera();
         buildBow();
         buildFlag();
         buildBucket();
         buildHarpoon();
-        root.add(detector, trowel, gun, binoc, bow, flag, bucket, harpoon);
+        root.add(detector, trowel, gun, binoc, photoCam, bow, flag, bucket, harpoon);
         group.add(root);
         group.traverse(o => { if (o is THREE.Mesh m) m.frustumCulled = false; });
         buildProxy();
@@ -195,28 +205,38 @@ public class ViewModel
         g.add(along(0.026, 0.026, -0.8, -1.32, -0.275, barrelMat));
         g.add(along(0.04, 0.036, -1.32, -1.37, -0.268, black));
         g.add(along(0.042, 0.042, -1.335, -1.35, -0.268, yellow));
-        // the receiver and grip in one moulded piece, raked back like a pistol's
+        // the receiver: a rounded block the barrel and the grip grow out of
         g.add(sideCut(o =>
         {
             o.moveTo(0.53, -0.25);
             o.lineTo(0.82, -0.25);
             o.quadraticCurveTo(0.845, -0.25, 0.845, -0.275);
             o.quadraticCurveTo(0.845, -0.3, 0.82, -0.3);
-            o.lineTo(0.68, -0.3);
-            o.lineTo(0.625, -0.45);
-            o.quadraticCurveTo(0.612, -0.48, 0.585, -0.48);
-            o.lineTo(0.55, -0.48);
-            o.quadraticCurveTo(0.525, -0.48, 0.532, -0.45);
-            o.lineTo(0.568, -0.3);
-            o.quadraticCurveTo(0.51, -0.295, 0.51, -0.27);
+            o.lineTo(0.535, -0.3);
+            o.quadraticCurveTo(0.51, -0.3, 0.51, -0.275);
             o.quadraticCurveTo(0.51, -0.25, 0.53, -0.25);
         }, X, 0.06, black));
-        // the trigger and its guard, in the gap in front of the grip
+        // The grip, raked back like a pistol's. It is slim and rounded so that it fits inside the closed hand: the fingers close
+        // on a rod GRIP_R thick, so no part of the grip may lie further than that from the line the hand closes on (a wider
+        // slab, as it used to be, has the fingers passing through it and their tips showing on the far side).
+        const double GRIP_R = 0.028, RAKE = 0.3, GRIP_Y = -0.37, GRIP_Z = -0.6026;
+        // how far forward the middle of the grip is at a given height, following the rake
+        double mid(double y) => -GRIP_Z + (y - GRIP_Y) * Math.Tan(RAKE);
+        g.add(sideCut(o =>
+        {
+            const double half = 0.015; // the soft edge adds 0.01 all round
+            o.moveTo(mid(-0.29) + half, -0.29);
+            o.lineTo(mid(-0.455) + half, -0.455);
+            o.quadraticCurveTo(mid(-0.468) + half * 0.75, -0.468, mid(-0.468), -0.468);
+            o.quadraticCurveTo(mid(-0.468) - half * 1.25, -0.468, mid(-0.455) - half, -0.455);
+            o.lineTo(mid(-0.29) - half, -0.29);
+        }, X, 0.04, black, 0.01));
+        // the trigger and its guard, just in front of the grip where the first finger reaches them
         var guard = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.007, 8, 18, Math.PI * 1.05), black);
         guard.rotation.set(0, Math.PI / 2, Math.PI);
-        guard.position.set(X, -0.3, -0.735);
+        guard.position.set(X, -0.3, -0.705);
         var trigger = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.045, 0.012), yellow);
-        trigger.position.set(X, -0.325, -0.725);
+        trigger.position.set(X, -0.325, -0.695);
         trigger.rotation.x = -0.25;
         g.add(guard, trigger);
         // the spear lies along the top, with a barbed point and a flopper
@@ -249,7 +269,8 @@ public class ViewModel
         reelHub.position.copy(reel.position);
         var reelArm = limb(v(X, -0.3, -1.0), v(X, -0.33, -1.0), 0.008, black);
         g.add(reel, reelHub, reelArm);
-        armOn(g, v(X, -0.385, -0.598), v(0, Math.Cos(0.3), -Math.Sin(0.3)), v(0.56, -0.95, 0.35), 1, 0.028, 1, DIVER);
+        // the hand closes high on the grip, right under the receiver
+        armOn(g, v(X, GRIP_Y, GRIP_Z), v(0, Math.Cos(RAKE), -Math.Sin(RAKE)), v(0.56, -0.95, 0.35), 1, GRIP_R, 1, DIVER);
         // turned in toward the aim, so the barrel and spear run across the view
         g.position.set(0.13, 0.04, 0);
         g.rotation.y = 0.17;
@@ -626,6 +647,88 @@ public class ViewModel
         g.visible = false;
     }
 
+    /// <summary>
+    /// A hand holding one end of the camera (see <see cref="Hand.buildCameraGrip"/>), with its forearm running back to `elbow`.
+    /// `end` is the middle of that end of the camera, `halfDepth` half the camera's thickness and `top` how far its top is above
+    /// `end`, all in the camera group's own units. The right hand (`side` 1) has its first finger on the shutter button.
+    /// </summary>
+    private void cameraArm(THREE.Object3D parent, THREE.Vector3 end, int side, THREE.Vector3 elbow, double halfDepth, double top, ArmStyle style)
+    {
+        const double scale = CAMERA_SCALE;
+        double k = 1 / scale;
+        var w = Hand.cameraWrist;
+        var wrist = end.clone().add(v(side * w.x * k, w.y * k, w.z * k));
+        var d = elbow.clone().sub(wrist).normalize();
+        var hand = Hand.buildCameraGrip(halfDepth * scale, top * scale, side > 0, v(side * d.x, d.y, d.z), style.hand);
+        hand.position.copy(end);
+        // a left hand is a right hand mirrored from side to side
+        hand.scale.set(side * k, k, k);
+        parent.add(hand);
+        double at(double u) => WRIST_R + (ELBOW_R - WRIST_R) * u;
+        parent.add(limb(wrist, elbow, WRIST_R * k, style.fore, ELBOW_R * k));
+        parent.add(limb(wrist.clone().lerp(elbow, style.from), wrist.clone().lerp(elbow, style.to), (at(style.from) + 0.007) * k, style.band, (at(style.to) + 0.007) * k));
+    }
+
+    /// <summary>A little retro camera held in both hands in front of the chest: a silver top, black leatherette, a round lens and a flash window.</summary>
+    private void buildCamera()
+    {
+        var g = photoCam;
+        var leather = new THREE.MeshStandardMaterial { color = 0x26282c, roughness = 0.85 };
+        var silver = new THREE.MeshStandardMaterial { color = 0xc9ced4, roughness = 0.3, metalness = 0.75 };
+        var black = new THREE.MeshStandardMaterial { color = 0x121416, roughness = 0.4, metalness = 0.5 };
+        var glass = new THREE.MeshPhysicalMaterial { color = 0x5b86b0, roughness = 0.05, metalness = 0.3, clearcoat = 1 };
+        var flashMat = new THREE.MeshStandardMaterial { color = 0xf4f1e8, roughness = 0.2, emissive = 0xffffff, emissiveIntensity = 0.15 };
+        var red = new THREE.MeshStandardMaterial { color = 0xc8362a, roughness = 0.5 };
+        const double Y = -0.2, Z = -0.6;
+        // body: leatherette below, a silver plate on top
+        var body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.13, 0.085), leather);
+        body.position.set(0, Y - 0.02, Z);
+        var top = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.085), silver);
+        top.position.set(0, Y + 0.07, Z);
+        // The rounded ends of the body, where the hands hold it. A camera is held by its two ends, not from underneath like a
+        // binocular barrel: the palm against the end, the fingers flat across the front, the thumb flat across the back and the
+        // right hand's first finger on the shutter button. The forearms come in from behind and below.
+        foreach (var sx in new[] { -1, 1 })
+        {
+            var end = new THREE.Mesh(new THREE.CylinderGeometry(0.0425, 0.0425, 0.13, 16), leather);
+            end.position.set(sx * 0.15, Y - 0.02, Z);
+            var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0425, 0.0425, 0.05, 16), silver);
+            cap.position.set(sx * 0.15, Y + 0.07, Z);
+            g.add(end, cap);
+            // the middle of the end, halfway up the body
+            var grip = v(sx * 0.15, Y + 0.005, Z);
+            var elbow = v(sx * 0.78, -1.05, 0.75);
+            cameraArm(camArmsBare, grip, sx, elbow, 0.0425, 0.09, BARE);
+            cameraArm(camArmsDiver, grip, sx, elbow, 0.0425, 0.09, DIVER);
+        }
+        // the lens, pointing away from the player
+        var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.066, 0.07, 20), black);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0.02, Y - 0.01, Z - 0.075);
+        var ring = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.02, 20), silver);
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(0.02, Y - 0.01, Z - 0.1);
+        var lens = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.008, 20), glass);
+        lens.rotation.x = Math.PI / 2;
+        lens.position.set(0.02, Y - 0.01, Z - 0.111);
+        // the flash window, the viewfinder and the shutter button
+        var flashWin = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.01), flashMat);
+        flashWin.position.set(-0.1, Y + 0.07, Z - 0.045);
+        var finder = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.03, 0.012), black);
+        finder.position.set(0.09, Y + 0.07, Z + 0.045);
+        var button = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.014, 12), red);
+        button.position.set(0.11, Y + 0.1, Z);
+        var dial = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.016, 16), silver);
+        dial.position.set(-0.06, Y + 0.103, Z);
+        camArmsDiver.visible = false;
+        g.add(body, top, barrel, ring, lens, flashWin, finder, button, dial, camArmsBare, camArmsDiver);
+        // smaller and lower than the binoculars, so the camera rests below the middle of the view
+        g.rotation.x = 0.3;
+        g.scale.setScalar(CAMERA_SCALE);
+        g.position.set(0.04, -0.29, -0.34);
+        g.visible = false;
+    }
+
     /// <summary>The gold finishes from the Luxury shop.</summary>
     public void setGolden(bool det, bool trw)
     {
@@ -801,7 +904,7 @@ public class ViewModel
         return g;
     }
 
-    /// <summary>Hides the hand-held model while the player is looking through the binoculars.</summary>
+    /// <summary>Hides the hand-held model while the player is looking through the binoculars or the camera.</summary>
     public void setRaised(bool r)
     {
         raised = r;
@@ -940,11 +1043,12 @@ public class ViewModel
         trowel.visible = proxyTrowel.visible = n == 2;
         gun.visible = proxyGun.visible = n == 4;
         binoc.visible = n == 5;
+        photoCam.visible = n == 3;
         bow.visible = n == 6;
         flag.visible = n == 7;
         bucket.visible = n == 8;
         harpoon.visible = n == 9;
-        group.visible = n != 0 && !(n == 5 && raised);
+        group.visible = n != 0 && !((n == 5 || n == 3) && raised);
     }
 
     public void doSwing() => swing = 1;

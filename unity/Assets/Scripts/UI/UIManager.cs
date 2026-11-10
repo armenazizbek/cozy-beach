@@ -111,6 +111,9 @@ public class UIManager
     private const string BINOC_ICON =
         "<svg viewBox=\"0 0 32 32\" width=\"1.1em\" height=\"1.1em\" style=\"vertical-align:-0.2em\"><rect x=\"6\" y=\"4\" width=\"6\" height=\"4\" rx=\"1.2\" fill=\"#15181a\"/><rect x=\"20\" y=\"4\" width=\"6\" height=\"4\" rx=\"1.2\" fill=\"#15181a\"/><rect x=\"11\" y=\"10\" width=\"10\" height=\"4.5\" rx=\"1\" fill=\"#15181a\"/><circle cx=\"16\" cy=\"12.2\" r=\"2.2\" fill=\"#3a4440\" stroke=\"#15181a\" stroke-width=\"1\"/><path d=\"M5.5 7.5H12.5L13.8 22H3.5Z\" fill=\"#2b3430\" stroke=\"#15181a\" stroke-width=\"1.3\" stroke-linejoin=\"round\"/><path d=\"M19.5 7.5H26.5L28.5 22H18.2Z\" fill=\"#2b3430\" stroke=\"#15181a\" stroke-width=\"1.3\" stroke-linejoin=\"round\"/><ellipse cx=\"8.6\" cy=\"23.5\" rx=\"5.4\" ry=\"3.2\" fill=\"#15181a\"/><ellipse cx=\"23.4\" cy=\"23.5\" rx=\"5.4\" ry=\"3.2\" fill=\"#15181a\"/><ellipse cx=\"8.6\" cy=\"23.8\" rx=\"3.8\" ry=\"2.1\" fill=\"#6aa8d8\"/><ellipse cx=\"23.4\" cy=\"23.8\" rx=\"3.8\" ry=\"2.1\" fill=\"#6aa8d8\"/></svg>";
 
+    private const string CAMERA_ICON =
+        "<svg viewBox=\"0 0 32 32\" width=\"1.1em\" height=\"1.1em\" style=\"vertical-align:-0.2em\"><rect x=\"3\" y=\"9\" width=\"26\" height=\"18\" rx=\"3\" fill=\"#26282c\"/><path d=\"M3 13V12C3 10.3 4.3 9 6 9H26C27.7 9 29 10.3 29 12V13Z\" fill=\"#c9ced4\"/><rect x=\"6\" y=\"6\" width=\"7\" height=\"4\" rx=\"1\" fill=\"#c9ced4\"/><rect x=\"23\" y=\"6.5\" width=\"3.5\" height=\"3\" rx=\"1\" fill=\"#d94b3e\"/><circle cx=\"17\" cy=\"18.5\" r=\"7\" fill=\"#c9ced4\"/><circle cx=\"17\" cy=\"18.5\" r=\"5.4\" fill=\"#121416\"/><circle cx=\"17\" cy=\"18.5\" r=\"3.4\" fill=\"#5b86b0\"/><circle cx=\"15.6\" cy=\"17.1\" r=\"1.1\" fill=\"#dbe9f5\"/><rect x=\"5.5\" y=\"14.5\" width=\"4.5\" height=\"2.6\" rx=\"0.6\" fill=\"#f4f1e8\"/></svg>";
+
     /// <summary>Shows a tool's icon: an emoji, or one of the drawings above.</summary>
     private static void showIcon(HTMLElement target, string icon)
     {
@@ -178,6 +181,12 @@ public class UIManager
     private HTMLCanvasElement binoc = el<HTMLCanvasElement>("canvas", "binoc hidden");
     private HTMLCanvasElement binocText = el<HTMLCanvasElement>("canvas", "binoc-text hidden");
     private string binocFrameKey = "";
+    /// <summary>the camera's viewfinder, drawn like the binocular view (it shares its full-screen class)</summary>
+    private HTMLCanvasElement finder = el<HTMLCanvasElement>("canvas", "binoc hidden");
+    private string finderKey = "";
+    /// <summary>the white flash as a photo is taken</summary>
+    private HTMLElement flashEl = el("div", "binoc photo-flash hidden");
+    private double flashAt = -1;
 
     /// <summary>The zoom and distance under the binoculars, on a small canvas of its own (see setBinoculars).</summary>
     private void drawBinocReadout(string zoom, string range, int w, int h)
@@ -232,7 +241,7 @@ public class UIManager
         this.prompt.append(this.kbdF, this.promptText);
         this.prompt2.append(this.kbdE, this.prompt2Text);
         this.drawbar.append(this.drawFill);
-        root.append(this.binoc, this.binocText, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro);
+        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
@@ -342,7 +351,7 @@ public class UIManager
         {
             [1] = new[] { DETECTOR_ICON, "Detector" },
             [2] = this.digTool(),
-            [3] = new[] { "⛺", "Camp" },
+            [3] = new[] { CAMERA_ICON, "Camera" },
             [4] = new[] { "🔫", "Gun" },
             [5] = new[] { BINOC_ICON, "Binoculars" },
             [6] = new[] { "🏹", "Bow" },
@@ -361,11 +370,11 @@ public class UIManager
         this.scope.classList.toggle("hidden", n != 1);
     }
 
-    /// <summary>Tools that share the d-pad's left slot: flags (while any are left), the bow and the gun.</summary>
+    /// <summary>Tools that share the d-pad's left slot: the camera, flags (while any are left), the bucket, the bow and the gun.</summary>
     public List<int> padOtherTools()
     {
         var d = this.state.data;
-        var list = new List<int>();
+        var list = new List<int> { 3 };
         if (d.flags > 0) list.Add(7);
         if (d.ownsBucket) list.Add(8);
         if (d.ownsBow) list.Add(6);
@@ -384,6 +393,7 @@ public class UIManager
             [1] = new[] { DETECTOR_ICON, "Detector" },
             [2] = this.digTool(),
             [5] = new[] { BINOC_ICON, "Binoculars" },
+            [3] = new[] { CAMERA_ICON, "Camera" },
             [6] = new[] { "🏹", "Bow" },
             [4] = new[] { "🔫", "Gun" },
             [7] = new[] { "🚩", "Flags" },
@@ -441,11 +451,11 @@ public class UIManager
           <div class=""krow""><b>Right stick</b><span>Look around</span></div>
           <div class=""krow""><b>LB / RB</b><span>Swap tool</span></div>
           <div class=""krow""><b>RT</b><span>Use the tool in your hands</span></div>
-          <div class=""krow""><b>LT</b><span>Lower the binoculars, or let the bow string down</span></div>
+          <div class=""krow""><b>LT</b><span>Lower the binoculars or the camera, or let the bow string down</span></div>
           <div class=""krow""><b>A</b><span>Use what is next to you (cart, boat, camp)</span></div>
           <div class=""krow""><b>X</b><span>Step off the boat</span></div>
           <div class=""krow""><b>Y</b><span>Open the island map</span></div>
-          <div class=""krow""><b>D-pad</b><span>Detector, trowel, binoculars, flags</span></div>
+          <div class=""krow""><b>D-pad</b><span>Detector, trowel, binoculars, camera and the rest</span></div>
           <div class=""krow""><b>Back</b><span>Mute sound</span></div>
           <div class=""krow""><b>Start</b><span>Resume</span></div>
         </div>" : @"<div class=""keys"">
@@ -455,6 +465,7 @@ public class UIManager
           <div class=""krow""><b>Scroll</b><span>Swap tool (the gun once you buy it)</span></div>
           <div class=""krow""><b>Click</b><span>Use the tool in your hands</span></div>
           <div class=""krow""><b>Binoculars</b><span>Scroll to them, click to zoom</span></div>
+          <div class=""krow""><b>3</b><span>Camera: click to raise, click to take a photo</span></div>
           <div class=""krow""><b>Bow</b><span>Hold click to draw, release to shoot</span></div>
           <div class=""krow""><b>7</b><span>Marker flags: click to plant, F to pick up</span></div>
           <div class=""krow""><b>F</b><span>Use what is next to you</span></div>
@@ -564,6 +575,7 @@ public class UIManager
         "music" => s.music,
         "ambience" => s.ambience,
         "sensitivity" => s.sensitivity,
+        "fov" => s.fov,
         "renderScale" => s.renderScale,
         _ => 0,
     };
@@ -576,6 +588,7 @@ public class UIManager
             case "music": s.music = v; break;
             case "ambience": s.ambience = v; break;
             case "sensitivity": s.sensitivity = v; break;
+            case "fov": s.fov = v; break;
             case "renderScale": s.renderScale = v; break;
         }
     }
@@ -638,11 +651,13 @@ public class UIManager
             var name = el("span", "set-name", label);
             var box = el<HTMLInputElement>("input", "set-check");
             box.type = "checkbox";
-            box.@checked = key == "shadows" ? settings.shadows : settings.sharp;
+            box.@checked = key == "shadows" ? settings.shadows : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
             box.onchange = _ =>
             {
                 if (key == "shadows") settings.shadows = box.@checked;
                 else if (key == "sharp") settings.sharp = box.@checked;
+                else if (key == "invertMouse") settings.invertMouse = box.@checked;
+                else if (key == "invertStick") settings.invertStick = box.@checked;
                 onChange(settings);
             };
             var h = el("span", "set-val faint", hintText);
@@ -656,6 +671,8 @@ public class UIManager
         slider("Sea and wind", "ambience", 0, 1, 0.05, pct);
         rows.append(el("h3", "", "Controls"));
         slider("Mouse look speed", "sensitivity", 0.4, 2.5, 0.05, v => $"{JS.ToFixed(v, 2)}x");
+        toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
+        toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
         var desktop = true;
         rows.append(el("h3", "", "Display"));
         var displayModes = new List<string[]>
@@ -679,6 +696,7 @@ public class UIManager
                 .ToArray();
             select("Window size", "windowSize", sizes);
         }
+        slider("Field of view", "fov", GameSettings.FOV_MIN, GameSettings.FOV_MAX, 1, v => $"{JS.Round(v)}°");
         rows.append(el("h3", "", "Graphics"));
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
@@ -1409,6 +1427,124 @@ public class UIManager
         }
     }
 
+    /// <summary>
+    /// The camera's viewfinder: the middle 4:3 of the screen, which is what the photo keeps, with the rest dimmed, corner marks, a
+    /// focus square and how to use it. Redrawn only when the screen, the controls or the number of photos change.
+    /// </summary>
+    public void setViewfinder(bool on, int count = 0, int max = 0)
+    {
+        int w = (int)window.innerWidth;
+        int h = (int)window.innerHeight;
+        var key = on ? $"{pad.on}|{count}|{w}x{h}" : "off";
+        if (key == this.finderKey) return;
+        this.finderKey = key;
+        this.finder.classList.toggle("hidden", !on);
+        if (!on) return;
+        if (this.finder.width != w) this.finder.width = w;
+        if (this.finder.height != h) this.finder.height = h;
+        var g = this.finder.getContext("2d");
+        g.clearRect(0, 0, w, h);
+        double fw = Math.Min(w, h * 4.0 / 3.0), fh = Math.Min(h, fw * 3.0 / 4.0);
+        double fx = (w - fw) / 2.0, fy = (h - fh) / 2.0;
+        // outside the frame is not in the photo
+        g.fillStyle = "rgba(8,8,10,0.55)";
+        if (fx > 0)
+        {
+            g.fillRect(0, 0, fx, h);
+            g.fillRect(fx + fw, 0, w - fx - fw, h);
+        }
+        if (fy > 0)
+        {
+            g.fillRect(fx, 0, fw, fy);
+            g.fillRect(fx, fy + fh, fw, h - fy - fh);
+        }
+        // corner marks just inside the frame
+        double m = Math.Max(18, fh * 0.05), len = Math.Max(26, fh * 0.07);
+        g.strokeStyle = "rgba(255,255,255,0.9)";
+        g.lineWidth = 3;
+        g.beginPath();
+        foreach (var (cx, sx) in new[] { (fx + m, 1), (fx + fw - m, -1) })
+        {
+            foreach (var (cy, sy) in new[] { (fy + m, 1), (fy + fh - m, -1) })
+            {
+                g.moveTo(cx, cy + sy * len);
+                g.lineTo(cx, cy);
+                g.lineTo(cx + sx * len, cy);
+            }
+        }
+        g.stroke();
+        // a small focus square in the middle
+        double q = Math.Max(14, fh * 0.03);
+        g.lineWidth = 1.5;
+        g.strokeStyle = "rgba(255,255,255,0.75)";
+        g.strokeRect(w / 2.0 - q, h / 2.0 - q, q * 2, q * 2);
+        // a red dot and the photo count, along the top inside the frame
+        g.beginPath();
+        g.fillStyle = "#e5483a";
+        g.arc(fx + m + 14, fy + m + 22, 6, 0, Math.PI * 2);
+        g.fill();
+        g.font = "600 16px \"Trebuchet MS\", sans-serif";
+        g.textAlign = "right";
+        g.fillStyle = "rgba(255,248,230,0.95)";
+        g.fillText($"{count} / {max}", fx + fw - m - 6, fy + m + 28);
+        // legend: how to take a photo and how to put the camera down
+        var items = pad.on
+            ? new string[][] { new[] { "RT", "Take photo" }, new[] { "LT", "Lower camera" }, new[] { "LB / RB", "Switch tool" } }
+            : new string[][] { new[] { "Click", "Take photo" }, new[] { "Right-click", "Lower camera" }, new[] { "Scroll", "Switch tool" } };
+        const string labelFont = "13px \"Trebuchet MS\", sans-serif";
+        const string keyFont = "700 13px \"Trebuchet MS\", sans-serif";
+        const double gap = 26;
+        const double keyPad = 9;
+        var parts = items.Select(it =>
+        {
+            g.font = keyFont;
+            var kw = g.measureText(it[0]).width + keyPad * 2;
+            g.font = labelFont;
+            var tw = g.measureText(it[1]).width;
+            return (k: it[0], t: it[1], kw, total: kw + 8 + tw);
+        }).ToList();
+        double x = (w - (parts.Sum(p => p.total) + gap * (parts.Count - 1))) / 2.0;
+        double y = h - 30;
+        foreach (var p in parts)
+        {
+            g.fillStyle = "rgba(247,236,214,0.95)";
+            g.beginPath();
+            g.roundRect(x, y - 14, p.kw, 24, 7);
+            g.fill();
+            g.fillStyle = "#3b2a1e";
+            g.font = keyFont;
+            g.textAlign = "center";
+            g.fillText(p.k, x + p.kw / 2.0, y + 3);
+            g.fillStyle = "rgba(255,248,230,0.9)";
+            g.font = labelFont;
+            g.textAlign = "left";
+            g.fillText(p.t, x + p.kw + 8, y + 3);
+            x += p.total + gap;
+        }
+    }
+
+    /// <summary>A quick white flash over the whole screen as a photo is taken.</summary>
+    public void photoFlash()
+    {
+        this.flashAt = JS.Now();
+        this.flashEl.style.opacity = "0.85";
+        this.flashEl.classList.remove("hidden");
+    }
+
+    /// <summary>Fades the flash out; called every frame.</summary>
+    public void tickFlash()
+    {
+        if (this.flashAt < 0) return;
+        double k = (JS.Now() - this.flashAt) / 260.0;
+        if (k >= 1)
+        {
+            this.flashAt = -1;
+            this.flashEl.classList.add("hidden");
+            return;
+        }
+        this.flashEl.style.opacity = JS.Str(0.85 * (1 - k) * (1 - k));
+    }
+
     /// <summary>The strength meter under the crosshair while a bow is drawn. 0 hides it.</summary>
     public void setDraw(double p)
     {
@@ -1443,6 +1579,7 @@ public class UIManager
         var help = this.root.querySelector<HTMLElement>(".inspect-help");
         if (help != null) help.textContent = on ? "Left stick turns the find · hold RT and move the right stick to brush it clean" : "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate";
         this.binocKey = "";
+        this.finderKey = "";
     }
 
     public void setHint(string text)

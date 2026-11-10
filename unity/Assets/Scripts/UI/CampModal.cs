@@ -29,6 +29,7 @@ public class CampModal
         new[] { "upgrades", "🧰 Upgrades" },
         new[] { "luxury", "👑 Luxury" },
         new[] { "shelf", "🏺 Trophy Shelf" },
+        new[] { "photos", "📷 Photos" },
     };
 
     private static readonly Dictionary<string, string> LIGHT_NAMES = new Dictionary<string, string>
@@ -47,6 +48,10 @@ public class CampModal
     private string tab = "rest";
     private bool _open = false;
     private string shownTab = null;
+    /// <summary>the photo shown large at the top of the Photos page, or null</summary>
+    private string bigPhoto = null;
+    /// <summary>the photo whose "Throw away" was pressed once and now asks to be pressed again</summary>
+    private string confirmDrop = null;
     /// <summary>a picture of each Lost & Found item, taken while the game loads</summary>
     public Dictionary<string, UnityEngine.Texture> photos = new Dictionary<string, UnityEngine.Texture>();
 
@@ -175,6 +180,7 @@ public class CampModal
             case "upgrades": this.renderUpgrades(); break;
             case "luxury": this.renderLuxury(); break;
             case "shelf": this.renderShelf(); break;
+            case "photos": this.renderPhotos(); break;
         }
     }
 
@@ -340,6 +346,123 @@ public class CampModal
             );
             this.body.append(note);
         }
+    }
+
+    /// <summary>The camera's album: every photo, newest first, to look at, pin to the board by the fire, or throw away.</summary>
+    private void renderPhotos()
+    {
+        var photos = this.state.photos;
+        this.body.append(this.p($"Your album holds {photos.Count} of {Photos.MAX_PHOTOS} photos. Pinned photos hang on the board by the fire ({this.state.pinnedCount} of {Photos.BOARD_SLOTS} places taken)."));
+        if (photos.Count == 0)
+        {
+            this.body.append(this.p("No photos yet. Pick up the camera with 3 (or the left of the d-pad), click to raise it, and click again to take a picture.", "faint"));
+            return;
+        }
+        HTMLElement picture(PhotoInfo ph)
+        {
+            var tex = Photos.get(ph.id);
+            if (tex == null)
+            {
+                var missing = document.createElement("div");
+                missing.className = "photo-missing";
+                missing.textContent = "This picture could not be found.";
+                return missing;
+            }
+            var img = document.createElement<HTMLImageElement>("img");
+            img.texture = tex;
+            img.alt = ph.caption ?? "";
+            return img;
+        }
+        // a copy in the player's own Pictures folder, to keep or to share
+        void saveCopy(string photoId)
+        {
+            var folder = Photos.export(photoId);
+            if (folder != null)
+            {
+                this.audio.coin();
+                this.hooks.toast($"Saved to {folder}");
+            }
+            else
+            {
+                this.audio.error();
+                this.hooks.toast("Could not save the photo to your Pictures folder.");
+            }
+        }
+        var big = this.bigPhoto != null ? photos.FirstOrDefault(x => x.id == this.bigPhoto) : null;
+        if (big != null)
+        {
+            var view = document.createElement("div");
+            view.className = "photo-big";
+            var cap = document.createElement("span");
+            cap.className = "photo-cap";
+            cap.textContent = big.caption ?? "";
+            var bigId = big.id;
+            var bigRow = document.createElement("div");
+            bigRow.className = "photo-btns";
+            bigRow.append(
+                this.btn("Save to Pictures", () => saveCopy(bigId), "small"),
+                this.btn("Close the photo", () =>
+                {
+                    this.audio.ui();
+                    this.bigPhoto = null;
+                    this.render();
+                }, "small ghost"));
+            view.append(picture(big), cap, bigRow);
+            this.body.append(view);
+        }
+        var grid = document.createElement("div");
+        grid.className = "photo-grid";
+        bool boardFull = this.state.pinnedCount >= Photos.BOARD_SLOTS;
+        foreach (var ph in Enumerable.Reverse(photos).ToList())
+        {
+            var id = ph.id;
+            var card = document.createElement("div");
+            card.className = $"photo-card {(ph.pinned ? "pinned" : "")}";
+            var cap = document.createElement("span");
+            cap.className = "photo-cap";
+            cap.textContent = ph.caption ?? "";
+            var row = document.createElement("div");
+            row.className = "photo-btns";
+            row.append(
+                this.btn("View", () =>
+                {
+                    this.audio.ui();
+                    this.bigPhoto = id;
+                    this.confirmDrop = null;
+                    this.render();
+                    this.body.scrollTop = 0;
+                }, "small"),
+                this.btn(ph.pinned ? "📌 Unpin" : "📌 Pin", () =>
+                {
+                    this.confirmDrop = null;
+                    if (this.state.togglePin(id)) this.audio.ui();
+                    else
+                    {
+                        this.audio.error();
+                        this.hooks.toast($"The board is full. Unpin a photo first ({Photos.BOARD_SLOTS} fit).");
+                    }
+                }, "small", !ph.pinned && boardFull),
+                this.btn("Save to Pictures", () => saveCopy(id), "small"),
+                this.btn(this.confirmDrop == id ? "Sure? Throw away" : "🗑️ Throw away", () =>
+                {
+                    if (this.confirmDrop != id)
+                    {
+                        this.audio.ui();
+                        this.confirmDrop = id;
+                        this.render();
+                        return;
+                    }
+                    this.confirmDrop = null;
+                    if (this.bigPhoto == id) this.bigPhoto = null;
+                    this.audio.crunch();
+                    this.state.removePhoto(id);
+                    Photos.discard(id);
+                }, "small ghost")
+            );
+            card.append(picture(ph), cap, row);
+            grid.append(card);
+        }
+        this.body.append(grid);
     }
 
     private void renderUpgrades()

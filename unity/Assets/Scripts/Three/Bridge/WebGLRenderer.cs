@@ -198,6 +198,60 @@ namespace THREE
             return own;
         }
 
+        /// <summary>
+        /// Takes a photograph through a camera that was drawn this frame: the world only, no page on top. It renders at the
+        /// screen's shape and keeps the middle 4:3 of it, the part the camera's viewfinder frames.
+        /// </summary>
+        internal Texture2D CapturePhoto(Camera camera, int height = 900, Color32? tint = null, float tintAmount = 0)
+        {
+            var cam = camera.node?.cam;
+            if (cam == null) return null;
+            float aspect = (float)Math.Max(0.5, Math.Min(4, camera is PerspectiveCamera pc ? pc.aspect : 16.0 / 9));
+            int h = height;
+            int w = Mathf.RoundToInt(h * aspect);
+            int cw = Math.Min(w, Mathf.RoundToInt(h * 4f / 3f));
+            int ch = Math.Min(h, Mathf.RoundToInt(cw * 3f / 4f));
+            var desc = new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 24) { sRGB = true, msaaSamples = 4 };
+            var rt = U.RenderTexture.GetTemporary(desc);
+            var prevTarget = cam.targetTexture;
+            try
+            {
+                cam.aspect = aspect;
+                Bridge.UrpSettings.RenderTo(cam, rt);
+                var photo = new Texture2D(cw, ch, TextureFormat.RGB24, false, false) { wrapMode = TextureWrapMode.Clamp };
+                var prev = U.RenderTexture.active;
+                U.RenderTexture.active = rt;
+                photo.ReadPixels(new Rect((w - cw) / 2, (h - ch) / 2, cw, ch), 0, 0);
+                if (tint.HasValue && tintAmount > 0)
+                {
+                    // a colour the page lays over the view (the blue of being underwater), mixed in the way the page mixes it
+                    var px = photo.GetRawTextureData<byte>();
+                    int keep = Mathf.RoundToInt((1 - tintAmount) * 256), add = 256 - keep;
+                    int tr = tint.Value.r * add, tg = tint.Value.g * add, tb = tint.Value.b * add;
+                    for (int i = 0; i + 2 < px.Length; i += 3)
+                    {
+                        px[i] = (byte)((px[i] * keep + tr) >> 8);
+                        px[i + 1] = (byte)((px[i + 1] * keep + tg) >> 8);
+                        px[i + 2] = (byte)((px[i + 2] * keep + tb) >> 8);
+                    }
+                }
+                photo.Apply();
+                U.RenderTexture.active = prev;
+                return photo;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("Could not take a photo: " + e.Message);
+                return null;
+            }
+            finally
+            {
+                cam.targetTexture = prevTarget;
+                cam.ResetAspect();
+                U.RenderTexture.ReleaseTemporary(rt);
+            }
+        }
+
         internal U.Texture Snapshot()
         {
             var src = target != null ? target.Ensure() : own;
