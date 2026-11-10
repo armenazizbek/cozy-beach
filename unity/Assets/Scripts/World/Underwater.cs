@@ -43,6 +43,11 @@ public class Underwater
         public double phase;
         public bool alive;
         public double respawn;
+        /// <summary>which of Catches.REEF it is</summary>
+        public int species;
+        /// <summary>the one golden fish: very fast, and it darts away in bursts</summary>
+        public bool gold;
+        public double dash;
     }
 
     private class Spear
@@ -410,7 +415,7 @@ public class Underwater
     // ---------------------------------------------------------------- fish and spears
 
     /// <summary>One species of fish: a smooth body with a pale belly and markings, fins, eyes, and a forked tail that is its own piece so it can wag.</summary>
-    private (THREE.BufferGeometry body, THREE.BufferGeometry tail) fishModel(int top, int belly, int accent, int pattern)
+    internal static (THREE.BufferGeometry body, THREE.BufferGeometry tail) fishModel(int top, int belly, int accent, int pattern)
     {
         var cTop = new THREE.Color(top);
         var cBelly = new THREE.Color(belly);
@@ -520,15 +525,9 @@ public class Underwater
 
     private void buildFish()
     {
-        var species = new[]
-        {
-            fishModel(0xf28a1e, 0xffc880, 0xf28a1e, 1), // clown fish
-            fishModel(0x2f6fd0, 0x9cc4f2, 0xf2d03a, 3), // blue with a yellow tail
-            fishModel(0xd8484f, 0xf6b8b0, 0xc23a40, 0), // snapper
-            fishModel(0x4fa862, 0xe6e48a, 0xf0c63a, 2), // striped wrasse
-            fishModel(0x8c98a6, 0xf2f4f6, 0x6c7886, 0), // silver
-        };
-        var mat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.4, metalness = 0.12, side = THREE.Side.DoubleSide };
+        // the reef's fish are the ones the net can bring home (see Catches.REEF)
+        var species = Catches.REEF.Select(s => fishModel(s.top, s.belly, s.accent, s.pattern)).ToArray();
+        var mat = fishMat;
         var rand = fishRand;
         for (int i = 0; i < 30; i++)
         {
@@ -543,11 +542,37 @@ public class Underwater
             var f = new Fish
             {
                 root = root, tail = tail, hit = 0.7 * root.scale.x, x = 0, y = 0, z = 0, heading = rand() * 6.28, turn = 0, speed = 0.8 + rand() * 0.9,
-                ty = 0, phase = rand() * 6, alive = true, respawn = 0,
+                ty = 0, phase = rand() * 6, alive = true, respawn = 0, species = i % species.Length,
             };
             placeFish(f);
             fish.Add(f);
         }
+        // the golden fish: just one, bigger than most, and quick
+        var (gRoot, gTail) = makeFish(Catches.GOLD);
+        gRoot.scale.setScalar(0.85);
+        group.add(gRoot);
+        var gf = new Fish
+        {
+            root = gRoot, tail = gTail, hit = 0.5, x = 0, y = 0, z = 0, heading = rand() * 6.28, turn = 0, speed = 3.2,
+            ty = 0, phase = 1.3, alive = true, respawn = 0, species = -1, gold = true,
+        };
+        placeFish(gf);
+        fish.Add(gf);
+        golden = gf;
+    }
+
+    private Fish golden;
+
+    /// <summary>Where the golden fish is right now, or null once it has been caught (the -autoshot-fish test).</summary>
+    public THREE.Vector3 goldAt() => golden != null && golden.alive ? new THREE.Vector3(golden.x, golden.y, golden.z) : null;
+
+    /// <summary>Once the golden fish is in the aquarium it is gone from the sea for good.</summary>
+    public void setGoldCaught(bool caught)
+    {
+        if (golden == null) return;
+        golden.alive = !caught;
+        golden.root.visible = !caught;
+        golden.respawn = 1e9;
     }
 
     private void placeFish(Fish f)
@@ -579,6 +604,99 @@ public class Underwater
             group.add(m);
             spears.Add(new Spear { mesh = m, active = false, pos = new THREE.Vector3(), dir = new THREE.Vector3(), dist = 0, stuck = 0 });
         }
+    }
+
+    private readonly THREE.MeshStandardMaterial fishMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.4, metalness = 0.12, side = THREE.Side.DoubleSide };
+
+    /// <summary>A fish of one species to show somewhere else (the aquarium, the end of a fishing line): its body, and the tail that wags.</summary>
+    public (THREE.Group root, THREE.Mesh tail) makeFish(SeaSpecies s)
+    {
+        var m = fishModel(s.top, s.belly, s.accent, s.pattern);
+        var root = new THREE.Group();
+        root.add(new THREE.Mesh(m.body, fishMat));
+        var tail = new THREE.Mesh(m.tail, fishMat);
+        tail.position.z = -0.42;
+        root.add(tail);
+        return (root, tail);
+    }
+
+    /// <summary>
+    /// The net: takes the nearest fish or animal within reach in front of the diver, alive. Returns what it was, or null when the
+    /// net came up empty. The creature is gone from the sea for a while, as when speared.
+    /// </summary>
+    public SeaSpecies scoop(THREE.Vector3 origin, THREE.Vector3 dir, double reach = 2.6)
+    {
+        var d = dir.clone().normalize();
+        var to = new THREE.Vector3();
+        double best = double.PositiveInfinity;
+        Fish bestFish = null;
+        Animal bestAnimal = null;
+        var at = new THREE.Vector3();
+        // how well a point is placed for the net: close and near the middle of the view scores low; out of reach is no catch
+        double score(THREE.Vector3 p, double size)
+        {
+            to.copy(p).sub(origin);
+            double dist = to.length();
+            if (dist > reach + size) return double.PositiveInfinity;
+            double facing = dist > 1e-6 ? to.dot(d) / dist : 1;
+            // a wide mouth: anything within about 50 degrees of where the diver looks, wider still when it is very close
+            if (facing < (dist < 1 + size ? 0.2 : 0.62)) return double.PositiveInfinity;
+            return dist * (1.6 - facing);
+        }
+        var p = new THREE.Vector3();
+        foreach (var f in fish)
+        {
+            if (!f.alive) continue;
+            double sc = score(p.set(f.x, f.y, f.z), f.hit);
+            if (sc < best)
+            {
+                best = sc;
+                bestFish = f;
+                bestAnimal = null;
+                at.copy(p);
+            }
+        }
+        foreach (var an in creatures.animals)
+        {
+            if (!an.alive) continue;
+            double size = an.kind == "turtle" ? 0.9 : 0.4;
+            if (an.pts.Count == 0)
+            {
+                double sc = score(p.set(an.x, an.y, an.z), size);
+                if (sc < best)
+                {
+                    best = sc;
+                    bestFish = null;
+                    bestAnimal = an;
+                    at.copy(p);
+                }
+                continue;
+            }
+            foreach (var pt in an.pts)
+            {
+                double sc = score(pt, size);
+                if (sc < best)
+                {
+                    best = sc;
+                    bestFish = null;
+                    bestAnimal = an;
+                    at.copy(pt);
+                }
+            }
+        }
+        if (bestFish == null && bestAnimal == null) return null;
+        for (int i = 0; i < 16; i++) bubbles.emit(at, new THREE.Vector3((JS.Random() - 0.5) * 1.2, JS.Random() * 0.9, (JS.Random() - 0.5) * 1.2), 1.6, bubbleColor);
+        if (bestFish != null)
+        {
+            bestFish.alive = false;
+            bestFish.root.visible = false;
+            bestFish.respawn = 25 + JS.Random() * 15;
+            return bestFish.gold ? Catches.GOLD : Catches.REEF[bestFish.species];
+        }
+        creatures.catchAnimal(bestAnimal);
+        // a turtle is back at once after a spear glances off it; after the net it stays away a while like the rest
+        if (bestAnimal.kind == "turtle") bestAnimal.respawn = 40 + JS.Random() * 20;
+        return Catches.animal(bestAnimal.kind);
     }
 
     /// <summary>Looses a spear from `origin` along `dir`. Returns false while the gun is still being reloaded.</summary>
@@ -625,6 +743,7 @@ public class Underwater
         {
             if (!f.alive)
             {
+                if (f.gold) continue;
                 f.respawn -= dt;
                 if (f.respawn <= 0) placeFish(f);
                 continue;
@@ -634,7 +753,26 @@ public class Underwater
             double d = JS.Hypot(dx, dz, cam.y - f.y);
             if (JS.Random() < dt * 0.4) f.turn = (JS.Random() - 0.5) * 1.6;
             double speed = f.speed;
-            if (d < 3.2)
+            if (f.gold && d < 5)
+            {
+                // it sees the diver from afar and bolts in bursts: a hard dash, then a short glide, then another. A diver who keeps
+                // chasing gains a little on every glide, and the edges of the water turn it back, so it can be caught.
+                f.dash += dt;
+                double cycle = f.dash % 1.7;
+                speed = cycle < 0.7 ? 7 : 1.2;
+                double away = Math.Atan2(-dx, -dz);
+                double da = away - f.heading;
+                da = Math.Atan2(Math.Sin(da), Math.Cos(da));
+                f.heading += da * Math.Min(1, dt * 5) + (JS.Random() - 0.5) * dt * 2.5;
+                double lx0 = f.x - UW.x, lz0 = f.z - UW.z;
+                if (Math.Abs(lx0) > UW.half - 3 || Math.Abs(lz0) > UW.half - 3)
+                {
+                    double back = Math.Atan2(-lx0, -lz0) - f.heading;
+                    back = Math.Atan2(Math.Sin(back), Math.Cos(back));
+                    f.heading += back * Math.Min(1, dt * 3);
+                }
+            }
+            else if (d < 3.2 && !f.gold)
             {
                 // away from the diver
                 double away = Math.Atan2(-dx, -dz);
@@ -692,7 +830,8 @@ public class Underwater
             bool caught = false;
             foreach (var f in fish)
             {
-                if (!f.alive) continue;
+                // the golden fish is far too quick for a spear
+                if (!f.alive || f.gold) continue;
                 seg.closestPointToPoint(new THREE.Vector3(f.x, f.y, f.z), true, tmp);
                 if (tmp.distanceTo(new THREE.Vector3(f.x, f.y, f.z)) < f.hit)
                 {

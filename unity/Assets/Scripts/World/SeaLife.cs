@@ -88,127 +88,97 @@ public class SeaLife
     private readonly ParticleSystem wakeParticles = new ParticleSystem(300, 0.13, 0, false);
     private double jumpTimer = 3;
     private readonly THREE.Color white = new THREE.Color(0xeaf7ff);
-    private readonly THREE.SphereGeometry fishGeo = new THREE.SphereGeometry(1, 8, 6);
-    private readonly THREE.ConeGeometry tailGeo = new THREE.ConeGeometry(0.07, 0.16, 4);
+    /// <summary>the shark's body with its fins grown on (they bend with it as it swims), and its tail fin</summary>
     private readonly THREE.BufferGeometry sharkBody;
-    /// <summary>the body's radius along its length: 0 at the nose, 1 at the tail</summary>
-    private List<THREE.Vector2> outline = new List<THREE.Vector2>();
     private readonly THREE.BufferGeometry caudal;
-    private readonly THREE.BufferGeometry pectoral;
+    /// <summary>the shark's half width and half height along it, 0 at the nose and 1 at the tail</summary>
+    private readonly Func<double, double> sharkW, sharkH;
+    /// <summary>the fish of the open sea: the same kinds as bite at the pier, a body and a tail that wags for each</summary>
+    private readonly List<(THREE.BufferGeometry body, THREE.BufferGeometry tail)> fishKinds = new List<(THREE.BufferGeometry, THREE.BufferGeometry)>();
+    private readonly THREE.MeshStandardMaterial fishMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.38, metalness = 0.18, side = THREE.Side.DoubleSide };
     private double breachTimer = 40;
 
     public SeaLife()
     {
-        var fin = new THREE.MeshStandardMaterial { color = 0x586a7a, roughness = 0.45, metalness = 0.08, side = THREE.Side.DoubleSide };
-        var finGeo = finGeometry();
-        sharkBody = bodyGeometry();
-        caudal = caudalGeometry();
-        pectoral = pectoralGeometry();
+        sharkW = SeaModels.profile(new[]
+        {
+            (0.0, 0.0), (0.015, 0.09), (0.05, 0.18), (0.1, 0.26), (0.2, 0.37), (0.34, 0.46), (0.46, 0.46), (0.6, 0.37),
+            (0.72, 0.26), (0.82, 0.165), (0.9, 0.11), (0.95, 0.095), (1.0, 0.09),
+        });
+        sharkH = SeaModels.profile(new[]
+        {
+            (0.0, 0.0), (0.015, 0.075), (0.05, 0.15), (0.1, 0.225), (0.2, 0.33), (0.34, 0.425), (0.46, 0.435), (0.6, 0.365),
+            (0.72, 0.265), (0.82, 0.17), (0.9, 0.105), (0.95, 0.078), (1.0, 0.068),
+        });
+        sharkBody = buildSharkBody();
+        caudal = buildCaudal();
+        foreach (var k in Catches.ROD) fishKinds.Add(Underwater.fishModel(k.top, k.belly, k.accent, k.pattern));
         // a bigger sea, so a few more of everything
-        for (int i = 0; i < 2; i++) sharks.Add(makeShark(finGeo, fin));
+        for (int i = 0; i < 2; i++) sharks.Add(makeShark());
         for (int i = 0; i < 12; i++) schools.Add(makeSchool());
-        for (int i = 0; i < 6; i++) jumpers.Add(makeJumper());
+        for (int i = 0; i < 6; i++) jumpers.Add(makeJumper(i));
         group.add(splashes.points, wakeParticles.points);
     }
 
-    private THREE.BufferGeometry finGeometry()
-    {
-        var sh = new THREE.Shape();
-        sh.moveTo(0.45, 0);
-        sh.quadraticCurveTo(0.3, 0.5, -0.2, 1.05);
-        sh.quadraticCurveTo(-0.15, 0.5, -0.5, 0);
-        sh.closePath();
-        var g = new THREE.ExtrudeGeometry(sh, new THREE.ExtrudeGeometryOptions { depth = 0.07, bevelEnabled = true, bevelSize = 0.015, bevelThickness = 0.015, bevelSegments = 1 });
-        g.translate(0, 0, -0.035);
-        g.rotateY(Math.PI / 2); // the fin's front now points along -z
-        return g;
-    }
+    private const int SHARK_TOP = 0x5a6d7e, SHARK_BELLY = 0xeef2f3;
 
-    /// <summary>A torpedo-shaped body along z (nose at -z), grey on top and pale underneath.</summary>
-    private THREE.BufferGeometry bodyGeometry()
+    /// <summary>z along the shark at a point along it, 0 at the nose and 1 at the tail</summary>
+    private static double zAlong(double u) => -SHARK_LEN / 2 + u * SHARK_LEN;
+
+    /// <summary>
+    /// The shark's body: a torpedo with a rounded snout, a deep chest and a slim tail stalk, and the fins that stand on it (the tall
+    /// first dorsal, the second dorsal, the long pectorals, the pelvics and the anal fin) all part of one shape, grey on top and
+    /// white below.
+    /// </summary>
+    private THREE.BufferGeometry buildSharkBody()
     {
-        const double L = SHARK_LEN;
-        var profile = new[]
+        // the body is grey above and white below; the fins are grey all over, except under the pectorals
+        THREE.BufferGeometry grey(THREE.BufferGeometry g) => SeaModels.countershade(g, SHARK_TOP, SHARK_TOP);
+        var parts = new List<THREE.BufferGeometry> { SeaModels.countershade(SeaModels.body(SHARK_LEN, sharkW, sharkH), SHARK_TOP, SHARK_BELLY, -0.12, 0.42) };
+        // the tall, swept first dorsal, standing on the back over the middle of the body
+        var dorsal = SeaModels.fin(1.0, zAlong(0.35), zAlong(0.52), zAlong(0.6), 0.1, 1.5, 0.45);
+        dorsal.translate(0, sharkH(0.43) * 0.96, 0);
+        parts.Add(grey(dorsal));
+        // the small second dorsal and the anal fin under it, near the tail
+        var dorsal2 = SeaModels.fin(0.2, zAlong(0.735), zAlong(0.79), zAlong(0.81), 0.05, 1.3, 0.5);
+        dorsal2.translate(0, sharkH(0.76) * 0.95, 0);
+        parts.Add(grey(dorsal2));
+        var anal = SeaModels.fin(0.17, zAlong(0.77), zAlong(0.82), zAlong(0.835), 0.045, 1.3, 0.5);
+        anal.rotateZ(Math.PI);
+        anal.translate(0, -sharkH(0.795) * 0.8, 0);
+        parts.Add(grey(anal));
+        foreach (var side in new[] { -1, 1 })
         {
-            (0.0, 0.03), (0.1, 0.1), (0.22, 0.2), (0.4, 0.34), (0.58, 0.42), (0.74, 0.4), (0.86, 0.31), (0.94, 0.2), (0.985, 0.08), (1.0, 0.0),
-        };
-        var pts = new List<THREE.Vector2>();
-        // smooth the profile with a Catmull-Rom curve
-        var curve = new THREE.SplineCurve(profile.Select(p => new THREE.Vector2(p.Item1 * L - L / 2, p.Item2)).ToList());
-        foreach (var pt in curve.getPoints(44)) pts.Add(new THREE.Vector2(Math.Max(0, pt.y), pt.x));
-        outline = curve.getPoints(200).Select(pt => new THREE.Vector2((pt.x + L / 2) / L, Math.Max(0, pt.y))).ToList();
-        var g = new THREE.LatheGeometry(pts, 22);
-        g.rotateX(-Math.PI / 2); // lathe axis y -> z, nose (+y) -> -z
-        g.scale(1.3, 0.95, 1);
-        g.computeVertexNormals();
-        var pos = g.attributes.position;
-        var nrm = g.attributes.normal;
-        var col = new float[pos.count * 3];
-        var top = new THREE.Color(0x56697a);
-        var belly = new THREE.Color(0xe9eff1);
-        var c = new THREE.Color();
-        for (int i = 0; i < pos.count; i++)
-        {
-            double t = Math.Min(1, Math.Max(0, (nrm.getY(i) + 0.15) / 0.5));
-            double k = t * t * (3 - 2 * t);
-            c.copy(belly).lerp(top, k);
-            col[i * 3] = (float)c.r;
-            col[i * 3 + 1] = (float)c.g;
-            col[i * 3 + 2] = (float)c.b;
+            // the long pectorals: low on the flanks behind the gills, reaching out, down and back
+            var pec = SeaModels.fin(0.95, zAlong(0.235), zAlong(0.34), zAlong(0.46), 0.085, 1.35, 0.5);
+            pec.rotateZ(-side * (Math.PI / 2 + 0.42));
+            pec.translate(side * sharkW(0.28) * 0.72, -sharkH(0.28) * 0.5, 0);
+            parts.Add(SeaModels.countershade(pec, SHARK_TOP, 0xdfe6ea, -0.35, 0.3));
+            // the small pelvic fins under the belly
+            var pel = SeaModels.fin(0.26, zAlong(0.6), zAlong(0.66), zAlong(0.7), 0.045, 1.3, 0.5);
+            pel.rotateZ(-side * (Math.PI / 2 + 0.75));
+            pel.translate(side * sharkW(0.63) * 0.45, -sharkH(0.63) * 0.62, 0);
+            parts.Add(grey(pel));
         }
-        g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        var g = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
+        g.computeVertexNormals();
         return g;
     }
 
-    private THREE.BufferGeometry caudalGeometry()
+    /// <summary>The tail fin, in its own space at the end of the tail stalk: a tall, swept upper lobe and a shorter lower one, like a crescent.</summary>
+    private THREE.BufferGeometry buildCaudal()
     {
-        var sh = new THREE.Shape();
-        sh.moveTo(0, 0.1);
-        sh.lineTo(0.3, 0.95);
-        sh.quadraticCurveTo(0.62, 1.18, 0.7, 1.2);
-        sh.quadraticCurveTo(0.45, 0.5, 0.42, 0.05);
-        sh.quadraticCurveTo(0.5, -0.4, 0.34, -0.72);
-        sh.lineTo(0.12, -0.2);
-        sh.closePath();
-        var g = new THREE.ExtrudeGeometry(sh, new THREE.ExtrudeGeometryOptions { depth = 0.05, bevelEnabled = false });
-        g.translate(0, 0, -0.025);
-        g.rotateY(-Math.PI / 2); // sweeps backwards (+z)
-        return g;
-    }
-
-    private THREE.BufferGeometry pectoralGeometry()
-    {
-        var sh = new THREE.Shape();
-        sh.moveTo(0, 0.28);
-        sh.quadraticCurveTo(0.55, 0.1, 1.05, -0.5);
-        sh.lineTo(0.2, -0.22);
-        sh.closePath();
-        var g = new THREE.ExtrudeGeometry(sh, new THREE.ExtrudeGeometryOptions { depth = 0.035, bevelEnabled = false });
-        g.rotateX(-Math.PI / 2);
-        return g;
+        var upper = SeaModels.fin(1.15, -0.32, 0.02, 0.82, 0.07, 1.2, 0.5);
+        var lower = SeaModels.fin(0.68, -0.24, 0.02, 0.5, 0.06, 1.2, 0.5);
+        lower.rotateZ(Math.PI);
+        var g = THREE.BufferGeometryUtils.mergeGeometries(new List<THREE.BufferGeometry> { upper, lower }, false);
+        return SeaModels.countershade(g, SHARK_TOP, SHARK_TOP);
     }
 
     /// <summary>Half the body's width and height (in model units) at a point along it, 0 at the nose and 1 at the tail.</summary>
-    private (double w, double h) halfSize(double u)
-    {
-        double r = 0;
-        // the lathed outline runs from the tail (0) to the nose (1)
-        double uu = 1 - u;
-        for (int i = 1; i < outline.Count; i++)
-        {
-            if (outline[i].x >= uu)
-            {
-                var a = outline[i - 1];
-                var b = outline[i];
-                r = a.y + (b.y - a.y) * (uu - a.x) / Math.Max(1e-6, b.x - a.x);
-                break;
-            }
-        }
-        // the body is lathed, then squeezed 1.3 wide and 0.95 high
-        return (r * 1.3, r * 0.95);
-    }
+    private (double w, double h) halfSize(double u) => (sharkW(u), sharkH(u));
 
-    private Shark makeShark(THREE.BufferGeometry finGeo, THREE.Material finMat)
+    private Shark makeShark()
     {
         var root = new THREE.Group();
         var bodyMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.42, metalness = 0.05 };
@@ -217,28 +187,11 @@ public class SeaLife
         body.castShadow = true;
         var rest = (float[])bodyGeo.attributes.position.array.Clone();
 
-        var dorsal = new THREE.Mesh(finGeo, finMat);
-        dorsal.position.set(0, 0.36, -0.15);
-        dorsal.castShadow = true;
-        var dorsal2 = new THREE.Mesh(finGeo, finMat);
-        dorsal2.scale.setScalar(0.28);
-        dorsal2.position.set(0, 0.2, 1.15);
-
-        var pec = pectoral;
-        foreach (var side in new[] { -1, 1 })
-        {
-            var f = new THREE.Mesh(pec, finMat);
-            f.material = finMat;
-            f.position.set(side * 0.3, -0.16, -0.65);
-            f.rotation.z = side * 0.55;
-            f.scale.x = side;
-            root.add(f);
-        }
         var caudal = new THREE.Group();
-        var lobe = new THREE.Mesh(this.caudal, finMat);
+        var lobe = new THREE.Mesh(this.caudal, bodyMat);
         lobe.castShadow = true;
         caudal.add(lobe);
-        caudal.position.set(0, 0.0, SHARK_LEN / 2 - 0.05);
+        caudal.position.set(0, 0.0, SHARK_LEN / 2 - 0.1);
 
         var dark = new THREE.MeshStandardMaterial { color = 0x14181c, roughness = 0.3 };
         var glossy = new THREE.MeshStandardMaterial { color = 0x07090b, roughness = 0.08, metalness = 0.4 };
@@ -265,8 +218,9 @@ public class SeaLife
             {
                 double ug = 0.255 + i * 0.026;
                 var hg = halfSize(ug);
-                var slit = new THREE.Mesh(new THREE.BoxGeometry(0.012, hg.h * 0.62, 0.016), dark);
-                slit.position.set(side * (hg.w - 0.004), 0.02, zAt(ug));
+                // short slits high on the flank, curving with the body
+                var slit = new THREE.Mesh(new THREE.BoxGeometry(0.012, hg.h * 0.4, 0.016), dark);
+                slit.position.set(side * (hg.w * 0.985 - 0.004), hg.h * 0.12, zAt(ug));
                 slit.rotation.z = side * (-0.18 + 0.02 * i);
                 slit.rotation.y = side * 0.0;
                 root.add(slit);
@@ -277,19 +231,14 @@ public class SeaLife
             var hn = halfSize(un);
             nostril.position.set(side * hn.w * 0.8, 0.03, zAt(un));
             root.add(nostril);
-            // the pelvic fins, small and low
-            var pelvic = new THREE.Mesh(pectoral, finMat);
-            pelvic.scale.set(side * 0.28, 0.28, 0.28);
-            pelvic.position.set(side * 0.12, -0.2, 0.62);
-            pelvic.rotation.z = side * 0.5;
-            root.add(pelvic);
         }
         // the mouth: a wide open grin on the underside of the snout, a dark gape with a row of teeth along each jaw
+        double jaw = -sharkH(0.08) * 0.84 + 0.005;
         var gape = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20, 0, Math.PI), gum);
         gape.rotation.x = Math.PI / 2;
         gape.rotation.z = Math.PI;
         gape.scale.set(1, 1.35, 1);
-        gape.position.set(0, -0.2, -1.86);
+        gape.position.set(0, jaw, -1.86);
         root.add(gape);
         void teeth(int rows, double y, double len)
         {
@@ -305,19 +254,13 @@ public class SeaLife
                 root.add(t);
             }
         }
-        teeth(1, -0.195, 0.07);
-        teeth(-1, -0.22, 0.045);
-        // a small anal fin behind the belly
-        var anal = new THREE.Mesh(finGeo, finMat);
-        anal.scale.setScalar(0.22);
-        anal.rotation.x = Math.PI;
-        anal.position.set(0, -0.22, 1.2);
-        root.add(anal);
+        teeth(1, jaw + 0.005, 0.07);
+        teeth(-1, jaw - 0.02, 0.045);
 
         var hit = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial { visible = false });
         hit.position.set(0, 0.4, 0);
         hit.userData["hitRadius"] = 2.2;
-        root.add(body, dorsal, dorsal2, caudal, hit);
+        root.add(body, caudal, hit);
         root.scale.setScalar(1.3);
         group.add(root);
         var s = new Shark
@@ -331,22 +274,34 @@ public class SeaLife
         return s;
     }
 
+    /// <summary>
+    /// A fish of the open sea, nose toward -z as the schools swim. The model is the underwater fish (fins, eyes and markings), in
+    /// the colours of one of the kinds that bite at the pier.
+    /// </summary>
+    private (THREE.Group mesh, THREE.Mesh tail) makeFish(int kind, double size)
+    {
+        var (bodyGeo, tailGeo) = fishKinds[kind % fishKinds.Count];
+        var g = new THREE.Group();
+        var model = new THREE.Group();
+        model.rotation.y = Math.PI;
+        model.add(new THREE.Mesh(bodyGeo, fishMat));
+        var tail = new THREE.Mesh(tailGeo, fishMat);
+        tail.position.z = -0.42;
+        model.add(tail);
+        model.scale.setScalar(size);
+        g.add(model);
+        return (g, tail);
+    }
+
     private School makeSchool()
     {
-        bool silver = JS.Random() < 0.5;
-        var bodyMat = new THREE.MeshStandardMaterial { color = silver ? 0xcfd8dc : 0xff8a3c, roughness = 0.35, metalness = silver ? 0.5 : 0.1 };
+        // one kind of fish to a school, mostly the common ones
+        int kind = JS.Random() < 0.7 ? (int)Math.Floor(JS.Random() * 2) : 2 + (int)Math.Floor(JS.Random() * (fishKinds.Count - 2));
         var fish = new List<School.Fish>();
         int n = 8 + (int)Math.Floor(JS.Random() * 5);
         for (int i = 0; i < n; i++)
         {
-            var g = new THREE.Group();
-            var body = new THREE.Mesh(fishGeo, bodyMat);
-            body.scale.set(0.09, 0.07, 0.24);
-            var tail = new THREE.Mesh(tailGeo, bodyMat);
-            tail.rotation.x = -Math.PI / 2;
-            tail.position.z = 0.28;
-            g.add(body, tail);
-            g.scale.setScalar(rand(0.9, 1.4));
+            var (g, tail) = makeFish(kind, rand(0.55, 0.8));
             var hit = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial { visible = false });
             hit.scale.setScalar(0.28);
             hit.userData["hitRadius"] = 0.55;
@@ -362,17 +317,9 @@ public class SeaLife
         };
     }
 
-    private Jumper makeJumper()
+    private Jumper makeJumper(int i)
     {
-        var g = new THREE.Group();
-        var mat = new THREE.MeshStandardMaterial { color = 0xd8e4ea, roughness = 0.3, metalness = 0.6 };
-        var body = new THREE.Mesh(fishGeo, mat);
-        body.scale.set(0.1, 0.08, 0.28);
-        var tail = new THREE.Mesh(tailGeo, mat);
-        tail.rotation.x = -Math.PI / 2;
-        tail.position.z = 0.32;
-        g.add(body, tail);
-        g.scale.setScalar(1.6);
+        var (g, _) = makeFish(i, 1.05);
         g.visible = false;
         group.add(g);
         return new Jumper { mesh = g, active = false, t = 0, sx = 0, sz = 0, dx = 0, dz = 0, yaw = 0 };
@@ -454,9 +401,47 @@ public class SeaLife
         splashes.burst(at, count, 1.6, 4.2, 1.1, white);
     }
 
+    /// <summary>
+    /// For the -autoshot-sealife test: holds the first shark at the top of a leap, the second cruising and a fish in the air, all at
+    /// fixed spots, so they can be photographed. Null in the game.
+    /// </summary>
+    internal (double x, double z)? smokeHold;
+
     /// <summary>`level` is the current surface height; onSplash(distance) lets the sound be placed.</summary>
     public void update(double dt, double t, double level, double px, double pz, Action<double> onSplash)
     {
+        if (smokeHold != null)
+        {
+            breachTimer = 1e9;
+            jumpTimer = 1e9;
+            var (hx, hz) = smokeHold.Value;
+            for (int i = 0; i < sharks.Count; i++)
+            {
+                var sh = sharks[i];
+                sh.alive = true;
+                sh.root.visible = true;
+                sh.heading = Math.PI / 2;
+                sh.x = hx + (i == 0 ? 0 : 3);
+                sh.z = hz + (i == 0 ? 0 : 7);
+                sh.breach = i == 0 ? 0.5 : 0;
+                sh.breachFrom.set(sh.x, sh.z);
+            }
+            var j0 = jumpers[0];
+            j0.active = true;
+            j0.mesh.visible = true;
+            j0.t = 0.42;
+            j0.sx = hx - 2.2;
+            j0.sz = hz - 2.5;
+            j0.yaw = Math.PI / 2;
+            j0.dx = 0;
+            j0.dz = 0;
+            var sc0 = schools[0];
+            sc0.x = hx - 1;
+            sc0.z = hz - 4.5;
+            sc0.heading = Math.PI / 2;
+            sc0.speed = 0;
+            dt = 0.0001;
+        }
         // now and then one of the sharks launches itself out of the water
         breachTimer -= dt;
         if (breachTimer <= 0)
@@ -503,7 +488,7 @@ public class SeaLife
             {
                 // a real leap: it comes up from below the surface at a slant, arcs over and goes back in headfirst
                 double prev = s.breach;
-                s.breach += dt / BREACH_SECONDS;
+                if (smokeHold == null) s.breach += dt / BREACH_SECONDS;
                 double u0 = Math.Min(1, s.breach);
                 s.x += -Math.Sin(s.heading) * BREACH_SPEED * dt;
                 s.z += -Math.Cos(s.heading) * BREACH_SPEED * dt;
@@ -625,7 +610,7 @@ public class SeaLife
         foreach (var j in jumpers)
         {
             if (!j.active) continue;
-            j.t += dt / 0.95;
+            if (smokeHold == null) j.t += dt / 0.95;
             double u = j.t;
             if (u >= 1)
             {

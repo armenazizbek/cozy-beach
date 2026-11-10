@@ -240,6 +240,38 @@ public static class Journal
         },
         new JournalPage
         {
+            id = "pier_first",
+            group = "Journeys",
+            icon = "🌊",
+            title = "The Pier",
+            text = "The boards creak and the water slaps the posts underneath. Out at the end there is a bench, a bucket and nothing at all that needs doing.",
+        },
+        new JournalPage
+        {
+            id = "fish_first",
+            group = "Creatures",
+            icon = "🎣",
+            title = "First Catch",
+            text = "The float sat still for a long while. Then it was simply gone, and the rod was alive in your hands. Into the bucket it went, flapping.",
+        },
+        new JournalPage
+        {
+            id = "net_first",
+            group = "Creatures",
+            icon = "🐠",
+            title = "The Hand Net",
+            text = "A slow sweep through the water and something small is looking back at you through the mesh, more puzzled than afraid.",
+        },
+        new JournalPage
+        {
+            id = "aquarium_first",
+            group = "Camp",
+            icon = "🐟",
+            title = "The Aquarium",
+            text = "The tank at camp has its first lodger. It has already found the best corner and is behaving as if it has always lived there.",
+        },
+        new JournalPage
+        {
             id = "photo_first",
             group = "Journeys",
             icon = "📷",

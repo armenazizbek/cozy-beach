@@ -213,6 +213,99 @@ public class AutoShot : MonoBehaviour
             yield return Shot("4d-board-loaded.png");
         }
 
+        // -autoshot-sealife: a shark at the top of its leap, another cruising, and fish at the surface and in the air, close up
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-sealife") >= 0)
+        {
+            game.smokeTestSeaLife(0, 0.05, 9);
+            yield return Wait(2.5f);
+            yield return Shot("8-sea-wide.png");
+            game.smokeTestSeaLife(0.12, -0.02, 6);
+            yield return Wait(1.5f);
+            yield return Shot("8-shark-close.png");
+            game.smokeTestSeaLife(-0.42, -0.28, 6);
+            yield return Wait(1.5f);
+            yield return Shot("8-fish-close.png");
+        }
+
+        // -autoshot-fish: the pier and the moored boat, fishing from the bench, the net underwater, and the aquarium
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-fish") >= 0)
+        {
+            game.smokeTestSeePier();
+            yield return Wait(2);
+            yield return Shot("7-pier-from-beach.png");
+            game.smokeTestOnPier(41, Math.PI, -0.1);
+            yield return Wait(2);
+            yield return Shot("7-pier-walk.png");
+            game.smokeTestOnPier(58, Math.PI, -0.25);
+            yield return Wait(2);
+            yield return Shot("7-pier-end.png");
+            Debug.Log("[AutoShot] on the pier: " + game.smokeTestWhere());
+            game.smokeTestSit();
+            yield return Wait(1.5f);
+            yield return Shot("7-fish-1-seated.png");
+            // fish as a player would until two are in the bucket, or a minute has gone by
+            float fishT0 = Time.realtimeSinceStartup;
+            string last = "";
+            bool shotWait = false, shotReel = false;
+            while (Time.realtimeSinceStartup - fishT0 < 70)
+            {
+                string now = game.smokeTestFish();
+                if (now.Substring(0, 4) != (last.Length >= 4 ? last.Substring(0, 4) : "")) Debug.Log("[AutoShot] fishing: " + now);
+                last = now;
+                if (!shotWait && now.StartsWith("wait"))
+                {
+                    shotWait = true;
+                    yield return Wait(1.2f);
+                    yield return Shot("7-fish-2-waiting.png");
+                }
+                if (!shotReel && now.StartsWith("reel"))
+                {
+                    shotReel = true;
+                    yield return Wait(0.8f);
+                    game.smokeTestFish();
+                    yield return Shot("7-fish-3-reeling.png");
+                }
+                if (now.Contains("caught 2")) break;
+                yield return Wait(0.1f);
+            }
+            Debug.Log("[AutoShot] fishing ended: " + game.smokeTestFish());
+            game.smokeTestLook(Math.PI - 0.9, -0.8);
+            yield return Wait(1.5f);
+            yield return Shot("7-fish-4-bucket.png");
+            game.smokeTestStand();
+            yield return Wait(1);
+            Debug.Log("[AutoShot] stood up: " + game.smokeTestWhere());
+            // the net, underwater
+            game.smokeTestGo("dive");
+            yield return Wait(3);
+            Debug.Log("[AutoShot] " + game.smokeTestNet());
+            yield return Wait(1.2f);
+            yield return Shot("7-net-in-hand.png");
+            for (int i = 0; i < 4; i++) Debug.Log("[AutoShot] " + game.smokeTestNet());
+            Debug.Log("[AutoShot] " + game.smokeTestGold());
+            yield return Wait(0.5f);
+            Debug.Log("[AutoShot] after: " + game.smokeTestGold());
+            game.smokeTestGo("out");
+            yield return Wait(3);
+            // the aquarium with what was caught, then with everything
+            game.smokeTestAquarium(false);
+            yield return Wait(2.5f);
+            yield return Shot("7-aquarium-some.png");
+            game.smokeTestAquarium(true);
+            yield return Wait(3);
+            yield return Shot("7-aquarium-full.png");
+            game.smokeTestOpen("camp:aquarium");
+            yield return Wait(1.5f);
+            yield return Shot("7-aquarium-page.png");
+            game.smokeTestClose("camp:aquarium");
+            yield return Wait(0.5f);
+            game.smokeTestOpen("camp:upgrades");
+            yield return Wait(1.5f);
+            yield return Shot("7-shop.png");
+            game.smokeTestClose("camp:upgrades");
+            yield return Wait(0.5f);
+        }
+
         // -autoshot-settings: the settings screen, then the same view at the narrowest, the usual and the widest field of view
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-settings") >= 0)
         {

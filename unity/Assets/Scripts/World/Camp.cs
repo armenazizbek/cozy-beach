@@ -138,6 +138,17 @@ public class Camp
         obj.add(proxy);
     }
 
+    /// <summary>
+    /// Stands something built elsewhere in the camp (the aquarium): it can be clicked and walked up to like the camp's own
+    /// props, and neither walking nor driving passes through it. `x`, `z` are in the camp's own space.
+    /// </summary>
+    public void addProp(THREE.Object3D obj, string kind, double x, double z, double hitRadius, double solidRadius)
+    {
+        mark(obj, kind, hitRadius, 1.1);
+        group.add(obj);
+        obstacles.Add(new Solid { x = x, z = CAMP_Z + z, r = solidRadius });
+    }
+
     public string kindOf(THREE.Object3D obj)
     {
         var o = obj;
