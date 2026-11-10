@@ -1262,15 +1262,6 @@ public class Game
     {
         if (!started) return;
 
-        // TEMP CHEAT (remove before release): F5 adds 1,000,000 coins
-        if (code == "F5")
-        {
-            state.addCoins(1000000);
-            audio.coin();
-            ui.toast("Cheat: +1,000,000 coins");
-            return;
-        }
-
         if (hammock != null)
         {
             if (code != "KeyN") leaveHammock(false);
