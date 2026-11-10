@@ -123,6 +123,10 @@ public class ViewModel
     private readonly THREE.Group camArmsBare = new THREE.Group(), camArmsDiver = new THREE.Group();
 
     private readonly THREE.Group flag = new THREE.Group(), bucket = new THREE.Group();
+    /// <summary>the fishing rod (tool 10) and the diver's hand net (tool 11)</summary>
+    private readonly THREE.Group rod = new THREE.Group(), net = new THREE.Group();
+    /// <summary>sits at the very tip of the rod; the fishing line starts here</summary>
+    public readonly THREE.Object3D rodTip = new THREE.Object3D();
 
     public ViewModel()
     {
@@ -135,7 +139,9 @@ public class ViewModel
         buildFlag();
         buildBucket();
         buildHarpoon();
-        root.add(detector, trowel, gun, binoc, photoCam, bow, flag, bucket, harpoon);
+        buildRod();
+        buildNet();
+        root.add(detector, trowel, gun, binoc, photoCam, bow, flag, bucket, harpoon, rod, net);
         group.add(root);
         group.traverse(o => { if (o is THREE.Mesh m) m.frustumCulled = false; });
         buildProxy();
@@ -729,6 +735,100 @@ public class ViewModel
         g.visible = false;
     }
 
+    /// <summary>
+    /// A fishing rod in the right hand, pointing up and out over the water: a cork handle, a slim tapering blank with line
+    /// guides, and a little reel under the handle.
+    /// </summary>
+    private void buildRod()
+    {
+        var g = rod;
+        var cork = new THREE.MeshStandardMaterial { color = 0xc9a36a, roughness = 0.9 };
+        var blank = new THREE.MeshStandardMaterial { color = 0x2a3038, roughness = 0.45, metalness = 0.2 };
+        var metal = new THREE.MeshStandardMaterial { color = 0xc9ced4, roughness = 0.3, metalness = 0.8 };
+        var redMat = new THREE.MeshStandardMaterial { color = 0xc8362a, roughness = 0.5 };
+        // the hand's place on the handle, and the way the rod points from there
+        var grip = v(0.3, -0.3, -0.5);
+        var dir = v(-0.13, 0.4, -1).normalize();
+        THREE.Vector3 on(double d) => grip.clone().addScaledVector(dir, d);
+        g.add(limb(on(-0.17), on(0.2), 0.017, cork, 0.015));
+        g.add(limb(on(-0.19), on(-0.17), 0.019, blank));
+        g.add(limb(on(0.2), on(0.26), 0.014, metal, 0.011));
+        g.add(limb(on(0.26), on(2.15), 0.0105, blank, 0.0028));
+        // line guides: small rings standing under the blank
+        var down = v(0, -1, 0).addScaledVector(dir, dir.y).normalize();
+        foreach (var d in new[] { 0.55, 0.95, 1.35, 1.7, 2.0, 2.14 })
+        {
+            double r = 0.016 - d * 0.004;
+            var ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0025, 5, 10), metal);
+            ring.position.copy(on(d)).addScaledVector(down, r + 0.004);
+            ring.quaternion.setFromUnitVectors(v(0, 0, 1), dir);
+            g.add(ring);
+        }
+        // the reel, hanging under the handle just ahead of the hand
+        var reelAt = on(0.15).addScaledVector(down, 0.045);
+        var foot = limb(on(0.15), reelAt, 0.006, metal);
+        var spool = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16), metal);
+        spool.position.copy(reelAt);
+        spool.rotation.z = Math.PI / 2;
+        var knob = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), redMat);
+        knob.position.copy(reelAt).add(v(0.026, -0.018, 0));
+        g.add(foot, spool, knob);
+        rodTip.position.copy(on(2.15));
+        g.add(rodTip);
+        armOn(g, grip, dir, v(0.47, -0.78, 0.3), 1, 0.017, 1, BARE, HANDSHAKE);
+        g.visible = false;
+    }
+
+    /// <summary>A diver's hand net: a short pole, a steel hoop and a soft bag of netting trailing from it.</summary>
+    private void buildNet()
+    {
+        var g = net;
+        var pole = new THREE.MeshStandardMaterial { color = 0xf2c14e, roughness = 0.5 };
+        var steel = new THREE.MeshStandardMaterial { color = 0xcfd6dc, metalness = 0.7, roughness = 0.32 };
+        var mesh = new THREE.MeshStandardMaterial { color = 0xeef6f8, roughness = 0.9, transparent = true, opacity = 0.38, side = THREE.Side.DoubleSide, depthWrite = false };
+        var cord = new THREE.MeshStandardMaterial { color = 0xdfe9ec, roughness = 0.9 };
+        var grip = v(0.3, -0.31, -0.5);
+        var dir = v(-0.1, 0.12, -1).normalize();
+        THREE.Vector3 on(double d) => grip.clone().addScaledVector(dir, d);
+        g.add(limb(on(-0.13), on(0.5), 0.015, pole, 0.012));
+        g.add(limb(on(-0.15), on(-0.13), 0.018, steel));
+        // the hoop stands at the end of the pole, tipped a little forward; the bag hangs behind and below it
+        const double R = 0.17;
+        var hoopAt = on(0.5 + R);
+        var hoop = new THREE.Group();
+        hoop.position.copy(hoopAt);
+        // the hoop's own axis (the way the bag opens): forward and up from the pole
+        var open = v(0, 0.75, -0.66).normalize();
+        hoop.quaternion.setFromUnitVectors(v(0, 1, 0), open);
+        var rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.007, 6, 24), steel);
+        rim.rotation.x = Math.PI / 2;
+        hoop.add(rim);
+        // the bag: a rounded cone of netting, mouth at the hoop, with a few cords running down it
+        var bag = new THREE.Mesh(new THREE.ConeGeometry(R, 0.36, 14, 3, true), mesh);
+        bag.rotation.x = Math.PI;
+        bag.position.y = -0.18;
+        hoop.add(bag);
+        for (int i = 0; i < 7; i++)
+        {
+            double a = i / 7.0 * Math.PI * 2;
+            hoop.add(limb(v(Math.Cos(a) * R, 0, Math.Sin(a) * R), v(0, -0.36, 0), 0.0025, cord));
+        }
+        foreach (var y in new[] { -0.12, -0.24 })
+        {
+            double rr = R * (1 + y / 0.36);
+            var band = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.0025, 4, 18), cord);
+            band.rotation.x = Math.PI / 2;
+            band.position.y = y;
+            hoop.add(band);
+        }
+        g.add(hoop);
+        armOn(g, grip, dir, v(0.5, -0.8, 0.32), 1, 0.016, 1, DIVER, HANDSHAKE);
+        // turned in toward the middle of the view, like the harpoon
+        g.position.set(0.1, -0.1, 0);
+        g.rotation.y = 0.06;
+        g.visible = false;
+    }
+
     /// <summary>The gold finishes from the Luxury shop.</summary>
     public void setGolden(bool det, bool trw)
     {
@@ -1048,6 +1148,8 @@ public class ViewModel
         flag.visible = n == 7;
         bucket.visible = n == 8;
         harpoon.visible = n == 9;
+        rod.visible = n == 10;
+        net.visible = n == 11;
         group.visible = n != 0 && !((n == 5 || n == 3) && raised);
     }
 
@@ -1082,7 +1184,8 @@ public class ViewModel
         // the trowel stabs forward and a little down, so it stays in view through the dig
         bool dig = tool == 2;
         root.position.set(Math.Cos(bob * 0.5) * 0.012 * sw * amp, 0.2 + Math.Sin(bob) * 0.014 * sw * amp - s * (dig ? 0.03 : 0.06), 0.1 + s * (dig ? -0.08 : 0.1));
-        root.rotation.x = dig ? -s * 0.12 : tool == 4 || tool == 9 ? kickT * 0.22 : Math.Sin(bob * 0.5) * 0.01 * sw * amp;
+        // the net sweeps forward and down through the water
+        root.rotation.x = dig ? -s * 0.12 : tool == 11 ? -s * 0.45 : tool == 4 || tool == 9 ? kickT * 0.22 : Math.Sin(bob * 0.5) * 0.01 * sw * amp;
         if (tool == 4 || tool == 9) root.position.z += kickT * 0.08;
         root.rotation.z = Math.Cos(bob * 0.5) * 0.01 * sw * amp;
 

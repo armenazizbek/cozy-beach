@@ -93,6 +93,17 @@ public class SeaCreatures
         }
     }
 
+    /// <summary>
+    /// One more animal of a kind that is not part of the sea: nothing here moves or draws it. Whoever asks for it adds its
+    /// `root` somewhere and calls its `tick` (the aquarium keeps a small one of each kind caught).
+    /// </summary>
+    public Animal spawnDetached(string kind)
+    {
+        Animal a = kind == "octopus" ? octopus() : kind == "seahorse" ? seahorse() : kind == "snake" ? snake() : kind == "turtle" ? turtle() : kind == "crab" ? crab() : null;
+        a?.place();
+        return a;
+    }
+
     /// <summary>Called when the harpoon hits one.</summary>
     public void catchAnimal(Animal a)
     {

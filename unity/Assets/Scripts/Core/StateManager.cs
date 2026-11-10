@@ -89,6 +89,14 @@ public class GameData
     public int nextUid = 1;
     /// <summary>photos taken with the camera, oldest first</summary>
     public List<PhotoInfo> photos = new List<PhotoInfo>();
+    /// <summary>bought the fishing rod, to fish from the bench on the pier</summary>
+    public bool ownsRod;
+    /// <summary>bought the hand net, to catch sea creatures alive while diving</summary>
+    public bool ownsNet;
+    /// <summary>ids of the sea creatures caught alive so far (see Catches); a small one of each lives in the camp aquarium</summary>
+    public List<string> aquarium = new List<string>();
+    /// <summary>fish landed with the rod, all told</summary>
+    public int fishCaught = 0;
 
     public GameData DeepClone() => JsonConvert.DeserializeObject<GameData>(JsonConvert.SerializeObject(this, SaveGame.Json), SaveGame.Json);
 }
@@ -573,6 +581,45 @@ public class StateManager
     public void setLighting(string mode)
     {
         data.lighting = mode;
+        emit();
+    }
+
+    // ---------------------------------------------------------------- fishing and the aquarium
+
+    public bool buyRod()
+    {
+        if (data.ownsRod || data.coins < Catches.ROD_COST) return false;
+        data.coins -= Catches.ROD_COST;
+        data.ownsRod = true;
+        emit();
+        return true;
+    }
+
+    public bool buyNet()
+    {
+        if (data.ownsNet || data.coins < Catches.NET_COST) return false;
+        data.coins -= Catches.NET_COST;
+        data.ownsNet = true;
+        emit();
+        return true;
+    }
+
+    public List<string> aquarium => data.aquarium ??= new List<string>();
+
+    /// <summary>Puts a kind of sea creature in the aquarium. True when it is the first of its kind.</summary>
+    public bool addToAquarium(string id)
+    {
+        if (aquarium.Contains(id)) return false;
+        aquarium.Add(id);
+        emit();
+        return true;
+    }
+
+    /// <summary>A fish landed with the rod: it is counted and paid for.</summary>
+    public void landFish(SeaSpecies s)
+    {
+        data.fishCaught += 1;
+        data.coins += s.value;
         emit();
     }
 

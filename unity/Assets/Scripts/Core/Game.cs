@@ -186,8 +186,23 @@ public class Game
     /// Underwater and in the room under the hatch the beach tools stay behind, but the camera can be taken out (3). True while
     /// it is in the hands there; <see cref="tool"/> keeps the beach tool for the way back.
     /// </summary>
-    private bool altCamera = false;
+    private bool altCamera => altTool == 3;
+    /// <summary>what is in the hands down there: 0 the usual (the harpoon underwater, nothing under the dunes), 3 the camera, 11 the net</summary>
+    private int altTool = 0;
     private bool holdingCamera => alt ? altCamera : tool == 3;
+    private double netCooldown = 0;
+
+    /// <summary>the fishing pier, the fishing itself (the float, the line, the catch) and the aquarium at camp</summary>
+    public readonly Pier pier = new Pier();
+    private readonly Fishing fishing = new Fishing();
+    private Aquarium aquarium;
+    /// <summary>sitting on the bench at the end of the pier, rod in hand</summary>
+    private bool seated => fishing.active;
+    /// <summary>the reel button is held down</summary>
+    private bool fishHeld = false;
+    private string tankKey = null;
+    private readonly THREE.Vector3 rodTipAt = new THREE.Vector3();
+    private readonly THREE.Color splashColor = new THREE.Color(0xdff3fa);
     /// <summary>a photo is taken right after this frame's picture is drawn, so it shows exactly what the player sees</summary>
     private bool photoPending = false;
     private double lastPhoto = -10000;
@@ -247,6 +262,14 @@ public class Game
         // finds on the sea floor rest on it, not on the beach far away
         spawner.ground = (x, z) => under.contains(x, z) ? under.floorAt(x, z) : beach.heightAt(x, z);
         under.onCatch = (_at, reward, label) => onFishSpeared(reward, label);
+        aquarium = new Aquarium(under);
+        camp.addProp(aquarium.group, "aquarium", Aquarium.AT.x, Aquarium.AT.z, 1.1, 1.15);
+        fishing.makeFish = s => under.makeFish(s);
+        fishing.waterAt = (x, z) => ocean.heightAt(x, z);
+        fishing.pick = () => Catches.pickRod(dayTime, rain.amount > 0.4, state.aquarium, JS.Random);
+        fishing.onCatch = s => onFishLanded(s);
+        fishing.sound = name => audio.fishing(name);
+        fishing.splash = (at, k) => dig.particles.burst(at, (int)(5 + 12 * k), 0.9 + k, 1.2 + k, 0.5, splashColor);
         station = new CleaningStation(renderer);
 
         scene.add(
@@ -290,7 +313,8 @@ public class Game
         dog = new Dog(beach);
         scene.add(dog.group);
         placeDogHome();
-        boat = new Boat(-16, SHORE_Z + 4.5, Math.PI);
+        // a new game finds the boat tied up alongside the pier
+        boat = new Boat(Pier.MOORING.x, Pier.MOORING.z, Pier.MOORING.heading);
         scene.add(boat.group, boat.wake.points);
         beam = new THREE.Mesh(
             new THREE.CylinderGeometry(0.18, 0.18, 60, 10, 1, true),
@@ -380,6 +404,9 @@ public class Game
         showDecor();
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
+        scene.add(pier.group, fishing.group);
+        state.subscribe(refreshAquarium);
+        refreshAquarium();
         achievements.onUnlock = a =>
         {
             audio.discover();
@@ -580,6 +607,88 @@ public class Game
         else ui.closeSettings();
     }
 
+    /// <summary>For the -autoshot-fish test: stands on the pier at this distance along it, looking this way.</summary>
+    internal void smokeTestOnPier(double z, double yaw, double pitch)
+    {
+        if (seated) standUp();
+        player.x = Pier.X;
+        player.z = z;
+        player.yaw = yaw;
+        player.pitch = pitch;
+    }
+
+    /// <summary>For the -autoshot-fish test: a place on the beach to look at the pier and the boat from.</summary>
+    internal void smokeTestSeePier()
+    {
+        player.x = Pier.X + 9;
+        player.z = SHORE_Z - 6;
+        player.yaw = Math.Atan2(-(Pier.X - 3 - player.x), -(Pier.Z0 + 12 - player.z));
+        player.pitch = -0.08;
+    }
+
+    /// <summary>For the -autoshot-fish test: gets a rod and sits down on the bench.</summary>
+    internal void smokeTestSit()
+    {
+        state.data.ownsRod = true;
+        player.x = Pier.STAND.x;
+        player.z = Pier.STAND.z;
+        sitDown();
+    }
+
+    /// <summary>For the -autoshot-fish test: fishes as a player would: casts, strikes at the bite and reels in. Returns what is going on.</summary>
+    internal string smokeTestFish()
+    {
+        if (!seated) return "not seated";
+        if (fishing.phase == "idle" || fishing.phase == "bite") fishClick();
+        fishHeld = fishing.phase == "reel";
+        return $"{fishing.phase} {fishing.progress:0.00}, caught {state.data.fishCaught}, tank {state.aquarium.Count}";
+    }
+
+    internal void smokeTestStand() => standUp();
+
+    /// <summary>For the -autoshot-fish test: takes the net out underwater and sweeps it, with a very long reach so it always finds something.</summary>
+    internal string smokeTestNet()
+    {
+        state.data.ownsNet = true;
+        setAltTool(11);
+        camera.getWorldDirection(aimDir);
+        var got = under.scoop(camera.position, aimDir, 60);
+        if (got != null) state.addToAquarium(got.id);
+        return $"net in hand: {altTool == 11}, caught: {got?.name ?? "nothing"}";
+    }
+
+    /// <summary>For the -autoshot-fish test: fills the aquarium (in the test's own save) and stands in front of it.</summary>
+    internal void smokeTestAquarium(bool fill)
+    {
+        if (fill) foreach (var s in Catches.ALL) state.addToAquarium(s.id);
+        double r = Aquarium.AT.rot;
+        player.x = Aquarium.AT.x + Math.Sin(r) * 2.3;
+        player.z = CAMP_Z + Aquarium.AT.z + Math.Cos(r) * 2.3;
+        player.yaw = r;
+        player.pitch = -0.2;
+    }
+
+    /// <summary>For the -autoshot-fish test: where the one golden fish is, and whether a net held a metre from it would take it.</summary>
+    internal string smokeTestGold()
+    {
+        var at = under.goldAt();
+        if (at == null) return "no golden fish in the sea";
+        var seen = under.goldAt();
+        var got = under.scoop(seen.clone().add(new THREE.Vector3(1, 0, 0)), new THREE.Vector3(-1, 0, 0), 2.6);
+        if (got != null && got.id == "goldfish") state.addToAquarium(got.id);
+        return $"golden fish at {at.x - 1200:0.0}, {at.y:0.0}, {at.z - 1200:0.0}; net a metre away took: {got?.name ?? "nothing"}";
+    }
+
+    /// <summary>For the -autoshot-sealife test: holds a leaping shark, a cruising one and a jumping fish in front of the pier, and looks at them.</summary>
+    internal void smokeTestSeaLife(double yawOff, double pitch, double dist)
+    {
+        sea.smokeHold = (Pier.X + 0.5, Pier.Z1 + dist);
+        player.x = Pier.X;
+        player.z = Pier.Z1 - 1.5;
+        player.yaw = Math.PI + yawOff;
+        player.pitch = pitch;
+    }
+
     internal string smokeTestExportPhoto() => state.photos.Count > 0 ? Photos.export(state.photos[state.photos.Count - 1].id) : null;
 
     /// <summary>For the -autoshot-photo test: saves the game under a fixed id, so it can be loaded again.</summary>
@@ -773,6 +882,16 @@ public class Game
             leaveHammock(false);
             return;
         }
+        if (seated)
+        {
+            if (button == 0 && gameState == "EXPLORE")
+            {
+                if (!locked && !usingPad) requestLock(true);
+                // a bite is struck the moment the button goes down (see onPointerDown); the release casts or brings the line in
+                if (fishing.phase == "idle" || fishing.phase == "wait") fishClick();
+            }
+            return;
+        }
         if (underground)
         {
             if (button == 0 && gameState == "EXPLORE" && !locked && !usingPad) requestLock(true);
@@ -783,6 +902,13 @@ public class Game
         {
             if (button == 0 && !locked && !usingPad) requestLock(true);
             cameraClick(button);
+            return;
+        }
+        if (diving && altTool == 11 && gameState == "EXPLORE")
+        {
+            if (button != 0) return;
+            if (!locked && !usingPad) requestLock(true);
+            swingNet();
             return;
         }
         if (diving)
@@ -871,6 +997,13 @@ public class Game
 
     private void onPointerDown(int button)
     {
+        if (seated)
+        {
+            if (button != 0 || !started || paused || gameState != "EXPLORE") return;
+            fishHeld = true;
+            if (fishing.phase == "bite") fishClick();
+            return;
+        }
         if (!canUseBow()) return;
         if (button == 2 && drawing)
         {
@@ -886,6 +1019,7 @@ public class Game
 
     private void onPointerUp(int button)
     {
+        if (button == 0) fishHeld = false;
         if (button != 0 || !drawing) return;
         double power = charge;
         cancelDraw();
@@ -1021,12 +1155,12 @@ public class Game
     private void onWheel(double d)
     {
         double now = JS.Now();
-        if (!started || paused || driving || gameState != "EXPLORE" || now - lastWheel < 180) return;
+        if (!started || paused || driving || seated || gameState != "EXPLORE" || now - lastWheel < 180) return;
         lastWheel = now;
         if (alt)
         {
-            // down there the wheel only has the camera to take out or put away
-            setAltCamera(!altCamera);
+            // down there the wheel goes round what there is: the harpoon, the net and the camera
+            cycleAltTool(d > 0 ? 1 : -1);
             return;
         }
         var order = toolOrder();
@@ -1184,8 +1318,16 @@ public class Game
             // Q swims back up; F picks up what is in reach
             if (code == "KeyQ") leaveDive();
             else if (code == "KeyF") interaction?.run?.Invoke();
+            else if (code == "Digit1") setAltTool(0);
+            else if (code == "Digit2") setAltTool(altTool == 11 ? 0 : 11);
             else if (code == "Digit3") setAltCamera(!altCamera);
-            else if (code.StartsWith("Digit")) ui.toast("Down here you only have the harpoon and the camera (3).");
+            else if (code.StartsWith("Digit")) ui.toast("Down here you have the harpoon (1), the net (2) and the camera (3).");
+            return;
+        }
+        if (seated)
+        {
+            // on the bench only getting up is left on the keys; the mouse does the fishing
+            if ((code == "KeyF" || code == "KeyE") && gameState == "EXPLORE" && !transitioning) standUp();
             return;
         }
         if (driving && code != "KeyF" && code != "KeyE") return;
@@ -1259,15 +1401,33 @@ public class Game
     }
 
     /// <summary>Underwater or under the dunes: takes the camera out, or puts it away again (the harpoon comes back underwater).</summary>
-    private void setAltCamera(bool on)
+    private void setAltCamera(bool on) => setAltTool(on ? 3 : 0);
+
+    /// <summary>
+    /// Underwater or under the dunes: what is in the hands. 0 is the usual (the harpoon underwater, empty hands under the dunes),
+    /// 3 the camera, 11 the hand net (underwater only, once bought).
+    /// </summary>
+    private void setAltTool(int n)
     {
-        if (!alt || transitioning || gameState != "EXPLORE" || on == altCamera) return;
+        if (!alt || transitioning || gameState != "EXPLORE" || n == altTool) return;
+        if (n == 11 && !diving) return;
+        if (n == 11 && !state.data.ownsNet)
+        {
+            audio.error();
+            ui.toast("You do not have a hand net yet. The camper shop sells one.");
+            return;
+        }
         setBinocView(false);
-        altCamera = on;
-        if (on)
+        altTool = n;
+        if (n == 3)
         {
             view.setTool(3);
             ui.setBadgeText("📷", "Camera");
+        }
+        else if (n == 11)
+        {
+            view.setTool(11);
+            ui.setBadgeText("🐠", "Net");
         }
         else if (diving) applyDiveHands();
         else
@@ -1278,13 +1438,164 @@ public class Game
         audio.ui();
     }
 
+    /// <summary>The next thing to hold down there: the harpoon, the net (once bought) and the camera in turn underwater; the camera or nothing under the dunes.</summary>
+    private void cycleAltTool(int dir)
+    {
+        var order = new List<int> { 0 };
+        if (diving && state.data.ownsNet) order.Add(11);
+        order.Add(3);
+        int i = Math.Max(0, order.IndexOf(altTool));
+        setAltTool(order[(i + dir + order.Count) % order.Count]);
+    }
+
+    /// <summary>A sweep of the net at whatever is close in front of the diver.</summary>
+    private void swingNet()
+    {
+        double now = JS.Now();
+        if (now - netCooldown < 600) return;
+        netCooldown = now;
+        view.doSwing();
+        audio.fishing("net");
+        camera.updateMatrixWorld(true);
+        camera.getWorldDirection(aimDir);
+        var got = under.scoop(camera.position, aimDir);
+        if (got == null) return;
+        discover("net_first");
+        if (got.id == "goldfish" && state.addToAquarium(got.id))
+        {
+            audio.discover();
+            ui.toast("🐠 You caught the Golden Fish! The only one in the whole sea.");
+        }
+        else if (state.addToAquarium(got.id))
+        {
+            audio.discover();
+            ui.toast($"🐠 New for the aquarium: {got.name}");
+        }
+        else
+        {
+            audio.ui();
+            ui.toast($"You already have a {got.name}, so you let it go.");
+        }
+    }
+
+    // ---------------------------------------------------------------- fishing from the pier
+
+    /// <summary>Sits down on the bench at the end of the pier, rod in hand.</summary>
+    private void sitDown()
+    {
+        if (seated || driving || alt || hammock != null || gameState != "EXPLORE" || transitioning) return;
+        setBinocView(false);
+        if (drawing) cancelDraw();
+        walkTo = null;
+        fishHeld = false;
+        player.x = Pier.SEAT.x;
+        player.z = Pier.SEAT.z;
+        player.yaw = Pier.SEAT.yaw;
+        player.pitch = -0.12;
+        detector.setActive(false);
+        dig.setActive(false);
+        view.proxy.visible = false;
+        view.setTool(10);
+        ui.setTool(0);
+        ui.setBadgeText("🎣", "Fishing rod");
+        fishing.sit();
+        audio.ui();
+    }
+
+    /// <summary>Gets up from the bench: the beach tool comes back.</summary>
+    private void standUp()
+    {
+        if (!seated) return;
+        fishing.stand();
+        fishHeld = false;
+        ui.setDraw(0);
+        player.x = Pier.STAND.x;
+        player.z = Pier.STAND.z;
+        player.pitch = -0.1;
+        eyeY = 0;
+        view.proxy.visible = true;
+        view.setTool(tool);
+        ui.setTool(tool);
+        detector.setActive(tool == 1);
+        dig.setActive(tool == 2);
+        camera.fov = baseFov;
+        camera.updateProjectionMatrix();
+        audio.ui();
+    }
+
+    /// <summary>A press of the button with the rod: casts toward where the player looks, brings the line in, or strikes at a bite.</summary>
+    private void fishClick()
+    {
+        // looking up casts further out, looking down drops the float close in
+        double dist = Math.Min(10.5, Math.Max(4.5, 7.5 + player.pitch * 6));
+        double ax = Pier.SEAT.x - Math.Sin(player.yaw) * dist;
+        double az = Math.Max(Pier.Z1 + 1.5, Pier.SEAT.z - Math.Cos(player.yaw) * dist);
+        fishing.click(ax, az);
+    }
+
+    /// <summary>Sitting on the bench: free to look about over the sea while the float does its work.</summary>
+    private void updateFishing(double dt)
+    {
+        var p = player;
+        moving = false;
+        // the bench faces the sea, and so does whoever sits on it
+        double rel = Math.Atan2(Math.Sin(p.yaw - Pier.SEAT.yaw), Math.Cos(p.yaw - Pier.SEAT.yaw));
+        p.yaw = Pier.SEAT.yaw + Math.Min(1.3, Math.Max(-1.3, rel));
+        p.pitch = Math.Min(0.7, Math.Max(-0.95, p.pitch));
+        p.x = Pier.SEAT.x;
+        p.z = Pier.SEAT.z;
+        eyeY = Pier.SEAT.y;
+        feet.set(p.x, Pier.DECK, p.z);
+        camera.position.set(p.x, eyeY + Math.Sin(time * 1.1) * 0.004, p.z);
+        camera.rotation.set(p.pitch, p.yaw, 0);
+        view.update(dt, false, feet, p.yaw, p.pitch);
+        applyToolFov(dt);
+        camera.updateMatrixWorld(true);
+        view.rodTip.getWorldPosition(rodTipAt);
+        fishing.held = fishHeld && gameState == "EXPLORE";
+        fishing.update(dt, time, rodTipAt);
+        ui.setDraw(fishing.phase == "reel" ? Math.Max(0.02, fishing.progress) : 0);
+    }
+
+    /// <summary>The fish is in the bucket: it is paid for, and the first of each kind goes to the aquarium.</summary>
+    private void onFishLanded(SeaSpecies s)
+    {
+        state.landFish(s);
+        discover("fish_first");
+        if (state.addToAquarium(s.id))
+        {
+            audio.discover();
+            ui.toast($"🎣 New for the aquarium: {s.name}");
+        }
+        else
+        {
+            audio.coin();
+            ui.toast($"🎣 {s.name}");
+        }
+    }
+
+    /// <summary>Shows in the tank at camp what has been caught alive so far.</summary>
+    private void refreshAquarium()
+    {
+        var have = state.aquarium;
+        var key = string.Join(",", have);
+        if (key == tankKey) return;
+        tankKey = key;
+        aquarium.setCaught(have);
+        under.setGoldCaught(have.Contains("goldfish"));
+        if (have.Count > 0) discover("aquarium_first");
+    }
+
     private void selectSlot(int n)
     {
         if (!started && n != 1) return;
+        if (seated) return;
         if (alt)
         {
             if (n == 3) setAltCamera(!altCamera);
-            else ui.toast(underground ? "There is nothing to dig or shoot down here. Only the camera works." : "Down here you only have the harpoon and the camera.");
+            else if (diving && n == 1) setAltTool(0);
+            else if (diving && n == 2) setAltTool(altTool == 11 ? 0 : 11);
+            else ui.toast(underground ? "There is nothing to dig or shoot down here. Only the camera works." : "Down here you have the harpoon, the net and the camera.");
             return;
         }
         if (n == 8 && !state.data.ownsBucket)
@@ -1676,7 +1987,7 @@ public class Game
         {
             { "fire", "rest" }, { "bin", "recycle" }, { "board", "board" }, { "bench", "sell" },
             { "lantern", null }, { "camper", "upgrades" }, { "radio", null }, { "coffee", null },
-            { "book", null }, { "post", null }, { "hammock", null }, { "sign", null }, { "photos", "photos" },
+            { "book", null }, { "post", null }, { "hammock", null }, { "sign", null }, { "photos", "photos" }, { "aquarium", "aquarium" },
         };
         if (kind == "coffee")
         {
@@ -2115,7 +2426,7 @@ public class Game
             else if (b == "lb") lift.down = down;
             else if (down && b == "a") padKey("KeyF");
             else if (down && b == "x") padKey("KeyQ");
-            else if (down && b == "left") setAltCamera(!altCamera);
+            else if (down && b == "left") cycleAltTool(1);
             else if (down && b == "start") padKey("Escape");
             else if (down && b == "back") padKey("KeyN");
             return;
@@ -2735,6 +3046,11 @@ public class Game
             updateDeck(dt);
             return;
         }
+        if (seated)
+        {
+            updateFishing(dt);
+            return;
+        }
         var p = player;
         moving = false;
         double px0 = p.x;
@@ -2808,7 +3124,31 @@ public class Game
         {
             // keep out of the sea, off the edge, and out of the fire
             p.x = Math.Min(HALF - 2, Math.Max(-(HALF - 2), p.x));
-            p.z = Math.Min(SHORE_Z - 3, Math.Max(-(HALF - 2), p.z));
+            p.z = Math.Max(-(HALF - 2), p.z);
+            double maxZ = SHORE_Z - 3;
+            if (p.z > maxZ)
+            {
+                // the pier carries on out over the water: once on it, the only ways are along it and back
+                double half = Pier.HALF_W - 0.3;
+                bool wasOut = pz0 > maxZ && Math.Abs(px0 - Pier.X) <= half + 0.01;
+                if (wasOut || Math.Abs(p.x - Pier.X) <= half)
+                {
+                    p.x = Math.Min(Pier.X + half, Math.Max(Pier.X - half, p.x));
+                    p.z = Math.Min(Pier.Z1 - 0.45, p.z);
+                    // the bench and the bucket at the end
+                    foreach (var o in new (double x, double z, double r)[] { (Pier.SEAT.x, Pier.SEAT.z + 0.05, 0.62), (Pier.BUCKET.x, Pier.BUCKET.z, 0.4) })
+                    {
+                        double d = JS.Hypot(p.x - o.x, p.z - o.z);
+                        if (d < o.r)
+                        {
+                            p.x = o.x + ((p.x - o.x) / (d != 0 ? d : 1)) * o.r;
+                            p.z = o.z + ((p.z - o.z) / (d != 0 ? d : 1)) * o.r;
+                        }
+                    }
+                    if (p.z > SHORE_Z + 2) discover("pier_first");
+                }
+                else p.z = maxZ;
+            }
         }
         foreach (var o in camp.obstacles)
         {
@@ -2867,6 +3207,9 @@ public class Game
             p.z = CAMP_Z + ((p.z - CAMP_Z) / (fd != 0 ? fd : 1)) * 1.6;
         }
         double ground = beach.heightAt(p.x, p.z);
+        // on the pier the boards are the ground
+        bool onPier = Pier.over(p.x, p.z);
+        if (onPier) ground = Math.Max(ground, Pier.deckAt(p.z));
         if (eyeY == 0) eyeY = ground + 1.65;
         eyeY += (ground + 1.65 - eyeY) * Math.Min(1, dt * 12);
         feet.set(p.x, ground, p.z);
@@ -2875,7 +3218,7 @@ public class Game
         view.update(dt, moving, feet, p.yaw, p.pitch);
         // binoculars narrow the field of view
         applyToolFov(dt);
-        leaveFootprints();
+        if (!onPier) leaveFootprints();
     }
 
     // ---------------------------------------------------------------- the room under the hatch
@@ -2890,7 +3233,7 @@ public class Game
         {
             diveReturn = new PlayerPose { x = player.x, z = player.z, yaw = player.yaw, pitch = player.pitch };
             underground = true;
-            altCamera = false;
+            altTool = 0;
             hideLand(true);
             spawner.group.visible = false;
             cellar.setActive(true);
@@ -2922,7 +3265,7 @@ public class Game
         {
             var r = diveReturn;
             setBinocView(false);
-            altCamera = false;
+            altTool = 0;
             underground = false;
             cellar.setActive(false);
             sky.setUnderground(false);
@@ -3020,7 +3363,7 @@ public class Game
     /// <summary>True where the water is close enough to slip in: the shallow edge of the beach, or the island's coast.</summary>
     private bool canDive()
     {
-        if (vehicle != null || driving || hammock != null || alt || !started) return false;
+        if (vehicle != null || driving || hammock != null || seated || alt || !started) return false;
         if (onIsland) return beach.heightAt(player.x, player.z) < WATER_LEVEL + 0.8;
         return player.z > SHORE_Z - 8;
     }
@@ -3102,7 +3445,7 @@ public class Game
         {
             diveReturn = new PlayerPose { x = player.x, z = player.z, yaw = player.yaw, pitch = player.pitch };
             diving = true;
-            altCamera = false;
+            altTool = 0;
             hideLand(true);
             under.setActive(true);
             sky.setUnderwater(true);
@@ -3132,7 +3475,7 @@ public class Game
         {
             var r = diveReturn;
             setBinocView(false);
-            altCamera = false;
+            altTool = 0;
             diving = false;
             under.setActive(false);
             sky.setUnderwater(false);
@@ -3356,7 +3699,10 @@ public class Game
             double m = double.PositiveInfinity;
             foreach (var pt in new (double al, double side)[] { (0, 0), (2.3, 0), (-2.3, 0), (0, 0.9), (0, -0.9) })
             {
-                m = Math.Min(m, level - beach.heightAt(x + fx * pt.al + rx * pt.side, z + fz * pt.al + rz * pt.side));
+                double hx = x + fx * pt.al + rx * pt.side, hz = z + fz * pt.al + rz * pt.side;
+                // the pier is as solid to a hull as the sand is
+                if (Pier.blocks(hx, hz)) return double.NegativeInfinity;
+                m = Math.Min(m, level - beach.heightAt(hx, hz));
             }
             return m;
         }
@@ -3475,6 +3821,9 @@ public class Game
             var il = island.landingFrom(boat.x, boat.z);
             if (il != null) return new LandingSpot { x = il.Value.x, z = il.Value.z, island = true };
         }
+        // alongside the pier, the way off the boat is onto its boards
+        var onto = Pier.landingFor(boat.x, boat.z);
+        if (onto != null) return new LandingSpot { x = onto.Value.x, z = onto.Value.z, island = false };
         double shore = beach.shoreZ(boat.x, ocean.surfaceY);
         return new LandingSpot { x = Math.Min(HALF - 2, Math.Max(-(HALF - 2), boat.x)), z = Math.Min(SHORE_Z - 3, shore - 1.5), island = false };
     }
@@ -4181,7 +4530,7 @@ public class Game
     private static readonly Dictionary<string, double> CAMP_REACH = new Dictionary<string, double>
     {
         { "fire", 3.2 }, { "bin", 2.4 }, { "board", 2.8 }, { "bench", 2.4 }, { "lantern", 2.2 }, { "camper", 3.6 },
-        { "radio", 2.6 }, { "coffee", 2.2 }, { "book", 2.6 }, { "post", 2.6 }, { "hammock", 2.8 }, { "sign", 2.6 }, { "photos", 2.8 },
+        { "radio", 2.6 }, { "coffee", 2.2 }, { "book", 2.6 }, { "post", 2.6 }, { "hammock", 2.8 }, { "sign", 2.6 }, { "photos", 2.8 }, { "aquarium", 2.8 },
     };
 
     private void updateDog(double dt, double t)
@@ -4254,6 +4603,13 @@ public class Game
             ui.setPrompt(null);
             return;
         }
+        if (seated)
+        {
+            // no prompt in the middle of the view while fishing; the hint line says how to get up
+            interaction = new Interaction { label = "Stand up", run = () => standUp() };
+            ui.setPrompt(null);
+            return;
+        }
         if (underground)
         {
             if (ladderY >= cellar.ladderH - 0.15) interaction = new Interaction { label = "Climb out through the hatch", run = () => leaveUnderground() };
@@ -4315,6 +4671,7 @@ public class Game
                 { "fire", "Rest by the campfire" },
                 { "bin", "Recycle your trash" },
                 { "board", "Read the Lost & Found board" },
+                { "aquarium", state.aquarium.Count > 0 ? $"Look at the aquarium ({state.aquarium.Count} of {Catches.ALL.Length})" : "Look at the aquarium" },
                 { "photos", state.photos.Count > 0 ? $"Look at your photos ({state.photos.Count})" : "Look at the photo board" },
                 { "bench", "Use the workbench" },
                 { "lantern", lanternOn ? "Turn the lantern off" : "Turn the lantern on" },
@@ -4443,6 +4800,21 @@ public class Game
                     : new Interaction { label = "Pick up and clean this find", run = () => enterInspect(itemCopy) };
             }
         }
+        if (JS.Hypot(player.x - Pier.SEAT.x, player.z - Pier.SEAT.z) < 2.1 && 0.35 < best)
+        {
+            best = 0.35;
+            interaction = state.data.ownsRod
+                ? new Interaction { label = "Sit down and fish", run = () => sitDown() }
+                : new Interaction
+                {
+                    label = "Fishing bench (needs a rod)",
+                    run = () =>
+                    {
+                        audio.error();
+                        ui.toast("You need a fishing rod to fish here. The camper shop sells one.");
+                    },
+                };
+        }
         if (interaction == null && canDive())
         {
             interaction = new Interaction { label = state.data.ownsDiveGear ? "Dive in" : "Dive in (needs diving gear)", run = () => enterDive() };
@@ -4569,6 +4941,13 @@ public class Game
             ui.setCrosshair(false);
             return;
         }
+        if (seated)
+        {
+            ui.setBinoculars(false, "", "");
+            ui.setHint(gameState == "EXPLORE" ? fishing.hint(usingPad) : null);
+            ui.setCrosshair(false);
+            return;
+        }
         if (underground)
         {
             ui.setBinoculars(false, "", "");
@@ -4595,17 +4974,22 @@ public class Game
                 return;
             }
             if (altCamera) ui.setBadgeText("📷", "Camera");
+            else if (altTool == 11) ui.setBadgeText("🐠", "Net");
             else ui.setBadgeText("🔱", "Harpoon");
             string camKey = usingPad ? "D-pad left" : "3";
             ui.setHint(
                 gameState == "INSPECT" ? null
+                    : altTool == 11 ? (usingPad
+                        ? "Press RT to sweep the net at a creature close in front of you · D-pad left changes tool · X swims back up"
+                        : "Click to sweep the net at a creature close in front of you · 1 harpoon · 3 camera · Q swims back up")
                     : altCamera ? (usingPad
                         ? $"Press RT to raise the camera · {camKey} brings back the harpoon · X swims back up"
                         : $"Click to raise the camera · {camKey} brings back the harpoon · Q swims back up")
                     : hoveredItem != null ? "Click to pick it up"
                     : under.reloading ? "Reloading..."
-                    : usingPad ? $"RT fires the harpoon · A picks up a find · X swims back up · left stick swims · RB up · LB down · {camKey} camera"
-                    : $"Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · {camKey} camera"
+                    : usingPad ? "RT fires the harpoon · A picks up a find · X swims back up · left stick swims · RB up · LB down · D-pad left changes tool"
+                    : state.data.ownsNet ? "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · 2 net · 3 camera"
+                    : "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · 3 camera"
             );
             ui.setCrosshair(gameState == "EXPLORE");
             return;
@@ -4634,6 +5018,7 @@ public class Game
                 { "hammock", "Click: lie in the hammock" },
                 { "sign", "Click: change the sign" },
                 { "photos", "Click: photo board" },
+                { "aquarium", "Click: aquarium" },
             };
             campHints.TryGetValue(hoveredCamp, out hint);
         }
@@ -4751,6 +5136,7 @@ public class Game
                 camp.setLightsNear(campLightsNear);
             }
             using (THREE.Bridge.BridgeStats.Time("camp")) camp.update(dt, sky.fireBoost, lanternOn, sky.starAmount);
+            if (JS.Hypot(player.x - Aquarium.AT.x, player.z - CAMP_Z - Aquarium.AT.z) < 28) aquarium.update(dt, time);
             using (THREE.Bridge.BridgeStats.Time("ecology")) ecology.update(dt, player.x, player.z);
             using (THREE.Bridge.BridgeStats.Time("scenery")) scenery.update(t, sky.fog.color, dt, camera.position.x, camera.position.z);
             using (THREE.Bridge.BridgeStats.Time("grass")) grass.update(t);

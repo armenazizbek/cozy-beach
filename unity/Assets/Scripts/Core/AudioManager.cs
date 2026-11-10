@@ -447,6 +447,50 @@ public class AudioManager
 
     public void ui() => tone(660, 0.07, Wave.Sine, 0.1);
 
+    /// <summary>
+    /// The small sounds of fishing: 'cast' the line whipping out, 'plop' the float landing, 'nibble' a touch at the bait, 'bite'
+    /// the float going under, 'hook' the strike, 'reel' one click of the reel, 'catch' the fish coming out, 'away' the one that
+    /// did not, 'net' a sweep of the hand net through the water.
+    /// </summary>
+    public void fishing(string what)
+    {
+        switch (what)
+        {
+            case "cast":
+                noise(0.28, 0.16, Filter.Bandpass, 2600, 2.2, 0, 900);
+                break;
+            case "plop":
+                tone(520, 0.12, Wave.Sine, 0.16, 0, 170);
+                noise(0.14, 0.12, Filter.Lowpass, 900, 1, 0.01);
+                break;
+            case "nibble":
+                tone(880, 0.05, Wave.Sine, 0.05);
+                break;
+            case "bite":
+                tone(660, 0.08, Wave.Triangle, 0.14);
+                tone(990, 0.1, Wave.Triangle, 0.14, 0.08);
+                noise(0.2, 0.14, Filter.Lowpass, 1100, 1, 0.02);
+                break;
+            case "hook":
+                noise(0.12, 0.2, Filter.Bandpass, 1500, 1.4);
+                tone(300, 0.12, Wave.Triangle, 0.1, 0, 420);
+                break;
+            case "reel":
+                noise(0.018, 0.1, Filter.Highpass, 3200, 1);
+                break;
+            case "catch":
+                noise(0.3, 0.22, Filter.Lowpass, 1300, 1);
+                tone(420, 0.2, Wave.Sine, 0.1, 0.02, 760);
+                break;
+            case "away":
+                tone(330, 0.2, Wave.Sine, 0.08, 0, 200);
+                break;
+            case "net":
+                noise(0.3, 0.14, Filter.Lowpass, 700, 1, 0, 300);
+                break;
+        }
+    }
+
     /// <summary>The camera's shutter: a sharp click as it opens and a softer one as it closes, then the little film wind.</summary>
     public void shutter()
     {

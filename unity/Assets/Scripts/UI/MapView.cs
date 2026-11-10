@@ -220,6 +220,7 @@ public class MapView
         ctx.filter = bottle ? "sepia(0.55) hue-rotate(75deg) saturate(0.6) contrast(0.85) brightness(1.1)" : "sepia(1) saturate(0.7) contrast(0.8) brightness(1.08)";
         ctx.drawImage(this._base, EXT_X0, EXT_Z0, EXT, EXT);
         ctx.filter = "none";
+        this.drawPier(ctx);
         this.drawCamp(ctx, 0, CAMP_Z, 1.8);
         var pulse = 1 + Math.Sin(time * 4) * 0.12;
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9);
@@ -375,6 +376,13 @@ public class MapView
         ctx.restore();
     }
 
+    /// <summary>The fishing pier, a brown strip out from the beach. The map's units are the world's.</summary>
+    private void drawPier(CanvasRenderingContext2D ctx)
+    {
+        ctx.fillStyle = "#8a6238";
+        ctx.fillRect(Pier.X - 1.6, Pier.Z0, 3.2, Pier.Z1 - Pier.Z0);
+    }
+
     private void drawCamp(CanvasRenderingContext2D ctx, double x, double z, double scale)
     {
         ctx.save();
@@ -444,6 +452,7 @@ public class MapView
         ctx.rotate(-Math.PI / 2 - Math.Atan2(fz, fx));
         ctx.scale(sc, sc);
         ctx.translate(-p.x, -p.z);
+        this.drawPier(ctx);
         this.drawCamp(ctx, 0, CAMP_Z, 1.2);
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.2);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 1.3);
@@ -521,6 +530,7 @@ public class MapView
         ctx.translate(half - cx, half - cz);
         ctx.drawImage(this._base, EXT_X0, EXT_Z0, EXT, EXT);
         this.drawHoles(ctx, holes, 0.8);
+        this.drawPier(ctx);
         this.drawCamp(ctx, 0, CAMP_Z, 1.8);
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0);

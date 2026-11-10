@@ -30,6 +30,7 @@ public class CampModal
         new[] { "luxury", "👑 Luxury" },
         new[] { "shelf", "🏺 Trophy Shelf" },
         new[] { "photos", "📷 Photos" },
+        new[] { "aquarium", "🐟 Aquarium" },
     };
 
     private static readonly Dictionary<string, string> LIGHT_NAMES = new Dictionary<string, string>
@@ -181,6 +182,7 @@ public class CampModal
             case "luxury": this.renderLuxury(); break;
             case "shelf": this.renderShelf(); break;
             case "photos": this.renderPhotos(); break;
+            case "aquarium": this.renderAquarium(); break;
         }
     }
 
@@ -346,6 +348,31 @@ public class CampModal
             );
             this.body.append(note);
         }
+    }
+
+    /// <summary>The aquarium: every kind of sea creature there is to catch alive, with the ones already in the tank ticked.</summary>
+    private void renderAquarium()
+    {
+        var have = this.state.aquarium;
+        this.body.append(this.p($"A small one of every sea creature you catch alive lives in the tank at camp. In the tank: {have.Count} of {Catches.ALL.Length}."));
+        void section(string title, string how, SeaSpecies[] list)
+        {
+            var h = document.createElement("h3");
+            h.textContent = title;
+            this.body.append(h, this.p(how, "faint"));
+            var box = document.createElement("div");
+            box.className = "list";
+            foreach (var s in list)
+            {
+                bool got = have.Contains(s.id);
+                box.append(this.row(got ? $"✓ {s.name}" : $"? · {s.hint}", got ? "in the tank" : ""));
+            }
+            this.body.append(box);
+        }
+        section("From the pier", this.state.data.ownsRod ? "Caught with the fishing rod, from the bench at the end of the pier." : "Caught with a fishing rod, from the bench at the end of the pier. The camper shop sells one.", Catches.ROD);
+        section("From the reef", this.state.data.ownsNet ? "Caught with the hand net while diving." : "Caught with a hand net while diving. The camper shop sells one.", Catches.REEF);
+        section("The rarest", "One golden fish in the whole sea. Very fast: chase it in bursts and corner it.", new[] { Catches.GOLD });
+        section("From the sea floor", "Also caught with the hand net while diving.", Catches.ANIMALS);
     }
 
     /// <summary>The camera's album: every photo, newest first, to look at, pin to the board by the fire, or throw away.</summary>
@@ -727,6 +754,37 @@ public class CampModal
                 }
             }, "small", this.state.data.coins < BUCKET_COST));
         }
+        // the fishing rod and the diver's net: both bought once
+        HTMLElement gearCell(string title, string text, bool owned, double cost, Func<bool> buy, string bought)
+        {
+            var c = document.createElement("div");
+            c.className = "ucell";
+            var name = document.createElement("b");
+            name.textContent = title;
+            c.append(name, this.p(text, "faint"));
+            if (owned) c.append(this.p("Owned", "tag"));
+            else
+            {
+                c.append(this.btn($"Buy {cost}g", () =>
+                {
+                    if (buy())
+                    {
+                        this.audio.discover();
+                        this.hooks.toast(bought);
+                    }
+                    else
+                    {
+                        this.audio.error();
+                        this.hooks.toast($"You need {cost}g for that.");
+                    }
+                }, "small", this.state.data.coins < cost));
+            }
+            return c;
+        }
+        var rodCell = gearCell("Fishing Rod", "Sit on the bench at the end of the pier and fish. Cast, wait for the float to go under, then reel it in. Every new kind of fish gets a place in your aquarium.",
+            this.state.data.ownsRod, Catches.ROD_COST, () => this.state.buyRod(), "You bought the fishing rod! The bench is at the end of the pier.");
+        var netCell = gearCell("Hand Net", "Catches fish and other sea creatures alive while you dive, for the aquarium. Underwater, press 2 to take it out. Needs the diving gear.",
+            this.state.data.ownsNet, Catches.NET_COST, () => this.state.buyNet(), "You bought the hand net! Take it out underwater with 2.");
         var boneCell = document.createElement("div");
         boneCell.className = "ucell";
         var boneName = document.createElement("b");
@@ -750,7 +808,7 @@ public class CampModal
                 this.hooks.toast($"You need {BONE_COST}g for that.");
             }
         }, "small", soldOut || this.state.data.coins < BONE_COST));
-        fun.append(fh, keyCell, boatCell, bowCell, flagCell, bucketCell, diveCell);
+        fun.append(fh, keyCell, boatCell, bowCell, flagCell, bucketCell, rodCell, diveCell, netCell);
         foreach (var dc in decorCells) fun.append(dc);
         fun.append(boneCell, cell);
         this.body.append(fun);

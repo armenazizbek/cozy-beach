@@ -43,7 +43,7 @@ FLUENT_NAMES = {
     0x1F37E: 'Bottle with popping cork', 0x1F3D5: 'Camping', 0x1F5D1: 'Wastebasket', 0x1F54A: 'Dove',
     0x1F327: 'Cloud with rain', 0x1F6CF: 'Bed', 0x1F50A: 'Speaker high volume', 0x1F507: 'Muted speaker',
     0x1F6A9: 'Triangular flag', 0x1F531: 'Trident emblem', 0x1F93F: 'Diving mask', 0x1F43E: 'Paw prints',
-    0x1F4A5: 'Collision', 0x1F30A: 'Water wave', 0x1F4CD: 'Round pushpin', 0x2699: 'Gear', 0x1F39E: 'Film frames',
+    0x1F3A3: 'Fishing pole', 0x1F4A5: 'Collision', 0x1F30A: 'Water wave', 0x1F4CD: 'Round pushpin', 0x2699: 'Gear', 0x1F39E: 'Film frames',
 }
 RAW = 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/'
 
