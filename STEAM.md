@@ -20,7 +20,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
    - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves/photos`, pattern `*.jpg` (photos, about 100 KB each, up to 60 per game)
    - A quota of about 200 MB and 1,000 files leaves room for several games full of photos.
    (The Electron build kept its saves under `%APPDATA%\cozy-treasure-hunter\saves`; the Unity build copies them across on its first run.)
-5. **Uploading a build:** run `npm run dist:steam`. It makes the unpacked game folder at `release/win-unpacked`. Upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `Cozy Treasure Hunter.exe`.
+5. **Uploading a build:** close the Unity editor and run `npm run dist:unity`. It builds the Unity game (the release build, IL2CPP) and makes the unpacked game folder at `release/unity-win-unpacked`, without the debug symbols that must not ship. Play it from there first, then upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `CozyTreasureHunter.exe`. (`npm run dist:steam` still makes the old Electron build at `release/win-unpacked`.)
 6. Fill in the store page (capsule art, screenshots, trailer, description) and the price, then submit for review.
 
 ## Notes

@@ -18,6 +18,10 @@ command line, with the editor closed:
 "C:\Users\Armen\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe" -batchmode -quit -projectPath . -executeMethod BuildScript.BuildWindows -logFile build.log
 ```
 
+The short way, from the repository's root: `npm run dist:unity` runs that build and copies the game, without its debug
+symbols, to `release/unity-win-unpacked`, ready to play or to upload to Steam; `npm run dist:unity:quick` does the same with
+the quick Mono build. Both need the editor and the game closed (`scripts/dist-unity.mjs`).
+
 `BuildWindows` is the release build: it compiles the C# to native code with IL2CPP when Unity Hub's *Windows Build Support
 (IL2CPP)* module is installed (much faster game code; consoles need it), and falls back to Mono with a warning otherwise.
 `BuildScript.BuildWindowsMono` makes a quick Mono build for testing changes. Switching between the two clears
@@ -75,6 +79,9 @@ letters, Help, Credits), for checking text wrapping and scrolling.
 
 Add `-autoshot-ui` to photograph every menu and the HUD twice, as they look with the keyboard and with a controller
 (`ui-kb-*.png`, `ui-pad-*.png`). Add `-autoshot-pad` to drive the title menu with a virtual controller.
+
+Add `-autoshot-holes` to dig three deep holes (up the beach, on the wet sand, at the water's edge) and park the golf cart
+across one: no hole may show water, and the log says how far the cart sits below flat sand.
 
 Add `-autoshot-walk` to measure standing, walking and running. Each measurement logs the frame rate and the slowest parts
 of the game's frame in milliseconds (`THREE.Bridge.BridgeStats`; the `using (BridgeStats.Time(...))` lines in `Game.frame`).

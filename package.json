@@ -12,7 +12,9 @@
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dist:steam": "npm run build && electron-builder --win dir"
+    "dist:steam": "npm run build && electron-builder --win dir",
+    "dist:unity": "node scripts/dist-unity.mjs",
+    "dist:unity:quick": "node scripts/dist-unity.mjs --quick"
   },
   "dependencies": {
     "three": "^0.170.0"
