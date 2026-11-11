@@ -94,7 +94,7 @@ public class AutoShot : MonoBehaviour
             yield break;
         }
 
-        // -autoshot-pad: drive the title menu with a virtual controller (D-pad down twice, then A) and check Settings opens
+        // -autoshot-pad: drive the title menu with a virtual controller (D-pad down from New Game, then A) and check Settings opens
         if (Array.IndexOf(args, "-autoshot-pad") >= 0)
         {
             var pad = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Gamepad>();
@@ -108,7 +108,6 @@ public class AutoShot : MonoBehaviour
                 Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
             }
             Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
-            yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.DpadDown);
             yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.DpadDown);
             yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.South);
             yield return Wait(0.8f);
@@ -158,6 +157,25 @@ public class AutoShot : MonoBehaviour
                 game.smokeTestClose(what);
                 yield return Wait(0.8f);
             }
+        }
+
+        // -autoshot-ui: every menu and the HUD, as they look with the keyboard and then with a controller
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-ui") >= 0)
+        {
+            foreach (var mode in new[] { "kb", "pad" })
+            {
+                game.smokeTestPad(mode == "pad");
+                yield return Wait(0.5f);
+                foreach (var what in new[] { "toast", "pause", "settings", "saves", "achievements", "help", "map", "camp:upgrades", "camp:sell", "result", "inspect", "intro" })
+                {
+                    game.smokeTestOpen(what);
+                    yield return Wait(1.3f);
+                    yield return Shot($"ui-{mode}-{what.Replace(':', '-')}.png");
+                    game.smokeTestClose(what);
+                    yield return Wait(0.6f);
+                }
+            }
+            game.smokeTestPad(false);
         }
 
         // -autoshot-photo: raise the camera, take three photos, look at the board and the album, then save, load and look again

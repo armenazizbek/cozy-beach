@@ -21,6 +21,7 @@ public static class CssAnimations
         "binoc",
         "map-cursor",
         "padtools",
+        "padbar",
         "sleepveil",
         "dive-tint",
         "book-spread-crease",
@@ -33,6 +34,7 @@ public static class CssAnimations
     public static readonly Dictionary<string, int> ZIndex = new Dictionary<string, int>
     {
         { "boot", 100 },
+        { "padbar", 50 },
         { "map-cursor", 20 },
         { "achievements", 7 },
         { "helpscreen", 7 },

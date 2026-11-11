@@ -19,6 +19,13 @@ public static class DomHost
     private static float _lastDpi = -1f;
     private static bool _wasPointerLocked = false;
     internal static bool _isTyping = false;
+    private static float _mouseMovedAt = -10f;
+
+    /// <summary>
+    /// True just after the mouse really moved. A button under a resting pointer must not take the highlight back from the
+    /// keyboard or a controller every time a menu redraws itself.
+    /// </summary>
+    public static bool MouseActive => Time.unscaledTime - _mouseMovedAt < 0.3f;
 
     public static UIDocument UIDocument => _uiDocument;
 
@@ -100,24 +107,44 @@ public static class DomHost
             var pts = ScriptableObject.CreateInstance<PanelTextSettings>();
             pts.name = "DomPanelTextSettings";
 
-            FontAsset mainFont = CreateOsFontAsset("Georgia", "Regular")
+            // Body text: a friendly sans. Headings and the title: a bold serif (see DisplayFont). A font file dropped into
+            // Resources/UI/Fonts (Body, BodyBold, Display) is used ahead of the system's, which is what a console will need.
+            FontAsset mainFont = LoadFontAsset("UI/Fonts/Body")
+                              ?? CreateOsFontAsset("Trebuchet MS", "Regular")
                               ?? CreateOsFontAsset("Segoe UI", "Regular")
                               ?? CreateOsFontAsset("Arial", "Regular");
+            FontAsset boldFont = LoadFontAsset("UI/Fonts/BodyBold")
+                              ?? CreateOsFontAsset("Trebuchet MS", "Bold")
+                              ?? CreateOsFontAsset("Segoe UI", "Bold");
+            DisplayFont = LoadFontAsset("UI/Fonts/Display")
+                       ?? CreateOsFontAsset("Georgia", "Bold")
+                       ?? boldFont;
 
             if (mainFont != null)
             {
-                if (mainFont.fallbackFontAssetTable == null)
-                {
-                    mainFont.fallbackFontAssetTable = new List<FontAsset>();
-                }
-                // Segoe UI for general glyphs after Georgia, Segoe UI Symbol for plain symbols such as ✓ ▾ ◆
+                var fallbacks = new List<FontAsset>();
+                // Segoe UI for general glyphs, Segoe UI Symbol for plain symbols such as ✓ ▾ ◆
                 foreach (var name in new[] { "Segoe UI", "Segoe UI Symbol" })
                 {
                     FontAsset fb = CreateOsFontAsset(name, "Regular");
-                    if (fb != null && fb != mainFont && !mainFont.fallbackFontAssetTable.Contains(fb))
-                    {
-                        mainFont.fallbackFontAssetTable.Add(fb);
-                    }
+                    if (fb != null && fb != mainFont) fallbacks.Add(fb);
+                }
+                foreach (var f in new[] { mainFont, boldFont, DisplayFont })
+                {
+                    if (f == null) continue;
+                    if (f.fallbackFontAssetTable == null) f.fallbackFontAssetTable = new List<FontAsset>();
+                    foreach (var fb in fallbacks)
+                        if (fb != f && !f.fallbackFontAssetTable.Contains(fb)) f.fallbackFontAssetTable.Add(fb);
+                }
+                // bold text is drawn with the real bold face, not a thickened regular one
+                try
+                {
+                    if (boldFont != null && boldFont != mainFont && mainFont.fontWeightTable != null && mainFont.fontWeightTable.Length > 7)
+                        mainFont.fontWeightTable[7].regularTypeface = boldFont;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"DomHost: could not set the bold face: {ex.Message}");
                 }
 
                 pts.defaultFontAsset = mainFont;
@@ -144,6 +171,25 @@ public static class DomHost
         catch (Exception ex)
         {
             Debug.LogWarning($"DomHost: Could not create OS FontAssets: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>The heading face (card titles, the game's name). Null until the text settings are built.</summary>
+    public static FontAsset DisplayFont { get; private set; }
+
+    private static FontAsset LoadFontAsset(string resource)
+    {
+        var font = Resources.Load<Font>(resource);
+        if (font == null) return null;
+        try
+        {
+            var fa = FontAsset.CreateFontAsset(font);
+            if (fa != null) fa.name = font.name;
+            return fa;
+        }
+        catch
+        {
             return null;
         }
     }
@@ -246,16 +292,26 @@ public static class DomHost
         }
     }
 
+    /// <summary>The page the UI is laid out on. The screen shows at least this much, more along its longer side.</summary>
+    public const double PAGE_WIDTH = 1920, PAGE_HEIGHT = 1080;
+
     private static void RefreshMetricsInternal(out float scale)
     {
         float dpi = Screen.dpi;
-        double dpr = (dpi > 0f && !float.IsNaN(dpi)) ? (dpi / 96.0) : 1.0;
-        if (dpr < 0.5) dpr = 1.0;
-        scale = (float)dpr;
+        double os = (dpi > 0f && !float.IsNaN(dpi)) ? (dpi / 96.0) : 1.0;
+        if (os < 0.5) os = 1.0;
 
         int sw = Screen.width > 0 ? Screen.width : 1280;
         int sh = Screen.height > 0 ? Screen.height : 720;
 
+        // A game's menus and HUD take up the same share of the screen at every resolution. The browser page was a fixed size
+        // in pixels instead, so on a 1440p or 4K screen everything shrank to a corner. The page is 1920 x 1080 and is scaled
+        // to fit: a wider or taller screen sees more page, never less.
+        double dpr = Math.Min(sw / PAGE_WIDTH, sh / PAGE_HEIGHT);
+        if (dpr < 0.3) dpr = 0.3;
+        scale = (float)dpr;
+
+        window._osPixelRatio = os;
         window._devicePixelRatio = dpr;
         window._innerWidth = Math.Max(1.0, Math.Round(sw / dpr));
         window._innerHeight = Math.Max(1.0, Math.Round(sh / dpr));
@@ -297,6 +353,9 @@ public static class DomHost
             _wasPointerLocked = nowLocked;
             document.DispatchEvent(new Event("pointerlockchange"));
         }
+
+        var mouseNow = Mouse.current;
+        if (mouseNow != null && mouseNow.delta.ReadValue().sqrMagnitude > 0.5f) _mouseMovedAt = Time.unscaledTime;
 
         // 3. Run scheduled timers (setTimeout, setInterval, requestAnimationFrame)
         window.RunTimers();

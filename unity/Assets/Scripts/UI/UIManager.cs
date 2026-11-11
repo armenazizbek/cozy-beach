@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 using static Help;
 using static PadText;
 using static SaveGame;
@@ -222,6 +221,10 @@ public class UIManager
     private HTMLElement prompt2Text = el("span", "txt");
     private HTMLElement promptText = el("span", "txt");
     private HTMLButtonElement muteBtn = el<HTMLButtonElement>("button", "chip mute", "🔊");
+    /// <summary>what the keys or the controller's buttons do in the menu that is open, along the bottom of the screen</summary>
+    private HTMLElement padbar = el("div", "padbar hidden");
+    private string padbarKey = "";
+    private string hintKey = null;
 
     private StateManager state;
     private UIHooks hooks;
@@ -236,27 +239,35 @@ public class UIManager
         this.waveCtx = this.waveCanvas.getContext("2d");
         this.buildHud();
         this.buildInspect();
-        this.kbdF = el("span", "kbd", "F");
-        this.kbdE = el("span", "kbd", "E");
-        this.prompt.append(this.kbdF, this.promptText);
-        this.prompt2.append(this.kbdE, this.prompt2Text);
+        // the key to press is a picture (a key cap, or the controller's button), in a holder that bobs gently
+        this.kbdF = Glyphs.make("F", false);
+        this.kbdE = Glyphs.make("E", false);
+        var holdF = el("span", "kbd");
+        holdF.append(this.kbdF);
+        var holdE = el("span", "kbd");
+        holdE.append(this.kbdE);
+        this.prompt.append(holdF, this.promptText);
+        this.prompt2.append(holdE, this.prompt2Text);
         this.drawbar.append(this.drawFill);
-        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro);
+        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
 
     private void buildHud()
     {
-        var left = el("div", "panel stats");
-        var coinRow = el("div", "row", "<span class=\"ico\">🪙</span>");
+        // top left: coins, and the warmth meter with the mug it comes from
+        var left = el("div", "stats");
+        var coinRow = el("div", "stat coins", "<span class=\"ico\">🪙</span>");
         coinRow.append(this.coins);
-        var warmRow = el("div", "row col");
-        var head = el("div", "row between", "<span class=\"ico\">☕</span>");
+        var warmRow = el("div", "stat warm", "<span class=\"ico\">☕</span>");
+        var warmCol = el("div", "warm-col");
+        var head = el("div", "warm-head");
         head.append(this.mugName, this.warmText);
         var bar = el("div", "bar");
         bar.append(this.warmFill);
-        warmRow.append(head, bar);
+        warmCol.append(head, bar);
+        warmRow.append(warmCol);
         left.append(coinRow, warmRow);
 
         var right = el("div", "right-chips");
@@ -279,9 +290,8 @@ public class UIManager
         this.badge.append(this.badgeIcon, this.badgeName);
         this.miniCanvas.width = this.miniCanvas.height = MINI_PX;
         var center = el("div", "pt-center");
-        center.innerHTML = "<i></i><i></i>";
         this.padTools.append(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption);
-        this.hud.append(left, right, this.miniCanvas, this.badge, this.padTools);
+        this.hud.append(left, right, this.miniCanvas, el("div", "minimap-ring"), this.badge, this.padTools);
 
         this.scope.append(el("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
     }
@@ -292,7 +302,7 @@ public class UIManager
         prog.append(this.progFill);
         var row = el("div", "row between");
         row.append(el("span", "sub", "Cleanliness"), this.progText);
-        var back = el<HTMLButtonElement>("button", "btn ghost", "Back (Esc)");
+        var back = el<HTMLButtonElement>("button", "btn ghost", "Back");
         back.onclick = () => this.hooks.onInspectBack();
         this.instantBtn.onclick = () => this.hooks.onInstantClean();
         var btns = el("div", "row gap");
@@ -441,57 +451,25 @@ public class UIManager
             return;
         }
         if (this.pauseEl != null || hooks == null) return;
-        var p = el("div", "pause");
-        p.innerHTML = $@"
-      <div class=""intro-card"">
-        <h1>Paused</h1>
-        <p class=""tag"">Take your time. The beach will wait.</p>
-        {(pad.on ? @"<div class=""keys"">
-          <div class=""krow""><b>Left stick</b><span>Walk (press it in to hurry)</span></div>
-          <div class=""krow""><b>Right stick</b><span>Look around</span></div>
-          <div class=""krow""><b>LB / RB</b><span>Swap tool</span></div>
-          <div class=""krow""><b>RT</b><span>Use the tool in your hands</span></div>
-          <div class=""krow""><b>LT</b><span>Lower the binoculars or the camera, or let the bow string down</span></div>
-          <div class=""krow""><b>A</b><span>Use what is next to you (cart, boat, camp)</span></div>
-          <div class=""krow""><b>X</b><span>Step off the boat</span></div>
-          <div class=""krow""><b>Y</b><span>Open the island map</span></div>
-          <div class=""krow""><b>D-pad</b><span>Detector, trowel, binoculars, camera and the rest</span></div>
-          <div class=""krow""><b>Back</b><span>Mute sound</span></div>
-          <div class=""krow""><b>Start</b><span>Resume</span></div>
-        </div>" : @"<div class=""keys"">
-          <div class=""krow""><b>WASD</b><span>Walk</span></div>
-          <div class=""krow""><b>Shift</b><span>Hurry</span></div>
-          <div class=""krow""><b>Mouse</b><span>Look around</span></div>
-          <div class=""krow""><b>Scroll</b><span>Swap tool (the gun once you buy it)</span></div>
-          <div class=""krow""><b>Click</b><span>Use the tool in your hands</span></div>
-          <div class=""krow""><b>Binoculars</b><span>Scroll to them, click to zoom</span></div>
-          <div class=""krow""><b>3</b><span>Camera: click to raise, click to take a photo</span></div>
-          <div class=""krow""><b>Bow</b><span>Hold click to draw, release to shoot</span></div>
-          <div class=""krow""><b>7</b><span>Marker flags: click to plant, F to pick up</span></div>
-          <div class=""krow""><b>F</b><span>Use what is next to you</span></div>
-          <div class=""krow""><b>Cart</b><span>F beside the golf cart to drive it</span></div>
-          <div class=""krow""><b>M</b><span>Open the island map</span></div>
-          <div class=""krow""><b>N</b><span>Mute sound</span></div>
-          <div class=""krow""><b>Esc</b><span>Resume</span></div>
-        </div>")}
-        <div class=""pause-actions""></div>
-        <p class=""save-info""></p>
-      </div>";
-        var actions = p.querySelector(".pause-actions");
-        var info = p.querySelector(".save-info");
+        // one column of buttons, so a controller, the keyboard and the mouse all walk it the same way; the controls that
+        // used to be listed here are in Help
+        var p = el("div", "pause pausemenu");
+        var card = el("div", "intro-card pause-card");
+        var actions = el("div", "pause-actions");
+        var info = el("p", "save-info");
+        card.append(el("h1", "", "Paused"), el("p", "tag", "Take your time. The beach will wait."), actions, info);
+        p.append(card);
 
         Action mainButtons = null;
         void confirmStep(string question, string yes, Action run)
         {
             actions.innerHTML = "";
-            var q = el("p", "confirm-q", question);
-            var row = el("div", "row gap");
+            // Cancel comes first and is the one chosen, so a second press by mistake does no harm
+            var no = el<HTMLButtonElement>("button", "btn ghost default", "Cancel");
+            no.onclick = () => mainButtons();
             var ok = el<HTMLButtonElement>("button", "btn", yes);
             ok.onclick = () => run();
-            var no = el<HTMLButtonElement>("button", "btn ghost", "Cancel");
-            no.onclick = () => mainButtons();
-            row.append(ok, no);
-            actions.append(q, row);
+            actions.append(el("p", "confirm-q", question), no, ok);
         }
 
         mainButtons = () =>
@@ -499,28 +477,21 @@ public class UIManager
             var count = hooks.saves.list().Count;
             info.textContent = count == 0 ? "No saved games yet" : $"{count} saved game{(count == 1 ? "" : "s")}";
             actions.innerHTML = "";
-            var resume = el<HTMLButtonElement>("button", "btn big", "Resume");
-            resume.onclick = () => hooks.onResume();
-            var row = el("div", "row gap");
-            var save = el<HTMLButtonElement>("button", "btn ghost", "💾 Save game");
-            save.onclick = () => this.openSaves("save", hooks.saves, mainButtons);
-            var load = el<HTMLButtonElement>("button", "btn ghost", "📂 Load game");
-            load.disabled = count == 0;
-            load.onclick = () => this.openSaves("load", hooks.saves, mainButtons);
-            var fresh = el<HTMLButtonElement>("button", "btn ghost", "✨ New game");
-            fresh.onclick = () => confirmStep("Start a brand new game? Anything you have not saved will be lost.", "Yes, start over", hooks.onNew);
-            var settings = el<HTMLButtonElement>("button", "btn ghost", "⚙ Settings");
-            settings.onclick = () => hooks.onSettings();
-            var menu = el<HTMLButtonElement>("button", "btn ghost", "🏠 Main menu");
-            menu.onclick = () => confirmStep("Return to the main menu? Anything you have not saved will be lost.", "Yes, go to the menu", hooks.onMenu);
-            row.append(save, load, settings);
-            var row2 = el("div", "row gap");
-            var ach = el<HTMLButtonElement>("button", "btn ghost", "🏆 Achievements");
-            ach.onclick = () => hooks.onAchievements();
-            var help = el<HTMLButtonElement>("button", "btn ghost", "❓ Help");
-            help.onclick = () => this.showHelp();
-            row2.append(help, ach, fresh, menu);
-            actions.append(resume, row, row2);
+            HTMLButtonElement add(string label, Action fn, string cls = "ghost")
+            {
+                var b = el<HTMLButtonElement>("button", $"btn {cls}", label);
+                b.onclick = fn;
+                actions.append(b);
+                return b;
+            }
+            add("Resume", () => hooks.onResume(), "big default");
+            add("Save Game", () => this.openSaves("save", hooks.saves, mainButtons));
+            add("Load Game", () => this.openSaves("load", hooks.saves, mainButtons)).disabled = count == 0;
+            add("Settings", () => hooks.onSettings());
+            add("Help", () => this.showHelp());
+            add("Achievements", () => hooks.onAchievements());
+            add("New Game", () => confirmStep("Start a brand new game? Anything you have not saved will be lost.", "Yes, start over", hooks.onNew));
+            add("Main Menu", () => confirmStep("Return to the main menu? Anything you have not saved will be lost.", "Yes, go to the menu", hooks.onMenu));
         };
         mainButtons();
         this.pauseEl = p;
@@ -533,7 +504,7 @@ public class UIManager
     private HTMLElement menuEl = null;
     private HTMLElement settingsEl = null;
 
-    /// <summary>The main menu: buttons on the left, the living beach behind.</summary>
+    /// <summary>The main menu: the title and a list of plain words on the left, the living beach behind.</summary>
     public void showMainMenu(MenuHooks h)
     {
         this.hideMainMenu();
@@ -541,24 +512,26 @@ public class UIManager
         var panel = el("div", "mm-panel");
         panel.append(el("div", "mm-kicker", "a quiet little adventure"), el("h1", "mm-title", "Cozy Treasure Hunter"), el("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
         var list = el("div", "mm-buttons");
-        HTMLButtonElement mk(string icon, string label, Action fn, bool disabled = false)
+        HTMLButtonElement mk(string label, Action fn, bool disabled = false)
         {
             var b = el<HTMLButtonElement>("button", "mm-btn");
-            b.innerHTML = $"<span class=\"mm-ico\">{icon}</span><span>{label}</span>";
+            b.append(el("span", "mm-mark"), el("span", "mm-label", label));
             b.disabled = disabled;
             b.onclick = fn;
             list.append(b);
             return b;
         }
-        mk("🏝️", "New Game", h.onNew);
-        mk("📂", "Load Game", h.onLoad, !h.hasSaves);
-        mk("⚙️", "Settings", h.onSettings);
-        mk("❓", "Help", () => this.showHelp());
-        mk("🏆", "Achievements", h.onAchievements);
-        mk("🎞️", "Credits", () => this.showCredits());
-        mk("🚪", "Exit Game", h.onExit);
+        var fresh = mk("New Game", h.onNew);
+        var load = mk("Load Game", h.onLoad, !h.hasSaves);
+        // the menu opens on what the player most likely wants: carrying on, if there is a game to carry on with
+        (h.hasSaves ? load : fresh).classList.add("default");
+        mk("Settings", h.onSettings);
+        mk("Help", () => this.showHelp());
+        mk("Achievements", h.onAchievements);
+        mk("Credits", () => this.showCredits());
+        mk("Exit Game", h.onExit);
         panel.append(list);
-        m.append(panel);
+        m.append(el("div", "mm-scrim"), panel, el("div", "mm-foot", $"Version {__APP_VERSION__}"));
         this.menuEl = m;
         this.root.append(m);
     }
@@ -593,111 +566,161 @@ public class UIManager
         }
     }
 
-    /// <summary>Sliders and switches. Every change is passed straight back so it takes effect at once.</summary>
+    /// <summary>
+    /// Sliders, switches and choices. Each setting is one row that is chosen whole: left and right change it (so do a click
+    /// on the arrows, a drag on the slider, or pressing the row). Every change is passed straight back so it takes effect at once.
+    /// </summary>
     public void openSettings(GameSettings settings, Action<GameSettings> onChange, Action onClose = null)
     {
         this.closeSettings();
-        var wrap = el("div", "pause saves");
-        var card = el("div", "intro-card save-card settings-card");
+        var wrap = el("div", "pause saves settings");
+        var card = el("div", "intro-card settings-card");
         card.append(el("h1", "", "Settings"));
         var rows = el("div", "set-rows");
+        HTMLButtonElement rowEl(string label, string hintText)
+        {
+            var row = el<HTMLButtonElement>("button", "set-row");
+            var name = el("span", "set-name");
+            name.append(el("span", "set-label", label));
+            if (!string.IsNullOrEmpty(hintText)) name.append(el("span", "set-hint", hintText));
+            row.append(name);
+            rows.append(row);
+            return row;
+        }
         void slider(string label, string key, double min, double max, double step, Func<double, string> fmt)
         {
-            var row = el("label", "set-row");
-            var name = el("span", "set-name", label);
+            var row = rowEl(label, null);
             var input = el<HTMLInputElement>("input", "set-range");
             input.type = "range";
             input.min = JS.Str(min);
             input.max = JS.Str(max);
             input.step = JS.Str(step);
             input.value = JS.Str(getSettingDouble(settings, key));
+            // the row is what is chosen; the slider inside it is only dragged
+            input.noFocus();
             var val = el("span", "set-val", fmt(getSettingDouble(settings, key)));
+            void apply(double v)
+            {
+                setSettingDouble(settings, key, v);
+                val.textContent = fmt(v);
+                onChange(settings);
+            }
             input.oninput = _ =>
             {
-                if (double.TryParse(input.value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
-                {
-                    setSettingDouble(settings, key, parsed);
-                }
-                val.textContent = fmt(getSettingDouble(settings, key));
-                onChange(settings);
+                if (double.TryParse(input.value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) apply(parsed);
             };
-            row.append(name, input, val);
-            rows.append(row);
+            row.onstep = dir =>
+            {
+                double next = min + Math.Round((getSettingDouble(settings, key) + dir * step - min) / step) * step;
+                next = Math.Round(Math.Max(min, Math.Min(max, next)) * 1000) / 1000;
+                input.value = JS.Str(next);
+                apply(next);
+            };
+            row.append(input, val);
         }
-        void select(string label, string key, string[][] options)
+        void choice(string label, string[][] options, Func<string> get, Action<string> set)
         {
-            var row = el("label", "set-row");
-            var sel = el<HTMLSelectElement>("select", "set-select");
-            foreach (var opt in options)
+            var row = rowEl(label, null);
+            var prev = el("span", "step-arrow left");
+            var text = el("span", "step-val");
+            var next = el("span", "step-arrow");
+            int idx = Math.Max(0, Array.FindIndex(options, o => o[0] == get()));
+            int timer = 0;
+            void show() => text.textContent = options.Length > 0 ? options[idx][1] : "";
+            void go(int dir)
             {
-                string value = opt[0], text = opt[1];
-                var o = el<HTMLOptionElement>("option", "", text);
-                o.value = value;
-                sel.append(o);
+                if (options.Length == 0) return;
+                idx = (idx + dir + options.Length) % options.Length;
+                show();
+                // a choice here changes the screen itself, so it waits a moment: stepping past "Windowed" on the way to
+                // another mode does not switch the screen twice
+                if (timer != 0) window.clearTimeout(timer);
+                timer = window.setTimeout(() =>
+                {
+                    timer = 0;
+                    set(options[idx][0]);
+                    onChange(settings);
+                }, 650);
             }
-            sel.value = key == "displayMode" ? settings.displayMode : settings.windowSize;
-            sel.onchange = _ =>
+            row.onclick = () => go(1);
+            row.onstep = go;
+            prev.addEventListener("click", e =>
             {
-                if (key == "displayMode") settings.displayMode = sel.value;
-                else if (key == "windowSize") settings.windowSize = sel.value;
-                onChange(settings);
-            };
-            row.append(el("span", "set-name", label), sel);
-            rows.append(row);
+                e.stopPropagation();
+                go(-1);
+            });
+            next.addEventListener("click", e =>
+            {
+                e.stopPropagation();
+                go(1);
+            });
+            var box = el("span", "set-step");
+            box.append(prev, text, next);
+            row.append(box);
+            show();
         }
         void toggle(string label, string hintText, string key)
         {
-            var row = el("label", "set-row");
-            var name = el("span", "set-name", label);
-            var box = el<HTMLInputElement>("input", "set-check");
-            box.type = "checkbox";
-            box.@checked = key == "shadows" ? settings.shadows : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
-            box.onchange = _ =>
+            bool get() => key == "shadows" ? settings.shadows : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
+            var row = rowEl(label, hintText);
+            var val = el("span", "set-val");
+            void put(bool on)
             {
-                if (key == "shadows") settings.shadows = box.@checked;
-                else if (key == "sharp") settings.sharp = box.@checked;
-                else if (key == "invertMouse") settings.invertMouse = box.@checked;
-                else if (key == "invertStick") settings.invertStick = box.@checked;
+                if (key == "shadows") settings.shadows = on;
+                else if (key == "sharp") settings.sharp = on;
+                else if (key == "invertMouse") settings.invertMouse = on;
+                else if (key == "invertStick") settings.invertStick = on;
+            }
+            void show()
+            {
+                row.classList.toggle("on", get());
+                val.textContent = get() ? "On" : "Off";
+            }
+            row.onclick = () =>
+            {
+                put(!get());
+                show();
                 onChange(settings);
             };
-            var h = el("span", "set-val faint", hintText);
-            row.append(name, box, h);
-            rows.append(row);
+            row.onstep = dir =>
+            {
+                if (get() == dir > 0) return;
+                put(dir > 0);
+                show();
+                onChange(settings);
+            };
+            row.append(el("span", "set-switch"), val);
+            show();
         }
         string pct(double v) => $"{JS.Round(v * 100)}%";
-        rows.append(el("h3", "", "Sound"));
+        rows.append(el("h3", "caps", "Sound"));
         slider("Master volume", "master", 0, 1, 0.05, pct);
         slider("Radio music", "music", 0, 1, 0.05, pct);
         slider("Sea and wind", "ambience", 0, 1, 0.05, pct);
-        rows.append(el("h3", "", "Controls"));
+        rows.append(el("h3", "caps", "Controls"));
         slider("Mouse look speed", "sensitivity", 0.4, 2.5, 0.05, v => $"{JS.ToFixed(v, 2)}x");
         toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
         toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
-        var desktop = true;
-        rows.append(el("h3", "", "Display"));
-        var displayModes = new List<string[]>
+        rows.append(el("h3", "caps", "Display"));
+        choice("Screen mode", new[]
         {
             new[] { "fullscreen", "Fullscreen" },
             new[] { "windowed", "Windowed" },
-        };
-        if (desktop) displayModes.Add(new[] { "borderless", "Windowed, no border" });
-        select("Screen mode", "displayMode", displayModes.ToArray());
-        if (desktop)
+            new[] { "borderless", "Windowed, no border" },
+        }, () => settings.displayMode, v => settings.displayMode = v);
+        int sw = UnityEngine.Screen.currentResolution.width > 0 ? UnityEngine.Screen.currentResolution.width : UnityEngine.Screen.width;
+        int sh = UnityEngine.Screen.currentResolution.height > 0 ? UnityEngine.Screen.currentResolution.height : UnityEngine.Screen.height;
+        var allSizes = new int[][]
         {
-            int sw = UnityEngine.Screen.currentResolution.width > 0 ? UnityEngine.Screen.currentResolution.width : (int)window.innerWidth;
-            int sh = UnityEngine.Screen.currentResolution.height > 0 ? UnityEngine.Screen.currentResolution.height : (int)window.innerHeight;
-            var allSizes = new int[][]
-            {
-                new[] { 1280, 720 }, new[] { 1366, 768 }, new[] { 1600, 900 },
-                new[] { 1920, 1080 }, new[] { 2560, 1440 }, new[] { 3840, 2160 },
-            };
-            var sizes = allSizes.Where(wh => sw <= 0 || (wh[0] <= sw && wh[1] <= sh))
-                .Select(wh => new[] { $"{wh[0]}x{wh[1]}", $"{wh[0]} × {wh[1]}" })
-                .ToArray();
-            select("Window size", "windowSize", sizes);
-        }
+            new[] { 1280, 720 }, new[] { 1366, 768 }, new[] { 1600, 900 },
+            new[] { 1920, 1080 }, new[] { 2560, 1440 }, new[] { 3840, 2160 },
+        };
+        var sizes = allSizes.Where(wh => sw <= 0 || (wh[0] <= sw && wh[1] <= sh))
+            .Select(wh => new[] { $"{wh[0]}x{wh[1]}", $"{wh[0]} × {wh[1]}" })
+            .ToArray();
+        choice("Window size", sizes, () => settings.windowSize, v => settings.windowSize = v);
         slider("Field of view", "fov", GameSettings.FOV_MIN, GameSettings.FOV_MAX, 1, v => $"{JS.Round(v)}°");
-        rows.append(el("h3", "", "Graphics"));
+        rows.append(el("h3", "caps", "Graphics"));
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);
@@ -719,6 +742,11 @@ public class UIManager
         this.settingsEl = null;
     }
 
+    private Func<int, bool> helpStepFn = null;
+
+    /// <summary>Moves to the next Help topic along (Q and E, or a controller's bumpers). False when Help is not open.</summary>
+    public bool helpStep(int dir) => this.helpStepFn != null && this.helpStepFn(dir);
+
     /// <summary>How to play: tabs of short topics, from what the game is about to the controls and saving.</summary>
     public void showHelp()
     {
@@ -727,17 +755,21 @@ public class UIManager
         card.append(el("h1", "", "Help"));
         var tabs = el("div", "help-tabs");
         var body = el("div", "help-body");
+        int cur = 0;
         Action<int> show = null;
+        var tabWrap = el("div", "tabs-wrap");
         var buttons = HELP_TOPICS.Select((t, i) =>
         {
             var idx = i;
-            var b = el<HTMLButtonElement>("button", $"btn small ghost{(i == 0 ? " on" : "")}", $"{t.icon} {t.title}");
+            var b = el<HTMLButtonElement>("button", $"btn tab{(i == 0 ? " on" : "")}", $"{t.icon} {t.title}");
             b.onclick = () => show(idx);
-            tabs.append(b);
+            tabWrap.append(b);
             return b;
         }).ToList();
+        tabs.append(Glyphs.key("Q", "LB"), tabWrap, Glyphs.key("E", "RB"));
         show = (int i) =>
         {
+            cur = i;
             for (int k = 0; k < buttons.Count; k++) buttons[k].classList.toggle("on", k == i);
             body.replaceChildren();
             body.scrollTop = 0;
@@ -765,8 +797,19 @@ public class UIManager
             }
         };
         show(0);
+        this.helpStepFn = dir =>
+        {
+            if (!wrap.isConnected) return false;
+            show((cur + dir + buttons.Count) % buttons.Count);
+            buttons[cur].focus();
+            return true;
+        };
         var back = el<HTMLButtonElement>("button", "btn big", "Back");
-        back.onclick = () => wrap.remove();
+        back.onclick = () =>
+        {
+            wrap.remove();
+            this.helpStepFn = null;
+        };
         card.append(tabs, body, back);
         wrap.append(card);
         this.root.append(wrap);
@@ -778,7 +821,11 @@ public class UIManager
         var wrap = el("div", "pause achievements");
         var card = el("div", "intro-card ach-card");
         var done = list.Count(a => a.done);
-        card.append(el("h1", "", "Achievements"), el("p", "tag", $"{done} of {list.Count} earned"));
+        var meter = el("div", "bar ach-progress");
+        var meterFill = el("div", "fill teal");
+        meterFill.style.width = $"{JS.Str(list.Count > 0 ? JS.Round(done * 100.0 / list.Count) : 0)}%";
+        meter.append(meterFill);
+        card.append(el("h1", "", "Achievements"), el("p", "tag", $"{done} of {list.Count} earned"), meter);
         var grid = el("div", "ach-list");
         foreach (var a in list)
         {
@@ -848,8 +895,7 @@ public class UIManager
         var count = el("span", "book-count");
         var next = el<HTMLButtonElement>("button", "btn ghost small", "Next ›");
         next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", padText("Close (Esc)"));
-        close.dataset["kb"] = "Close (Esc)";
+        var close = el<HTMLButtonElement>("button", "btn small", "Close");
         close.onclick = () => onClose();
         nav.append(prev, count, next, close);
         book.append(spread, nav);
@@ -919,8 +965,7 @@ public class UIManager
         var count = el("span", "book-count");
         var next = el<HTMLButtonElement>("button", "btn ghost small", "Older ›");
         next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", padText("Close (Esc)"));
-        close.dataset["kb"] = "Close (Esc)";
+        var close = el<HTMLButtonElement>("button", "btn small", "Close");
         close.onclick = () => onClose();
         nav.append(prev, count, next, close);
         card.append(sheet, nav);
@@ -1018,8 +1063,7 @@ public class UIManager
         var count = el("span", "book-count");
         var next = el<HTMLButtonElement>("button", "btn ghost small", "Later \u203a");
         next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", padText("Close (Esc)"));
-        close.dataset["kb"] = "Close (Esc)";
+        var close = el<HTMLButtonElement>("button", "btn small", "Close");
         close.onclick = () => onClose();
         nav.append(prev, count, next, close);
         card.append(sheet, nav);
@@ -1230,7 +1274,7 @@ public class UIManager
         var title = el("h1", "", names[0]);
         card.append(title);
         var tabs = el("div", "map-tabs");
-        var tabBtns = names.Select((n, i) => el<HTMLButtonElement>("button", $"btn small ghost{(i == 0 ? " on" : "")}", n)).ToList();
+        var tabBtns = names.Select((n, i) => el<HTMLButtonElement>("button", $"btn tab{(i == 0 ? " on" : "")}", n)).ToList();
         if (alts.Count > 0)
         {
             foreach (var tb in tabBtns) tabs.append(tb);
@@ -1240,8 +1284,7 @@ public class UIManager
         var c = el<HTMLCanvasElement>("canvas", "bigmap-canvas");
         c.width = c.height = size;
         c.style.width = c.style.height = $"{size}px";
-        var note = alts.Count > 0 ? (pad.on ? "LB / RB switches maps. " : "Press T to switch maps. ") : "";
-        card.append(c, el("p", "save-note", note + (pad.on ? "You are the red arrow. Move the cursor with the left stick; A sets a destination, A on the pin removes it. B or Y closes." : "You are the red arrow. Click the map to set a destination, click the pin to remove it. M or Esc closes.")));
+        card.append(c, el("p", "save-note", "You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it."));
         wrap.append(card);
         var ctx2 = c.getContext("2d");
         void paint()
@@ -1277,6 +1320,9 @@ public class UIManager
         this.mapEl = wrap;
         this.root.append(wrap);
     }
+
+    /// <summary>True while the big map has a second map to flip to.</summary>
+    public bool mapHasTabs => this.mapEl != null && this.mapEl.querySelector(".map-tabs .btn") != null;
 
     /// <summary>Flips between the island map and the treasure map, if the player has one.</summary>
     public void toggleMap()
@@ -1566,16 +1612,12 @@ public class UIManager
         pad.on = on;
         this.badge.classList.toggle("hidden", this.curTool == 0 || (on && !this.badgeOverride));
         this.updatePadTools();
-        if (this.kbdF != null) this.kbdF.textContent = on ? "A" : "F";
-        if (this.kbdE != null) this.kbdE.textContent = on ? "X" : "E";
-        // labels that name a key, like "Back (Esc)"
-        foreach (var b in this.root.querySelectorAll<HTMLElement>("button"))
-        {
-            var kb = b.dataset["kb"] ?? b.textContent ?? "";
-            if (!Regex.IsMatch(kb, @"\((Esc|Space)\)")) continue;
-            b.dataset["kb"] = kb;
-            b.textContent = padText(kb);
-        }
+        if (this.kbdF != null) Glyphs.set(this.kbdF, on ? "A" : "F", on);
+        if (this.kbdE != null) Glyphs.set(this.kbdE, on ? "X" : "E", on);
+        // every other key drawn on screen follows
+        Glyphs.refresh(on);
+        this.hintKey = null;
+        this.padbarKey = "";
         var help = this.root.querySelector<HTMLElement>(".inspect-help");
         if (help != null) help.textContent = on ? "Left stick turns the find · hold RT and move the right stick to brush it clean" : "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate";
         this.binocKey = "";
@@ -1584,8 +1626,40 @@ public class UIManager
 
     public void setHint(string text)
     {
-        this.hint.textContent = !string.IsNullOrEmpty(text) ? padText(text) : "";
-        this.hint.classList.toggle("show", !string.IsNullOrEmpty(text));
+        var t = !string.IsNullOrEmpty(text) ? padText(text) : "";
+        var key = (pad.on ? "p|" : "k|") + t;
+        if (key != this.hintKey)
+        {
+            this.hintKey = key;
+            // the keys a hint names are drawn as key caps; an empty hint keeps the old words while it fades out
+            if (t.Length > 0) Glyphs.fill(this.hint, t, pad.on);
+        }
+        this.hint.classList.toggle("show", t.Length > 0);
+    }
+
+    /// <summary>
+    /// The line along the bottom of a menu that says what the buttons do ("A Select  B Back"). Null or empty hides it.
+    /// `left` puts it at the bottom left, for the camp panel that fills the right of the screen.
+    /// </summary>
+    public void setMenuBar(IList<Glyphs.Prompt> items, bool left = false)
+    {
+        if (items == null || items.Count == 0)
+        {
+            if (!this.padbar.classList.contains("hidden"))
+            {
+                this.padbar.classList.add("hidden");
+                document.body.classList.remove("menu-open");
+            }
+            this.padbarKey = "";
+            return;
+        }
+        var key = (pad.on ? "p" : "k") + (left ? "<" : ">") + string.Join("|", items.Select(i => i.label + ":" + string.Join(",", pad.on ? i.pad : i.kb)));
+        if (key == this.padbarKey) return;
+        this.padbarKey = key;
+        Glyphs.fillBar(this.padbar, items, pad.on);
+        this.padbar.classList.toggle("left", left);
+        this.padbar.classList.remove("hidden");
+        document.body.classList.add("menu-open");
     }
 
     public void toast(string msg)
@@ -1642,8 +1716,8 @@ public class UIManager
             el("p", "lore", lore),
             el("div", "worth", valueText)
         );
-        var b = el<HTMLButtonElement>("button", "btn", padText("Add to Backpack  (Space)"));
-        b.dataset["kb"] = "Add to Backpack  (Space)";
+        var b = el<HTMLButtonElement>("button", "btn big");
+        b.append(Glyphs.key("Space", "A"), el("span", "", "Add to Backpack"));
         b.onclick = () => this.hooks.onContinue();
         card.append(b);
         this.result.append(card);

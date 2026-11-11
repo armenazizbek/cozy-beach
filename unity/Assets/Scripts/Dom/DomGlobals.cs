@@ -208,6 +208,20 @@ public static class window
     internal static double _innerWidth = 1280;
     internal static double _innerHeight = 720;
     internal static double _devicePixelRatio = 1.0;
+    internal static double _osPixelRatio = 1.0;
+
+    /// <summary>
+    /// Windows' own display scaling (125% is 1.25). The UI no longer follows it: it is laid out on a 1920 x 1080 page that is
+    /// stretched to the screen, and <see cref="devicePixelRatio"/> is that stretch.
+    /// </summary>
+    public static double osPixelRatio
+    {
+        get
+        {
+            DomHost.RefreshMetricsIfNeeded();
+            return _osPixelRatio;
+        }
+    }
 
     public static double innerWidth
     {
