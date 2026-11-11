@@ -214,6 +214,32 @@ public class AutoShot : MonoBehaviour
             game.smokeTestClose("map");
         }
 
+        // -autoshot-dolphins: a run across open water with the pod called up: arriving, alongside, and left behind when the boat stops
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-dolphins") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestDolphins(0));
+            game.input.held.Add("KeyW");
+            yield return Wait(4);
+            Debug.Log("[AutoShot] " + game.smokeTestDolphins(0));
+            yield return Shot("21-dolphins-arriving.png");
+            for (int i = 0; i < 5; i++)
+            {
+                yield return Wait(i == 0 ? 2.2f : 0.55f);
+                Debug.Log("[AutoShot] " + game.smokeTestDolphins(i < 3 ? 0 : i == 3 ? 0.7 : -0.7));
+                yield return Wait(0.25f);
+                yield return Shot($"21-dolphins-{i}.png");
+            }
+            yield return Measure("dolphins");
+            game.input.held.Clear();
+            yield return Wait(7);
+            Debug.Log("[AutoShot] " + game.smokeTestDolphins(0));
+            yield return Shot("21-dolphins-gone.png");
+            game.smokeTestOpen("book");
+            yield return Wait(1.2f);
+            yield return Shot("21-dolphins-journal.png");
+            game.smokeTestClose("book");
+        }
+
         // -autoshot-islands: the two far islands. Each from the boat, from its shore and at its landmark; the lagoon from inside,
         // with the step ashore; then the big map with all three on it
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-islands") >= 0)

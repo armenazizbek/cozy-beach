@@ -448,6 +448,14 @@ public static class Journal
         },
         new JournalPage
         {
+            id = "dolphins",
+            group = "Creatures",
+            icon = "🐟",
+            title = "Company at Sea",
+            text = "Somewhere past the whitecaps a grey back rolled out of the water beside the boat, then another, then five. They kept pace without trying, leaping across the bow wave for the fun of it, and a small one stayed tucked in beside its mother the whole way. Nothing calls them but a long, steady run over deep water. Then, all at once, they were gone.",
+        },
+        new JournalPage
+        {
             id = "sea_creature",
             group = "Creatures",
             icon = "🐙",

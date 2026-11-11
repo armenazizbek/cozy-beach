@@ -92,6 +92,9 @@ its shore and at its landmark, then the big map (`17-*`, `18-*`, `19-*`). The lo
 off puts the player and where each island's finds lie. With `-autoshot-crust` as well, the workbench shots are of the far
 islands' six finds.
 
+Add `-autoshot-dolphins` to take the boat across open water with the dolphin pod called up: arriving, alongside (ahead and
+to each side) and after the boat has stopped (`21-*`). The log says whether the pod is with the boat.
+
 Add `-autoshot-crust` to photograph finds of different shapes on the workbench, still in their sand.
 
 Add `-autoshot-saves` to autosave three times, start a new game and autosave twice more: the log lists every save, and

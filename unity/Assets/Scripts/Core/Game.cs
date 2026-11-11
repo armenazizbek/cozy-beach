@@ -94,6 +94,8 @@ public class Game
     public readonly Scenery scenery = new Scenery();
     public readonly Birds birds;
     public readonly SeaLife sea = new SeaLife();
+    /// <summary>the pod that comes to swim beside the boat on a long run across open water</summary>
+    public readonly Dolphins dolphins = new Dolphins();
     public readonly Whitecaps whitecaps = new Whitecaps();
     public readonly SeaTreasure treasure = new SeaTreasure();
     public readonly MapView mapView;
@@ -282,6 +284,7 @@ public class Game
             scenery.group,
             birds.group,
             sea.group,
+            dolphins.group,
             whitecaps.mesh,
             treasure.group,
             ocean.group,
@@ -869,6 +872,21 @@ public class Game
         if (vehicle != "boat") enterVehicle("boat");
         var l = landingSpot();
         return $"boat at {x:0.0}, {z:0.0}: depth {ocean.surfaceY - beach.heightAt(x, z):0.00}, landing {(l.island ? "island" : "beach")} at {l.x:0.0}, {l.z:0.0}, near {nearShore()}";
+    }
+
+    /// <summary>For the -autoshot-dolphins test: takes the wheel out on open water, calls the pod and looks to one side.</summary>
+    internal string smokeTestDolphins(double look)
+    {
+        if (vehicle != "boat")
+        {
+            boat.x = 40;
+            boat.z = 120;
+            boat.heading = Math.PI;
+            enterVehicle("boat");
+            dolphins.smokeCall();
+        }
+        lookOffset = look;
+        return $"{dolphins.smokeState()}; boat at {boat.x:0}, {boat.z:0}, speed {boat.speed:0.0}";
     }
 
     /// <summary>For the -autoshot-islands test: a row of finds as they look clean, held up in front of the viewer.</summary>
@@ -5569,6 +5587,16 @@ public class Game
             using (THREE.Bridge.BridgeStats.Time("birds")) birds.update(dt, t, player.x, player.z, d => audio.gull(d));
             using (THREE.Bridge.BridgeStats.Time("tracks")) tracks.update(dt, sky.starAmount);
             using (THREE.Bridge.BridgeStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, d => audio.splash(d));
+            using (THREE.Bridge.BridgeStats.Time("dolphins"))
+            {
+                bool came = dolphins.update(dt, t, vehicle == "boat", boat.x, boat.z, boat.heading, boat.speed, ocean.surfaceY, (x, z) => ocean.swellAt(x, z), (x, z) => beach.heightAt(x, z), d => audio.splash(d));
+                if (came)
+                {
+                    // the first time, a word about it; after that they simply turn up
+                    if (!state.data.pages.Contains("dolphins")) ui.toast("Dolphins! A pod has come up to ride along beside the boat.");
+                    discover("dolphins");
+                }
+            }
             using (THREE.Bridge.BridgeStats.Time("whitecaps")) whitecaps.update(dt, ocean.surfaceY, player.x, player.z, sky.starAmount, (x, z) => ocean.swellAt(x, z));
             var chest = treasure.update(dt, t, ocean.surfaceY, vehicle == "boat" ? (double?)boat.x : null, vehicle == "boat" ? (double?)boat.z : null);
             if (chest != null)
