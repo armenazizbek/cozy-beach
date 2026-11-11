@@ -10,6 +10,13 @@ using System.Collections.Generic;
 public class IslandSpec
 {
     public double x, z, R;
+    /// <summary>0 the green island with the ruins, 1 the ring of sand around a lagoon, 2 the dark volcanic rock</summary>
+    public int kind;
+    /// <summary>what the maps call it</summary>
+    public string name;
+
+    /// <summary>True within the square of sea this island's ground can lie in.</summary>
+    public bool near(double px, double pz) => Math.Abs(px - x) <= R * 1.2 && Math.Abs(pz - z) <= R * 1.2;
 }
 
 public class SeaSpec
@@ -50,21 +57,55 @@ public class Beach
     public static readonly double CAMP_Y = rawHeight(0, CAMP_Z);
 
     /// <summary>A small island out at sea, a boat ride from the beach.</summary>
-    public static readonly IslandSpec ISLAND = new IslandSpec { x = -14, z = 200, R = 22 };
+    public static readonly IslandSpec ISLAND = new IslandSpec { x = -14, z = 200, R = 22, kind = 0, name = "Island" };
 
-    /// <summary>How far out to sea the boat can go and the sea creatures roam: out to x = +-150 and z = 250.</summary>
-    public static readonly SeaSpec SEA = new SeaSpec { x = 150, z = 250 };
+    /// <summary>A ring of pale sand around a lagoon, far out to the east. A gap in the ring lets a boat in.</summary>
+    public static readonly IslandSpec LAGOON = new IslandSpec { x = 196, z = 292, R = 34, kind = 1, name = "Lagoon Cay" };
 
-    /// <summary>Height of the island at a point, or a very low number away from it so the sea floor wins there.</summary>
+    /// <summary>A dark volcanic cone with a hot spring in its crater, far out to the west.</summary>
+    public static readonly IslandSpec EMBER = new IslandSpec { x = -204, z = 312, R = 30, kind = 2, name = "Ember Rock" };
+
+    /// <summary>Every island in the sea. The first is the one with the ruins.</summary>
+    public static readonly IslandSpec[] ISLANDS = { ISLAND, LAGOON, EMBER };
+
+    /// <summary>The way through the lagoon's ring of sand, as an angle from its middle: it faces the first island and the beach.</summary>
+    public const double LAGOON_GAP = -2.45;
+
+    /// <summary>How far out to sea the boat can go and the sea creatures roam: out to x = +-290 and z = 420.</summary>
+    public static readonly SeaSpec SEA = new SeaSpec { x = 290, z = 420 };
+
+    /// <summary>
+    /// How far to either side the sea is open at a distance z from the land. Close in it is as narrow as it always was (the
+    /// mountains come down to the coast on both sides of the beach); further out it opens to its full width.
+    /// </summary>
+    public static double seaHalfWidth(double z) => 150 + (SEA.x - 150) * smooth(100, 190, z);
+
+    /// <summary>The island this point belongs to, or null out on the open sea and on the beach.</summary>
+    public static IslandSpec islandNear(double x, double z)
+    {
+        foreach (var s in ISLANDS) if (s.near(x, z)) return s;
+        return null;
+    }
+
+    /// <summary>The smallest turn from angle b to angle a, in -pi..pi.</summary>
+    private static double turn(double a, double b) => Math.Atan2(Math.Sin(a - b), Math.Cos(a - b));
+
+    /// <summary>Height of the islands at a point, or a very low number away from them so the sea floor wins there.</summary>
     public static double islandHeight(double x, double z)
     {
-        double dx = x - ISLAND.x, dz = z - ISLAND.z;
-        if (Math.Abs(dx) > ISLAND.R * 1.2 || Math.Abs(dz) > ISLAND.R * 1.2) return -10;
+        var s = islandNear(x, z);
+        if (s == null) return -10;
+        double dx = x - s.x, dz = z - s.z;
         double d = JS.Hypot(dx, dz);
-        if (d > ISLAND.R * 1.2) return -10;
+        if (d > s.R * 1.2) return -10;
         double a = Math.Atan2(dz, dx);
+        return s.kind == 1 ? lagoonHeight(s, x, z, d, a) : s.kind == 2 ? emberHeight(s, x, z, d, a) : greenHeight(s, x, z, d, a);
+    }
+
+    private static double greenHeight(IslandSpec s, double x, double z, double d, double a)
+    {
         // an uneven coast, not a perfect circle
-        double rn = ISLAND.R * (1 + 0.16 * Math.Sin(3 * a + 1.2) + 0.09 * Math.Sin(5 * a + 0.4) + 0.05 * Math.Sin(9 * a));
+        double rn = s.R * (1 + 0.16 * Math.Sin(3 * a + 1.2) + 0.09 * Math.Sin(5 * a + 0.4) + 0.05 * Math.Sin(9 * a));
         double t = d / rn;
         if (t >= 1) return -10;
         double h = -2.2 + 6.4 * (1 - t * t);
@@ -76,6 +117,46 @@ public class Beach
         h += land * (Math.Sin(x * 0.31 + z * 0.17) * 0.28 + Math.Sin(x * 0.13 - z * 0.27) * 0.35 + Math.Sin(x * 0.6 + z * 0.5) * 0.06);
         double cliff = Math.Exp(-Math.Pow(Math.Atan2(Math.Sin(a - 3.0), Math.Cos(a - 3.0)) / 0.45, 2));
         h += land * cliff * 1.3 * smooth(0.15, 0.6, t);
+        return h;
+    }
+
+    /// <summary>
+    /// A low ring of sand: a ridge between the open sea and a shallow lagoon, cut through on one side so a boat can sail in.
+    /// The side across from the gap is a little higher, a dune to camp on.
+    /// </summary>
+    private static double lagoonHeight(IslandSpec s, double x, double z, double d, double a)
+    {
+        double rn = s.R * (1 + 0.07 * Math.Sin(2 * a + 0.7) + 0.045 * Math.Sin(5 * a + 2.1) + 0.025 * Math.Sin(9 * a + 1.0));
+        double t = d / rn;
+        if (t >= 1) return -10;
+        // the lagoon floor inside, falling away to the sea floor outside
+        double floor = -1.35 - 1.05 * smooth(0.66, 1.0, t);
+        double ridge = Math.Exp(-Math.Pow((t - 0.66) / 0.17, 2));
+        double gap = Math.Exp(-Math.Pow(turn(a, LAGOON_GAP) / 0.4, 2));
+        double dune = Math.Exp(-Math.Pow(turn(a, LAGOON_GAP + Math.PI) / 0.7, 2));
+        double h = floor + ridge * (3.3 + 0.9 * dune) * (1 - gap);
+        double land = smooth(-0.3, 0.8, h);
+        h += land * (Math.Sin(x * 0.37 + z * 0.21) * 0.14 + Math.Sin(x * 0.17 - z * 0.33) * 0.16);
+        return h;
+    }
+
+    /// <summary>A volcanic cone: an apron of black sand, a steep cone of rock in the middle of it and a hollow crater in its top.</summary>
+    private static double emberHeight(IslandSpec s, double x, double z, double d, double a)
+    {
+        double rn = s.R * (1 + 0.12 * Math.Sin(3 * a + 0.5) + 0.07 * Math.Sin(4 * a + 2.0) + 0.04 * Math.Sin(7 * a));
+        double t = d / rn;
+        if (t >= 1) return -10;
+        double h = -2.2 + 5.2 * (1 - t * t);
+        // the apron: nearly level black sand
+        const double flat = 0.9;
+        if (h > flat) h = flat + (h - flat) * 0.12;
+        double land = smooth(-0.3, 0.8, h);
+        h += land * (Math.Sin(x * 0.29 + z * 0.19) * 0.16 + Math.Sin(x * 0.15 - z * 0.31) * 0.18);
+        // the cone, with gullies down its sides, and the crater
+        double tc = d / s.R;
+        double cone = smooth(0.62, 0.16, tc);
+        h += cone * (7.4 + Math.Sin(5 * a + 0.8) * 0.4 * smooth(0.14, 0.4, tc));
+        h -= 2.0 * smooth(0.17, 0.05, tc);
         return h;
     }
 
@@ -157,8 +238,8 @@ public class Beach
     /// <summary>Coarse terrain ring around the playable beach so the world never just ends.</summary>
     public static THREE.Mesh createSurround()
     {
-        const double size = 760;
-        const int seg = 152; // 5m cells, so the playable square lines up exactly with the grid
+        const double size = 1300;
+        const int seg = 260; // 5m cells, so the playable square lines up exactly with the grid
         var geo = new THREE.PlaneGeometry(size, size, seg, seg);
         geo.rotateX(-Math.PI / 2);
         var pos = geo.attributes.position;
@@ -554,7 +635,7 @@ public class Beach
         {
             p.copy(dir).multiplyScalar(t).add(origin);
             bool inGrid = Math.Abs(p.x) <= HALF && Math.Abs(p.z) <= HALF;
-            if (!inGrid && JS.Hypot(p.x - ISLAND.x, p.z - ISLAND.z) > ISLAND.R * 1.2)
+            if (!inGrid && islandNear(p.x, p.z) == null)
             {
                 prevT = t;
                 continue;

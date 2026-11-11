@@ -6,7 +6,7 @@ Paste this into the instructions of a Claude project so that conversations there
 
 Cozy Treasure Hunter is a calm first-person PC game about a long beach, a metal detector and a very good dog. There is no timer and no way to lose. You sweep the sand, dig up finds, clean them by hand, sell or recycle them, return lost items, and slowly build up a camp.
 
-- **Beyond the beach:** a golf cart, a boat, a small island, diving to a shipwreck, and a message in a bottle that leads to a hidden hatch.
+- **Beyond the beach:** a golf cart, a boat, three small islands (a green one with ruins, a ring of sand around a lagoon, a volcanic rock), diving to a shipwreck, and a message in a bottle that leads to a hidden hatch.
 - **The story:** Captain Holt's ship, the Marigold, was lost with a town's gold and its church bell. His journal is in a stone room under the dunes.
 - **The ending:** assemble the Pirate Medallion and the Ancient Astrolabe (three buried shards each), then open the great door at midday, when sunlight comes down a shaft onto the lock. Stairs lead to a sea cave with a dead monster's skeleton around 30,000g of gold. An ending card follows, play continues, and a Luxury shop tab opens.
 - **Controls:** keyboard and mouse, or a full controller.

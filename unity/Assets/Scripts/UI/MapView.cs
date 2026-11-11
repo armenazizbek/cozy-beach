@@ -47,14 +47,20 @@ public class MapViewBounds
 public class MapView
 {
     /// <summary>The terrain is painted over the island and plenty of open sea around it, so the boat never leaves the map.</summary>
-    private const double EXT_X0 = -210;
+    private const double EXT_X0 = -320;
     private const double EXT_Z0 = -150;
-    private const double EXT = 420;
+    private const double EXT = 640;
     private const double PPM = 2; // painted pixels per metre
     private const int BASE_PX = (int)(EXT * PPM);
 
     /// <summary>The part of the world the full map shows: a square centred a little out to sea.</summary>
-    public static readonly MapViewBounds MAP_VIEW = new MapViewBounds { cx = 0, cz = 70, half = 172 };
+    public static readonly MapViewBounds MAP_VIEW = new MapViewBounds { cx = 0, cz = 162, half = 300 };
+
+    /// <summary>
+    /// The markers on the full map are drawn in metres. The map once showed 344 m across and now shows more, so they are
+    /// drawn this much larger to stay the size they were on the screen.
+    /// </summary>
+    private static readonly double MARK = MAP_VIEW.half / 172;
 
     private HTMLCanvasElement _base = new HTMLCanvasElement(BASE_PX, BASE_PX);
     /// <summary>planted marker flags, set by the game and edited in place</summary>
@@ -73,11 +79,11 @@ public class MapView
         var img = g.createImageData(BASE_PX, BASE_PX);
         var data = img.data;
         var m = EXT / BASE_PX;
-        var islBox = ISLAND.R * 1.2;
         for (int v = 0; v < BASE_PX; v++)
         {
             var z = EXT_Z0 + (v + 0.5) * m;
-            var deepSeaRow = z > 88 && Math.Abs(z - ISLAND.z) > islBox;
+            var deepSeaRow = z > 88;
+            if (deepSeaRow) foreach (var isl in ISLANDS) if (Math.Abs(z - isl.z) <= isl.R * 1.2) deepSeaRow = false;
             if (deepSeaRow)
             {
                 var rowBase = v * BASE_PX * 4;
@@ -91,7 +97,8 @@ public class MapView
             for (int u = 0; u < BASE_PX; u++)
             {
                 var x = EXT_X0 + (u + 0.5) * m;
-                if (z > 88 && Math.Abs(x - ISLAND.x) > islBox)
+                var isle = z > 88 ? islandNear(x, z) : null;
+                if (z > 88 && isle == null)
                 {
                     var idx = (v * BASE_PX + u) * 4;
                     data[idx] = 30; data[idx + 1] = 95; data[idx + 2] = 155; data[idx + 3] = 255;
@@ -115,6 +122,18 @@ public class MapView
                     var wet = Math.Min(1, Math.Max(0, (z - (WET_Z - 3)) / 6));
                     var hill = Math.Min(1, Math.Max(0, (h - 1.6) / 1.4));
                     r = 232 - wet * 50 - hill * 70; gr = 206 - wet * 55 - hill * 36; b = 170 - wet * 40 - hill * 62;
+                    if (isle != null && isle.kind == 1)
+                    {
+                        // the cay: pale sand, a little green along the crest
+                        var crest = Math.Min(1, Math.Max(0, (h - 1.4) / 0.8));
+                        r = 238 - crest * 80; gr = 226 - crest * 38; b = 192 - crest * 92;
+                    }
+                    else if (isle != null && isle.kind == 2)
+                    {
+                        // the ember rock: black sand, and the cone darker still with a rusty top
+                        var cone = Math.Min(1, Math.Max(0, (h - 1.2) / 6.5));
+                        r = 104 - cone * 34 + Math.Max(0, cone - 0.6) * 150; gr = 98 - cone * 46; b = 92 - cone * 48;
+                    }
                 }
                 var i = (v * BASE_PX + u) * 4;
                 data[i] = (byte)r; data[i + 1] = (byte)gr; data[i + 2] = (byte)b; data[i + 3] = 255;
@@ -221,25 +240,25 @@ public class MapView
         ctx.drawImage(this._base, EXT_X0, EXT_Z0, EXT, EXT);
         ctx.filter = "none";
         this.drawPier(ctx);
-        this.drawCamp(ctx, 0, CAMP_Z, 1.8);
+        this.drawCamp(ctx, 0, CAMP_Z, 1.8 * MARK);
         var pulse = 1 + Math.Sin(time * 4) * 0.12;
-        if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9);
-        if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0);
-        foreach (var mk in marks) this.drawCross(ctx, mk[0], mk[1], 3.4, pulse);
-        this.drawFlags(ctx, 3.2);
-        if (this.dog != null) this.drawPaw(ctx, this.dog.x, this.dog.z, 3);
+        if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9 * MARK);
+        if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0 * MARK);
+        foreach (var mk in marks) this.drawCross(ctx, mk[0], mk[1], 3.4 * MARK, pulse);
+        this.drawFlags(ctx, 3.2 * MARK);
+        if (this.dog != null) this.drawPaw(ctx, this.dog.x, this.dog.z, 3 * MARK);
         // the destination the player has marked: the same dashed line and pin as on the island map
         if (dest != null)
         {
-            ctx.setLineDash(new double[] { 2.2, 1.8 });
+            ctx.setLineDash(new double[] { 2.2 * MARK, 1.8 * MARK });
             ctx.strokeStyle = "rgba(230,57,70,0.95)";
-            ctx.lineWidth = 0.7;
+            ctx.lineWidth = 0.7 * MARK;
             ctx.beginPath();
             ctx.moveTo(p.x, p.z);
             ctx.lineTo(dest.x, dest.z);
             ctx.stroke();
             ctx.setLineDash(Array.Empty<double>());
-            this.drawPin(ctx, dest.x, dest.z, 1.7);
+            this.drawPin(ctx, dest.x, dest.z, 1.7 * MARK);
         }
         ctx.restore();
         // aged paper over everything
@@ -278,7 +297,7 @@ public class MapView
         ctx.fillStyle = "rgba(70,36,12,0.9)";
         ctx.textAlign = "center";
         ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
-        ctx.fillText("Island", ((ISLAND.x - cx + half) / (2 * half)) * size, ((ISLAND.z - cz + half) / (2 * half)) * size - 34);
+        this.nameIslands(ctx, size);
         if (bottle)
         {
             ctx.textAlign = "left";
@@ -289,6 +308,17 @@ public class MapView
         ctx.rotate(Math.Atan2(-Math.Cos(p.yaw), -Math.Sin(p.yaw)) + Math.PI / 2);
         this.arrow(ctx, size / 70);
         ctx.restore();
+    }
+
+    /// <summary>Each island's name, just above it on a full map. The text colour and font are the caller's.</summary>
+    private void nameIslands(CanvasRenderingContext2D ctx, double size)
+    {
+        var (cx, cz, half) = MAP_VIEW;
+        foreach (var isl in ISLANDS)
+        {
+            double px = size / (2 * half);
+            ctx.fillText(isl.name, (isl.x - cx + half) * px, (isl.z - cz + half) * px - isl.R * px - 10);
+        }
     }
 
     private void drawFlags(CanvasRenderingContext2D ctx, double s)
@@ -552,22 +582,22 @@ public class MapView
         ctx.drawImage(this._base, EXT_X0, EXT_Z0, EXT, EXT);
         this.drawHoles(ctx, holes, 0.8);
         this.drawPier(ctx);
-        this.drawCamp(ctx, 0, CAMP_Z, 1.8);
-        if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9);
-        if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0);
-        this.drawFlags(ctx, 3.2);
-        if (this.dog != null) this.drawPaw(ctx, this.dog.x, this.dog.z, 3);
+        this.drawCamp(ctx, 0, CAMP_Z, 1.8 * MARK);
+        if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9 * MARK);
+        if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0 * MARK);
+        this.drawFlags(ctx, 3.2 * MARK);
+        if (this.dog != null) this.drawPaw(ctx, this.dog.x, this.dog.z, 3 * MARK);
         if (dest != null)
         {
-            ctx.setLineDash(new double[] { 2.2, 1.8 });
+            ctx.setLineDash(new double[] { 2.2 * MARK, 1.8 * MARK });
             ctx.strokeStyle = "rgba(230,57,70,0.95)";
-            ctx.lineWidth = 0.7;
+            ctx.lineWidth = 0.7 * MARK;
             ctx.beginPath();
             ctx.moveTo(p.x, p.z);
             ctx.lineTo(dest.x, dest.z);
             ctx.stroke();
             ctx.setLineDash(Array.Empty<double>());
-            this.drawPin(ctx, dest.x, dest.z, 1.7);
+            this.drawPin(ctx, dest.x, dest.z, 1.7 * MARK);
         }
         ctx.restore();
 
@@ -577,7 +607,7 @@ public class MapView
         ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Sea", size / 2, size - 14);
-        ctx.fillText("Island", ((ISLAND.x - cx + half) / (2 * half)) * size, ((ISLAND.z - cz + half) / (2 * half)) * size - 34);
+        this.nameIslands(ctx, size);
 
         ctx.save();
         ctx.translate(((p.x - cx + half) / (2 * half)) * size, ((p.z - cz + half) / (2 * half)) * size);

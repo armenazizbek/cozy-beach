@@ -141,7 +141,9 @@ public class Game
     public readonly Stones stones;
     public readonly Grass grass;
     public readonly Sandcastles castles;
-    public readonly Island island = new Island();
+    /// <summary>every island in the sea; the first is the green one with the ruins</summary>
+    public readonly Island[] islands = ISLANDS.Select(s => new Island(s)).ToArray();
+    public Island island => islands[0];
     public readonly Underwater under = new Underwater();
     public readonly Achievements achievements = new Achievements();
     private double achT = 0;
@@ -299,7 +301,9 @@ public class Game
             stones.group,
             grass.group,
             castles.group,
-            island.group,
+            islands[0].group,
+            islands[1].group,
+            islands[2].group,
             under.group,
             cellar.group,
             hearts.points,
@@ -835,12 +839,62 @@ public class Game
     }
 
     /// <summary>For the -autoshot-island test: stands this far from the island's middle at this angle, looking at its middle.</summary>
-    internal void smokeTestIsland(double dist, double angle, double pitch)
+    internal void smokeTestIsland(double dist, double angle, double pitch, int which = 0)
     {
-        player.x = ISLAND.x + Math.Cos(angle) * dist;
-        player.z = ISLAND.z + Math.Sin(angle) * dist;
-        player.yaw = Math.Atan2(-(ISLAND.x - player.x), -(ISLAND.z - player.z));
+        var at = ISLANDS[which];
+        player.x = at.x + Math.Cos(angle) * dist;
+        player.z = at.z + Math.Sin(angle) * dist;
+        player.yaw = Math.Atan2(-(at.x - player.x), -(at.z - player.z));
         player.pitch = pitch;
+    }
+
+    /// <summary>For the -autoshot-islands test: stands at a spot given from an island's landmark, looking at the landmark.</summary>
+    internal string smokeTestLandmark(int which, double dx, double dz, double pitch)
+    {
+        var isl = islands[which];
+        player.x = isl.ruins.x + dx;
+        player.z = isl.ruins.z + dz;
+        player.yaw = Math.Atan2(dx, dz);
+        player.pitch = pitch;
+        return $"{isl.spec.name}: landmark at {isl.ruins.x:0.0}, {isl.ruins.z:0.0}, ground {beach.heightAt(isl.ruins.x, isl.ruins.z):0.00}; standing at ground {beach.heightAt(player.x, player.z):0.00}; finds {string.Join(" ", isl.findSpots().Select(f => $"{f.id}@{f.x:0},{f.z:0}"))}";
+    }
+
+    /// <summary>For the -autoshot-islands test: puts the boat somewhere and the player at its wheel.</summary>
+    internal string smokeTestBoatAt(double x, double z, double heading)
+    {
+        boat.x = x;
+        boat.z = z;
+        boat.heading = heading;
+        boat.speed = 0;
+        if (vehicle != "boat") enterVehicle("boat");
+        var l = landingSpot();
+        return $"boat at {x:0.0}, {z:0.0}: depth {ocean.surfaceY - beach.heightAt(x, z):0.00}, landing {(l.island ? "island" : "beach")} at {l.x:0.0}, {l.z:0.0}, near {nearShore()}";
+    }
+
+    /// <summary>For the -autoshot-islands test: a row of finds as they look clean, held up in front of the viewer.</summary>
+    internal void smokeTestShowItems(string[] ids)
+    {
+        double fx = -Math.Sin(player.yaw), fz = -Math.Cos(player.yaw), rx = Math.Cos(player.yaw), rz = -Math.Sin(player.yaw);
+        for (int i = 0; i < ids.Length; i++)
+        {
+            var m = LootGenerator.buildItem(ids[i]);
+            double side = (i - (ids.Length - 1) / 2.0) * 0.62;
+            m.scale.setScalar(0.62);
+            m.position.set(camera.position.x + fx * 2.3 + rx * side, camera.position.y - 0.05 + (i % 2) * 0.0, camera.position.z + fz * 2.3 + rz * side);
+            // tipped up toward the viewer, so the top of each one shows
+            m.rotation.order = "YXZ";
+            m.rotation.y = player.yaw;
+            m.rotation.x = 0.75;
+            scene.add(m);
+        }
+    }
+
+    /// <summary>For the -autoshot-islands test: steps off the boat as E does, and says where that put the player.</summary>
+    internal string smokeTestLeaveBoat()
+    {
+        exitVehicle();
+        var isl = islandAt(player.x, player.z);
+        return $"stepped off: vehicle {vehicle ?? "none"}, at {player.x:0.0}, {player.z:0.0}, ground {beach.heightAt(player.x, player.z):0.00}, on {(isl != null ? isl.spec.name : "no island")}";
     }
 
     /// <summary>
@@ -1893,7 +1947,7 @@ public class Game
             : "night";
         if (underground) return $"Day {state.data.day} · under the dunes";
         string where = diving ? "under the sea"
-            : onIsland ? "the island"
+            : onIsland ? (islandAt(player.x, player.z).kind == 1 ? "the lagoon cay" : islandAt(player.x, player.z).kind == 2 ? "the ember rock" : "the island")
             : vehicle == "boat" ? "out at sea"
             : JS.Hypot(player.x, player.z - CAMP_Z) < 16 ? "camp"
             : "the beach";
@@ -2026,7 +2080,7 @@ public class Game
         if (onIsland)
         {
             audio.error();
-            ui.toast("The island is too rocky to dig. Its treasures lie out in the open.");
+            ui.toast(noDigHint());
             return;
         }
         if (!beach.canDig(hit.z))
@@ -3438,7 +3492,8 @@ public class Game
             moving = JS.Hypot(w.x - p.x, w.z - p.z) > 0.3;
         }
         // on the island the limit is the water's edge; on the beach it is the shore and the dunes
-        bool onIsl = island.contains(p.x, p.z);
+        var isl = islandAt(p.x, p.z);
+        bool onIsl = isl != null;
         if (onIsl)
         {
             if (beach.heightAt(p.x, p.z) < WATER_LEVEL + 0.25)
@@ -3446,7 +3501,7 @@ public class Game
                 p.x = px0;
                 p.z = pz0;
             }
-            foreach (var s in island.colliders)
+            foreach (var s in isl.colliders)
             {
                 double d = JS.Hypot(p.x - s.x, p.z - s.z);
                 double min = s.r + 0.3;
@@ -3456,8 +3511,21 @@ public class Game
                     p.z = s.z + ((p.z - s.z) / (d != 0 ? d : 1)) * min;
                 }
             }
-            discover("island_first");
-            if (JS.Hypot(p.x - island.ruins.x, p.z - island.ruins.z) < 7) discover("island_ruins");
+            if (isl.kind == 1)
+            {
+                discover("lagoon_first");
+                if (JS.Hypot(p.x - isl.ruins.x, p.z - isl.ruins.z) < 6) discover("lagoon_camp");
+            }
+            else if (isl.kind == 2)
+            {
+                discover("ember_first");
+                if (JS.Hypot(p.x - isl.ruins.x, p.z - isl.ruins.z) < 6.5) discover("ember_spring");
+            }
+            else
+            {
+                discover("island_first");
+                if (JS.Hypot(p.x - isl.ruins.x, p.z - isl.ruins.z) < 7) discover("island_ruins");
+            }
         }
         else
         {
@@ -4034,7 +4102,7 @@ public class Game
         // depth of water under the shallowest point of the hull; at least -0.02 means it floats
         double clearance(double x, double z)
         {
-            if (Math.Abs(x) > SEA.x || z > SEA.z) return double.NegativeInfinity;
+            if (Math.Abs(x) > seaHalfWidth(z) || z > SEA.z) return double.NegativeInfinity;
             double m = double.PositiveInfinity;
             foreach (var pt in new (double al, double side)[] { (0, 0), (2.3, 0), (-2.3, 0), (0, 0.9), (0, -0.9) })
             {
@@ -4154,10 +4222,11 @@ public class Game
     /// <summary>Where the player would stand on the beach after stepping off the boat.</summary>
     private LandingSpot landingSpot()
     {
-        // out by the island, the landing is on its shore
-        if (JS.Hypot(boat.x - ISLAND.x, boat.z - ISLAND.z) < ISLAND.R + 20)
+        // out by an island, the landing is on its shore
+        foreach (var isl in islands)
         {
-            var il = island.landingFrom(boat.x, boat.z);
+            if (JS.Hypot(boat.x - isl.spec.x, boat.z - isl.spec.z) >= isl.spec.R + 20) continue;
+            var il = isl.landingFrom(boat.x, boat.z);
             if (il != null) return new LandingSpot { x = il.Value.x, z = il.Value.z, island = true };
         }
         // alongside the pier, the way off the boat is onto its boards
@@ -4676,8 +4745,24 @@ public class Game
         audio.crumble();
     }
 
-    /// <summary>True while the player is on foot on the island.</summary>
-    private bool onIsland => started && vehicle == null && island.contains(player.x, player.z);
+    /// <summary>The island under a point, or null on the beach and out at sea.</summary>
+    private Island islandAt(double x, double z)
+    {
+        foreach (var i in islands) if (i.contains(x, z)) return i;
+        return null;
+    }
+
+    /// <summary>True while the player is on foot on one of the islands.</summary>
+    private bool onIsland => started && vehicle == null && islandAt(player.x, player.z) != null;
+
+    /// <summary>Why the trowel and the detector are no use on the island the player is standing on.</summary>
+    private string noDigHint()
+    {
+        var isl = islandAt(player.x, player.z);
+        return isl != null && isl.kind == 1 ? "The sand here is only a skin over old coral: there is nothing to dig. The cay's treasures lie out in the open."
+            : isl != null && isl.kind == 2 ? "Black rock, all the way down. There is nothing to dig: the treasures here lie out in the open."
+            : "The island is too rocky to dig. Its treasures lie out in the open.";
+    }
 
     /// <summary>
     /// Four sealed chests are buried on the beach from the start. They are invisible to the detector and the trowel until the player
@@ -4816,11 +4901,11 @@ public class Game
         ui.toast("You take an old map from the altar. Open the map (M) and press T to read it.");
     }
 
-    /// <summary>The island's own finds lie in the open from the start. Added once, and again for older saves that never had them.</summary>
+    /// <summary>The islands' own finds lie in the open from the start. Added once, and again for older saves that never had them.</summary>
     private void ensureIslandFinds()
     {
-        // a save from before the island moved may hold finds out at the old spot: drop the ones not picked up yet
-        spawner.items.RemoveAll(i => ISLAND_ITEM_IDS.Contains(i.def.id) && !i.collected && !island.contains(i.x, i.z));
+        // a save from before an island moved may hold finds out at the old spot: drop the ones not picked up yet
+        spawner.items.RemoveAll(i => ISLAND_ITEM_IDS.Contains(i.def.id) && !i.collected && !islands.Any(isl => isl.findIds.Contains(i.def.id) && isl.contains(i.x, i.z)));
         var have = new Dictionary<string, int>();
         foreach (var i in spawner.items)
         {
@@ -4829,7 +4914,7 @@ public class Game
                 have[i.def.id] = (have.TryGetValue(i.def.id, out var cnt) ? cnt : 0) + 1;
             }
         }
-        foreach (var s in island.findSpots())
+        foreach (var s in islands.SelectMany(isl => isl.findSpots()))
         {
             int n = have.TryGetValue(s.id, out var cnt) ? cnt : 0;
             if (n > 0)
@@ -5367,7 +5452,7 @@ public class Game
         }
         else if (onIsland && (tool == 1 || tool == 2))
         {
-            hint = "The island is too rocky to dig. Its treasures lie out in the open.";
+            hint = noDigHint();
         }
         else if (gameState == "EXPLORE" && tool == 8)
         {
@@ -5451,7 +5536,7 @@ public class Game
         input.tick(dt);
 
         using (THREE.Bridge.BridgeStats.Time("dayNight")) updateDayNight(dt);
-        using (THREE.Bridge.BridgeStats.Time("sky")) sky.update(dt);
+        using (THREE.Bridge.BridgeStats.Time("sky")) sky.update(dt, camera.position.x, camera.position.z);
         if (underground)
         {
             using (THREE.Bridge.BridgeStats.Time("ocean")) ocean.update(t, camera.position.x, camera.position.z);
@@ -5592,7 +5677,7 @@ public class Game
                 mapView.captain = state.data.hasBottleMap ? spawner.items.Where(i => i.def.id == "captain_chest" && !i.collected).Select(i => new[] { i.x, i.z }).ToList() : new List<double[]>();
                 mapView.treasures = state.data.hasTreasureMap ? spawner.items.Where(i => i.def.id == "treasure_cache" && !i.collected).Select(i => new[] { i.x, i.z }).ToList() : new List<double[]>();
             }
-            using (THREE.Bridge.BridgeStats.Time("island")) island.update(t, ocean.surfaceY, sky.fog.color, sky.fog.density, camera.position.x, camera.position.z, dt);
+            using (THREE.Bridge.BridgeStats.Time("island")) foreach (var isl in islands) isl.update(t, ocean.surfaceY, sky.fog.color, sky.fog.density, camera.position.x, camera.position.z, dt);
             if (rain.amount > 0.3 && beach.rainFill(dt, rain.amount, rainKeep()))
             {
                 // a hole the rain has filled comes off the maps

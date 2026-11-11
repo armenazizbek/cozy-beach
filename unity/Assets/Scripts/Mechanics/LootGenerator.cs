@@ -818,6 +818,235 @@ public static class LootGenerator
         g.add(shell);
     }
 
+    /// <summary>A brass spyglass, drawn out: three tubes that slide into each other, the widest wrapped in leather, with a lens at each end.</summary>
+    private static void buildSpyglass(THREE.Group g)
+    {
+        var brass = metal(0xc9a03c, 0.3);
+        var worn = metal(0x8a6a22, 0.45);
+        var leather = new THREE.MeshStandardMaterial { color = 0x5a3320, roughness = 0.8 };
+        var glass = new THREE.MeshStandardMaterial { color = 0xbfe3f2, roughness = 0.05, metalness = 0.2 };
+        // every piece is a cylinder lying along x
+        void tube(double r0, double r1, double len, THREE.Material mat, double x) =>
+            add(g, new THREE.CylinderGeometry(r0, r1, len, 24), mat, x, 0, 0).rotation.z = Math.PI / 2;
+        // the wide end, toward +x
+        tube(0.085, 0.085, 0.37, leather, 0.235);
+        tube(0.093, 0.093, 0.03, brass, 0.06);
+        tube(0.096, 0.096, 0.045, brass, 0.41);
+        tube(0.08, 0.08, 0.008, glass, 0.434);
+        foreach (var x in new[] { 0.15, 0.32 }) tube(0.088, 0.088, 0.012, worn, x);
+        // the middle draw
+        tube(0.066, 0.066, 0.27, brass, -0.075);
+        tube(0.073, 0.073, 0.024, worn, -0.2);
+        // the eyepiece draw, and the cup the eye goes to
+        tube(0.05, 0.05, 0.23, brass, -0.315);
+        tube(0.064, 0.056, 0.05, worn, -0.445);
+        tube(0.036, 0.036, 0.006, glass, -0.471);
+    }
+
+    /// <summary>
+    /// A nautilus shell lying on its side: one tube wound in a spiral that widens as it goes, cream with rust-brown tiger stripes
+    /// across the outside of each turn, fading toward the mouth, which is dark inside.
+    /// </summary>
+    private static void buildNautilus(THREE.Group g)
+    {
+        const int rings = 96, seg = 20;
+        const double grow = 0.19, fat = 0.56;
+        double thetaMax = 2.25 * Math.PI * 2;
+        double a0 = 0.27 / Math.Exp(grow * thetaMax);
+        var pos = new List<double>();
+        var col = new List<double>();
+        var idx = new List<int>();
+        var cream = new THREE.Color(0xf6ecd8);
+        var stripe = new THREE.Color(0xb0522c);
+        var pearl = new THREE.Color(0xe9dccf);
+        var c = new THREE.Color();
+        for (int i = 0; i <= rings; i++)
+        {
+            double f = (double)i / rings;
+            double th = thetaMax * f;
+            double R = a0 * Math.Exp(grow * th), r = R * fat;
+            double ux = Math.Cos(th), uz = Math.Sin(th);
+            for (int j = 0; j < seg; j++)
+            {
+                double ph = (double)j / seg * Math.PI * 2;
+                double ox = Math.Cos(ph) * r, oy = Math.Sin(ph) * r * 0.8;
+                pos.Add(ux * (R + ox)); pos.Add(oy); pos.Add(uz * (R + ox));
+                // stripes sweep back from the keel, only on the outer side of the turn, and stop short of the mouth
+                double band = Math.Sin(th * 6.5 + Math.Abs(Math.Sin(ph)) * 1.6);
+                double outer = Beach.smooth(-0.95, -0.35, Math.Cos(ph));
+                double s = Beach.smooth(0.05, 0.35, band) * outer * (1 - Beach.smooth(0.8, 0.93, f));
+                c.copy(cream).lerp(stripe, s * 0.92).lerp(pearl, (1 - outer) * 0.5);
+                col.Add(c.r); col.Add(c.g); col.Add(c.b);
+            }
+        }
+        for (int i = 0; i < rings; i++)
+        for (int j = 0; j < seg; j++)
+        {
+            int a = i * seg + j, b = i * seg + (j + 1) % seg, d = a + seg, e = b + seg;
+            idx.AddRange(new[] { a, d, b, b, d, e });
+        }
+        // the mouth: a hollow, dark toward the back, sunk a little way into the last turn
+        double thEnd = thetaMax, Rend = 0.27;
+        int centre = pos.Count / 3;
+        double back = 0.11;
+        pos.Add(Math.Cos(thEnd) * Rend + Math.Sin(thEnd) * back); pos.Add(0); pos.Add(Math.Sin(thEnd) * Rend - Math.Cos(thEnd) * back);
+        col.Add(0.24); col.Add(0.15); col.Add(0.12);
+        int lip = pos.Count / 3;
+        for (int j = 0; j < seg; j++)
+        {
+            int v = rings * seg + j;
+            pos.Add(pos[v * 3]); pos.Add(pos[v * 3 + 1]); pos.Add(pos[v * 3 + 2]);
+            col.Add(0.93); col.Add(0.82); col.Add(0.74);
+        }
+        for (int j = 0; j < seg; j++) idx.AddRange(new[] { centre, lip + j, lip + (j + 1) % seg });
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        var shell = new THREE.Mesh(geo, new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.3, metalness = 0.05, side = THREE.Side.DoubleSide });
+        shell.castShadow = true;
+        g.add(shell);
+    }
+
+    /// <summary>A branch of red coral standing on the bit of pale rock it grew from: a trunk that forks and forks again into fine tips.</summary>
+    private static void buildCoral(THREE.Group g)
+    {
+        var parts = new List<THREE.BufferGeometry>();
+        var reds = new[] { 0xc22a22, 0xcf352a, 0xdb4435, 0xe65643, 0xee6a55 };
+        double seed = 7;
+        double rnd()
+        {
+            seed = (seed * 1664525 + 1013904223) % 4294967296;
+            return seed / 4294967296;
+        }
+        void branch(THREE.Vector3 start, double ang, double lean, double len, double rad, int depth)
+        {
+            // ang turns it in the plane of the fan; lean tips it out of that plane, so the branch has some depth
+            var dir = new THREE.Vector3(Math.Sin(ang), Math.Cos(ang), lean).normalize();
+            var end = start.clone().addScaledVector(dir, len);
+            parts.Add(Ecology.limb(start, end, rad, reds[depth]));
+            var knuckle = new THREE.SphereGeometry(rad * 0.78, 8, 6);
+            knuckle.translate(end.x, end.y, end.z);
+            parts.Add(tint(knuckle, reds[depth]));
+            if (depth >= 4) return;
+            int n = depth == 0 ? 3 : 2;
+            for (int k = 0; k < n; k++)
+            {
+                double spread = (k - (n - 1) / 2.0) * (0.7 + rnd() * 0.3) + (rnd() - 0.5) * 0.3;
+                branch(end, ang * 0.6 + spread, lean * 0.4 + (rnd() - 0.5) * 0.7, len * (0.66 + rnd() * 0.2), rad * 0.74, depth + 1);
+            }
+        }
+        branch(new THREE.Vector3(0, 0.05, 0), 0.05, 0, 0.2, 0.05, 0);
+        var foot = new THREE.SphereGeometry(0.17, 16, 10);
+        foot.scale(1, 0.38, 0.85);
+        foot.translate(0, 0.03, 0);
+        parts.Add(tint(foot, 0xcfc4b2));
+        var merged = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
+        merged.computeVertexNormals();
+        var mesh = new THREE.Mesh(merged, new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.42 });
+        mesh.castShadow = true;
+        g.add(mesh);
+    }
+
+    /// <summary>A sun of beaten gold lying face up: a round disc with a rim, long and short rays all round it, and a calm face raised in the middle.</summary>
+    private static void buildSunDisc(THREE.Group g)
+    {
+        var gold = metal(0xf2c230, 0.22);
+        var deep = metal(0xb5861c, 0.42);
+        add(g, new THREE.CylinderGeometry(0.27, 0.27, 0.04, 40), gold);
+        add(g, torusFlat(0.25, 0.016), gold, 0, 0.022, 0);
+        add(g, torusFlat(0.175, 0.009), deep, 0, 0.022, 0);
+        for (int i = 0; i < 12; i++)
+        {
+            double a = i / 12.0 * Math.PI * 2;
+            bool tall = i % 2 == 0;
+            double len = tall ? 0.17 : 0.11;
+            // a four-sided point, pressed flat, with its tip outward
+            var ray = new THREE.ConeGeometry(tall ? 0.062 : 0.046, len, 4);
+            ray.rotateZ(-Math.PI / 2);
+            ray.scale(1, 0.32, 1);
+            ray.rotateY(-a);
+            ray.translate(Math.Cos(a) * (0.265 + len / 2), 0, Math.Sin(a) * (0.265 + len / 2));
+            add(g, ray, gold);
+        }
+        // the face: a low dome, two eyes, a nose and a smile
+        var dome = new THREE.SphereGeometry(0.15, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        dome.scale(1, 0.35, 1);
+        add(g, dome, gold, 0, 0.02, 0);
+        foreach (var sx in new[] { -1, 1 })
+        {
+            add(g, new THREE.SphereGeometry(0.02, 10, 8), deep, sx * 0.055, 0.066, -0.04).scale.y = 0.5;
+            // a brow over each eye
+            var brow = add(g, torusFlat(0.035, 0.006, Math.PI * 0.7), deep, sx * 0.055, 0.064, -0.03);
+            brow.rotation.y = Math.PI * 0.85;
+        }
+        add(g, new THREE.SphereGeometry(0.016, 8, 6), gold, 0, 0.074, -0.005).scale.set(0.8, 0.6, 1.5);
+        var smile = add(g, torusFlat(0.07, 0.008, Math.PI * 0.6), deep, 0, 0.062, -0.01);
+        smile.rotation.y = -Math.PI * 0.2;
+    }
+
+    /// <summary>A fire opal still in its rock: a cut orange stone standing out of a lump of dark basalt, with small seams of opal in the lump.</summary>
+    private static void buildFireOpal(THREE.Group g)
+    {
+        var opal = new THREE.MeshStandardMaterial { color = 0xff6a1f, roughness = 0.08, metalness = 0.1, emissive = 0xc23a00, emissiveIntensity = 0.55, flatShading = true };
+        var seam = new THREE.MeshStandardMaterial { color = 0xffc46a, roughness = 0.1, emissive = 0xff8a22, emissiveIntensity = 0.5, flatShading = true };
+        var rock = new THREE.MeshStandardMaterial { color = 0x3a3532, roughness = 0.95, flatShading = true };
+        var lump = new THREE.IcosahedronGeometry(0.3, 2);
+        var p = lump.attributes.position;
+        for (int i = 0; i < p.count; i++)
+        {
+            double x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+            double k = 1 + 0.16 * Math.Sin(x * 17 + y * 11) * Math.Sin(z * 13 + x * 7) + 0.07 * Math.Sin(y * 23 + z * 5);
+            // flatter underneath, so it sits on the ground
+            p.setXYZ(i, x * k, Math.Max(-0.09, y * k * 0.6), z * k * 0.85);
+        }
+        lump.computeVertexNormals();
+        add(g, lump, rock);
+        // the stone: a crown and a point under it, leaning a little
+        var gem = new THREE.Group();
+        add(gem, new THREE.CylinderGeometry(0.1, 0.17, 0.07, 10), opal, 0, 0.105, 0);
+        add(gem, new THREE.ConeGeometry(0.17, 0.15, 10), opal, 0, -0.005, 0).rotation.x = Math.PI;
+        gem.scale.set(1, 1, 0.8);
+        gem.rotation.z = 0.22;
+        gem.position.set(0.01, 0.12, 0);
+        g.add(gem);
+        foreach (var (x, y, z, s) in new[] { (0.24, 0.02, 0.06, 0.05), (-0.2, 0.05, 0.13, 0.04), (-0.12, 0.02, -0.2, 0.045), (0.1, 0.0, -0.21, 0.03) })
+        {
+            var chip = add(g, new THREE.OctahedronGeometry(s), seam, x, y, z);
+            chip.rotation.set(x * 9, y * 30, z * 7);
+        }
+    }
+
+    /// <summary>A knife of black volcanic glass: a leaf-shaped blade chipped to an edge, a ridge down its middle, and a grip wound with cord.</summary>
+    private static void buildObsidianBlade(THREE.Group g)
+    {
+        var glass = new THREE.MeshStandardMaterial { color = 0x15151b, roughness = 0.07, metalness = 0.35, flatShading = true };
+        var sheen = new THREE.MeshStandardMaterial { color = 0x2c2940, roughness = 0.08, metalness = 0.4, flatShading = true };
+        var cords = new[] { 0x8a5a34, 0x744a2a }.Select(c => new THREE.MeshStandardMaterial { color = c, roughness = 0.9 }).ToArray();
+        var bone = new THREE.MeshStandardMaterial { color = 0xd8cdb4, roughness = 0.6 };
+        // the outline, from the tip back along one edge to the tang and forward along the other; each edge is chipped unevenly
+        var top = new[] { new[] { 0.4, 0.052 }, new[] { 0.3, 0.074 }, new[] { 0.2, 0.097 }, new[] { 0.1, 0.094 }, new[] { 0.0, 0.088 }, new[] { -0.07, 0.066 }, new[] { -0.11, 0.036 } };
+        var outline = new List<double[]> { new[] { 0.52, 0.0 } };
+        for (int i = 0; i < top.Length; i++) outline.Add(new[] { top[i][0], top[i][1] + (i % 2 == 0 ? 0.007 : -0.005) });
+        for (int i = top.Length - 1; i >= 0; i--) outline.Add(new[] { top[i][0], -top[i][1] + (i % 2 == 0 ? 0.004 : -0.008) });
+        add(g, plate(outline, new List<List<double[]>>(), 0.03, 0.017), glass);
+        // the ridge left down the middle when the flakes were struck off either side
+        var ridge = add(g, new THREE.OctahedronGeometry(1), sheen, 0.19, 0.012, 0);
+        ridge.scale.set(0.29, 0.028, 0.04);
+        // the grip, a little flattened, wound with cord, and a knob of bone at the end
+        var grip = add(g, new THREE.CylinderGeometry(0.036, 0.04, 0.32, 12), cords[1], -0.26, 0, 0);
+        grip.rotation.z = Math.PI / 2;
+        grip.scale.x = 0.78;
+        for (int i = 0; i < 8; i++)
+        {
+            var turn = add(g, new THREE.TorusGeometry(0.04, 0.011, 6, 14), cords[i % 2], -0.125 - i * 0.039, 0, 0);
+            turn.rotation.y = Math.PI / 2;
+            turn.scale.y = 0.8;
+        }
+        add(g, new THREE.SphereGeometry(0.05, 12, 10), bone, -0.44, 0, 0).scale.set(0.8, 0.8, 1);
+    }
+
     /// <summary>A wooden treasure chest: a planked box and a domed lid, bound in iron straps, with corner plates and a gold lock.</summary>
     private static void buildCache(THREE.Group g)
     {
@@ -1114,6 +1343,12 @@ public static class LootGenerator
             case "black_pearl": buildBlackPearl(g); break;
             case "stone_idol": buildIdol(g); break;
             case "conch": buildConch(g); break;
+            case "spyglass": buildSpyglass(g); break;
+            case "nautilus": buildNautilus(g); break;
+            case "red_coral": buildCoral(g); break;
+            case "sun_disc": buildSunDisc(g); break;
+            case "fire_opal": buildFireOpal(g); break;
+            case "obsidian_blade": buildObsidianBlade(g); break;
             case "piece_eight":
             case "penny": case "quarter": case "doubloon": case "dime": case "nickel":
             case "silver_dollar": case "real": case "denarius": case "sovereign":

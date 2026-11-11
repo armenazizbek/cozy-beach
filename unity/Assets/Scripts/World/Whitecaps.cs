@@ -89,7 +89,7 @@ public class Whitecaps
             double r = Math.Sqrt(JS.Random()) * RADIUS;
             p.x = px + Math.Cos(a) * r;
             p.z = pz + Math.Sin(a) * r;
-            if (p.z > SHORE_Z + 4) break; // only open water
+            if (p.z > SHORE_Z + 4 && islandNear(p.x, p.z) == null) break; // only open water
         }
         if (p.z <= SHORE_Z + 4) p.z = SHORE_Z + 6 + JS.Random() * 80;
         p.life = 7 + JS.Random() * 9;

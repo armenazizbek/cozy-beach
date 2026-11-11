@@ -392,6 +392,38 @@ public static class Journal
         },
         new JournalPage
         {
+            id = "lagoon_first",
+            group = "Journeys",
+            icon = "🏝️",
+            title = "The Ring of Sand",
+            text = "Far to the east the sea turns pale, and there it is: a ring of white sand and palms with still, green water in the middle. On the side that faces home the ring is broken, and a boat can slip through the gap and float in the lagoon as if in a cupped hand.",
+        },
+        new JournalPage
+        {
+            id = "lagoon_camp",
+            group = "Journeys",
+            icon = "🏝️",
+            title = "Somebody Lived Here",
+            text = "A lean-to of driftwood and palm leaves on the highest dune. A bedroll, a sea chest, a ring of stones round a fire that went out long ago. And a tall mast with a red rag tied to it, put up by someone who looked at the horizon every single day.",
+        },
+        new JournalPage
+        {
+            id = "ember_first",
+            group = "Journeys",
+            icon = "🏝️",
+            title = "The Black Rock",
+            text = "Out to the west a dark cone stands up out of the sea. Its sand is black and its stones are black, and at its foot the rock has cooled into tall six-sided pillars, packed together like the pipes of an organ. Nothing here is soft, and it is beautiful anyway.",
+        },
+        new JournalPage
+        {
+            id = "ember_spring",
+            group = "Journeys",
+            icon = "🗿",
+            title = "The Warm Heart",
+            text = "The top of the cone is hollow, and in the hollow lies a pool the colour of milk and turquoise, steaming gently into the wind. The mountain is asleep, not gone. On the rim someone long ago piled flat stones into a little tower, to say: I was here, and I climbed it.",
+        },
+        new JournalPage
+        {
             id = "map_taken",
             group = "Journeys",
             icon = "📜",

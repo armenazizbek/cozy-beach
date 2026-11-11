@@ -154,8 +154,8 @@ public static class Help
                 },
                 new HelpBlock
                 {
-                    h = "The island",
-                    p = "Sail out to the small island. It has its own finds that lie in the open, some ruins, and an old altar with a map that shows where treasure is buried on your own beach.",
+                    h = "The islands",
+                    p = "Sail out to the small island. It has its own finds that lie in the open, some ruins, and an old altar with a map that shows where treasure is buried on your own beach. Two more lie farther out: a ring of sand around a lagoon to the east, with a gap a boat can sail through, and a black volcanic rock to the west. Each has treasures found nowhere else. The map (M) shows all three.",
                 },
                 new HelpBlock
                 {

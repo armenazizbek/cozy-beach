@@ -87,6 +87,11 @@ Add `-autoshot-shadow` to photograph the player's own shadow on the island's gra
 
 Add `-autoshot-island` to photograph the island from its beach, its slope and its west side.
 
+Add `-autoshot-islands` to sail to the two far islands (Lagoon Cay and Ember Rock) and photograph each from the sea, from
+its shore and at its landmark, then the big map (`17-*`, `18-*`, `19-*`). The log says where the boat floats, where stepping
+off puts the player and where each island's finds lie. With `-autoshot-crust` as well, the workbench shots are of the far
+islands' six finds.
+
 Add `-autoshot-crust` to photograph finds of different shapes on the workbench, still in their sand.
 
 Add `-autoshot-saves` to autosave three times, start a new game and autosave twice more: the log lists every save, and

@@ -111,6 +111,14 @@ public static class Items
         D("black_pearl", "Black Pearl", "jewelry", 130, "deep", "It drinks the light and gives back a green shimmer. The island does not give these up easily.", 0.3, 0.5, 0, "any"),
         D("stone_idol", "Carved Stone Idol", "jewelry", 100, "deep", "A small, solemn face carved long before anyone drew a map of this place.", 0.3, 0.5, 0, "any"),
         D("conch", "Pink Conch Shell", "jewelry", 60, "deep", "Hold it to your ear and the whole sea is still in there.", 0.2, 0.4, 0, "any"),
+        // the lagoon cay's own finds: left at the castaway's camp, and washed up on its two shores
+        D("spyglass", "Brass Spyglass", "jewelry", 190, "deep", "Three brass tubes that still slide, and a lens with one small chip. Whoever camped here watched the horizon through it every day.", 0.2, 0.4, 0, "any"),
+        D("nautilus", "Nautilus Shell", "jewelry", 70, "deep", "Cream, with tiger stripes that fade toward the mouth. Each chamber inside is a little bigger than the last: a whole life, kept in order.", 0.2, 0.4, 0, "any"),
+        D("red_coral", "Red Coral Branch", "jewelry", 90, "deep", "A small tree the colour of a sunset, grown a hair’s width a year. The lagoon broke it off in a storm and left it on the sand.", 0.2, 0.4, 0, "any"),
+        // the ember rock's own finds: by the cairn on the rim, on the cone and on the black sand
+        D("sun_disc", "Golden Sun Disc", "jewelry", 240, "deep", "A beaten gold sun with a calm face. Someone carried it up a volcano and left it beside a pile of stones, and never said why.", 0.3, 0.5, 0, "any"),
+        D("fire_opal", "Fire Opal", "jewelry", 150, "deep", "A coal that never goes out, still sitting in the black rock it grew in. Turn it and the orange runs to red and back.", 0.3, 0.5, 0, "any"),
+        D("obsidian_blade", "Obsidian Blade", "jewelry", 85, "deep", "Black volcanic glass, chipped to an edge finer than steel, with the cord still wound on its grip. Mind your fingers.", 0.2, 0.4, 0, "any"),
         // finds that lie on the sea floor, for a diver
         D("starfish", "Orange Starfish", "jewelry", 12, "deep", "Five arms, a rough sunset-orange back and a very calm opinion of the tide.", 0.1, 0.2, 0, "any"),
         D("porcelain_plate", "Painted Porcelain Plate", "jewelry", 50, "deep", "Blue flowers on white, and not a chip on it. Somebody once ate their dinner off this.", 0.1, 0.2, 0, "any"),
@@ -140,8 +148,13 @@ public static class Items
     /// <summary>The finds that lie on the sea floor.</summary>
     public static readonly HashSet<string> DIVE_ITEM_IDS = new HashSet<string> { "message_bottle", "starfish", "porcelain_plate", "ship_bell", "sea_oyster", "gold_bar" };
 
-    /// <summary>The finds that belong to the island.</summary>
-    public static readonly HashSet<string> ISLAND_ITEM_IDS = new HashSet<string> { "piece_eight", "black_pearl", "stone_idol", "conch" };
+    /// <summary>The finds that belong to the islands: each island has its own, and they lie nowhere else.</summary>
+    public static readonly HashSet<string> ISLAND_ITEM_IDS = new HashSet<string>
+    {
+        "piece_eight", "black_pearl", "stone_idol", "conch",
+        "spyglass", "nautilus", "red_coral",
+        "sun_disc", "fire_opal", "obsidian_blade",
+    };
 
     public static readonly Dictionary<string, ItemDef> DEF_BY_ID = ITEM_DEFS.ToDictionary(d => d.id);
 

@@ -142,6 +142,11 @@ public class Sky
     /// <summary>time of day in [0,1)</summary>
     public double time = 0;
     public readonly THREE.Group group = new THREE.Group();
+    /// <summary>
+    /// The dome, the stars, the sun and the moon. They are kept centred on the viewer: the dome is only 300 m across, and the
+    /// sea now reaches further than that, so a dome fixed over the beach would be left behind by a boat.
+    /// </summary>
+    private readonly THREE.Group heavens = new THREE.Group();
 
     public Sky(THREE.WebGLRenderer renderer, THREE.Scene scene)
     {
@@ -152,7 +157,8 @@ public class Sky
         dome = new THREE.Mesh(
             new THREE.SphereGeometry(300, 32, 16),
             new THREE.ShaderMaterial { customShader = "Cozy/SkyDome", uniforms = uniforms, side = THREE.Side.BackSide, depthWrite = false, fog = false });
-        group.add(dome);
+        heavens.add(dome);
+        group.add(heavens);
 
         var sp = new float[400 * 3];
         for (int i = 0; i < 400; i++)
@@ -163,19 +169,19 @@ public class Sky
         var sg = new THREE.BufferGeometry();
         sg.setAttribute("position", new THREE.BufferAttribute(sp, 3));
         stars = new THREE.Points(sg, new THREE.PointsMaterial { color = 0xffffff, size = 1.6, sizeAttenuation = false, transparent = true, opacity = 0, fog = false });
-        group.add(stars);
+        heavens.add(stars);
 
         glow = new THREE.Sprite(new THREE.SpriteMaterial { map = glowTexture(), color = 0xffd9a0, blending = THREE.Blending.AdditiveBlending, depthWrite = false, fog = false, transparent = true, toneMapped = false });
         glow.scale.setScalar(165);
-        group.add(glow);
+        heavens.add(glow);
         core = new THREE.Sprite(new THREE.SpriteMaterial { map = discTexture(), color = 0xfff2c4, depthWrite = false, fog = false, transparent = true, toneMapped = false });
         core.scale.setScalar(33);
-        group.add(core);
+        heavens.add(core);
         moonGlow = new THREE.Sprite(new THREE.SpriteMaterial { map = glowTexture(), color = 0x9db4ff, blending = THREE.Blending.AdditiveBlending, depthWrite = false, fog = false, transparent = true });
         moonGlow.scale.setScalar(105);
         moonCore = new THREE.Sprite(new THREE.SpriteMaterial { map = moonTexture(), color = 0xffffff, depthWrite = false, fog = false, transparent = true, toneMapped = false });
         moonCore.scale.setScalar(30);
-        group.add(moonGlow, moonCore);
+        heavens.add(moonGlow, moonCore);
         buildClouds();
 
         hemi = new THREE.HemisphereLight(0xcfe3ee, 0xc9a27a, 0.9);
@@ -239,12 +245,18 @@ public class Sky
     /// <summary>True once it is dark enough for lanterns and window lights.</summary>
     public bool isDark => starAmount > 0.3 || rain > 0.4;
 
-    public void update(double dt)
+    public void update(double dt, double camX = 0, double camZ = 0)
     {
+        heavens.position.set(camX, 0, camZ);
         foreach (var c in clouds)
         {
-            c.group.position.x += c.speed * dt;
-            if (c.group.position.x > 320) c.group.position.x = -320;
+            // the clouds drift over the world, and wrap round the viewer so there are always some overhead
+            var p = c.group.position;
+            p.x += c.speed * dt;
+            if (p.x > camX + 320) p.x -= 640;
+            else if (p.x < camX - 320) p.x += 640;
+            if (p.z > camZ + 320) p.z -= 640;
+            else if (p.z < camZ - 320) p.z += 640;
         }
     }
 

@@ -214,10 +214,101 @@ public class AutoShot : MonoBehaviour
             game.smokeTestClose("map");
         }
 
+        // -autoshot-islands: the two far islands. Each from the boat, from its shore and at its landmark; the lagoon from inside,
+        // with the step ashore; then the big map with all three on it
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-islands") >= 0)
+        {
+            var lag = Beach.LAGOON;
+            var emb = Beach.EMBER;
+            // heading: the boat's forward is (-sin, -cos), so this one looks from the gap side in at the cay
+            double gx = Math.Cos(Beach.LAGOON_GAP), gz = Math.Sin(Beach.LAGOON_GAP);
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(lag.x + gx * 62, lag.z + gz * 62, Math.Atan2(gx, gz)));
+            yield return Wait(3);
+            yield return Shot("17-lagoon-from-sea.png");
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(lag.x + gx * lag.R * 0.66, lag.z + gz * lag.R * 0.66, Math.Atan2(gx, gz)));
+            yield return Wait(2);
+            yield return Shot("17-lagoon-gap.png");
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(lag.x + 3, lag.z - 2, Math.Atan2(gx, gz)));
+            yield return Wait(2);
+            yield return Shot("17-lagoon-inside.png");
+            // across the lagoon, close enough in to the far shore to step off
+            for (double d = 6; d < 18; d += 1)
+            {
+                string msg = game.smokeTestBoatAt(lag.x - gx * d, lag.z - gz * d, Math.Atan2(gx, gz));
+                if (!msg.EndsWith("near True")) continue;
+                Debug.Log("[AutoShot] " + msg);
+                break;
+            }
+            yield return Wait(1);
+            Debug.Log("[AutoShot] " + game.smokeTestPrompt());
+            Debug.Log("[AutoShot] " + game.smokeTestLeaveBoat());
+            yield return Wait(2.5f);
+            yield return Shot("17-lagoon-ashore.png");
+            Debug.Log("[AutoShot] " + game.smokeTestLandmark(1, gx * 7.5, gz * 7.5, -0.12));
+            yield return Wait(2.5f);
+            yield return Shot("17-lagoon-camp.png");
+            Debug.Log("[AutoShot] " + game.smokeTestLandmark(1, -gz * 5 + gx * 3, gx * 5 + gz * 3, -0.3));
+            yield return Wait(2.5f);
+            yield return Shot("17-lagoon-camp-side.png");
+            game.smokeTestIsland(lag.R * 0.86, Beach.LAGOON_GAP + 1.9, -0.1, 1);
+            yield return Wait(2.5f);
+            yield return Shot("17-lagoon-shore.png");
+            Debug.Log("[AutoShot] " + game.smokeTestWhere());
+
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(emb.x + 30, emb.z - 52, Math.Atan2(30, -52)));
+            yield return Wait(3);
+            yield return Shot("18-ember-from-sea.png");
+            for (double d = emb.R * 1.2; d > emb.R * 0.5; d -= 1)
+            {
+                string msg = game.smokeTestBoatAt(emb.x + 0.406 * d, emb.z - 0.914 * d, Math.Atan2(0.406, -0.914));
+                if (!msg.EndsWith("near True")) continue;
+                Debug.Log("[AutoShot] " + msg);
+                break;
+            }
+            yield return Wait(1);
+            Debug.Log("[AutoShot] " + game.smokeTestPrompt());
+            Debug.Log("[AutoShot] " + game.smokeTestLeaveBoat());
+            yield return Wait(2.5f);
+            yield return Shot("18-ember-ashore.png");
+            game.smokeTestIsland(emb.R * 0.8, -1.15, -0.02, 2);
+            yield return Wait(2.5f);
+            yield return Shot("18-ember-columns.png");
+            game.smokeTestIsland(emb.R * 0.72, 1.3, 0.1, 2);
+            yield return Wait(2.5f);
+            yield return Shot("18-ember-cone.png");
+            Debug.Log("[AutoShot] " + game.smokeTestLandmark(2, 4.9, 1.4, -0.45));
+            yield return Wait(2.5f);
+            yield return Shot("18-ember-spring.png");
+            Debug.Log("[AutoShot] " + game.smokeTestLandmark(2, -1.4, -5.0, -0.3));
+            yield return Wait(2.5f);
+            yield return Shot("18-ember-cairn.png");
+            game.smokeTestOpen("map");
+            yield return Wait(1.3f);
+            yield return Shot("19-islands-map.png");
+            game.smokeTestClose("map");
+            // the first island and the beach from the open sea between them, to see how the far ones sit on the horizon
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(0, 120, Math.Atan2(-196, -172)));
+            yield return Wait(3);
+            yield return Shot("19-horizon-east.png");
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(0, 120, Math.Atan2(204, -192)));
+            yield return Wait(3);
+            yield return Shot("19-horizon-west.png");
+            game.smokeTestShowItems(new[] { "spyglass", "nautilus", "red_coral", "sun_disc", "fire_opal", "obsidian_blade" });
+            yield return Wait(1);
+            yield return Shot("20-far-finds.png");
+            // the edge of the sea: the boat must stop there, and the sky must still be overhead
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(280, 410, Math.Atan2(-1, -1)));
+            yield return Wait(2);
+            yield return Shot("20-sea-corner.png");
+        }
+
         // -autoshot-crust: finds of different shapes on the workbench, still in their sand; the sand must follow each shape
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-crust") >= 0)
         {
-            foreach (var id in new[] { "doubloon", "brass_key", "signet", "glass_bottle", "flip_flop", "pocket_watch" })
+            var crustIds = Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-islands") >= 0
+                ? new[] { "spyglass", "nautilus", "red_coral", "sun_disc", "fire_opal", "obsidian_blade" }
+                : new[] { "doubloon", "brass_key", "signet", "glass_bottle", "flip_flop", "pocket_watch" };
+            foreach (var id in crustIds)
             {
                 game.smokeTestCrust(id);
                 yield return Wait(1.6f);

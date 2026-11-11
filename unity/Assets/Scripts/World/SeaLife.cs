@@ -114,8 +114,9 @@ public class SeaLife
         caudal = buildCaudal();
         foreach (var k in Catches.ROD) fishKinds.Add(Underwater.fishModel(k.top, k.belly, k.accent, k.pattern));
         // a bigger sea, so a few more of everything
-        for (int i = 0; i < 2; i++) sharks.Add(makeShark());
-        for (int i = 0; i < 12; i++) schools.Add(makeSchool());
+        // the sea is wide: enough of them that some are always in sight
+        for (int i = 0; i < 4; i++) sharks.Add(makeShark());
+        for (int i = 0; i < 22; i++) schools.Add(makeSchool());
         for (int i = 0; i < 6; i++) jumpers.Add(makeJumper(i));
         group.add(splashes.points, wakeParticles.points);
     }
@@ -331,8 +332,10 @@ public class SeaLife
         w.heading += Math.Sin(t * 0.35 + w.phase) * turnRate * dt;
         double tx = 0;
         double tz = 0;
-        if (w.x > X_MAX) tx = -1;
-        else if (w.x < -X_MAX) tx = 1;
+        // the sea is narrower close to the land
+        double xMax = seaHalfWidth(w.z);
+        if (w.x > xMax) tx = -1;
+        else if (w.x < -xMax) tx = 1;
         if (w.z > Z_MAX) tz = -1;
         else if (w.z < Z_MIN) tz = 1;
         if (tx != 0 || tz != 0)
