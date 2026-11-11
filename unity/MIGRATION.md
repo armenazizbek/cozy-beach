@@ -80,6 +80,9 @@ letters, Help, Credits), for checking text wrapping and scrolling.
 Add `-autoshot-ui` to photograph every menu and the HUD twice, as they look with the keyboard and with a controller
 (`ui-kb-*.png`, `ui-pad-*.png`). Add `-autoshot-pad` to drive the title menu with a virtual controller.
 
+Add `-autoshot-birds` to fire a bullet at a standing gull and at a flying one (the log shows the coins before and after
+each) and to photograph the line of keys shown while swimming.
+
 Add `-autoshot-holes` to dig three deep holes (up the beach, on the wet sand, at the water's edge) and park the golf cart
 across one: no hole may show water, and the log says how far the cart sits below flat sand.
 

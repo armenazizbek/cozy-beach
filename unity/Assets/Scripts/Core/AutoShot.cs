@@ -159,6 +159,27 @@ public class AutoShot : MonoBehaviour
             }
         }
 
+        // -autoshot-birds: a bullet at a standing gull and one at a flying gull must both pay; then the long line of keys
+        // shown while swimming, which must stay clear of the tool in the corner
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-birds") >= 0)
+        {
+            foreach (var flying in new[] { false, true })
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestShootBird(flying));
+                yield return Wait(1);
+                Debug.Log($"[AutoShot] coins after: {game.smokeTestCoins}");
+            }
+            game.smokeTestGo("dive");
+            yield return Wait(3.5f);
+            yield return Shot("10-dive-hint.png");
+            game.smokeTestPad(true);
+            yield return Wait(1.5f);
+            yield return Shot("10-dive-hint-pad.png");
+            game.smokeTestPad(false);
+            game.smokeTestGo("out");
+            yield return Wait(3);
+        }
+
         // -autoshot-holes: deep holes up the beach, on the wet sand and at the water's edge (none may show water), then the
         // cart parked across one
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-holes") >= 0)
@@ -208,6 +229,17 @@ public class AutoShot : MonoBehaviour
             game.smokeTestTakePhoto();
             yield return Wait(0.6f);
             yield return Shot("4a-dog-close-pose.png");
+            // right beside the dog its "Pet the dog" prompt is due: it must not show through the viewfinder, and must come
+            // back when the camera is lowered
+            game.smokeTestFaceDog(1.5);
+            yield return Wait(1.2f);
+            Debug.Log("[AutoShot] in reach while the camera is up (its prompt is hidden): " + game.smokeTestPrompt());
+            yield return Shot("4a-prompt-hidden.png");
+            game.smokeTestLowerCamera();
+            yield return Wait(1);
+            yield return Shot("4a-prompt-back.png");
+            game.smokeTestRaiseCamera();
+            yield return Wait(1.5f);
             Debug.Log("[AutoShot] photo copied to: " + (game.smokeTestExportPhoto() ?? "(failed)"));
             game.smokeTestLook(0, -0.12);
             yield return Wait(1.5f);

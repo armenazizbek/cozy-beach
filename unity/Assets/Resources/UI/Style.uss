@@ -343,11 +343,23 @@
   opacity: 1;
 }
 
-.prompt {
+/* a row as wide as the screen with the prompt in its middle (see UIManager: centred) */
+.prompt-row {
   position: absolute;
-  left: 50%;
+  left: 0;
+  right: 0;
   top: 60%;
-  translate: -50% 8px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.prompt-row.p2 {
+  top: 66%;
+}
+
+.prompt {
+  translate: 0 8px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -369,11 +381,12 @@
 
 .prompt.on {
   opacity: 1;
-  translate: -50% 0;
+  translate: 0 0;
 }
 
-.prompt.p2 {
-  top: 66%;
+/* looking through the camera: the prompts fade out of the photo's way (UIManager.setViewfinder) */
+.viewfinder .prompt.on {
+  opacity: 0;
 }
 
 /* the key bobs gently (CssAnimations: .kbd) */
@@ -615,13 +628,24 @@
 }
 
 /* what the keys do right now, bottom centre */
-.hint {
+.hint-row {
   position: absolute;
+  left: 0;
+  right: 0;
   bottom: 30px;
-  left: 50%;
-  translate: -50% 0;
   display: flex;
   flex-direction: row;
+  justify-content: center;
+}
+
+.hint {
+  display: flex;
+  flex-direction: row;
+  /* a long line (swimming has eight keys) wraps onto a second row before it reaches the tool in the bottom right corner
+     or the detector's screen in the bottom left */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 1240px;
   align-items: center;
   padding: 7px 12px;
   background-image: resource("UI/Skin/plate");
@@ -666,8 +690,8 @@
 .toasts {
   position: absolute;
   top: 104px;
-  left: 50%;
-  translate: -50% 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;

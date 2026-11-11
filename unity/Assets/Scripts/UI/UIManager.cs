@@ -249,7 +249,16 @@ public class UIManager
         this.prompt.append(holdF, this.promptText);
         this.prompt2.append(holdE, this.prompt2Text);
         this.drawbar.append(this.drawFill);
-        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, this.prompt, this.prompt2, this.hud, this.scope, this.hint, this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar);
+        // The prompts and the hint sit in the middle of a row as wide as the screen. They used to be centred with
+        // "left: 50%; translate: -50%", but UI Toolkit works that half-width out once and keeps it: when the words changed,
+        // the box grew to the right only, and a long hint ran under the tool in the corner.
+        HTMLElement centred(string cls, HTMLElement what)
+        {
+            var row = el("div", cls);
+            row.append(what);
+            return row;
+        }
+        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, centred("prompt-row", this.prompt), centred("prompt-row p2", this.prompt2), this.hud, this.scope, centred("hint-row", this.hint), this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
@@ -1485,6 +1494,9 @@ public class UIManager
         if (key == this.finderKey) return;
         this.finderKey = key;
         this.finder.classList.toggle("hidden", !on);
+        // nothing but the picture while the camera is at the eye: the "F: pet the dog" prompts wait until it is lowered
+        // (Style.uss: .viewfinder .prompt.on). The keys themselves still work.
+        document.body.classList.toggle("viewfinder", on);
         if (!on) return;
         if (this.finder.width != w) this.finder.width = w;
         if (this.finder.height != h) this.finder.height = h;

@@ -770,6 +770,25 @@ public class Game
         return $"cart over a {beach.depthAt(x, z):0.00} m hole sits {Beach.baseHeight(x, z) - 0.02 - cart.group.position.y:0.00} m lower than on flat sand";
     }
 
+    /// <summary>
+    /// For the -autoshot-birds test: fires a real bullet at a gull that is standing or flying, from a few metres off, and says
+    /// what the purse held before. The shot lands within a frame or two; the test then reads the purse again.
+    /// </summary>
+    internal string smokeTestShootBird(bool flying)
+    {
+        var hit = birds.targets().FirstOrDefault(o => birds.standing(o) != flying);
+        if (hit == null) return $"no {(flying ? "flying" : "standing")} gull around";
+        var at = hit.getWorldPosition(new THREE.Vector3());
+        var from = at.clone().add(new THREE.Vector3(0.5, flying ? -2.5 : 1.5, -4));
+        bullets.spawn(from, at.clone().sub(from).normalize());
+        return $"shot at a {(flying ? "flying" : "standing")} gull; coins before: {state.data.coins}";
+    }
+
+    internal double smokeTestCoins => state.data.coins;
+
+    /// <summary>For the -autoshot-photo test: what the F and E prompts would say right now, shown or not.</summary>
+    internal string smokeTestPrompt() => $"F: {interaction?.label ?? "nothing"}, E: {interaction2?.label ?? "nothing"}";
+
     /// <summary>For the -autoshot-ui test: shows the game as it looks with a controller in the hands, or back as with the keyboard.</summary>
     internal void smokeTestPad(bool on) => setUsingPad(on);
 
@@ -1855,7 +1874,9 @@ public class Game
             }
             return;
         }
-        if (obj.userData.Flag("bird"))
+        // a gull's hit sphere carries the gull itself (Birds.blank); the port looked for a "bird" mark that nothing sets, so no
+        // shot at a gull ever counted
+        if (obj.userData.Flag("gull"))
         {
             var atBird = birds.shoot(obj);
             if (atBird != null)
