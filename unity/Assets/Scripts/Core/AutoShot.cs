@@ -159,6 +159,21 @@ public class AutoShot : MonoBehaviour
             }
         }
 
+        // -autoshot-holes: deep holes up the beach, on the wet sand and at the water's edge (none may show water), then the
+        // cart parked across one
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-holes") >= 0)
+        {
+            foreach (var z in new[] { 5.0, 33.0, 37.5 })
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestHole(6, z));
+                yield return Wait(2);
+                yield return Shot($"9-hole-z{z:0}.png");
+            }
+            Debug.Log("[AutoShot] " + game.smokeTestCartOnHole(6, 5));
+            yield return Wait(2);
+            yield return Shot("9-cart-on-hole.png");
+        }
+
         // -autoshot-ui: every menu and the HUD, as they look with the keyboard and then with a controller
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-ui") >= 0)
         {

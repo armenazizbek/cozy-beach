@@ -121,9 +121,35 @@ Shader "Cozy/Ocean"
                 return o;
             }
 
+            float beachSmooth(float a, float b, float x)
+            {
+                float t = saturate((x - a) / (b - a));
+                return t * t * (3.0 - 2.0 * t);
+            }
+
+            // The undisturbed sand of the diggable beach, in Three's x and z: the slope and the low dunes of Beach.rawHeight
+            // (its ridge and hills lie further inland than anyone can dig, and the sea never reaches them). The two must agree.
+            float beachSand(float x, float z)
+            {
+                float slope = 0.95 - (z + 22.5) * 0.02;
+                float calm = 1.0 - beachSmooth(22.0, 36.0, z) * 0.85;
+                float dune = (sin(x * 0.23 + z * 0.11) * 0.07 + sin(x * 0.09 - z * 0.17) * 0.06 + sin(x * 0.5 + z * 0.41) * 0.015) * calm;
+                return slope + dune;
+            }
+
             half4 frag(Varyings i) : SV_Target
             {
                 float2 seaP = i.sea.xz;
+                // No water in a hole. The sea's surface runs on under the beach, hidden by the sand; a hole dug below the water
+                // line opened a window onto it. So the sea is not drawn anywhere the beach's own sand, as it lay before any
+                // digging, stands above it. Out to z = 38 (as far as the trowel reaches, Beach.canDig) even a finger of water
+                // over the sand is left out, so the highest tide cannot fill a hole either; past that the margin fades away
+                // and the real waterline is untouched.
+                if (abs(seaP.x) < 70.0 && seaP.y > -70.0 && seaP.y < 40.5)
+                {
+                    float margin = 0.07 * (1.0 - beachSmooth(38.0, 40.0, seaP.y));
+                    if (i.positionWS.y < beachSand(seaP.x, seaP.y) + margin) discard;
+                }
                 float3 seaWide = SAMPLE_TEXTURE2D(uRipple, sampleruRipple, seaP / 34.0 + uTime * float2(0.006, -0.011)).xyz;
                 float3 seaMid = SAMPLE_TEXTURE2D(uRipple, sampleruRipple, seaP / 11.0 + uTime * float2(-0.017, -0.026)).xyz;
                 float3 seaFine = SAMPLE_TEXTURE2D(uRipple, sampleruRipple, seaP / 4.1 + uTime * float2(0.035, -0.052)).xyz;

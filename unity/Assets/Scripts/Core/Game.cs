@@ -741,6 +741,35 @@ public class Game
         }
     }
 
+    /// <summary>
+    /// For the -autoshot-holes test: digs a hole as deep as the trowel can make one, well below the water line, and stands
+    /// the player beside it looking in. Returns how deep it is and how far its floor lies under the sea's surface.
+    /// </summary>
+    internal string smokeTestHole(double x, double z)
+    {
+        for (int i = 0; i < 8; i++) beach.digAt(x, z, 1.3, 0.5);
+        player.x = x;
+        player.z = z - 3.2;
+        player.yaw = Math.PI;
+        player.pitch = -0.62;
+        return $"hole at z {z:0}: {beach.depthAt(x, z):0.00} m deep, floor {ocean.surfaceY - beach.heightAt(x, z):0.00} m under the sea's surface";
+    }
+
+    /// <summary>For the -autoshot-holes test: parks the cart on a hole and says how far it sits below the sand around it.</summary>
+    internal string smokeTestCartOnHole(double x, double z)
+    {
+        cart.x = x;
+        cart.z = z;
+        cart.heading = 0;
+        cart.speed = 0;
+        cart.update(0, null, (px, pz) => new Resolved { x = px, z = pz, hit = false });
+        player.x = x + 4.5;
+        player.z = z;
+        player.yaw = Math.PI / 2;
+        player.pitch = -0.2;
+        return $"cart over a {beach.depthAt(x, z):0.00} m hole sits {Beach.baseHeight(x, z) - 0.02 - cart.group.position.y:0.00} m lower than on flat sand";
+    }
+
     /// <summary>For the -autoshot-ui test: shows the game as it looks with a controller in the hands, or back as with the keyboard.</summary>
     internal void smokeTestPad(bool on) => setUsingPad(on);
 

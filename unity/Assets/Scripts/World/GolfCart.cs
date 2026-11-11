@@ -170,12 +170,27 @@ public class GolfCart
         foreach (var m in lampMats) m.emissiveIntensity = on ? 2 : 0.3;
     }
 
+    /// <summary>The most a hole can drop the cart, however deep it was dug.</summary>
+    private const double MAX_DIP = 0.22;
+
+    /// <summary>
+    /// The ground as the cart feels it. A wheel is far wider than the trowel, so it bridges a hole instead of following it to
+    /// the bottom: a shallow hole is felt nearly in full, a deep one never by more than MAX_DIP. The cart still rocks as it
+    /// crosses a dug-up stretch, but it no longer drops into a pit and climbs back out. Heaps of sand are felt as they are.
+    /// </summary>
+    private double ground(double px, double pz)
+    {
+        double depth = beach.depthAt(px, pz);
+        double felt = MAX_DIP * (1 - Math.Exp(-depth / MAX_DIP));
+        return beach.heightAt(px, pz) + depth - felt;
+    }
+
     /// <summary>Puts the body on the ground, tilted to the slope under it.</summary>
     private void place()
     {
         double fx = -Math.Sin(heading), fz = -Math.Cos(heading);
         double rx = Math.Cos(heading), rz = -Math.Sin(heading);
-        double h(double dx, double dz) => beach.heightAt(x + dx, z + dz);
+        double h(double dx, double dz) => ground(x + dx, z + dz);
         double hF = h(fx * 1.0, fz * 1.0), hB = h(-fx * 1.0, -fz * 1.0), hR = h(rx * 0.8, rz * 0.8), hL = h(-rx * 0.8, -rz * 0.8);
         group.position.set(x, (hF + hB + hR + hL) / 4 - 0.02, z);
         group.rotation.set(Math.Atan2(hF - hB, 2.0), heading, Math.Atan2(hR - hL, 1.6), "YXZ");
