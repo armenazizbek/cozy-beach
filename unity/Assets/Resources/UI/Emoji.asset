@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!21 &-8254265165421410119
+--- !u!21 &-8363042710621425689
 Material:
   serializedVersion: 8
   m_ObjectHideFlags: 0
@@ -54,7 +54,7 @@ MonoBehaviour:
   m_Name: Emoji
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.TextCore.Text.SpriteAsset
   m_Version: 
-  m_Material: {fileID: -8254265165421410119}
+  m_Material: {fileID: -8363042710621425689}
   m_FaceInfo:
     m_FaceIndex: 0
     m_FamilyName: Fluent Emoji
