@@ -362,7 +362,8 @@ public class Sandcastles
                 }
             }
             bool shore = c.z > WET_Z - 1.5;
-            double rainRate = rain > 0.3 ? rain / 90 : 0;
+            // a proper shower breaks a castle in about half a minute
+            double rainRate = rain > 0.3 ? rain / 28 : 0;
             c.hp -= dt * (rainRate + (shore ? 1 / 220.0 : 0));
             c.wet += ((rain > 0.3 ? 1 : 0) - c.wet) * Math.Min(1, dt * 0.5);
             if (c.hp <= 0)

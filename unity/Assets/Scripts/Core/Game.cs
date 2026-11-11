@@ -725,6 +725,7 @@ public class Game
         else if (what == "pause") setPaused(true);
         else if (what == "settings") openSettings();
         else if (what == "saves") ui.openSaves("save", saveHooks());
+        else if (what == "saves-load") ui.openSaves("load", saveHooks());
         else if (what == "achievements") showAchievements();
         else if (what == "map") setMap(true);
         else if (what == "result") ui.showResult("Silver Locket", "Somebody carried this close for a long time. The hinge still works.", "Worth 85g", "Jewelry");
@@ -785,6 +786,106 @@ public class Game
     }
 
     internal double smokeTestCoins => state.data.coins;
+
+    /// <summary>
+    /// For the -autoshot-rain test: digs a deep hole and builds a finished sandcastle beside it, up the beach where the sea
+    /// cannot reach them, then sets it raining (or back to the day cycle). Returns how deep the hole is and how many castles stand.
+    /// </summary>
+    internal string smokeTestRain(bool start)
+    {
+        for (int i = 0; i < 6; i++) beach.digAt(RAIN_TEST_X, RAIN_TEST_Z, 1.1, 0.5);
+        holes.Add(new[] { RAIN_TEST_X, RAIN_TEST_Z });
+        castles.add(RAIN_TEST_X - 3.5, RAIN_TEST_Z, 3);
+        player.x = RAIN_TEST_X - 1;
+        player.z = RAIN_TEST_Z - 6;
+        player.yaw = Math.PI - 0.25;
+        player.pitch = -0.45;
+        state.data.lighting = "rain";
+        return smokeTestRainStatus();
+    }
+
+    private const double RAIN_TEST_X = 10, RAIN_TEST_Z = -10;
+
+    internal string smokeTestRainStatus() =>
+        $"hole {beach.depthAt(RAIN_TEST_X, RAIN_TEST_Z):0.00} m deep, {castles.castles.Count} castle(s), {holes.Count} hole mark(s) on the map";
+
+    internal void smokeTestRainStop() => state.data.lighting = "cycle";
+
+    /// <summary>For the -autoshot-crust test: takes a find of this kind to the workbench, still in its sand, or back out (null).</summary>
+    internal void smokeTestCrust(string defId)
+    {
+        if (defId == null)
+        {
+            exitInspect();
+            return;
+        }
+        var def = Items.ITEM_DEFS.First(d => d.id == defId);
+        enterInspect(new BuriedItem { id = -1, def = def, x = player.x, z = player.z, targetDepth = 0.3, revealed = true });
+    }
+
+    /// <summary>For the -autoshot-crust test: brushes a band across the middle of the find, as a held mouse would. Returns how clean it is.</summary>
+    internal double smokeTestScrub()
+    {
+        for (int i = 0; i <= 60; i++)
+        {
+            double t = i / 60.0;
+            station.pointer(new THREE.Vector2(-0.25 + t * 0.5, 0.05 * Math.Sin(t * 12)), true, 800);
+        }
+        return station.progress;
+    }
+
+    /// <summary>For the -autoshot-island test: stands this far from the island's middle at this angle, looking at its middle.</summary>
+    internal void smokeTestIsland(double dist, double angle, double pitch)
+    {
+        player.x = ISLAND.x + Math.Cos(angle) * dist;
+        player.z = ISLAND.z + Math.Sin(angle) * dist;
+        player.yaw = Math.Atan2(-(ISLAND.x - player.x), -(ISLAND.z - player.z));
+        player.pitch = pitch;
+    }
+
+    /// <summary>
+    /// For the -autoshot-shadow test: stands on the island at this distance and angle from its middle, facing away from the
+    /// sun and looking down, so the player's own shadow lies in front on the ground and the stones.
+    /// </summary>
+    internal void smokeTestOwnShadow(double dist, double angle)
+    {
+        player.x = ISLAND.x + Math.Cos(angle) * dist;
+        player.z = ISLAND.z + Math.Sin(angle) * dist;
+        var sun = sky.sun.position.clone().sub(sky.sun.target.position);
+        player.yaw = Math.Atan2(sun.x, sun.z);
+        player.pitch = -0.85;
+    }
+
+    /// <summary>For the -autoshot-shadow test: stands with the sun at the back, just in front of the n-th biggest rock on the island, looking at it.</summary>
+    internal string smokeTestShadowOnRock(int n, double gap)
+    {
+        var rock = island.colliders.OrderByDescending(c => c.r).Skip(n).FirstOrDefault();
+        if (rock == null) return "no rock";
+        var sun = sky.sun.position.clone().sub(sky.sun.target.position);
+        double len = JS.Hypot(sun.x, sun.z);
+        player.x = rock.x + sun.x / len * (rock.r + gap);
+        player.z = rock.z + sun.z / len * (rock.r + gap);
+        player.yaw = Math.Atan2(sun.x, sun.z);
+        player.pitch = -0.35;
+        return $"rock {n} r {rock.r:0.0}, sun height {sun.y / sun.length():0.00}";
+    }
+
+    /// <summary>For the -autoshot-saves test: starts a brand new game, as New Game in the pause menu does.</summary>
+    internal void smokeTestNewGame() => newGame();
+
+    internal bool smokeTestStarted => started;
+
+    /// <summary>For the -autoshot-saves test: autosaves now, whatever the timer says.</summary>
+    internal void smokeTestAutosave()
+    {
+        lastAuto = double.NegativeInfinity;
+        autoSave();
+    }
+
+    /// <summary>For the -autoshot-saves test: this game's id and number, and every save in the list.</summary>
+    internal string smokeTestSaves() =>
+        $"this game: {state.data.gameId ?? "(none yet)"} (Game {state.data.gameNo}); saves: " +
+        string.Join("; ", listSaves().Select(m => $"{m.name} [{m.id}] {describe(m)}"));
 
     /// <summary>For the -autoshot-photo test: what the F and E prompts would say right now, shown or not.</summary>
     internal string smokeTestPrompt() => $"F: {interaction?.label ?? "nothing"}, E: {interaction2?.label ?? "nothing"}";
@@ -1211,6 +1312,21 @@ public class Game
     private bool lockFailed = false;
 
     /// <summary>True only when the mouse could not be captured (an old browser) and the cursor has to steer by itself.</summary>
+    /// <summary>
+    /// Sand the rain must leave as it is: a find lying in its hole until it is picked up, and the captain's hatch and the
+    /// pit it sits in, which is the way down to the cellar.
+    /// </summary>
+    private List<(double x, double z, double r)> rainKeep()
+    {
+        var keep = new List<(double x, double z, double r)>();
+        foreach (var it in spawner.items)
+        {
+            if (it.def.id == "captain_chest" && it.revealed) keep.Add((it.x, it.z, 2.8));
+            else if (it.revealed && !it.collected) keep.Add((it.x, it.z, 1.4));
+        }
+        return keep;
+    }
+
     private bool cursorSteer => !locked && !usingPad && lockFailed;
 
     private double lastWheel = 0;
@@ -2198,7 +2314,7 @@ public class Game
             diff -= JS.Round(diff);
             dayTime = (dayTime + diff * Math.Min(1, dt * 1.5) + 1) % 1;
         }
-        // rare rainy days: a spell of rain on about one day in seven, only while the day cycle runs
+        // rainy days: a spell of rain on about one day in three, only while the day cycle runs (Rain.rainWindow)
         var win = rainWindow(state.data.day);
         bool raining = mode == "rain" || (mode == "cycle" && win != null && dayTime > win.start && dayTime < win.end);
         rain.update(dt, raining ? 1 : 0, camera.position);
@@ -2881,6 +2997,12 @@ public class Game
         ui.showMainMenu(new MenuHooks
         {
             hasSaves = listSaves().Count > 0,
+            // the newest save of all, whatever game it belongs to
+            onContinue = () =>
+            {
+                var newest = listSaves().FirstOrDefault();
+                if (newest != null) loadGame(newest.id);
+            },
             onAchievements = () => showAchievements(),
             onNew = () => menuNewGame(),
             onLoad = () => ui.openSaves("load", saveHooks()),
@@ -3096,8 +3218,8 @@ public class Game
     private double lastAuto = double.NegativeInfinity;
 
     /// <summary>
-    /// Saves the world into the single autosave slot, over whatever was there. Quiet: no message. It skips the menu, sleeping and
-    /// the ending, and never runs twice in quick succession.
+    /// Saves the world into this game's own autosaves, the older of its two each time; other games' autosaves are never
+    /// touched. Quiet: no message. It skips the menu, sleeping and the ending, and never runs twice in quick succession.
     /// </summary>
     private void autoSave()
     {
@@ -3106,12 +3228,14 @@ public class Game
         if (now - lastAuto < AUTOSAVE_MIN_GAP) return;
         if (!started || gameState == "MENU" || hammock != null) return;
         lastAuto = now;
-        writeSave(snapshot(), "Autosave", AUTOSAVE_ID);
+        claimGameId(state.data);
+        writeSave(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
     }
 
     /// <summary>Writes the whole world as a new save, or over an existing one.</summary>
     private SaveMeta saveGame(string name, string id = null)
     {
+        claimGameId(state.data);
         var meta = writeSave(snapshot(), name, id);
         if (meta == null)
         {
@@ -5469,6 +5593,11 @@ public class Game
                 mapView.treasures = state.data.hasTreasureMap ? spawner.items.Where(i => i.def.id == "treasure_cache" && !i.collected).Select(i => new[] { i.x, i.z }).ToList() : new List<double[]>();
             }
             using (THREE.Bridge.BridgeStats.Time("island")) island.update(t, ocean.surfaceY, sky.fog.color, sky.fog.density, camera.position.x, camera.position.z, dt);
+            if (rain.amount > 0.3 && beach.rainFill(dt, rain.amount, rainKeep()))
+            {
+                // a hole the rain has filled comes off the maps
+                holes.RemoveAll(h => beach.depthAt(h[0], h[1]) < 0.05);
+            }
             castles.update(dt, rain.amount, (x, z, byRain) =>
             {
                 dig.particles.burst(new THREE.Vector3(x, beach.heightAt(x, z) + 0.2, z), 24, 1.6, 1.4, 0.9, new THREE.Color(0xdcc38f));

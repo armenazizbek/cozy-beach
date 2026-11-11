@@ -85,6 +85,9 @@ public class Scenery
         return geo;
     }
 
+    /// <summary>No palm within this many metres of the pier's middle line, from this far up the beach out to its end.</summary>
+    private const double PIER_CLEAR_HALF = 4.5, PIER_CLEAR_RUN = 14;
+
     private void buildPalms()
     {
         var rand = Stones.rng(7);
@@ -105,9 +108,14 @@ public class Scenery
         // leaning toward the water
         for (int i = 0; i < 18; i++) spots.Add(((rand() - 0.5) * 130, 34 + rand() * 3));
 
-        foreach (var (x, z) in spots)
+        foreach (var (spotX, z) in spots)
         {
-            if (JS.Hypot(x, z - CAMP_Z) < 15) continue; // keep the camp clear
+            if (JS.Hypot(spotX, z - CAMP_Z) < 15) continue; // keep the camp clear
+            // keep the pier and the walk down to it clear: a palm there is moved aside, not dropped, so every other palm
+            // keeps the shape it always had
+            double x = spotX;
+            if (z > Pier.Z0 - PIER_CLEAR_RUN && Math.Abs(x - Pier.X) < PIER_CLEAR_HALF)
+                x = Pier.X + (x < Pier.X ? -PIER_CLEAR_HALF : PIER_CLEAR_HALF);
             var g = new THREE.Group();
             double h = 5.5 + rand() * 3;
             double lean = (rand() - 0.5) * 2.2;

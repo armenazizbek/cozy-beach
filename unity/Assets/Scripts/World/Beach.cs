@@ -242,7 +242,8 @@ public class Beach
     }
 
     /// <summary>Tileable speckle used as a bump map so the sand looks grainy up close.</summary>
-    private static THREE.CanvasTexture grainTexture()
+    /// <summary>The fine sand grain for the bump map, tiled `repeat` times across the texture's UVs (the beach's by default).</summary>
+    internal static THREE.CanvasTexture grainTexture(double repeat = BEACH_SIZE / 1.6)
     {
         const int size = 256;
         var c = new HTMLCanvasElement(size, size);
@@ -271,7 +272,7 @@ public class Beach
         }
         var t = new THREE.CanvasTexture(c);
         t.wrapS = t.wrapT = THREE.Wrapping.RepeatWrapping;
-        t.repeat.set(BEACH_SIZE / 1.6, BEACH_SIZE / 1.6);
+        t.repeat.set(repeat, repeat);
         t.anisotropy = 8;
         return t;
     }
@@ -627,6 +628,69 @@ public class Beach
         refreshColors(minR, maxR, minC, maxC);
         updateNormals(Math.Max(0, minR - 1), Math.Min(n - 1, maxR + 1), Math.Max(0, minC - 1), Math.Min(n - 1, maxC + 1));
         markRowsDirty(minR, maxR, minC, maxC);
+    }
+
+    /// <summary>Seconds of full rain for a hole to settle to a third of its depth; a whole spell of rain all but fills it.</summary>
+    private const double RAIN_FILL_TIME = 20;
+    private double rainClock = 0;
+
+    /// <summary>
+    /// Rain washes the sand back into the holes, and the heaps beside them down, a little at a time, until the beach is
+    /// smooth again. `rain` is 0..1. Nothing changes inside the `keep` circles (x, z, radius): a find lying in its hole, the
+    /// captain's hatch. Runs every half second of rain, and only over the parts of the beach that were ever dug.
+    /// Returns true when it changed the sand.
+    /// </summary>
+    public bool rainFill(double dt, double rain, IList<(double x, double z, double r)> keep)
+    {
+        if (rain <= 0.3)
+        {
+            rainClock = 0;
+            return false;
+        }
+        rainClock += dt * rain;
+        if (rainClock < 0.5) return false;
+        double k = Math.Exp(-rainClock / RAIN_FILL_TIME);
+        rainClock = 0;
+        bool any = false;
+        foreach (var ch in chunks)
+        {
+            if (!ch.dug) continue;
+            int r1 = Math.Min(n - 1, ch.r0 + CHUNK_CELLS), c1 = Math.Min(n - 1, ch.c0 + CHUNK_CELLS);
+            bool changed = false, still = false;
+            for (int r = ch.r0; r <= r1; r++)
+            {
+                for (int c = ch.c0; c <= c1; c++)
+                {
+                    int i = r * n + c;
+                    if (dug[i] == 0) continue;
+                    double x = pos.getX(i), z = pos.getZ(i);
+                    bool kept = false;
+                    foreach (var kc in keep)
+                        if ((x - kc.x) * (x - kc.x) + (z - kc.z) * (z - kc.z) < kc.r * kc.r) { kept = true; break; }
+                    if (kept)
+                    {
+                        still = true;
+                        continue;
+                    }
+                    double v = dug[i] * k;
+                    if (Math.Abs(v) < 0.01) v = 0;
+                    else still = true;
+                    dug[i] = (float)v;
+                    pos.setY(i, baseH[i] - v);
+                    changed = true;
+                }
+            }
+            if (changed)
+            {
+                refreshColors(ch.r0, r1, ch.c0, c1);
+                updateNormals(Math.Max(0, ch.r0 - 1), Math.Min(n - 1, r1 + 1), Math.Max(0, ch.c0 - 1), Math.Min(n - 1, c1 + 1));
+                markRowsDirty(ch.r0, r1, ch.c0, c1);
+                any = true;
+            }
+            // a chunk that is smooth again is not looked at by the next shower
+            if (!still) ch.dug = false;
+        }
+        return any;
     }
 
     /// <summary>Smooths away every hole and heap within `radius` of a point, so the ground there is untouched again.</summary>

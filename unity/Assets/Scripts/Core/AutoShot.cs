@@ -180,6 +180,115 @@ public class AutoShot : MonoBehaviour
             yield return Wait(3);
         }
 
+        // -autoshot-shadow: the player's own shadow, on the island's grass and over its stones
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-shadow") >= 0)
+        {
+            int k = 0;
+            foreach (var (dist, angle) in new[] { (12.0, 0.4), (15.0, 2.2), (10.0, -2.4), (17.0, -1.6), (8.0, 1.2) })
+            {
+                game.smokeTestOwnShadow(dist, angle);
+                yield return Wait(2);
+                yield return Shot($"16-shadow-{k++}.png");
+            }
+            for (int n = 0; n < 3; n++)
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestShadowOnRock(n, 1.6));
+                yield return Wait(2);
+                yield return Shot($"16-shadow-rock-{n}.png");
+            }
+        }
+
+        // -autoshot-island: the island from its beach, from the slope and from across the water on the near side
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-island") >= 0)
+        {
+            foreach (var (name, dist, angle, pitch) in new[] { ("shore", 17.0, -1.6, -0.12), ("slope", 9.0, 0.6, -0.2), ("west", 14.0, 3.0, -0.1), ("near", 30.0, -1.57, -0.05) })
+            {
+                game.smokeTestIsland(dist, angle, pitch);
+                yield return Wait(2.5f);
+                yield return Shot($"15-island-{name}.png");
+            }
+            // the big map from there: the camp's badge across the water, and the player on the island
+            game.smokeTestOpen("map");
+            yield return Wait(1.3f);
+            yield return Shot("15-island-map.png");
+            game.smokeTestClose("map");
+        }
+
+        // -autoshot-crust: finds of different shapes on the workbench, still in their sand; the sand must follow each shape
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-crust") >= 0)
+        {
+            foreach (var id in new[] { "doubloon", "brass_key", "signet", "glass_bottle", "flip_flop", "pocket_watch" })
+            {
+                game.smokeTestCrust(id);
+                yield return Wait(1.6f);
+                yield return Shot($"14-crust-{id}.png");
+                if (id == "doubloon")
+                {
+                    Debug.Log($"[AutoShot] brushed a band across the doubloon: {game.smokeTestScrub():0.00} clean");
+                    yield return Wait(0.5f);
+                    yield return Shot("14-crust-doubloon-brushed.png");
+                }
+                game.smokeTestCrust(null);
+                yield return Wait(1);
+            }
+        }
+
+        // -autoshot-saves: three autosaves in one game, then a new game and two more; each game must keep its own two
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-saves") >= 0)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                game.smokeTestAutosave();
+                yield return Wait(0.3f);
+            }
+            Debug.Log("[AutoShot] game one: " + game.smokeTestSaves());
+            game.smokeTestNewGame();
+            float w0 = Time.realtimeSinceStartup;
+            while ((GameHost.Instance == null || GameHost.Instance.game == null || GameHost.Instance.game == game || !GameHost.Instance.game.loaded)
+                   && Time.realtimeSinceStartup - w0 < 180)
+                yield return null;
+            game = GameHost.Instance.game;
+            yield return Wait(3);
+            if (!game.smokeTestStarted) game.smokeTestBegin();
+            yield return Wait(2);
+            for (int i = 0; i < 2; i++)
+            {
+                game.smokeTestAutosave();
+                yield return Wait(0.3f);
+            }
+            Debug.Log("[AutoShot] game two: " + game.smokeTestSaves());
+            game.smokeTestOpen("saves-load");
+            yield return Wait(1.3f);
+            yield return Shot("13-load-list.png");
+            game.smokeTestClose("saves");
+        }
+
+        // -autoshot-rain: a deep hole and a sandcastle in a shower; the rain must fill the one and wash the other away
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-rain") >= 0)
+        {
+            Debug.Log("[AutoShot] before the rain: " + game.smokeTestRain(true));
+            yield return Wait(4);
+            yield return Shot("12-rain-start.png");
+            foreach (var at in new[] { 20, 45, 70 })
+            {
+                yield return Wait(at == 20 ? 16 : 25);
+                Debug.Log($"[AutoShot] after {at} s of rain: " + game.smokeTestRainStatus());
+                yield return Shot($"12-rain-{at}s.png");
+            }
+            game.smokeTestRainStop();
+        }
+
+        // -autoshot-pier: the walk down to the pier and along it, which must be free of palms
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-pier") >= 0)
+        {
+            foreach (var back in new[] { 14.0, 4.0 })
+            {
+                game.smokeTestOnPier(Pier.Z0 - back, Math.PI, -0.04);
+                yield return Wait(2);
+                yield return Shot($"11-pier-from-{back:0}m.png");
+            }
+        }
+
         // -autoshot-holes: deep holes up the beach, on the wet sand and at the water's edge (none may show water), then the
         // cart parked across one
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-holes") >= 0)

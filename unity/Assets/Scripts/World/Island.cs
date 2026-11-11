@@ -135,21 +135,52 @@ public class Island
 
     // ---------------------------------------------------------------- terrain
 
+    /// <summary>Smooth value noise in 0..1, about one bump per `cell` metres; the same at the same spot every time.</summary>
+    private static double vnoise(double x, double z, double cell, double seed)
+    {
+        double fx = x / cell, fz = z / cell;
+        int ix = (int)Math.Floor(fx), iz = (int)Math.Floor(fz);
+        double tx = fx - ix, tz = fz - iz;
+        tx = tx * tx * (3 - 2 * tx);
+        tz = tz * tz * (3 - 2 * tz);
+        double h(int i, int j)
+        {
+            double v = Math.Sin(i * 127.1 + j * 311.7 + seed * 74.7) * 43758.5453;
+            return v - Math.Floor(v);
+        }
+        double a = h(ix, iz) + (h(ix + 1, iz) - h(ix, iz)) * tx;
+        double b = h(ix, iz + 1) + (h(ix + 1, iz + 1) - h(ix, iz + 1)) * tx;
+        return a + (b - a) * tz;
+    }
+
+    /// <summary>Two sizes of noise together: broad patches with smaller ones inside them.</summary>
+    private static double patches(double x, double z, double seed) =>
+        vnoise(x, z, 6, seed) * 0.65 + vnoise(x, z, 1.8, seed + 3) * 0.35;
+
     private void buildTerrain()
     {
         double half = ISLAND.R * 1.25;
-        const double step = 0.75;
+        // finer than the coarse grid it once used, so where the sand meets the grass, and the grass the rock, is a clear
+        // line and not a smear across a metre
+        const double step = 0.4;
         int n = (int)Math.Ceiling(2 * half / step);
         var geo = new THREE.BufferGeometry();
         var pos = new float[(n + 1) * (n + 1) * 3];
         var col = new float[(n + 1) * (n + 1) * 3];
+        var uv = new float[(n + 1) * (n + 1) * 2];
         var contrib = new List<bool>();
         var c = new THREE.Color();
-        var sandDry = new THREE.Color(0xe8d3a3);
-        var sandWet = new THREE.Color(0xb89b6a);
+        // the same sand as the main beach, so the island's beach looks like the one you sailed from
+        var sandDry = new THREE.Color("#e6cfa0");
+        var sandWet = new THREE.Color("#b08968");
         var floor = new THREE.Color(0x6f9a8a);
-        var grass = new[] { new THREE.Color(0x5f9f3b), new THREE.Color(0x86b84f), new THREE.Color(0x3f7e34) };
-        var rock = new[] { new THREE.Color(0x77726a), new THREE.Color(0x58544e), new THREE.Color(0x9a9488) };
+        var grassLight = new THREE.Color(0x7fb04a);
+        var grassMid = new THREE.Color(0x5f9a3a);
+        var grassDark = new THREE.Color(0x467f33);
+        var dirt = new THREE.Color(0x8f7650);
+        var rockLight = new THREE.Color(0x8d877c);
+        var rockDark = new THREE.Color(0x67625a);
+        var g = new THREE.Color();
         for (int j = 0; j <= n; j++)
         {
             for (int i = 0; i <= n; i++)
@@ -161,23 +192,31 @@ public class Island
                 pos[k] = (float)x;
                 pos[k + 1] = (float)h;
                 pos[k + 2] = (float)z;
+                uv[(j * (n + 1) + i) * 2] = (float)(x / 1.6);
+                uv[(j * (n + 1) + i) * 2 + 1] = (float)(z / 1.6);
                 contrib.Add(islandHeight(x, z) > baseHeightMain(x, z) + 0.01);
                 double slope = slopeAt(x, z);
-                double noise = Math.Sin(x * 0.7) * Math.Sin(z * 0.6) * 0.5 + 0.5;
                 if (h < WATER_LEVEL)
                 {
                     c.copy(sandWet).lerp(floor, Math.Min(1, (WATER_LEVEL - h) / 1.4));
                 }
                 else
                 {
-                    c.copy(sandWet).lerp(sandDry, smooth(WATER_LEVEL, 0.35, h));
-                    // grass takes over from the sand a little way up the slope, in patches
-                    int gi = (int)Math.Floor(noise * 2.99);
-                    var g = grass[gi].clone().lerp(grass[(gi + 1) % 3], noise * 3 % 1);
-                    c.lerp(g, smooth(0.45, 1.1, h + (noise - 0.5) * 0.4));
-                    // bare rock on the steep cliff and on the summit
-                    var stone = rock[(int)Math.Floor((Math.Sin(x * 1.3 + z * 0.9) + 1) / 2 * 2.99)];
-                    c.lerp(stone, Math.Max(smooth(0.2, 0.42, slope), smooth(3.1, 3.6, h) * 0.8));
+                    // sand: damp at the water, dry above it, with faint ripples of colour
+                    c.copy(sandWet).lerp(sandDry, smooth(WATER_LEVEL, 0.3, h));
+                    c.offsetHSL(0, 0, (patches(x, z, 1) - 0.5) * 0.05);
+                    // grass: patches of lighter and darker green, and a few bare dirt spots
+                    double p = patches(x, z, 2);
+                    g.copy(grassMid).lerp(p > 0.5 ? grassLight : grassDark, Math.Abs(p - 0.5) * 1.6);
+                    g.lerp(dirt, smooth(0.68, 0.8, patches(x, z, 5)) * 0.7);
+                    // where the grass begins wanders up and down the slope, and is a fairly sharp edge
+                    double edge = 0.55 + (patches(x, z, 7) - 0.5) * 0.7;
+                    c.lerp(g, smooth(edge - 0.08, edge + 0.08, h));
+                    // rock only where it is really steep (the cliff), and the bare stone of the summit
+                    double r = patches(x, z, 9);
+                    g.copy(rockDark).lerp(rockLight, r);
+                    double bare = Math.Max(smooth(0.3, 0.45, slope), smooth(3.3, 3.65, h) * smooth(0.35, 0.6, r));
+                    c.lerp(g, bare);
                 }
                 col[k] = (float)c.r;
                 col[k + 1] = (float)c.g;
@@ -199,10 +238,12 @@ public class Island
         }
         geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
         geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+        geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
         geo.setIndex(idx);
         geo.computeVertexNormals();
-        // it overlaps the coarse sea floor under it, and wins where they touch
-        var mat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 1, polygonOffset = true, polygonOffsetFactor = -2, polygonOffsetUnits = -2 };
+        // it overlaps the coarse sea floor under it, and wins where they touch. The sand grain of the beach gives the ground
+        // a texture up close, instead of plain smooth colour
+        var mat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 1, bumpMap = grainTexture(1), bumpScale = 1.2, polygonOffset = true, polygonOffsetFactor = -2, polygonOffsetUnits = -2 };
         var mesh = new THREE.Mesh(geo, mat);
         mesh.receiveShadow = true;
         mesh.castShadow = true;

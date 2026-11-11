@@ -83,6 +83,20 @@ Add `-autoshot-ui` to photograph every menu and the HUD twice, as they look with
 Add `-autoshot-birds` to fire a bullet at a standing gull and at a flying one (the log shows the coins before and after
 each) and to photograph the line of keys shown while swimming.
 
+Add `-autoshot-shadow` to photograph the player's own shadow on the island's grass and thrown onto its big rocks.
+
+Add `-autoshot-island` to photograph the island from its beach, its slope and its west side.
+
+Add `-autoshot-crust` to photograph finds of different shapes on the workbench, still in their sand.
+
+Add `-autoshot-saves` to autosave three times, start a new game and autosave twice more: the log lists every save, and
+each game must keep its own two autosaves.
+
+Add `-autoshot-rain` to dig a deep hole and build a sandcastle, then let it rain for a minute: the log shows the hole
+filling and the castle washing away.
+
+Add `-autoshot-pier` to photograph the walk down to the pier, which must be free of palms.
+
 Add `-autoshot-holes` to dig three deep holes (up the beach, on the wet sand, at the water's edge) and park the golf cart
 across one: no hole may show water, and the log says how far the cart sits below flat sand.
 

@@ -76,6 +76,11 @@ public class SaveMeta
 {
     public string id, name;
     public double savedAt, coins, finds;
+    /// <summary>the game it belongs to (null for saves made before games had ids), its number and the day it reached</summary>
+    public string gameId;
+    public int gameNo, day;
+    /// <summary>made by the game itself, not by the player</summary>
+    public bool auto;
 }
 
 public static class SaveGame
@@ -84,8 +89,58 @@ public static class SaveGame
     private const string SLOT_PREFIX = "cozy-treasure-hunter-slot-";
     private const string OLD_KEY = "cozy-treasure-hunter-save-v2";
 
-    /// <summary>The one slot the game saves into by itself; every autosave writes over it.</summary>
+    /// <summary>
+    /// The single slot every game once shared for its autosave. Nothing writes to it now; a save that is still there is
+    /// listed and loads like any other.
+    /// </summary>
     public const string AUTOSAVE_ID = "autosave";
+
+    /// <summary>How many autosaves each game keeps. They are written in turn, so a save cut off half-way leaves the other.</summary>
+    public const int AUTOSAVES_PER_GAME = 2;
+
+    /// <summary>The id of autosave `n` (0 or 1) of a game.</summary>
+    public static string autosaveId(string gameId, int n) => $"auto-{gameId}-{n}";
+
+    /// <summary>Gives a game that has never been saved its id and the next free number. Returns true if it was new.</summary>
+    public static bool claimGameId(GameData data)
+    {
+        if (!string.IsNullOrEmpty(data.gameId)) return false;
+        data.gameId = Base36((long)JS.DateNow()) + Base36((long)Math.Floor(JS.Random() * 1e6));
+        var used = readIndex().Select(m => m.gameNo).DefaultIfEmpty(0).Max();
+        data.gameNo = Math.Max(used, 0) + 1;
+        return true;
+    }
+
+    /// <summary>The autosave slot to write next for a game: an empty one, or else the older of its two.</summary>
+    public static string nextAutosaveId(string gameId)
+    {
+        var mine = readIndex().Where(m => m.gameId == gameId && m.auto).ToDictionary(m => m.id, m => m.savedAt);
+        string best = null;
+        double oldest = double.PositiveInfinity;
+        for (int n = 0; n < AUTOSAVES_PER_GAME; n++)
+        {
+            var id = autosaveId(gameId, n);
+            if (!mine.TryGetValue(id, out var at)) return id;
+            if (at < oldest)
+            {
+                oldest = at;
+                best = id;
+            }
+        }
+        return best;
+    }
+
+    /// <summary>The words under a save's name in the save list: the game, the day, when, the purse and the finds.</summary>
+    public static string describe(SaveMeta m)
+    {
+        var parts = new List<string>();
+        if (m.gameNo > 0) parts.Add($"Game {m.gameNo}");
+        if (m.day > 0) parts.Add($"Day {m.day}");
+        parts.Add(timeLabel(m.savedAt));
+        parts.Add($"{m.coins}g");
+        parts.Add($"{m.finds} kinds found");
+        return string.Join(" · ", parts);
+    }
 
     public static readonly JsonSerializerSettings Json = new JsonSerializerSettings
     {
@@ -167,7 +222,7 @@ public static class SaveGame
     }
 
     /// <summary>Saves a snapshot as a new entry, or over the entry `id`. Returns null if storage refused.</summary>
-    public static SaveMeta writeSave(Snapshot snap, string name, string id = null)
+    public static SaveMeta writeSave(Snapshot snap, string name, string id = null, bool auto = false)
     {
         var meta = new SaveMeta
         {
@@ -176,6 +231,10 @@ public static class SaveGame
             savedAt = snap.savedAt,
             coins = snap.data.coins,
             finds = snap.data.found.Count,
+            gameId = snap.data.gameId,
+            gameNo = snap.data.gameNo,
+            day = snap.data.day,
+            auto = auto,
         };
         if (!Storage.setItem(SLOT_PREFIX + meta.id, JsonConvert.SerializeObject(snap, Json))) return null;
         var list = readIndex().Where(m => m.id != meta.id).ToList();

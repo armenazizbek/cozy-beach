@@ -1181,8 +1181,9 @@ public static class LootGenerator
     }
 
     /// <summary>
-    /// Wraps a clean item in one unified ellipsoid dirt crust. The crust's UVs are the
-    /// regular sphere mapping, so brushing never depends on the item's own (messy) UVs.
+    /// Wraps a clean item in one sand crust that takes the item's shape: a coin comes out as a lumpy disc, a key as a key. The
+    /// crust starts as a sphere and each of its points is pulled in toward the item's middle until it meets the item, plus a
+    /// layer of sand (see shrinkToItem). It keeps the sphere's own UVs, so brushing never depends on the item's (messy) UVs.
     /// </summary>
     public static CrustRig wrapWithCrust(THREE.Group item, HTMLCanvasElement canvas, double fitSize = 2.0)
     {
@@ -1203,11 +1204,134 @@ public static class LootGenerator
         double rz = Math.Max(half.z * 1.5, maxHalf * 0.2);
 
         var texture = new THREE.CanvasTexture(canvas);
-        var crust = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 64),
-            new THREE.MeshStandardMaterial { color = 0x9c825b, roughness = 0.95, transparent = true, alphaMap = texture, side = THREE.Side.DoubleSide, depthWrite = false });
-        crust.scale.set(rx, ry, rz);
+        var geo = new THREE.SphereGeometry(1, CRUST_SEG, CRUST_SEG);
+        root.updateMatrixWorld(true);
+        var centre = box.getCenter(new THREE.Vector3()).multiplyScalar(k);
+        shrinkToItem(geo, inner, centre, new THREE.Vector3(rx, ry, rz), maxHalf);
+        // a cut-out, not a see-through layer: where the brush has been the sand is simply gone, and where it has not, nothing
+        // behind it shows (a glass bottle, or the crust's own far side, came through the old blended crust)
+        var crust = new THREE.Mesh(geo,
+            new THREE.MeshStandardMaterial { color = 0x9c825b, roughness = 0.95, alphaMap = texture, alphaTest = 0.5 });
         crust.castShadow = true;
         root.add(crust);
         return new CrustRig { root = root, crust = crust, canvas = canvas, texture = texture, size = fitSize };
+    }
+
+    private const int CRUST_SEG = 64;
+
+    /// <summary>
+    /// Moves every point of a unit sphere in to the item's surface, plus a layer of sand. Each point looks in from outside
+    /// toward the item's middle and stops where it meets the item. Where it meets nothing (through the hole of a ring, past
+    /// the end of a thin key) its neighbours fill in, the way packed sand bridges a gap. The result is smoothed so the crust
+    /// is a soft, lumpy shell and not every little detail of the item, and it never pokes out past the old egg shape.
+    /// </summary>
+    private static void shrinkToItem(THREE.BufferGeometry geo, THREE.Object3D item, THREE.Vector3 centre, THREE.Vector3 egg, double maxHalf)
+    {
+        int cols = CRUST_SEG + 1, rows = CRUST_SEG + 1;
+        var pos = geo.attributes.position;
+        double thick = Math.Max(0.12, maxHalf * 0.16);
+        double far = maxHalf * 4;
+        var r = new double[rows * cols];
+        var limit = new double[rows * cols];
+        var dir = new THREE.Vector3();
+        var from = new THREE.Vector3();
+        var back = new THREE.Vector3();
+        var cast = new THREE.Raycaster();
+        for (int i = 0; i < r.Length; i++)
+        {
+            dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+            // the old egg-shaped crust along this direction: the new one never reaches further out than it did
+            limit[i] = 1 / Math.Sqrt(Math.Pow(dir.x / egg.x, 2) + Math.Pow(dir.y / egg.y, 2) + Math.Pow(dir.z / egg.z, 2));
+            from.copy(centre).addScaledVector(dir, far);
+            cast.set(from, back.copy(dir).negate());
+            cast.far = far;
+            var hits = cast.intersectObject(item, true);
+            r[i] = hits.Count > 0 ? far - hits[0].distance : double.NaN;
+        }
+        int at(int row, int col) => row * cols + ((col % CRUST_SEG) + CRUST_SEG) % CRUST_SEG;
+        // fill the misses from their neighbours, ring by ring
+        for (int pass = 0; pass < 40; pass++)
+        {
+            bool left = false;
+            var next = (double[])r.Clone();
+            for (int row = 0; row < rows; row++)
+            for (int col = 0; col < CRUST_SEG; col++)
+            {
+                int i = at(row, col);
+                if (!double.IsNaN(r[i])) continue;
+                double sum = 0;
+                int n = 0;
+                foreach (var (dr, dc) in new[] { (-1, 0), (1, 0), (0, -1), (0, 1) })
+                {
+                    int rr = row + dr;
+                    if (rr < 0 || rr >= rows) continue;
+                    double v = r[at(rr, col + dc)];
+                    if (double.IsNaN(v)) continue;
+                    sum += v;
+                    n++;
+                }
+                if (n > 0) next[i] = sum / n;
+                else left = true;
+            }
+            r = next;
+            if (!left) break;
+        }
+        for (int i = 0; i < r.Length; i++)
+            if (double.IsNaN(r[i])) r[i] = maxHalf * 0.5;
+        // grow over thin parts that fall between two of the crust's points (a key's shaft, a watch chain): each point takes
+        // the furthest of its neighbours, twice over
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var next = (double[])r.Clone();
+            for (int row = 0; row < rows; row++)
+            for (int col = 0; col < CRUST_SEG; col++)
+            {
+                int i = at(row, col);
+                double m = r[i];
+                for (int dr = -1; dr <= 1; dr++)
+                for (int dc = -1; dc <= 1; dc++)
+                {
+                    int rr = row + dr;
+                    if (rr < 0 || rr >= rows) continue;
+                    m = Math.Max(m, r[at(rr, col + dc)]);
+                }
+                next[i] = m;
+            }
+            r = next;
+        }
+        for (int i = 0; i < r.Length; i++) r[i] += thick;
+        // soften: a few passes of averaging with the neighbours, so the sand rounds over edges and fills small gaps
+        for (int pass = 0; pass < 3; pass++)
+        {
+            var next = (double[])r.Clone();
+            for (int row = 1; row < rows - 1; row++)
+            for (int col = 0; col < CRUST_SEG; col++)
+            {
+                int i = at(row, col);
+                double around = (r[at(row - 1, col)] + r[at(row + 1, col)] + r[at(row, col - 1)] + r[at(row, col + 1)]) / 4;
+                // sand fills in: a dip between two bumps rises more than a bump drops
+                next[i] = around > r[i] ? r[i] * 0.3 + around * 0.7 : r[i] * 0.6 + around * 0.4;
+            }
+            r = next;
+        }
+        // the poles are one point each, and the seam column repeats the first
+        foreach (int row in new[] { 0, rows - 1 })
+        {
+            double sum = 0;
+            for (int col = 0; col < CRUST_SEG; col++) sum += r[at(row, col)];
+            for (int col = 0; col < CRUST_SEG; col++) r[at(row, col)] = sum / CRUST_SEG;
+        }
+        for (int i = 0; i < r.Length; i++)
+        {
+            int row = i / cols, col = i % cols;
+            double v = Math.Min(r[at(row, col)], limit[i]);
+            // a little lumpiness, the same from the same direction so the seam stays closed
+            dir.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+            v *= 1 + 0.035 * Math.Sin(dir.x * 9.1 + dir.y * 4.3) * Math.Sin(dir.z * 7.7 - dir.y * 5.9);
+            pos.setXYZ(i, centre.x + dir.x * v, centre.y + dir.y * v, centre.z + dir.z * v);
+        }
+        geo.computeVertexNormals();
+        geo.computeBoundingSphere();
+        geo.computeBoundingBox();
     }
 }

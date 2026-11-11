@@ -36,6 +36,13 @@ public class PendingLetter
 /// <summary>The saved state of a game. Field names match the TypeScript (and its JSON saves).</summary>
 public class GameData
 {
+    /// <summary>
+    /// Which playthrough this is: set when it is first saved, and kept by every save and load of it. Each game has autosaves
+    /// of its own (SaveGame.autosaveId), so starting a new game never writes over another game's progress.
+    /// </summary>
+    public string gameId;
+    /// <summary>Game 1, Game 2..., as the save list names it</summary>
+    public int gameNo;
     public double coins = 0;
     public double warmth = 100;
     public List<InventoryItem> inventory = new List<InventoryItem>();

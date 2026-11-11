@@ -277,7 +277,7 @@ public class MapView
         ctx.font = "italic 600 14px Georgia, serif";
         ctx.fillStyle = "rgba(70,36,12,0.9)";
         ctx.textAlign = "center";
-        ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 34);
+        ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
         ctx.fillText("Island", ((ISLAND.x - cx + half) / (2 * half)) * size, ((ISLAND.z - cz + half) / (2 * half)) * size - 34);
         if (bottle)
         {
@@ -383,21 +383,40 @@ public class MapView
         ctx.fillRect(Pier.X - 1.6, Pier.Z0, 3.2, Pier.Z1 - Pier.Z0);
     }
 
-    private void drawCamp(CanvasRenderingContext2D ctx, double x, double z, double scale)
+    /// <summary>
+    /// The camp: a round cream badge with an orange tent in it. A badge and not a bare triangle, which looked just like the
+    /// red arrow that is the player. `turn` undoes the mini-map's turning, so the tent always stands upright.
+    /// </summary>
+    private void drawCamp(CanvasRenderingContext2D ctx, double x, double z, double scale, double turn = 0)
     {
         ctx.save();
         ctx.translate(x, z);
+        if (turn != 0) ctx.rotate(turn);
         ctx.scale(scale, scale);
-        ctx.fillStyle = "#d9703f";
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 0.45;
+        // the badge, with a dark rim so it reads on the sand and on the sea
+        ctx.fillStyle = "#fbf2de";
+        ctx.strokeStyle = "#2a1c14";
+        ctx.lineWidth = 0.5;
         ctx.beginPath();
-        ctx.moveTo(0, -2.6);
-        ctx.lineTo(2.4, 1.6);
-        ctx.lineTo(-2.4, 1.6);
-        ctx.closePath();
+        ctx.arc(0, 0, 2.6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+        // the tent
+        ctx.fillStyle = "#d9703f";
+        ctx.beginPath();
+        ctx.moveTo(0, -1.6);
+        ctx.lineTo(1.75, 1.25);
+        ctx.lineTo(-1.75, 1.25);
+        ctx.closePath();
+        ctx.fill();
+        // its open door
+        ctx.fillStyle = "#2a1c14";
+        ctx.beginPath();
+        ctx.moveTo(0, -0.15);
+        ctx.lineTo(0.6, 1.25);
+        ctx.lineTo(-0.6, 1.25);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
     }
 
@@ -453,7 +472,8 @@ public class MapView
         ctx.scale(sc, sc);
         ctx.translate(-p.x, -p.z);
         this.drawPier(ctx);
-        this.drawCamp(ctx, 0, CAMP_Z, 1.2);
+        // the camera of this little map turns with the player; the tent is turned back so it stands upright
+        this.drawCamp(ctx, 0, CAMP_Z, 1.15, Math.PI / 2 + Math.Atan2(fz, fx));
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.2);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 1.3);
         this.drawFlags(ctx, 2.2);
@@ -482,7 +502,8 @@ public class MapView
         if (dist > r - 12)
         {
             var k = (r - 12) / dist;
-            this.drawCamp(ctx, r + rx * sc * k, r + rz * sc * k, 1.6);
+            // pinned to the rim at the same size it has on the map, in screen pixels
+            this.drawCamp(ctx, r + rx * sc * k, r + rz * sc * k, 1.15 * sc);
         }
 
         if (this.dog != null)
@@ -553,7 +574,7 @@ public class MapView
         ctx.font = "600 14px \"Trebuchet MS\", sans-serif";
         ctx.fillStyle = "#3b2a1e";
         ctx.textAlign = "center";
-        ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 34);
+        ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Sea", size / 2, size - 14);
         ctx.fillText("Island", ((ISLAND.x - cx + half) / (2 * half)) * size, ((ISLAND.z - cz + half) / (2 * half)) * size - 34);

@@ -31,6 +31,8 @@ public class SaveHooks
 public class MenuHooks
 {
     public bool hasSaves;
+    /// <summary>loads the newest save of all</summary>
+    public Action onContinue;
     public Action onAchievements;
     public Action onNew;
     public Action onLoad;
@@ -530,10 +532,11 @@ public class UIManager
             list.append(b);
             return b;
         }
-        var fresh = mk("New Game", h.onNew);
-        var load = mk("Load Game", h.onLoad, !h.hasSaves);
         // the menu opens on what the player most likely wants: carrying on, if there is a game to carry on with
-        (h.hasSaves ? load : fresh).classList.add("default");
+        if (h.hasSaves && h.onContinue != null) mk("Continue", h.onContinue).classList.add("default");
+        var fresh = mk("New Game", h.onNew);
+        mk("Load Game", h.onLoad, !h.hasSaves);
+        if (!h.hasSaves) fresh.classList.add("default");
         mk("Settings", h.onSettings);
         mk("Help", () => this.showHelp());
         mk("Achievements", h.onAchievements);
@@ -1190,7 +1193,7 @@ public class UIManager
                 var metaName = meta.name;
                 var row = el("div", "save-row");
                 var left = el("div", "si");
-                left.append(el("b", "", metaName), el("span", "", $"{timeLabel(meta.savedAt)} · {meta.coins}g · {meta.finds} kinds found"));
+                left.append(el("b", "", metaName), el("span", "", describe(meta)));
                 var right = el("div", "sb");
                 var main = el<HTMLButtonElement>("button", "btn small", mode == "save" ? "Overwrite" : "Load");
                 main.onclick = () =>

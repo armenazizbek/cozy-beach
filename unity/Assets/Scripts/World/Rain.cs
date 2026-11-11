@@ -15,18 +15,22 @@ public class Rain
     private const double HEIGHT = 18;
 
     /// <summary>
-    /// Whether a day has a rainy spell, and when in the day it falls. Rain is rare: about one day in seven,
-    /// never on the first day, and it always arrives and leaves by the same hash so a saved game agrees.
+    /// Whether a day has a rainy spell, and when in the day it falls: about one day in three (it was one in seven), never on
+    /// the first day, for about a third of the day. It always arrives and leaves by the same hash so a saved game agrees.
     /// </summary>
+    /// <summary>the share of days with rain, and how much of such a day the rain lasts</summary>
+    public const double RAINY_DAYS = 0.34, RAIN_SPELL = 0.32;
+
     public static RainWindow rainWindow(int day)
     {
         if (day <= 1) return null;
-        double h = Math.Sin(day * 127.1 + 311.7) * 43758.5453;
+        // this hash spreads the rainy days evenly: the first falls on day 5, and no dry spell is longer than 12 days
+        double h = Math.Sin(day * 91.7 + 17.3) * 43758.5453;
         double r = h - Math.Floor(h);
-        if (r > 0.14) return null;
+        if (r > RAINY_DAYS) return null;
         double s = Math.Sin(day * 269.5 + 183.3) * 43758.5453;
-        double start = 0.08 + (s - Math.Floor(s)) * 0.32;
-        return new RainWindow { start = start, end = start + 0.26 };
+        double start = 0.08 + (s - Math.Floor(s)) * 0.3;
+        return new RainWindow { start = start, end = start + RAIN_SPELL };
     }
 
     public readonly THREE.Group group = new THREE.Group();

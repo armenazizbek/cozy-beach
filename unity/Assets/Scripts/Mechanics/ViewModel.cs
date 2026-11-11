@@ -98,7 +98,8 @@ public class ViewModel
     public readonly THREE.Object3D muzzle = new THREE.Object3D();
     private double flashT = 0, kickT = 0;
     private readonly THREE.Group proxyGun = new THREE.Group(), proxyDetector = new THREE.Group(), proxyTrowel = new THREE.Group(), proxyHead = new THREE.Group();
-    private readonly List<THREE.Mesh> legs = new List<THREE.Mesh>();
+    /// <summary>the shadow body's legs, each hung from its hip so a stride swings the foot and not the whole leg</summary>
+    private readonly List<THREE.Group> legs = new List<THREE.Group>();
     private double bob = 0, moving = 0, swing = 0;
     private int tool = 1;
     private List<THREE.MeshStandardMaterial> detectorGold = new List<THREE.MeshStandardMaterial>();
@@ -1093,6 +1094,12 @@ public class ViewModel
         flashT = 0.06;
     }
 
+    /// <summary>
+    /// The body nobody sees, which is there only to cast the player's shadow: a torso with shoulders, a head on a neck, arms
+    /// bent at the elbow down to the hands on the tool, and legs that swing from the hip. Every joint is rounded, so the shadow
+    /// reads as a person on sand and on stone alike. (It was a capsule with two cut-off tubes for arms, which on a rock showed
+    /// as a stick figure with square stubs at its sides.)
+    /// </summary>
     private void buildProxy()
     {
         var mat = new THREE.MeshBasicMaterial { colorWrite = false, depthWrite = false };
@@ -1104,32 +1111,56 @@ public class ViewModel
             (parent ?? proxy).add(m);
             return m;
         }
-        part(new THREE.CapsuleGeometry(0.2, 0.55, 4, 8), v(0, 1.15, 0));
-        foreach (var s in new[] { -1, 1 }) legs.Add(part(new THREE.CapsuleGeometry(0.085, 0.6, 4, 8), v(s * 0.1, 0.4, 0)));
+        // a rounded limb from a to b: a tube with a ball at each end
+        void bone(THREE.Vector3 a, THREE.Vector3 b, double r, THREE.Object3D parent = null)
+        {
+            var t = limb(a, b, r, mat);
+            t.castShadow = true;
+            (parent ?? proxy).add(t);
+            part(new THREE.SphereGeometry(r, 10, 8), a, parent);
+            part(new THREE.SphereGeometry(r, 10, 8), b, parent);
+        }
+        // torso, a little wider at the shoulders, and a neck
+        part(new THREE.CapsuleGeometry(0.2, 0.5, 4, 10), v(0, 1.12, 0));
+        var shoulders = part(new THREE.CapsuleGeometry(0.1, 0.32, 4, 8), v(0, 1.38, 0));
+        shoulders.rotation.z = Math.PI / 2;
+        part(new THREE.CylinderGeometry(0.06, 0.07, 0.14, 8), v(0, 1.5, 0));
         proxy.add(proxyHead);
         proxyHead.position.set(0, 1.58, 0);
-        part(new THREE.SphereGeometry(0.13, 10, 8), v(0, 0.08, 0), proxyHead);
-        // arms reaching forward to the held tool
+        part(new THREE.SphereGeometry(0.13, 12, 10), v(0, 0.08, 0), proxyHead);
+        // legs, hung from the hips
         foreach (var s in new[] { -1, 1 })
         {
-            var a = limb(v(s * 0.26, 1.35, 0), v(s * 0.2, 1.1, -0.45), 0.065, mat);
-            a.castShadow = true;
-            proxy.add(a);
+            var hip = new THREE.Group();
+            hip.position.set(s * 0.1, 0.82, 0);
+            proxy.add(hip);
+            part(new THREE.CapsuleGeometry(0.095, 0.6, 4, 8), v(0, -0.4, 0), hip);
+            legs.Add(hip);
         }
-        var stick = limb(v(0.2, 1.1, -0.45), v(0.05, 0.12, -1.35), 0.025, mat);
+        // arms: shoulder to elbow to the hands, which meet on the tool in front
+        var hand = v(0.08, 1.06, -0.46);
+        foreach (var s in new[] { -1, 1 })
+        {
+            var shoulder = v(s * 0.24, 1.38, 0);
+            var elbow = v(s * 0.24, 1.12, -0.2);
+            bone(shoulder, elbow, 0.062);
+            bone(elbow, v(hand.x + s * 0.05, hand.y, hand.z), 0.052);
+        }
+        // the tools, from the hands
+        var stick = limb(hand, v(0.05, 0.12, -1.35), 0.025, mat);
         stick.castShadow = true;
         var disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 20), mat);
         disc.position.set(0.05, 0.12, -1.35);
         disc.castShadow = true;
         proxyDetector.add(stick, disc);
-        var stick2 = limb(v(0.2, 1.1, -0.45), v(0.12, 0.55, -1.0), 0.025, mat);
+        var stick2 = limb(hand, v(0.12, 0.55, -1.0), 0.025, mat);
         stick2.castShadow = true;
         var scoop = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.3), mat);
         scoop.position.set(0.12, 0.45, -1.1);
         scoop.rotation.x = -0.5;
         scoop.castShadow = true;
         proxyTrowel.add(stick2, scoop);
-        var pistol = limb(v(0.2, 1.1, -0.45), v(0.2, 1.14, -0.9), 0.04, mat);
+        var pistol = limb(hand, v(0.1, 1.1, -0.85), 0.04, mat);
         pistol.castShadow = true;
         proxyGun.add(pistol);
         proxy.add(proxyDetector, proxyTrowel, proxyGun);
