@@ -75,8 +75,7 @@ public class CampModal
         head.innerHTML = "<h2>Base Camp</h2>";
         var close = document.createElement<HTMLButtonElement>("button");
         close.className = "btn ghost small";
-        close.textContent = "Close (Esc)";
-        close.dataset["kb"] = "Close (Esc)";
+        close.textContent = "Close";
         close.onclick = () => this.hooks.onClose();
         head.append(close);
         this.tabs.className = "tabs";
@@ -154,6 +153,9 @@ public class CampModal
     private void paint()
     {
         this.tabs.innerHTML = "";
+        // the tabs wrap between the two keys that turn the pages
+        var tabWrap = document.createElement("div");
+        tabWrap.className = "tabs-wrap";
         foreach (var entry in TABS)
         {
             string id = entry[0], label = entry[1];
@@ -164,8 +166,9 @@ public class CampModal
                 this.tab = id;
                 this.render();
             }, $"tab {(id == this.tab ? "on" : "")}");
-            this.tabs.append(t);
+            tabWrap.append(t);
         }
+        this.tabs.append(Glyphs.key("Q", "LB"), tabWrap, Glyphs.key("E", "RB"));
         this.body.innerHTML = "";
         var d = this.state.data;
         var coins = document.createElement("div");

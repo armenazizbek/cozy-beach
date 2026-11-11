@@ -28,6 +28,7 @@ public static class BuildScript
     {
         ProjectSetup.Apply();
         EmojiSpriteAssetBuilder.Rebuild();
+        UiSkinImporter.Apply();
         bool il2cpp = preferIl2Cpp && Il2CppInstalled();
         if (preferIl2Cpp && !il2cpp)
             Debug.LogWarning("IL2CPP is not installed for Windows, so this build uses Mono. Add \"Windows Build Support (IL2CPP)\" in Unity Hub for the faster build.");

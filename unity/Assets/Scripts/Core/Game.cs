@@ -246,7 +246,7 @@ public class Game
         castles = new Sandcastles(beach);
 
         renderer = new THREE.WebGLRenderer(new THREE.WebGLRendererParameters { canvas = canvas, antialias = true });
-        renderer.setPixelRatio(Math.Min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+        renderer.setPixelRatio(pixelRatio(true));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.ShadowMapType.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ToneMapping.ACESFilmicToneMapping;
@@ -461,7 +461,8 @@ public class Game
         document.addEventListener("pointerlockchange", _ =>
         {
             if (locked) setLockFailed(false);
-            if (!locked && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
+            // (not when the mouse was let go because the player picked up a controller)
+            if (!locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
         });
         window.addEventListener("resize", _ => resize());
         resize();
@@ -721,12 +722,39 @@ public class Game
         }
         else if (what == "help") ui.showHelp();
         else if (what == "credits") ui.showCredits();
+        else if (what == "pause") setPaused(true);
+        else if (what == "settings") openSettings();
+        else if (what == "saves") ui.openSaves("save", saveHooks());
+        else if (what == "achievements") showAchievements();
+        else if (what == "map") setMap(true);
+        else if (what == "result") ui.showResult("Silver Locket", "Somebody carried this close for a long time. The hinge still works.", "Worth 85g", "Jewelry");
+        else if (what == "inspect")
+        {
+            ui.showInspect("Silver Locket");
+            ui.setProgress(0.4);
+        }
+        else if (what == "intro") ui.showIntro(() => { });
+        else if (what == "toast")
+        {
+            ui.toast("🏆 Achievement: First Find");
+            ui.setPrompt("Open the camper");
+        }
     }
+
+    /// <summary>For the -autoshot-ui test: shows the game as it looks with a controller in the hands, or back as with the keyboard.</summary>
+    internal void smokeTestPad(bool on) => setUsingPad(on);
 
     internal void smokeTestClose(string what)
     {
         if (what.StartsWith("camp:")) closeCamp();
         else if (what == "book" || what == "mail") closeBook();
+        else if (what == "pause") setPaused(false);
+        else if (what == "settings") ui.closeSettings();
+        else if (what == "saves") ui.closeSaves();
+        else if (what == "map") setMap(false);
+        else if (what == "result" || what == "inspect") ui.hideInspect();
+        else if (what == "intro") ui.skipIntro();
+        else if (what == "toast") ui.setPrompt(null);
         else document.querySelector(".pause")?.remove();
     }
 
@@ -862,8 +890,21 @@ public class Game
         }
     }
 
+    /// <summary>
+    /// The picture's pixels per pixel of the UI's page. The page is stretched to the screen (window.devicePixelRatio is that
+    /// stretch), so this is what keeps the 3D picture at the resolution it always had: the screen's own pixels when "Sharp
+    /// picture" is on (up to MAX_PIXEL_RATIO times Windows' 100% size), Windows' 100% size when it is off.
+    /// </summary>
+    private double pixelRatio(bool sharp)
+    {
+        double os = Math.Max(0.5, window.osPixelRatio);
+        return window.devicePixelRatio / os * (sharp ? Math.Min(os, MAX_PIXEL_RATIO) : 1);
+    }
+
     private void resize()
     {
+        // the page's stretch changes with the window, and the picture's pixel ratio with it
+        if (settings != null) renderer.setPixelRatio(pixelRatio(settings.sharp) * settings.renderScale);
         int w = (int)Math.Max(1, window.innerWidth);
         int h = (int)Math.Max(1, window.innerHeight);
         renderer.setSize(w, h, false);
@@ -1260,6 +1301,7 @@ public class Game
 
     private void onKey(string code)
     {
+        if (menuKey(code)) return;
         if (!started) return;
 
         if (hammock != null)
@@ -2234,6 +2276,10 @@ public class Game
             if (e is HTMLButtonElement btn && btn.disabled) return false;
             if (e is HTMLInputElement inp && inp.disabled) return false;
             if (e is HTMLSelectElement sel && sel.disabled) return false;
+            // a slider inside a settings row: the row is what is chosen
+            if (e.classList.contains("nofocus")) return false;
+            // a text box is for the mouse and the keyboard: walked onto, it would swallow every key after
+            if (e is HTMLInputElement text && text.type == "text") return false;
             var r = e.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
         }).ToList();
@@ -2242,7 +2288,7 @@ public class Game
     /// <summary>The part of a menu that scrolls, if it is long enough to need it.</summary>
     private HTMLElement padScroller(HTMLElement root)
     {
-        var all = root.querySelectorAll<HTMLElement>(".camp-body, .help-body, .ach-list");
+        var all = root.querySelectorAll<HTMLElement>(".camp-body, .help-body, .ach-list, .set-rows, .save-list");
         return all.FirstOrDefault(e => e.scrollHeight > e.clientHeight + 1);
     }
 
@@ -2263,6 +2309,13 @@ public class Game
         if (scroller != null && d == "up" && scroller.scrollTop > 0 && !scroller.contains(cur))
         {
             scroller.scrollTop = Math.Max(0, scroller.scrollTop - 150);
+            return;
+        }
+        // a setting: left and right change it
+        if (cur.onstep != null && (d == "left" || d == "right"))
+        {
+            cur.onstep(d == "left" ? -1 : 1);
+            audio.ui();
             return;
         }
         if (cur is HTMLInputElement rangeInp && rangeInp.type == "range" && (d == "left" || d == "right"))
@@ -2319,11 +2372,136 @@ public class Game
 
     private static readonly Regex BACK_RE = new Regex(@"^\W*(done|back|close|cancel|resume|leave)", RegexOptions.IgnoreCase);
 
-    private void padBack(HTMLElement root)
+    /// <summary>The button that leaves a menu (Back, Done, Close, Cancel, Resume), if it has one.</summary>
+    private HTMLButtonElement backButton(HTMLElement root)
     {
         var back = root.querySelectorAll<HTMLButtonElement>("button").FirstOrDefault(b => BACK_RE.IsMatch(b.textContent ?? ""));
-        if (back != null && !back.disabled) back.click();
+        return back != null && !back.disabled ? back : null;
+    }
+
+    private void padBack(HTMLElement root)
+    {
+        var back = backButton(root);
+        if (back != null) back.click();
         else padKey("Escape");
+    }
+
+    /// <summary>Presses the chosen button of a menu (A on a controller, Enter or Space on the keyboard).</summary>
+    private void menuAccept(HTMLElement root)
+    {
+        var cur = document.activeElement;
+        if (cur is HTMLSelectElement sel) openPadOptions(sel);
+        else if (cur != null && root.contains(cur) && cur.tagName != "BODY") cur.click();
+        else
+        {
+            var f = padFocusables(root);
+            if (f.Count > 0) f[0].focus();
+        }
+    }
+
+    /// <summary>The cards that open over the main menu or the pause screen and close by themselves.</summary>
+    private static bool isDialog(HTMLElement root)
+    {
+        var c = root.classList;
+        return c.contains("saves") || c.contains("helpscreen") || c.contains("achievements") || c.contains("credits") || c.contains("farewell");
+    }
+
+    /// <summary>
+    /// The keyboard in a menu: the arrows or W A S D move the highlight, Enter or Space presses it, Q and E turn the pages of
+    /// the camp and of Help, Esc closes a card. True when the key was used up here.
+    /// </summary>
+    private bool menuKey(string code)
+    {
+        var root = overlayRoot();
+        if (root == null) return false;
+        string dir = code == "ArrowUp" || code == "KeyW" ? "up"
+            : code == "ArrowDown" || code == "KeyS" ? "down"
+            : code == "ArrowLeft" || code == "KeyA" ? "left"
+            : code == "ArrowRight" || code == "KeyD" ? "right" : null;
+        if (dir != null)
+        {
+            // left and right turn the pages of the journal and of letters (onKey)
+            if (bookOpen && (dir == "left" || dir == "right")) return false;
+            padNav(dir);
+            return true;
+        }
+        if (code == "Enter" || code == "NumpadEnter" || code == "Space")
+        {
+            menuAccept(root);
+            return true;
+        }
+        if (code == "KeyQ" || code == "KeyE")
+        {
+            int step = code == "KeyE" ? 1 : -1;
+            if (campModal.isOpen && root.classList.contains("camp")) campModal.stepTab(step);
+            else if (ui.helpStep(step)) audio.ui();
+            return true;
+        }
+        if (code == "Escape")
+        {
+            // the pause screen, the camp and the journal keep their own Esc (onKey)
+            if (started && !isDialog(root)) return false;
+            backButton(root)?.click();
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>The button last chosen in each open menu, so that closing a card returns to the button that opened it.</summary>
+    private readonly Dictionary<HTMLElement, HTMLElement> chosenIn = new Dictionary<HTMLElement, HTMLElement>();
+
+    /// <summary>
+    /// Every frame: an open menu always has one button chosen, whatever the player holds, and the line along the bottom of
+    /// the screen says what the keys or the controller's buttons do there.
+    /// </summary>
+    private void menuTick()
+    {
+        var root = overlayRoot();
+        if (root == null)
+        {
+            chosenIn.Clear();
+            if (mapOpen)
+            {
+                var keys = new List<Glyphs.Prompt>
+                {
+                    new Glyphs.Prompt("Move", new[] { "LS" }, new string[0]),
+                    new Glyphs.Prompt("Mark a place", new[] { "A" }, new[] { "Click" }),
+                };
+                if (ui.mapHasTabs) keys.Add(new Glyphs.Prompt("Other map", new[] { "LB", "RB" }, new[] { "T" }));
+                keys.Add(new Glyphs.Prompt("Close", new[] { "B" }, new[] { "Esc" }));
+                ui.setMenuBar(keys);
+            }
+            else ui.setMenuBar(null);
+            return;
+        }
+        var items = padFocusables(root);
+        var cur = document.activeElement;
+        if (cur != null && items.Contains(cur)) chosenIn[root] = cur;
+        else if (items.Count > 0 && !DomHost.IsTyping())
+        {
+            // back from a card that was opened over this menu: the button that opened it is chosen again. Otherwise a menu
+            // opens on the button it marks (Resume, Cancel), the camp on its current page, anything else on its first button
+            HTMLElement want = chosenIn.TryGetValue(root, out var last) && items.Contains(last) ? last : null;
+            want ??= root.querySelector<HTMLElement>(".default") ?? root.querySelector<HTMLElement>(".tab.on");
+            if (want == null || !items.Contains(want)) want = items[0];
+            want.focus();
+            cur = want;
+            if (chosenIn.Count > 12)
+                foreach (var gone in chosenIn.Keys.Where(k => !k.isConnected).ToList()) chosenIn.Remove(gone);
+        }
+        bool camp = root.classList.contains("camp");
+        var list = new List<Glyphs.Prompt>();
+        if (camp) list.Add(new Glyphs.Prompt("Page", new[] { "LB", "RB" }, new[] { "Q", "E" }));
+        else if (root.classList.contains("helpscreen")) list.Add(new Glyphs.Prompt("Topic", new[] { "LB", "RB" }, new[] { "Q", "E" }));
+        else if (bookOpen && root.classList.contains("bookview") && !root.classList.contains("teaser"))
+            list.Add(new Glyphs.Prompt("Turn the page", new[] { "LB", "RB" }, new[] { "A", "D" }));
+        if (cur != null && cur.onstep != null) list.Add(new Glyphs.Prompt("Change", new[] { "D-pad left", "D-pad right" }, new[] { "A", "D" }));
+        if (padScroller(root) != null) list.Add(new Glyphs.Prompt("Scroll", new[] { "RS" }, new[] { "Scroll" }));
+        if (items.Count > 0) list.Add(new Glyphs.Prompt("Select", new[] { "A" }, new[] { "Enter" }));
+        var back = backButton(root);
+        string leave = back != null ? (back.textContent ?? "").Trim() : started ? "Close" : null;
+        if (leave != null) list.Add(new Glyphs.Prompt(leave.Length <= 10 ? leave : "Back", new[] { "B" }, new[] { "Esc" }));
+        ui.setMenuBar(list, camp);
     }
 
     private void padButton(string b, bool down)
@@ -2339,17 +2517,7 @@ public class Game
         if (root != null)
         {
             if (!down) return;
-            if (b == "a")
-            {
-                var cur = document.activeElement;
-                if (cur is HTMLSelectElement sel) openPadOptions(sel);
-                else if (cur != null && root.contains(cur) && cur.tagName != "BODY") cur.click();
-                else
-                {
-                    var f = padFocusables(root);
-                    if (f.Count > 0) f[0].focus();
-                }
-            }
+            if (b == "a") menuAccept(root);
             else if (b == "b")
             {
                 var open = root.querySelector<HTMLElement>(".set-options");
@@ -2357,6 +2525,7 @@ public class Game
                 else padBack(root);
             }
             else if ((b == "lb" || b == "rb") && campModal.isOpen) campModal.stepTab(b == "rb" ? 1 : -1);
+            else if ((b == "lb" || b == "rb") && ui.helpStep(b == "rb" ? 1 : -1)) audio.ui();
             else if (b == "lb" && bookOpen) ui.bookTurn(-1);
             else if (b == "rb" && bookOpen) ui.bookTurn(1);
             else if (b == "start" && paused) padKey("Escape");
@@ -2472,11 +2641,7 @@ public class Game
         if (root != null)
         {
             foreach (var c in padKeys.ToArray()) setPadKey(c, false);
-            var items = padFocusables(root);
-            var cur = document.activeElement;
-            // the camp opens on its current page, not on the Close button at the top
-            if (items.Count > 0 && (cur == null || !items.Contains(cur))) (root.querySelector<HTMLElement>(".tab.on") ?? items[0]).focus();
-            // the right stick scrolls whatever long list is showing
+            // (menuTick sees to it that a button is chosen) the right stick scrolls whatever long list is showing
             if (pad.look.y != 0)
             {
                 var sc = padScroller(root);
@@ -2574,7 +2739,7 @@ public class Game
     {
         var st = settings;
         audio.setVolumes(st.master, st.music, st.ambience);
-        renderer.setPixelRatio((st.sharp ? Math.Min(window.devicePixelRatio, MAX_PIXEL_RATIO) : 1) * st.renderScale);
+        renderer.setPixelRatio(pixelRatio(st.sharp) * st.renderScale);
         resize();
         bool changed = renderer.shadowMap.enabled != st.shadows;
         renderer.shadowMap.enabled = st.shadows;
@@ -4885,7 +5050,7 @@ public class Game
     {
         // the camp panel hugs the right edge of the screen
         double px = (input.pointer.x + 1) / 2 * window.innerWidth;
-        return px > window.innerWidth - Math.Min(496, window.innerWidth * 0.94);
+        return px > window.innerWidth - Math.Min(624, window.innerWidth * 0.94);
     }
 
     private THREE.Vector2 zeroNDC = new THREE.Vector2(0, 0);
@@ -5073,12 +5238,14 @@ public class Game
 
     private void frame()
     {
-        if (wasLocked && !locked && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
+        // losing the mouse pauses the game (Esc, Alt-Tab), but not when it was let go because the player picked up a controller
+        if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
         wasLocked = locked;
 
         double rawDt = clock.getDelta();
         pad.poll(Math.Min(rawDt, 0.05));
         padUpdate(Math.Min(rawDt, 0.05));
+        menuTick();
         if (paused)
         {
             if (mapOpen)

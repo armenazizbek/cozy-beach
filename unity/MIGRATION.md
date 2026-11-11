@@ -37,6 +37,26 @@ system's Segoe UI Emoji came out as black outlines or empty boxes. The game ship
 - `Dom/EmojiText.cs` swaps each emoji in on-screen text for a `<sprite>` tag from that asset.
 - The build writes the Fluent licence to `ThirdPartyNotices.txt` next to the exe; keep that file in the shipped game.
 
+### The UI's look
+
+The menus and the HUD are built by the DOM layer (`Assets/Scripts/Dom`) from HTML-like elements, as in the browser game, but
+they no longer look like a web page:
+
+- **One page, scaled.** The UI is laid out on a 1920 x 1080 page that `DomHost` scales to the screen, so it takes up the same
+  share of a 720p window and a 4K TV. Sizes in `Assets/Resources/UI/Style.uss` are in those page pixels.
+- **The skin.** Panels, buttons, key caps, controller buttons, meters and frames are pictures in
+  `Assets/Resources/UI/Skin`, drawn by `Tools/UiSkin/make_skin.py` (plain Python, nothing to install) and stretched as
+  9-slices. **Run the script again after changing a colour or a shape in it.** `Assets/Editor/UiSkinImporter.cs` gives the
+  pictures their import settings; every build checks them.
+- **Keys as pictures.** `Assets/Scripts/UI/Glyphs.cs` draws the keys and buttons that prompts, hints and menus name: a key
+  cap for F, the green A button, a trigger, a mouse with a button lit. Hints are still written as plain sentences
+  ("Click to dig · F picks it up"); `Glyphs.fill` finds the keys in them.
+- **One highlight.** The mouse, the keyboard (arrows or W A S D, Enter, Esc, Q and E for tabs) and a controller all move the
+  same focus through a menu (`Game.menuKey`, `Game.padNav`, `HTMLElement.HoverFocus`), and a line along the bottom of every
+  menu says what the keys do (`Game.menuTick`, `UIManager.setMenuBar`).
+- **Fonts** come from the system for now (Trebuchet MS for text, Georgia Bold for headings). A font file put in
+  `Assets/Resources/UI/Fonts` as `Body`, `BodyBold` or `Display` is used instead, which is what a console build will need.
+
 ### Smoke test
 
 `Assets/Scripts/Core/AutoShot.cs` checks a build without anyone at the keyboard. It does nothing unless the game is started
@@ -52,6 +72,9 @@ Saves go to a `saves` folder inside the shot folder, so real saves are never rea
 
 Add `-autoshot-tour` to also photograph the screens with the most text (Lost & Found, Sell, Upgrades, Rest, journal,
 letters, Help, Credits), for checking text wrapping and scrolling.
+
+Add `-autoshot-ui` to photograph every menu and the HUD twice, as they look with the keyboard and with a controller
+(`ui-kb-*.png`, `ui-pad-*.png`). Add `-autoshot-pad` to drive the title menu with a virtual controller.
 
 Add `-autoshot-walk` to measure standing, walking and running. Each measurement logs the frame rate and the slowest parts
 of the game's frame in milliseconds (`THREE.Bridge.BridgeStats`; the `using (BridgeStats.Time(...))` lines in `Game.frame`).

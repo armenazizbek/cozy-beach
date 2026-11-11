@@ -17,6 +17,14 @@ public class HTMLElement
         "save-list",
         "ach-list",
         "help-body",
+        "set-rows",
+    };
+
+    /// <summary>Classes drawn in the heading face (DomHost.DisplayFont), as h1 and h2 are.</summary>
+    private static readonly HashSet<string> DisplayFontClasses = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "mm-title",
+        "display",
     };
 
     private static readonly HashSet<string> PointerNoneSet = new HashSet<string>(
@@ -61,6 +69,8 @@ public class HTMLElement
     public IReadOnlyList<HTMLElement> children => _children;
 
     public Action onclick;
+    /// <summary>Left and right on a focused control that has a value to change (a slider, a switch, a list of choices): -1 or 1.</summary>
+    public Action<int> onstep;
     public Action<Event> onpointerdown, onpointerenter, onpointerleave, onkeydown, onwheel, oninput, onchange, onscroll;
 
     private const string PILL = "t-pill";
@@ -69,7 +79,7 @@ public class HTMLElement
     /// The page's text-transform: uppercase rules (USS has no text-transform): the main menu's small line above the title,
     /// card categories, settings headings and journal page headings.
     /// </summary>
-    private const string UPPERCASE = ".mm-kicker, .card .cat, .set-rows .t-h3, .bp-head";
+    private const string UPPERCASE = ".mm-kicker, .card .cat, .set-rows .t-h3, .bp-head, .caps";
 
     /// <summary>The text as it is shown: uppercased where the page says so, emoji swapped for the colour sprites.</summary>
     private string DisplayText()
@@ -120,8 +130,42 @@ public class HTMLElement
             _tabIndex = 0;
         }
 
+        if (tagName == "H1" || tagName == "H2") UseDisplayFont();
+
         RegisterBaseEvents();
         UpdatePickingMode();
+    }
+
+    private bool _displayFont;
+
+    private void UseDisplayFont()
+    {
+        if (_displayFont || ve == null || DomHost.DisplayFont == null) return;
+        _displayFont = true;
+        ve.style.unityFontDefinition = FontDefinition.FromSDFFont(DomHost.DisplayFont);
+    }
+
+    /// <summary>
+    /// Takes the element out of the reach of the keyboard and the controller (and of a mouse press), for a control that sits
+    /// inside a row which is itself the thing that is chosen.
+    /// </summary>
+    public void noFocus()
+    {
+        _tabIndex = -1;
+        if (ve != null)
+        {
+            ve.focusable = false;
+            ve.tabIndex = -1;
+        }
+        classList.add("nofocus");
+    }
+
+    /// <summary>The mouse moving onto a button chooses it, so the mouse, the keyboard and a controller share one highlight.</summary>
+    private void HoverFocus()
+    {
+        if (_disabled || ve == null || !ve.focusable || document.activeElement == this) return;
+        if (tagName != "BUTTON" || !DomHost.MouseActive) return;
+        focus();
     }
 
     public string id
@@ -390,11 +434,8 @@ public class HTMLElement
         var tokens = classList.Tokens;
         for (int i = 0; i < tokens.Count; i++)
         {
-            if (ScrollableClasses.Contains(tokens[i]))
-            {
-                EnsureScrollView();
-                break;
-            }
+            if (ScrollableClasses.Contains(tokens[i])) EnsureScrollView();
+            if (DisplayFontClasses.Contains(tokens[i])) UseDisplayFont();
         }
 
         ApplyDisplay();
@@ -1282,6 +1323,7 @@ public class HTMLElement
         ve.RegisterCallback<PointerMoveEvent>(evt =>
         {
             if (_disabled) return;
+            HoverFocus();
             if (!_listeners.ContainsKey("pointermove")) return;
             var domEvt = new PointerEvent("pointermove")
             {
@@ -1298,6 +1340,7 @@ public class HTMLElement
 
         ve.RegisterCallback<PointerEnterEvent>(evt =>
         {
+            HoverFocus();
             if (onpointerenter == null && !_listeners.ContainsKey("pointerenter")) return;
             var domEvt = new PointerEvent("pointerenter")
             {
@@ -1596,46 +1639,14 @@ public class HTMLInputElement : HTMLElement
 
         if (_type == "range")
         {
-            ve.style.height = 24;
-            ve.style.justifyContent = Justify.Center;
-
+            // the look (track, fill and knob) is in Style.uss: .range-track, .range-fill, .range-thumb
+            ve.AddToClassList("range");
             _rangeTrack = new VisualElement { pickingMode = PickingMode.Ignore };
-            _rangeTrack.style.height = 8;
-            _rangeTrack.style.borderTopLeftRadius = 4;
-            _rangeTrack.style.borderTopRightRadius = 4;
-            _rangeTrack.style.borderBottomLeftRadius = 4;
-            _rangeTrack.style.borderBottomRightRadius = 4;
-            _rangeTrack.style.backgroundColor = new Color(0.31f, 0.22f, 0.12f, 0.25f);
-            _rangeTrack.style.position = Position.Relative;
-
+            _rangeTrack.AddToClassList("range-track");
             _rangeFill = new VisualElement { pickingMode = PickingMode.Ignore };
-            _rangeFill.style.height = Length.Percent(100);
-            _rangeFill.style.borderTopLeftRadius = 4;
-            _rangeFill.style.borderTopRightRadius = 4;
-            _rangeFill.style.borderBottomLeftRadius = 4;
-            _rangeFill.style.borderBottomRightRadius = 4;
-            _rangeFill.style.backgroundColor = new Color(0.85f, 0.50f, 0.25f, 1f);
-
+            _rangeFill.AddToClassList("range-fill");
             _rangeThumb = new VisualElement { pickingMode = PickingMode.Ignore };
-            _rangeThumb.style.position = Position.Absolute;
-            _rangeThumb.style.width = 16;
-            _rangeThumb.style.height = 16;
-            _rangeThumb.style.top = -4;
-            _rangeThumb.style.marginLeft = -8;
-            _rangeThumb.style.borderTopLeftRadius = 8;
-            _rangeThumb.style.borderTopRightRadius = 8;
-            _rangeThumb.style.borderBottomLeftRadius = 8;
-            _rangeThumb.style.borderBottomRightRadius = 8;
-            _rangeThumb.style.backgroundColor = new Color(0.97f, 0.93f, 0.84f, 1f);
-            _rangeThumb.style.borderTopWidth = 2;
-            _rangeThumb.style.borderRightWidth = 2;
-            _rangeThumb.style.borderBottomWidth = 2;
-            _rangeThumb.style.borderLeftWidth = 2;
-            var thumbBorder = new Color(0.73f, 0.35f, 0.16f, 1f);
-            _rangeThumb.style.borderTopColor = thumbBorder;
-            _rangeThumb.style.borderRightColor = thumbBorder;
-            _rangeThumb.style.borderBottomColor = thumbBorder;
-            _rangeThumb.style.borderLeftColor = thumbBorder;
+            _rangeThumb.AddToClassList("range-thumb");
 
             _rangeTrack.Add(_rangeFill);
             _rangeTrack.Add(_rangeThumb);
