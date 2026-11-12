@@ -214,6 +214,28 @@ public class AutoShot : MonoBehaviour
             game.smokeTestClose("map");
         }
 
+        // -autoshot-dive: the sea floor from a handful of places: the way in, the reef, the kelp, the wreck and the deep
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-dive") >= 0)
+        {
+            game.smokeTestGo("dive");
+            yield return Wait(3);
+            var views = new (string name, double x, double z, double up, double yaw, double pitch)[]
+            {
+                ("entry", 0, 46, 1.6, 0, -0.15), ("shallows", 8, 30, 1.6, 0.6, -0.2), ("reef", -10, 10, 1.7, -0.4, -0.25),
+                ("mid", 0, 0, 3.5, 0, -0.1), ("wreck", 14, -6, 2.2, 0, -0.2), ("wreck-near", 20, -14, 1.6, 1.0, -0.15),
+                ("deep", -15, -32, 2.0, 0.5, -0.1), ("up", 0, 5, 2.0, 0, 0.9), ("edge", 50, -40, 2.5, -1.57, -0.1),
+            };
+            foreach (var v in views)
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestDiveAt(v.x, v.z, v.up, v.yaw, v.pitch));
+                yield return Wait(1.6f);
+                yield return Shot($"22-dive-{v.name}.png");
+            }
+            yield return Measure("diving");
+            game.smokeTestGo("out");
+            yield return Wait(3);
+        }
+
         // -autoshot-dolphins: a run across open water with the pod called up: arriving, alongside, and left behind when the boat stops
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-dolphins") >= 0)
         {
@@ -276,6 +298,12 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] " + game.smokeTestLandmark(1, -gz * 5 + gx * 3, gx * 5 + gz * 3, -0.3));
             yield return Wait(2.5f);
             yield return Shot("17-lagoon-camp-side.png");
+            // frame rate while walking on the cay and on the rock, which are the heaviest places in the world
+            game.smokeTestLandmark(1, gx * 7.5, gz * 7.5, -0.12);
+            game.input.held.Add("KeyW");
+            yield return Wait(1);
+            yield return Measure("walking on the cay");
+            game.input.held.Clear();
             game.smokeTestIsland(lag.R * 0.86, Beach.LAGOON_GAP + 1.9, -0.1, 1);
             yield return Wait(2.5f);
             yield return Shot("17-lagoon-shore.png");
@@ -297,6 +325,10 @@ public class AutoShot : MonoBehaviour
             yield return Wait(2.5f);
             yield return Shot("18-ember-ashore.png");
             game.smokeTestIsland(emb.R * 0.8, -1.15, -0.02, 2);
+            game.input.held.Add("KeyW");
+            yield return Wait(1);
+            yield return Measure("walking on the rock");
+            game.input.held.Clear();
             yield return Wait(2.5f);
             yield return Shot("18-ember-columns.png");
             game.smokeTestIsland(emb.R * 0.72, 1.3, 0.1, 2);

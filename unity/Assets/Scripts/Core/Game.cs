@@ -874,6 +874,18 @@ public class Game
         return $"boat at {x:0.0}, {z:0.0}: depth {ocean.surfaceY - beach.heightAt(x, z):0.00}, landing {(l.island ? "island" : "beach")} at {l.x:0.0}, {l.z:0.0}, near {nearShore()}";
     }
 
+    /// <summary>For the -autoshot-dive test: puts the diver at a spot under the sea (metres from its middle), this high off the floor, looking this way.</summary>
+    internal string smokeTestDiveAt(double lx, double lz, double up, double yaw, double pitch)
+    {
+        player.x = UW.x + lx;
+        player.z = UW.z + lz;
+        diveY = under.floorAt(player.x, player.z) + up;
+        diveVel.set(0, 0, 0);
+        player.yaw = yaw;
+        player.pitch = pitch;
+        return $"diver at {lx:0}, {lz:0}: floor {under.floorAt(player.x, player.z):0.0}, eye {diveY:0.0}";
+    }
+
     /// <summary>For the -autoshot-dolphins test: takes the wheel out on open water, calls the pod and looks to one side.</summary>
     internal string smokeTestDolphins(double look)
     {

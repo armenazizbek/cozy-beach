@@ -16,7 +16,7 @@ public class Underwater
 
     private static readonly (double x, double z) WRECK = (UW.x + 14, UW.z - 18);
 
-    private static Func<double> seeded(int seed)
+    internal static Func<double> seeded(int seed)
     {
         int s = seed;
         return () =>
@@ -85,6 +85,8 @@ public class Underwater
     /// <summary>called with the spot where a fish was speared</summary>
     public Action<THREE.Vector3, double, string> onCatch = (_at, _reward, _label) => { };
     public readonly SeaCreatures creatures;
+    /// <summary>the light, the rock formations, the shoals and the jellyfish</summary>
+    private readonly UnderwaterDecor decor;
 
     public Underwater()
     {
@@ -117,7 +119,10 @@ public class Underwater
             pos.setXYZ(i, pos.getX(i), y, pos.getZ(i));
             double k = Math.Min(1, Math.Max(0, (-y - 5.4) / 21));
             double ripple = 0.5 + 0.5 * Math.Sin((x * 0.9 + Math.Sin(z * 0.3) * 2.2) * 1.6);
-            c.copy(sand).lerp(deep, k * 0.8).multiplyScalar(0.9 + ripple * 0.14);
+            // paler on the rises and darker in the hollows, with broad patches of coarser, greyer sand
+            double rise = Math.Sin((x - UW.x) * 0.05 + 0.8) * Math.Cos((z - UW.z) * 0.045 + 0.3);
+            double patch = 0.5 + 0.5 * Math.Sin(x * 0.21 + Math.Sin(z * 0.17) * 1.8) * Math.Sin(z * 0.19 - x * 0.07);
+            c.copy(sand).lerp(deep, k * 0.8).lerp(deep, patch * 0.22).multiplyScalar(0.88 + ripple * 0.12 + rise * 0.1);
             col[i * 3] = (float)c.r;
             col[i * 3 + 1] = (float)c.g;
             col[i * 3 + 2] = (float)c.b;
@@ -147,6 +152,7 @@ public class Underwater
         creatures = new SeaCreatures((x, z) => floorAt(x, z));
         group.add(creatures.group);
         layOutFinds(rand, coralSpots);
+        decor = new UnderwaterDecor(group, (x, z) => floorAt(x, z), WRECK, (o, ph, amp) => kelp.Add((o, ph, amp)));
         group.add(bubbles.points, motes.points);
     }
 
@@ -159,6 +165,8 @@ public class Underwater
         double y = (-9.6 + t * 7.8) * 3;
         y += Math.Sin(lx * 0.35 + lz * 0.12) * 0.1 + Math.Sin(lx * 0.13 - lz * 0.3) * 0.16;
         y += Math.Sin(lx * 0.07) * Math.Cos(lz * 0.06) * 0.8;
+        // long rises and hollows, so there is always something over the next ridge
+        y += Math.Sin(lx * 0.05 + 0.8) * Math.Cos(lz * 0.045 + 0.3) * 1.5 + Math.Sin(lx * 0.11 - lz * 0.09) * 0.45;
         return y;
     }
 
@@ -294,6 +302,20 @@ public class Underwater
         var keel = new THREE.Mesh(new THREE.BoxGeometry(11, 0.3, 0.4), wood);
         keel.position.y = 0.15;
         g.add(keel);
+        g.add(UnderwaterDecor.hullShell());
+        // the stump of the mainmast still stands, with its top and a spar hanging from it
+        var stump = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 4.6, 8), wood);
+        stump.position.set(0.8, 2.4, 0);
+        stump.rotation.set(0.1, 0, -0.14);
+        g.add(stump);
+        var top = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.4, 0.3, 10, 1, true), mossy);
+        top.position.set(1.25, 4.1, 0.2);
+        top.rotation.copy(stump.rotation);
+        g.add(top);
+        var spar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 3.6, 6), wood);
+        spar.position.set(1.0, 3.3, 0.1);
+        spar.rotation.set(Math.PI / 2 - 0.35, 0.3, 0.2);
+        g.add(spar);
         // the ribs of the hull, broken off in places
         for (int i = 0; i < 11; i++)
         {
@@ -726,6 +748,7 @@ public class Underwater
     public void setDaylight(double k)
     {
         ((THREE.MeshBasicMaterial)surface.material).color.copy(surfaceBase).multiplyScalar(k);
+        decor.setDaylight(k);
     }
 
     public void update(double dt, double t, THREE.Vector3 cam)
@@ -905,6 +928,7 @@ public class Underwater
                 moteColor);
         }
         creatures.update(dt, t, cam);
+        decor.update(dt, t, cam);
         bubbles.update(dt);
         motes.update(dt);
     }
