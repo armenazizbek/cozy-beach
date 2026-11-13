@@ -36,6 +36,8 @@ public class Rain
     public readonly THREE.Group group = new THREE.Group();
     /// <summary>0 dry .. 1 pouring</summary>
     public double amount = 0;
+    /// <summary>0 for ordinary rain; 1 for a storm, when it comes down harder and is blown almost sideways</summary>
+    public double gale = 0;
     private readonly THREE.LineSegments lines;
     private readonly float[] pos;
     private readonly double[] seeds;
@@ -65,8 +67,8 @@ public class Rain
         bool on = amount > 0.01;
         lines.visible = on;
         if (!on) return;
-        mat.opacity = amount * 0.5;
-        const double fall = 22, slant = 3;
+        mat.opacity = amount * (0.5 + gale * 0.25);
+        double fall = 22 + gale * 10, slant = 3 + gale * 15;
         for (int i = 0; i < DROPS; i++)
         {
             double y = seeds[i * 3 + 1] - fall * dt;
@@ -85,8 +87,8 @@ public class Rain
             pos[i * 6] = (float)wx;
             pos[i * 6 + 1] = (float)wy;
             pos[i * 6 + 2] = (float)wz;
-            pos[i * 6 + 3] = (float)(wx + slant * 0.03);
-            pos[i * 6 + 4] = (float)(wy + 0.7);
+            pos[i * 6 + 3] = (float)(wx + slant * (0.03 + gale * 0.012));
+            pos[i * 6 + 4] = (float)(wy + 0.7 + gale * 0.5);
             pos[i * 6 + 5] = (float)wz;
         }
         lines.geometry.attributes.position.needsUpdate = true;

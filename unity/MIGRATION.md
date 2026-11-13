@@ -92,6 +92,10 @@ its shore and at its landmark, then the big map (`17-*`, `18-*`, `19-*`). The lo
 off puts the player and where each island's finds lie. With `-autoshot-crust` as well, the workbench shots are of the far
 islands' six finds.
 
+Add `-autoshot-opening` to choose New Game and photograph the opening at a moment in each of its four shots (storm, reef,
+dawn, camp) and the how-to-play card after it (`24-*`). The log gives the caption, the rain and the hour at each. Keep
+hands off the keyboard and mouse while it runs: any key skips the opening.
+
 Add `-autoshot-dive` to photograph the sea floor from nine places (the way in, the reef, the wreck, the deep, looking up)
 and measure the frame rate down there (`22-*`).
 

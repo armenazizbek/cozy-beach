@@ -119,6 +119,32 @@ public class AutoShot : MonoBehaviour
             UnityEngine.InputSystem.InputSystem.RemoveDevice(pad);
         }
 
+        // -autoshot-opening: New Game, then the opening at a moment in each of its four shots, and the card that follows it
+        if (Array.IndexOf(args, "-autoshot-opening") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestOpening(true));
+            float began = Time.realtimeSinceStartup;
+            // the deck from above, and her waterline from the side, before the shot goes on as made
+            while (Time.realtimeSinceStartup - began < 1.5f) yield return null;
+            game.smokeTestOpeningView(1);
+            yield return Wait(0.6f);
+            yield return Shot("24-opening-deck.png");
+            game.smokeTestOpeningView(2);
+            yield return Wait(0.6f);
+            yield return Shot("24-opening-waterline.png");
+            game.smokeTestOpeningView(0);
+            foreach (var (at, name) in new[] { (4.0f, "storm"), (11.0f, "storm-2"), (16.5f, "reef"), (20.5f, "reef-2"), (26.0f, "dawn"), (37.0f, "camp"), (47.5f, "card") })
+            {
+                while (Time.realtimeSinceStartup - began < at) yield return null;
+                Debug.Log("[AutoShot] " + game.smokeTestOpening(false));
+                // in the storm the line above calls lightning, so the picture is taken in the first flash of it
+                if (name.StartsWith("storm") || name.StartsWith("reef")) yield return Wait(0.04f);
+                yield return Shot($"24-opening-{name}.png");
+            }
+            game.smokeTestClose("intro");
+            document.querySelector(".intro")?.remove();
+        }
+
         game.smokeTestAchievements();
         yield return Wait(1);
         yield return Shot("1b-achievements.png");

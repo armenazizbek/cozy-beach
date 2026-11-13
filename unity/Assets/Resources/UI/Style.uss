@@ -1136,6 +1136,56 @@
   opacity: 1;
 }
 
+/* the opening: one line of story at a time along the bottom, and a word on how to skip it */
+.cine-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 11%;
+  align-items: center;
+  opacity: 0;
+  transition-property: opacity;
+  transition-duration: 0.6s;
+  transition-timing-function: ease;
+}
+
+.cine-caption.in {
+  opacity: 1;
+}
+
+.cine-caption-text {
+  max-width: 980px;
+  padding: 14px 36px;
+  background-color: rgba(10, 14, 20, 0.6);
+  border-radius: 16px;
+  color: #fdf6e3;
+  font-size: 28px;
+  -unity-text-align: middle-center;
+  white-space: normal;
+}
+
+/* lightning: the whole screen whitens for an instant */
+.cine-flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e6efff;
+  opacity: 0;
+}
+
+.cine-skip {
+  position: absolute;
+  right: 30px;
+  top: 24px;
+  padding: 6px 16px;
+  background-color: rgba(10, 14, 20, 0.45);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+}
+
 /* ---------- cards: the pause screen, settings, saves, help and the rest ---------- */
 .intro,
 .pause {

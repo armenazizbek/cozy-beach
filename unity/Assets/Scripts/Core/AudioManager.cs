@@ -383,6 +383,15 @@ public class AudioManager
         host.engNoise.Target(level * 0.09, 0.1);
     }
 
+    /// <summary>Thunder: a sharp crack, then a long rumble rolling away. `near` 0..1 is how close the strike was.</summary>
+    public void thunder(double near = 1)
+    {
+        noise(0.22, 0.5 + 0.4 * near, Filter.Lowpass, 1800, 1, 0, 300);
+        noise(2.6, 0.55 + 0.35 * near, Filter.Lowpass, 220, 1, 0.08, 70);
+        tone(62, 1.8, Wave.Sine, 0.4 + 0.2 * near, 0.05, 34);
+        noise(1.6, 0.3, Filter.Lowpass, 140, 1, 1.4, 60);
+    }
+
     public void thud()
     {
         noise(0.18, 0.5, Filter.Lowpass, 260, 1);

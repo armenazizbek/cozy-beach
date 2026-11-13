@@ -1753,7 +1753,7 @@ public class UIManager
         <h1>Cozy Treasure Hunter</h1>
         <p class=""tag"">A misty golden morning. A quiet beach. Nothing to rush.</p>
         <div class=""intro-text"">
-          <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat. Long ago ships passed this coast, and some of them did not make it home.</p>
+          <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat.</p>
           <p>You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it.</p>
           <p>There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like.</p>
           <ul class=""intro-first"">
@@ -1776,6 +1776,56 @@ public class UIManager
     }
 
     /// <summary>Used when a saved game is loaded straight into play.</summary>
+    private HTMLElement cineCaption, cineText, cineSkip, cineFlash;
+
+    /// <summary>Lightning in the opening: whitens the whole screen by this much, 0..1.</summary>
+    public void setFlash(double amount)
+    {
+        if (this.cineFlash == null)
+        {
+            if (amount <= 0 || this.cineCaption == null) return;
+            this.cineFlash = el("div", "cine-flash");
+            // under the caption, so the words stay readable through the flash
+            this.root.insertBefore(this.cineFlash, this.cineCaption);
+        }
+        this.cineFlash.style.opacity = JS.Str(Math.Round(Math.Max(0, Math.Min(1, amount)) * 100) / 100);
+    }
+    private string cineShown = null;
+
+    /// <summary>
+    /// The opening's words: one line along the bottom of the screen, which fades out and in when it changes; null shows none.
+    /// `skipHint` is the small note in the corner on how to skip. Call with `on` false to take both away.
+    /// </summary>
+    public void setCaption(bool on, string text = null, string skipHint = null)
+    {
+        if (!on)
+        {
+            this.cineCaption?.remove();
+            this.cineSkip?.remove();
+            this.cineFlash?.remove();
+            this.cineCaption = this.cineText = this.cineSkip = this.cineFlash = null;
+            this.cineShown = null;
+            return;
+        }
+        if (this.cineCaption == null)
+        {
+            this.cineCaption = el("div", "cine-caption");
+            this.cineText = el("div", "cine-caption-text", "");
+            this.cineCaption.append(this.cineText);
+            this.cineSkip = el("div", "cine-skip", skipHint ?? "");
+            this.root.append(this.cineCaption, this.cineSkip);
+        }
+        if (text == this.cineShown) return;
+        this.cineShown = text;
+        if (text == null)
+        {
+            this.cineCaption.classList.remove("in");
+            return;
+        }
+        this.cineText.textContent = text;
+        this.cineCaption.classList.add("in");
+    }
+
     public void skipIntro()
     {
         this.intro.remove();

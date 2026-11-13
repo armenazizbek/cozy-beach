@@ -48,6 +48,8 @@ public class GamepadInput
     private double navT;
 
     public bool isDown(string b) => held.Contains(b);
+    /// <summary>True while any button at all is held.</summary>
+    public bool anyDown => held.Count > 0;
 
     private static bool Pressed(Gamepad p, int i)
     {

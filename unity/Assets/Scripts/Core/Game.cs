@@ -874,6 +874,20 @@ public class Game
         return $"boat at {x:0.0}, {z:0.0}: depth {ocean.surfaceY - beach.heightAt(x, z):0.00}, landing {(l.island ? "island" : "beach")} at {l.x:0.0}, {l.z:0.0}, near {nearShore()}";
     }
 
+    /// <summary>For the -autoshot-opening test: 1 looks down on the Marigold's deck, 2 looks along her waterline, 0 is the shot as made.</summary>
+    internal void smokeTestOpeningView(int v)
+    {
+        if (opening != null) opening.smokeView = v;
+    }
+
+    /// <summary>For the -autoshot-opening test: starts the opening as New Game does, and says where it has got to.</summary>
+    internal string smokeTestOpening(bool start)
+    {
+        if (start) menuNewGame();
+        else if (opening != null && opening.gale > 0) opening.smokeStrike();
+        return opening != null ? $"opening at {opening.time:0.0}s, caption: {opening.caption ?? "none"}, rain {rain.amount:0.0}, hour {dayTime:0.00}" : $"opening over; card up: {ui.introOpen}";
+    }
+
     /// <summary>For the -autoshot-dive test: puts the diver at a spot under the sea (metres from its middle), this high off the floor, looking this way.</summary>
     internal string smokeTestDiveAt(double lx, double lz, double up, double yaw, double pitch)
     {
@@ -2401,6 +2415,14 @@ public class Game
         // rainy days: a spell of rain on about one day in three, only while the day cycle runs (Rain.rainWindow)
         var win = rainWindow(state.data.day);
         bool raining = mode == "rain" || (mode == "cycle" && win != null && dayTime > win.start && dayTime < win.end);
+        if (opening != null)
+        {
+            // the opening has its own hour and its own weather, and they change at a cut, not gradually
+            dayTime = opening.dayTime;
+            raining = opening.raining;
+            rain.amount = raining ? 1 : 0;
+            wasRaining = raining;
+        }
         rain.update(dt, raining ? 1 : 0, camera.position);
         if (raining != wasRaining)
         {
@@ -2410,9 +2432,12 @@ public class Game
         }
         sky.rain = rain.amount;
         if (sky.isDark) discover("night_first");
-        audio.setRain(rain.amount);
+        // the rain is a sound of the open air: under the sea it is not heard at all
+        audio.setRain(diving ? 0 : rain.amount);
         sky.focus.set(player.x, 0, player.z);
         sky.setTime(dayTime);
+        // lightning lights the whole sky for a moment
+        if (opening != null && opening.flash > 0) sky.hemi.intensity += opening.flash * 7;
         ocean.setNight(sky.starAmount);
         double t = dayTime;
         ui.setClock(rain.amount > 0.4 ? "🌧️" : t < 0.08 || t > 0.94 ? "🌅" : t < 0.5 ? "☀️" : t < 0.64 ? "🌇" : "🌙", state.data.day);
@@ -3100,11 +3125,60 @@ public class Game
         });
     }
 
-    /// <summary>"New Game": the controls card first, then the adventure begins.</summary>
+    /// <summary>"New Game": the opening first, then the controls card, then the adventure begins.</summary>
     private void menuNewGame()
     {
         ui.hideMainMenu();
-        ui.showIntro(() => beginPlay());
+        ui.fade(() => startOpening());
+    }
+
+    /// <summary>the opening while it plays, and the hour it interrupted</summary>
+    private Opening opening = null;
+    private double openingDayTime = 0;
+    private double openingArmed = 0;
+
+    private void startOpening()
+    {
+        opening = new Opening { volume = settings.master };
+        scene.add(opening.group);
+        openingDayTime = dayTime;
+        openingArmed = 0;
+        input.keys.Clear();
+        ui.setCaption(true, null, "Press any key to skip");
+    }
+
+    /// <summary>The opening is over, or was skipped: the world goes back to its own morning and the controls card comes up.</summary>
+    private void endOpening()
+    {
+        if (opening == null) return;
+        var was = opening;
+        opening = null;
+        was.dispose();
+        rain.gale = 0;
+        ui.setCaption(false);
+        ui.fade(() =>
+        {
+            scene.remove(was.group);
+            dayTime = openingDayTime;
+            rain.amount = 0;
+            sky.setTime(dayTime);
+            menuT = 0;
+            menuShot = 0;
+            pickMenuTarget();
+            if (gameState == "MENU" && !started) ui.showIntro(() => beginPlay());
+        });
+    }
+
+    private void updateOpening(double dt)
+    {
+        opening.update(dt, camera, ocean.surfaceY, (x, z) => ocean.swellAt(x, z), (x, z) => beach.heightAt(x, z), mid => ui.fade(mid), () => audio.thunder(0.6 + JS.Random() * 0.4));
+        ui.setCaption(true, opening.caption);
+        ui.setFlash(opening.flash * 0.34);
+        rain.gale = opening.gale;
+        // any key, click or controller button skips it, once it has been up long enough not to be skipped by the press that started it
+        openingArmed += dt;
+        bool pressed = input.keys.Count > 0 || (input.buttons & 1) == 1 || pad.anyDown;
+        if (opening.done || (openingArmed > 0.8 && pressed)) endOpening();
     }
 
     private void beginPlay()
@@ -5284,7 +5358,8 @@ public class Game
         audio.setMenu(menu);
         if (menu)
         {
-            audio.setMusicLevel(1, 1);
+            // the music drops back while the narrator is speaking
+            audio.setMusicLevel(opening != null ? 0.3 : 1, 1);
             return;
         }
         if (!audio.radioOn) return;
@@ -5664,7 +5739,8 @@ public class Game
         }
 
         audio.detectorEnabled = gameState == "EXPLORE" && tool == 1 && !driving && !alt;
-        if (gameState == "MENU") updateMenuCamera(dt);
+        if (opening != null) updateOpening(dt);
+        else if (gameState == "MENU") updateMenuCamera(dt);
         else using (THREE.Bridge.BridgeStats.Time("camera+move")) updateCamera(dt);
         using (THREE.Bridge.BridgeStats.Time("music")) updateMusic();
         using (THREE.Bridge.BridgeStats.Time("interaction")) updateInteraction();
