@@ -1086,7 +1086,7 @@ public class Island
         if (lighthouse != null)
         {
             double light = (fog.r + fog.g + fog.b) / 3;
-            lighthouse.update(t, dt, Math.Max(0, Math.Min(1, (0.42 - light) / 0.27)));
+            lighthouse.update(t, dt, Math.Max(0, Math.Min(1, (0.42 - light) / 0.27)), surfaceY);
         }
         foreach (var p in palms)
         {

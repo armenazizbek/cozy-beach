@@ -104,6 +104,8 @@ public class GameData
     public List<string> aquarium = new List<string>();
     /// <summary>fish landed with the rod, all told</summary>
     public int fishCaught = 0;
+    /// <summary>the lighthouse on the ember rock has been brushed clean, so its lamp shines at night and ships sail the horizon</summary>
+    public bool lighthouseCleaned = false;
 
     public GameData DeepClone() => JsonConvert.DeserializeObject<GameData>(JsonConvert.SerializeObject(this, SaveGame.Json), SaveGame.Json);
 }

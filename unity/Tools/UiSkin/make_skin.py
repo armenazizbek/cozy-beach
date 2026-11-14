@@ -119,6 +119,7 @@ def circle(cx, cy, r):
 def poly(points, round_=0.0):
     """A convex polygon, points clockwise on screen (y down), corners rounded by round_."""
     edges = []
+    segs = []
     n = len(points)
     for i in range(n):
         ax, ay = points[i]
@@ -126,9 +127,18 @@ def poly(points, round_=0.0):
         ex, ey = bx - ax, by - ay
         ln = math.hypot(ex, ey)
         edges.append((ax, ay, ey / ln, -ex / ln))  # outward normal for clockwise points with y down
+        segs.append((ax, ay, ex, ey, ln * ln))
 
     def f(x, y):
-        return max((x - ax) * nx + (y - ay) * ny for ax, ay, nx, ny in edges) - round_
+        inside = max((x - ax) * nx + (y - ay) * ny for ax, ay, nx, ny in edges)
+        if inside <= 0:
+            return inside - round_
+        best = min(
+            math.hypot(x - (ax + clamp(((x - ax) * ex + (y - ay) * ey) / l2) * ex),
+                       y - (ay + clamp(((x - ax) * ex + (y - ay) * ey) / l2) * ey))
+            for ax, ay, ex, ey, l2 in segs
+        )
+        return best - round_
     return f
 
 
@@ -308,14 +318,14 @@ def minimap_ring():
 
 def menu_plate():
     """Behind the chosen line of the main menu: a slanted coral plate with a hard shadow."""
-    w, h, sk = 96, 60, 9
+    w, h, sk = 96, 64, 9
     im = Img(w, h)
-    body = poly([(sk + 3, 3), (w - 7, 3), (w - 7 - sk, h - 11), (3, h - 11)], 2.5)
+    body = poly([(sk + 7, 6.5), (w - 10, 6.5), (w - 10 - sk, h - 12.5), (7, h - 12.5)], 2.5)
     im.fill(shift(body, 4, 6), (20, 12, 8), 0.4)
     im.fill(grow(body, 3), INK)
     im.fill(body, CORAL_LIP)
     im.fill(shift(body, 0, -4), CORAL, clip=body)
-    im.fill(shift(body, 0, -4), CORAL_HI, clip=both(body, above(9)))
+    im.fill(shift(body, 0, -4), CORAL_HI, clip=both(body, above(12.5)))
     return im
 
 

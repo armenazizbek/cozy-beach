@@ -1700,9 +1700,9 @@ public class UIManager
         }, 320);
     }
 
-    public void showInspect(string name)
+    public void showInspect(string name, string customTitle = null)
     {
-        this.inspectTitle.textContent = name == "" ? "" : "Something encrusted in sand…";
+        this.inspectTitle.textContent = customTitle ?? (name == "" ? "" : "Something encrusted in sand…");
         this.result.classList.add("hidden");
         this.inspect.classList.remove("hidden");
         this.setProgress(0);

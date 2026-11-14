@@ -1992,9 +1992,9 @@
   text-shadow: 0 3px 0 rgba(120, 40, 24, 0.85);
   background-image: resource("UI/Skin/menu-plate");
   -unity-slice-left: 56;
-  -unity-slice-top: 40;
+  -unity-slice-top: 0;
   -unity-slice-right: 56;
-  -unity-slice-bottom: 52;
+  -unity-slice-bottom: 0;
   -unity-slice-scale: 0.5px;
 }
 

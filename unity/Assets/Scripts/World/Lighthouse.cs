@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using static Beach;
 
 /// <summary>
 /// The lighthouse on the summit of the ember rock. A white tower with red bands and a wooden door at its foot; inside, a stair
 /// winds up round a stone column to the top, where it comes out on an open deck with a railing. In the middle of the deck
-/// stands the lantern, a glass room with the lamp in it, and the deck runs all the way round it. At night the lamp turns,
-/// and its beams sweep the sea.
+/// stands the lantern, a glass room with the lamp in it, and the deck runs all the way round it.
+///
+/// Initially the lighthouse is encrusted with sand and salt, and its lamp stays dark even at night. Once the player brushes it
+/// clean (on the workbench, like a find from the beach), a short intro shows day turning to night, ships setting out along the
+/// horizon and the lighthouse beams sweeping over them; from then on the lamp shines every night and ships travel the horizon.
 ///
 /// It also says where the player can walk: the walls, the door, the column, the stair and the deck are all handled here
 /// (<see cref="walk"/>), because none of them can be told from the height of the ground.
@@ -48,9 +52,56 @@ public class Lighthouse
     /// <summary>how high the player's feet are above the tower's floor</summary>
     private double feet = 0;
 
+    /// <summary>false while the lamp is still caked in sand and salt; true once the player has climbed up and brushed it clean</summary>
+    public bool cleaned { get; private set; } = false;
+    /// <summary>the sand crust canvas used when brushing the lighthouse lamp on the workbench</summary>
+    public HTMLCanvasElement crustCanvas;
+
+    private readonly THREE.MeshStandardMaterial cleanPaint = new THREE.MeshStandardMaterial { color = 0xffffff, vertexColors = true, roughness = 0.85, flatShading = false };
+    private readonly THREE.MeshStandardMaterial cleanGlass = new THREE.MeshStandardMaterial { color = 0xcfe6ee, roughness = 0.05, metalness = 0.2, transparent = true, opacity = 0.28, side = THREE.Side.DoubleSide, depthWrite = false };
+    private readonly THREE.MeshStandardMaterial sandCrustMat = new THREE.MeshStandardMaterial { color = 0x9c825b, vertexColors = true, roughness = 0.97, flatShading = true };
+
+    private readonly THREE.Group dirtGroup = new THREE.Group();
+    private THREE.MeshStandardMaterial brassMat;
     private THREE.MeshStandardMaterial lensMat;
     private readonly List<THREE.MeshBasicMaterial> beamMats = new List<THREE.MeshBasicMaterial>();
-    private THREE.Group beams;
+    public THREE.Group beams { get; private set; }
+    private double beamPhase = 0;
+    private double lastNight = 0;
+
+    // ---------------------------------------------------------------- horizon ships & intro
+
+    public class HorizonShip
+    {
+        public THREE.Group root, vessel;
+        public List<THREE.MeshStandardMaterial> solidMats = new List<THREE.MeshStandardMaterial>();
+        public THREE.MeshStandardMaterial hullMat, cabinMat;
+        public THREE.MeshBasicMaterial glowMat, navRedMat, navGreenMat, patchMat, wakeMat;
+        public List<THREE.Mesh> lamps = new List<THREE.Mesh>();
+        public double startX, startZ, endX, endZ, duration, pause, offset, baseScale;
+        public double x, z, heading, lit, fade;
+    }
+
+    public readonly THREE.Group shipsGroup = new THREE.Group();
+    public readonly List<HorizonShip> ships = new List<HorizonShip>();
+    private double shipTime = 0;
+
+    private static readonly double[] INTRO_CUTS = { 4.2, 8.4 };
+    public const double INTRO_LENGTH = 8.4;
+    private static readonly (double from, double to, string text)[] INTRO_CAPTIONS =
+    {
+        (0.3, 3.9, "Day gives way to night, and the cleaned lamp shines out across the dark water."),
+        (4.4, 8.1, "Far out on the horizon, distant ships appear and pass through the night as the beam sweeps the sea."),
+    };
+
+    public bool introActive { get; private set; } = false;
+    public double introTime { get; private set; } = 0;
+    public bool introDone => introTime >= INTRO_LENGTH;
+    public double introDayTime { get; private set; } = 0.78;
+    public string introCaption { get; private set; } = null;
+    private int introShot = -1;
+    private bool introCutting = false;
+    private double introStartDay = 0.28;
 
     public Lighthouse(double x, double z, double groundY, double door)
     {
@@ -64,6 +115,7 @@ public class Lighthouse
         buildStair();
         buildTop();
         buildDoor();
+        buildDirt();
     }
 
     // ---------------------------------------------------------------- shape
@@ -123,8 +175,9 @@ public class Lighthouse
     }
 
     private const int WHITE = 0xf1ece0, RED = 0xb8322a, STONE = 0x8d877c, STONE_DARK = 0x6f6a62, WOOD = 0x6b4a30, IRON = 0x2f3236;
+    private const int SAND_A = 0x9c825b, SAND_B = 0x8a714c, SAND_C = 0xab9269;
 
-    private void add(List<THREE.BufferGeometry> parts, THREE.Material mat, bool shadows = true)
+    private THREE.Mesh add(List<THREE.BufferGeometry> parts, THREE.Material mat, bool shadows = true)
     {
         var g = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
         g.computeVertexNormals();
@@ -132,9 +185,8 @@ public class Lighthouse
         m.castShadow = shadows;
         m.receiveShadow = true;
         group.add(m);
+        return m;
     }
-
-    private static readonly THREE.MeshStandardMaterial PAINT = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.85, flatShading = false };
 
     /// <summary>The tower: its walls with the doorway, red bands, a stone footing, small windows, the floor inside and the column.</summary>
     private void buildTower()
@@ -183,7 +235,7 @@ public class Lighthouse
         // the floor inside, and the stone column the stair winds round
         parts.Add(sector(0, inner(0) + 0.05, 0, inner(0) + 0.05, 0, Math.PI * 2, -0.25, 0.02, 32, STONE_DARK));
         parts.Add(sector(0, CORE, 0, CORE, 0, Math.PI * 2, 0, H, 32, 0xa49d90));
-        add(parts, PAINT);
+        add(parts, cleanPaint);
     }
 
     /// <summary>
@@ -289,7 +341,7 @@ public class Lighthouse
             // the front edge of each tread, a little darker
             parts.Add(sector(CORE + 0.01, r - 0.01, CORE + 0.01, r - 0.01, a0 - 0.006, a0 + 0.02, top - 0.03, top + 0.005, 1, STONE_DARK));
         }
-        add(parts, PAINT);
+        add(parts, cleanPaint);
     }
 
     /// <summary>The top: the deck with its hole for the stair, the railing, the lantern's glass room and its roof.</summary>
@@ -326,11 +378,9 @@ public class Lighthouse
         var spike = new THREE.CylinderGeometry(0.02, 0.03, 0.8, 5);
         spike.translate(0, H + 5.0, 0);
         parts.Add(Ecology.paint(spike, IRON));
-        add(parts, PAINT);
+        add(parts, cleanPaint);
         // the glass, between the bars
-        var glass = new THREE.Mesh(
-            new THREE.CylinderGeometry(LANTERN - 0.07, LANTERN - 0.07, 2.1, 24, 1, true),
-            new THREE.MeshStandardMaterial { color = 0xcfe6ee, roughness = 0.05, metalness = 0.2, transparent = true, opacity = 0.28, side = THREE.Side.DoubleSide, depthWrite = false });
+        var glass = new THREE.Mesh(new THREE.CylinderGeometry(LANTERN - 0.07, LANTERN - 0.07, 2.1, 24, 1, true), cleanGlass);
         glass.position.y = H + 1.85;
         glass.renderOrder = 3;
         group.add(glass);
@@ -369,46 +419,144 @@ public class Lighthouse
         parts.Add(Ecology.paint(ring2, IRON));
         var g = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
         g.computeVertexNormals();
-        var m = new THREE.Mesh(g, PAINT);
+        var m = new THREE.Mesh(g, cleanPaint);
         m.castShadow = true;
         doorPivot.add(m);
         group.add(doorPivot);
     }
 
     /// <summary>
-    /// The lamp and its beams. They are added apart from the rest, after the island has set up its haze: the lamp shines by its
-    /// own light, so the distance must not grey it.
+    /// Crusty sand and dried salt caked directly onto the lamp inside the lantern room before the player climbs up, takes the
+    /// lamp and cleans it. Hidden once <see cref="setClean"/> is called with true.
+    /// </summary>
+    private void buildDirt()
+    {
+        var rand = Stones.rng(913);
+        var parts = new List<THREE.BufferGeometry>();
+        int[] cols = { SAND_A, SAND_B, SAND_C };
+        // sand crust around the foot of the brass lamp stand
+        parts.Add(sector(0.18, 0.48, 0.16, 0.36, 0, Math.PI * 2, H + 0.78, H + 1.05, 16, SAND_B));
+        // crusty shell patches caked over the Fresnel lens sphere (y = H + 1.6, r = 0.5)
+        var shell = new THREE.SphereGeometry(0.535, 14, 10);
+        shell.scale(1.02, 0.96, 1.02);
+        shell.translate(0, H + 1.6, 0);
+        parts.Add(Ecology.paint(shell, SAND_A));
+        // lumpy sand and salt clods clinging around the lens and brass rings
+        for (int i = 0; i < 24; i++)
+        {
+            double a = rand() * Math.PI * 2;
+            double v = (rand() - 0.45) * 1.1;
+            double r = 0.46 * Math.Cos(v * 0.7);
+            double y = H + 1.55 + v * 0.52;
+            double s = 0.11 + rand() * 0.12;
+            var clod = new THREE.SphereGeometry(s, 7, 5);
+            clod.scale(0.8 + rand() * 0.4, 0.7 + rand() * 0.4, 0.9 + rand() * 0.4);
+            clod.rotateY(-a);
+            clod.translate(Math.Cos(a) * r, y, Math.Sin(a) * r);
+            parts.Add(Ecology.paint(clod, cols[i % 3]));
+        }
+        var g = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
+        g.computeVertexNormals();
+        var mesh = new THREE.Mesh(g, sandCrustMat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        dirtGroup.add(mesh);
+        group.add(dirtGroup);
+    }
+
+    /// <summary>
+    /// Builds a clean standalone model of the lighthouse lamp (brass stand, glowing Fresnel lens and brass dioptric rings) for
+    /// the cleaning workbench, where it is wrapped in a sand crust and brushed clean by the player just like a beach find.
+    /// </summary>
+    public static THREE.Group buildCleanModel()
+    {
+        var root = new THREE.Group();
+        var brass = new THREE.MeshStandardMaterial { color = 0xc79a3a, roughness = 0.32, metalness = 0.72 };
+        var darkBrass = new THREE.MeshStandardMaterial { color = 0x8a6824, roughness = 0.45, metalness = 0.65 };
+        var glass = new THREE.MeshStandardMaterial { color = 0xfff1c8, emissive = 0xffd27a, emissiveIntensity = 0.55, roughness = 0.12, metalness = 0.1 };
+
+        // flared brass base and pedestal stand
+        var baseFoot = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.44, 0.12, 20), darkBrass);
+        baseFoot.position.y = 0.06;
+        root.add(baseFoot);
+        var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.72, 16), brass);
+        stand.position.y = 0.48;
+        root.add(stand);
+        var collar = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 8, 24), darkBrass);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = 0.84;
+        root.add(collar);
+
+        // the Fresnel lens sphere
+        const double ly = 1.38;
+        var lens = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 18), glass);
+        lens.position.y = ly;
+        root.add(lens);
+
+        // horizontal brass Fresnel rings
+        for (int i = -2; i <= 2; i++)
+        {
+            var band = new THREE.Mesh(new THREE.TorusGeometry(0.52 * Math.Cos(i * 0.32) + 0.02, 0.028, 8, 28), brass);
+            band.rotation.x = Math.PI / 2;
+            band.position.y = ly + Math.Sin(i * 0.32) * 0.52;
+            root.add(band);
+        }
+        // vertical brass ribs joining the rings
+        for (int i = 0; i < 4; i++)
+        {
+            var rib = new THREE.Mesh(new THREE.TorusGeometry(0.53, 0.018, 6, 24), darkBrass);
+            rib.rotation.y = i * Math.PI / 4;
+            rib.position.y = ly;
+            root.add(rib);
+        }
+        // top brass cap and carrying ring
+        var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 0.11, 16), brass);
+        cap.position.y = ly + 0.54;
+        root.add(cap);
+        var handle = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.022, 8, 18), brass);
+        handle.position.y = ly + 0.66;
+        root.add(handle);
+
+        var box = new THREE.Box3().setFromObject(root);
+        var c = box.getCenter(new THREE.Vector3());
+        foreach (var ch in root.children) ch.position.sub(c);
+        return root;
+    }
+
+    /// <summary>
+    /// The lamp, its beams and the ships on the horizon. They are added apart from the rest, after the island has set up its
+    /// haze: the lamp shines by its own light, so the distance must not grey it.
     /// </summary>
     public void buildLight(THREE.Group into)
     {
         var holder = new THREE.Group();
         holder.position.copy(group.position);
         // a brass stand and the lens: a glowing ball girdled with the rings of the glass that bends the light
-        var brass = new THREE.MeshStandardMaterial { color = 0xc79a3a, roughness = 0.35, metalness = 0.7 };
-        var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.0, 12), brass);
+        brassMat = new THREE.MeshStandardMaterial { color = 0x6e5a3a, roughness = 0.85, metalness = 0.2, fog = false };
+        var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 1.0, 12), brassMat);
         stand.position.y = H + 0.5;
         holder.add(stand);
-        lensMat = new THREE.MeshStandardMaterial { color = 0xfff1c8, emissive = 0xffd27a, emissiveIntensity = 0.6, roughness = 0.1, fog = false };
+        lensMat = new THREE.MeshStandardMaterial { color = 0x6e604b, emissive = 0xffd27a, emissiveIntensity = 0, roughness = 0.9, fog = false };
         var lens = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 14), lensMat);
         lens.position.y = H + 1.6;
         holder.add(lens);
         for (int i = -2; i <= 2; i++)
         {
-            var band = new THREE.Mesh(new THREE.TorusGeometry(0.5 * Math.Cos(i * 0.32) + 0.02, 0.025, 6, 24), brass);
+            var band = new THREE.Mesh(new THREE.TorusGeometry(0.5 * Math.Cos(i * 0.32) + 0.02, 0.025, 6, 24), brassMat);
             band.rotation.x = Math.PI / 2;
             band.position.y = H + 1.6 + Math.Sin(i * 0.32) * 0.5;
             holder.add(band);
         }
-        // two beams, back to back, each fading out along its length
+        // two beams, back to back, each fading out along its length and reaching out toward the horizon
         beams = new THREE.Group();
         beams.position.y = H + 1.6;
+        beams.visible = false;
         foreach (var flip in new[] { 0.0, Math.PI })
         {
-            const double len = 70;
-            var cone = new THREE.ConeGeometry(6, len, 20, 6, true);
+            const double len = 520;
+            var cone = new THREE.ConeGeometry(22.0, len, 20, 6, true);
             cone.translate(0, -len / 2, 0);
-            cone.rotateZ(Math.PI / 2);
-            cone.rotateX(0.04);
+            cone.rotateZ(Math.PI / 2 - 0.032);
             var cp = cone.attributes.position;
             var col = new float[cp.count * 3];
             for (int i = 0; i < cp.count; i++)
@@ -427,17 +575,321 @@ public class Lighthouse
         }
         holder.add(beams);
         into.add(holder);
+
+        buildShips();
+        into.add(shipsGroup);
+        setClean(cleaned);
     }
 
-    // ---------------------------------------------------------------- the door
+    /// <summary>Switches the lighthouse lamp between its initial sand-encrusted state and its cleaned, shining state.</summary>
+    public void setClean(bool on)
+    {
+        cleaned = on;
+        dirtGroup.visible = !on;
+        if (brassMat != null)
+        {
+            brassMat.color.setHex(on ? 0xc79a3a : 0x6e5a3a);
+            brassMat.roughness = on ? 0.35 : 0.85;
+            brassMat.metalness = on ? 0.7 : 0.2;
+        }
+        if (lensMat != null)
+        {
+            lensMat.color.setHex(on ? 0xfff1c8 : 0x6e604b);
+            lensMat.roughness = on ? 0.1 : 0.9;
+            lensMat.emissiveIntensity = on ? 0.5 + lastNight * 2.2 : 0;
+        }
+        if (beams != null) beams.visible = on && lastNight > 0.001;
+        foreach (var m in beamMats) m.opacity = on ? 0.22 * lastNight : 0;
+        shipsGroup.visible = on && lastNight > 0.15;
+    }
+
+    // ---------------------------------------------------------------- distant horizon ships (night only, unreachable)
+
+    private HorizonShip makeHorizonShip(double startX, double startZ, double endX, double endZ, double duration, double pause, double offset, double baseScale)
+    {
+        var root = new THREE.Group();
+        var vessel = new THREE.Group();
+        vessel.scale.setScalar(baseScale);
+        vessel.rotation.order = "YXZ";
+
+        var hullMat = new THREE.MeshStandardMaterial { color = 0x1b2634, emissive = 0xc9964c, emissiveIntensity = 0, roughness = 0.82, side = THREE.Side.DoubleSide, fog = false };
+        var bootMat = new THREE.MeshStandardMaterial { color = 0x6b2822, roughness = 0.88, side = THREE.Side.DoubleSide, fog = false };
+        var deckMat = new THREE.MeshStandardMaterial { color = 0x36414d, roughness = 0.9, side = THREE.Side.DoubleSide, fog = false };
+        var cabinMat = new THREE.MeshStandardMaterial { color = 0xdce3ec, emissive = 0xffdf9a, emissiveIntensity = 0, roughness = 0.75, side = THREE.Side.DoubleSide, fog = false };
+        var stackMat = new THREE.MeshStandardMaterial { color = 0xb54434, roughness = 0.8, fog = false };
+        var darkMat = new THREE.MeshStandardMaterial { color = 0x151b22, roughness = 0.85, fog = false };
+
+        var glowMat = new THREE.MeshBasicMaterial { color = 0xffd88a, fog = false };
+        var navRedMat = new THREE.MeshBasicMaterial { color = 0xff4b3e, fog = false };
+        var navGreenMat = new THREE.MeshBasicMaterial { color = 0x3ce87a, fog = false };
+
+        var lamps = new List<THREE.Mesh>();
+        THREE.Mesh put(THREE.BufferGeometry g, THREE.Material m, double x, double y, double z)
+        {
+            var mesh = new THREE.Mesh(g, m);
+            mesh.position.set(x, y, z);
+            vessel.add(mesh);
+            return mesh;
+        }
+
+        // sleek coaster/steamer hull: main body + flared bow wedge + stern counter
+        put(new THREE.BoxGeometry(3.4, 1.8, 12.0), hullMat, 0, 0.9, 1.2);
+        put(new THREE.BoxGeometry(3.48, 0.45, 12.1), bootMat, 0, 0.15, 1.2);
+        var bow = new THREE.ConeGeometry(2.4, 5.2, 4);
+        bow.rotateY(Math.PI / 4);
+        bow.rotateX(-Math.PI / 2);
+        bow.scale(1.0, 0.55, 1.0);
+        put(bow, hullMat, 0, 0.95, -7.2);
+        put(new THREE.BoxGeometry(3.1, 0.25, 11.4), deckMat, 0, 1.85, 1.2);
+
+        // raised forecastle at the bow
+        put(new THREE.BoxGeometry(3.2, 0.75, 3.4), hullMat, 0, 2.1, -3.6);
+
+        // aft/midships white bridge superstructure (two tiers)
+        put(new THREE.BoxGeometry(2.6, 1.35, 4.8), cabinMat, 0, 2.5, 2.8);
+        put(new THREE.BoxGeometry(2.2, 1.15, 2.6), cabinMat, 0, 3.7, 2.1);
+        put(new THREE.BoxGeometry(2.4, 0.18, 2.9), darkMat, 0, 4.32, 2.1);
+
+        // raked smokestack behind the bridge
+        var stack = put(new THREE.CylinderGeometry(0.42, 0.48, 2.2, 10), stackMat, 0, 4.2, 3.9);
+        stack.rotation.x = 0.14;
+        var stackTop = put(new THREE.CylinderGeometry(0.44, 0.44, 0.42, 10), darkMat, 0, 5.1, 4.02);
+        stackTop.rotation.x = 0.14;
+
+        // forward and aft signal masts with warm masthead lanterns
+        put(new THREE.CylinderGeometry(0.07, 0.11, 5.2, 6), darkMat, 0, 4.4, -2.8);
+        put(new THREE.CylinderGeometry(0.06, 0.09, 3.8, 6), darkMat, 0, 5.6, 2.1);
+        lamps.Add(put(new THREE.SphereGeometry(0.32, 8, 6), glowMat, 0, 7.05, -2.8));
+        lamps.Add(put(new THREE.SphereGeometry(0.30, 8, 6), glowMat, 0, 7.55, 2.1));
+        lamps.Add(put(new THREE.SphereGeometry(0.24, 8, 6), glowMat, 0, 2.35, 7.25));
+
+        // port (red) and starboard (green) bridge wing navigation lights
+        put(new THREE.SphereGeometry(0.20, 6, 5), navRedMat, -1.25, 3.85, 1.2);
+        put(new THREE.SphereGeometry(0.20, 6, 5), navGreenMat, 1.25, 3.85, 1.2);
+
+        // warm glowing bridge windows and cabin portholes along both sides so the ship reads clearly on the night horizon
+        put(new THREE.BoxGeometry(1.7, 0.42, 0.08), glowMat, 0, 3.85, 0.78);
+        foreach (var side in new[] { -1, 1 })
+        {
+            put(new THREE.BoxGeometry(0.08, 0.42, 1.6), glowMat, side * 1.12, 3.85, 2.0);
+            for (int k = 0; k < 4; k++)
+            {
+                put(new THREE.BoxGeometry(0.08, 0.36, 0.58), glowMat, side * 1.32, 2.55, 1.0 + k * 1.1);
+            }
+            for (int k = 0; k < 3; k++)
+            {
+                put(new THREE.BoxGeometry(0.08, 0.28, 0.48), glowMat, side * 1.72, 1.25, -2.2 + k * 2.1);
+            }
+        }
+
+        // faint wake and a warm reflection on the water when the lighthouse beam sweeps across the distant vessel
+        var wakeMat = new THREE.MeshBasicMaterial { color = 0xdbeeff, transparent = true, opacity = 0.26, depthWrite = false, fog = false, side = THREE.Side.DoubleSide };
+        var wake = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 24), wakeMat);
+        wake.rotation.x = -Math.PI / 2;
+        wake.position.set(0, 0.06, 9.5);
+        wake.renderOrder = 3;
+        vessel.add(wake);
+
+        var patchMat = new THREE.MeshBasicMaterial { color = 0xffe8a8, transparent = true, opacity = 0, blending = THREE.Blending.AdditiveBlending, depthWrite = false, fog = false, side = THREE.Side.DoubleSide };
+        var patch = new THREE.Mesh(new THREE.CircleGeometry(14, 20), patchMat);
+        patch.rotation.x = -Math.PI / 2;
+        patch.position.set(0, 0.08, 0);
+        patch.renderOrder = 4;
+        vessel.add(patch);
+
+        root.add(vessel);
+        shipsGroup.add(root);
+        return new HorizonShip
+        {
+            root = root, vessel = vessel,
+            solidMats = new List<THREE.MeshStandardMaterial> { hullMat, bootMat, deckMat, cabinMat, stackMat, darkMat },
+            hullMat = hullMat, cabinMat = cabinMat,
+            glowMat = glowMat, navRedMat = navRedMat, navGreenMat = navGreenMat,
+            patchMat = patchMat, wakeMat = wakeMat, lamps = lamps,
+            startX = startX, startZ = startZ, endX = endX, endZ = endZ,
+            duration = duration, pause = pause, offset = offset, baseScale = baseScale,
+        };
+    }
+
+    private void buildShips()
+    {
+        ships.Clear();
+        // Distant ships right on the far horizon line (z = 795..855, ~485-545m from the lighthouse and ~400m past the playable boat limit SEA.z = 420).
+        // Each ship appears smoothly as it starts moving, travels across the horizon edge, and fades out at the end of its run.
+        ships.Add(makeHorizonShip(cx - 260, 795, cx + 280, 815, 52, 8, 7.0, 1.25));
+        ships.Add(makeHorizonShip(cx + 310, 845, cx - 240, 825, 58, 9, 25.0, 1.30));
+        ships.Add(makeHorizonShip(-90, 820, 380, 835, 60, 10, 16.0, 1.25));
+        ships.Add(makeHorizonShip(cx - 110, 855, cx - 440, 740, 54, 11, 35.0, 1.20));
+        shipsGroup.visible = false;
+    }
+
+    private void updateShips(double t, double dt, double night, double surfaceY)
+    {
+        // Horizon ships are visible ONLY at night
+        double nightVis = smooth(0.15, 0.45, night);
+        if (nightVis <= 0.001)
+        {
+            shipsGroup.visible = false;
+            return;
+        }
+        shipsGroup.visible = true;
+        shipTime += dt;
+
+        for (int i = 0; i < ships.Count; i++)
+        {
+            var s = ships[i];
+            double cycle = s.duration + s.pause;
+            double tau = ((shipTime + s.offset) % cycle + cycle) % cycle;
+            if (tau >= s.duration)
+            {
+                s.root.visible = false;
+                s.fade = 0;
+                continue;
+            }
+
+            double u = tau / s.duration;
+            // Grow from small as the ship comes in from the distance and shrink smaller as it sails far away, then become invisible
+            double fade = Math.Min(smooth(0.0, 0.26, u), smooth(1.0, 0.74, u));
+            double alpha = fade * nightVis;
+            s.fade = alpha;
+            if (alpha <= 0.12)
+            {
+                s.root.visible = false;
+                continue;
+            }
+            s.root.visible = true;
+
+            s.x = s.startX + (s.endX - s.startX) * u;
+            s.z = s.startZ + (s.endZ - s.startZ) * u;
+            s.heading = Math.Atan2(-(s.endX - s.startX), -(s.endZ - s.startZ));
+
+            double sy = surfaceY + Math.Sin(t * 0.95 + i * 1.7) * 0.06 * alpha;
+            s.root.position.set(s.x, sy, s.z);
+            s.root.rotation.set(Math.Sin(t * 1.0 + i * 1.4) * 0.02, s.heading, Math.Sin(t * 0.8 + i * 2.1) * 0.035, "YXZ");
+            s.vessel.scale.setScalar(s.baseScale * alpha);
+
+            // how strongly either of the lighthouse's two opposite beams is sweeping across this distant ship right now
+            double shipAngle = Math.Atan2(s.z - cz, s.x - cx);
+            double c = Math.Abs(Math.Cos(shipAngle - beamPhase));
+            double beamHit = cleaned ? nightVis * Math.Pow(Math.Max(0, (c - 0.82) / 0.18), 1.4) : 0;
+            s.lit = Math.Max(beamHit, s.lit - dt * 0.85);
+
+            s.hullMat.emissiveIntensity = (0.06 + 0.45 * s.lit) * alpha;
+            s.cabinMat.emissiveIntensity = (0.14 + 0.75 * s.lit) * alpha;
+            s.patchMat.opacity = 0.28 * s.lit * alpha;
+            s.wakeMat.opacity = (0.18 + 0.18 * s.lit) * alpha;
+            foreach (var l in s.lamps) l.scale.setScalar(0.95 + Math.Sin(t * 9 + i * 2 + l.position.y) * 0.12 + s.lit * 0.3);
+        }
+    }
+
+    // ---------------------------------------------------------------- short intro after cleaning
+
+    public void beginIntro(double currentDayTime)
+    {
+        setClean(true);
+        introActive = true;
+        introTime = 0;
+        introShot = -1;
+        introCutting = false;
+        introCaption = null;
+        // start shipTime so the first distant ship is just appearing and moving out on the far horizon during the intro
+        shipTime = 0;
+        // start from daytime so the sky visibly sweeps through sunset into night during the first shot
+        introStartDay = (currentDayTime > 0.62 && currentDayTime <= 0.94) ? 0.44 : currentDayTime > 0.94 ? currentDayTime - 1.0 : currentDayTime;
+        introDayTime = currentDayTime;
+        enterIntroShot(0);
+    }
+
+    public void endIntro()
+    {
+        introActive = false;
+        introCaption = null;
+        introDayTime = 0.78;
+    }
+
+    private void enterIntroShot(int n)
+    {
+        introShot = n;
+        if (n == 0)
+        {
+            beamPhase = Math.PI * 0.5 - 1.1;
+        }
+        else if (n == 1)
+        {
+            // sweep the beam across the northern horizon where the distant ships are passing
+            beamPhase = Math.PI * 0.5 - 0.38;
+        }
+    }
+
+    public void updateIntro(double dt, THREE.PerspectiveCamera cam, double seaLevel, Action<Action> fade)
+    {
+        if (!introActive) return;
+        if (introShot < 0) enterIntroShot(0);
+        introTime += dt;
+
+        if (!introCutting && introShot < INTRO_CUTS.Length - 1 && introTime >= INTRO_CUTS[introShot] - 0.32)
+        {
+            introCutting = true;
+            int next = introShot + 1;
+            fade(() =>
+            {
+                introCutting = false;
+                enterIntroShot(next);
+            });
+        }
+
+        introCaption = null;
+        for (int i = 0; i < INTRO_CAPTIONS.Length; i++)
+        {
+            if (introTime >= INTRO_CAPTIONS[i].from && introTime < INTRO_CAPTIONS[i].to)
+            {
+                introCaption = INTRO_CAPTIONS[i].text;
+                break;
+            }
+        }
+
+        // over the first 2.6 seconds of shot 0, day changes smoothly to night (0.78) so the lighthouse shines
+        if (introTime < 2.6)
+        {
+            double k = smooth(0, 2.6, introTime);
+            introDayTime = ((introStartDay + (0.78 - introStartDay) * k) % 1 + 1) % 1;
+        }
+        else
+        {
+            introDayTime = 0.78;
+        }
+
+        var look = new THREE.Vector3();
+        if (introShot == 0)
+        {
+            // outside on the ember rock, watching day turn to night and the cleaned lighthouse lamp wake up
+            double s = Math.Min(1, introTime / INTRO_CUTS[0]);
+            double a = -0.95 + s * 0.5;
+            cam.position.set(cx + Math.Cos(a) * 27, ground + 8.0 + s * 3.0, cz + Math.Sin(a) * 27);
+            look.set(cx, ground + 11.5, cz);
+        }
+        else
+        {
+            // high beside the glowing lantern, looking out past its turning beams toward the distant ships on the far horizon
+            double s = Math.Min(1, (introTime - INTRO_CUTS[0]) / (INTRO_CUTS[1] - INTRO_CUTS[0]));
+            cam.position.set(cx - 7 + s * 4, ground + H + 2.8 + s * 0.4, cz - 14);
+            look.set(cx + 12, seaLevel + 5, cz + 490);
+        }
+        cam.lookAt(look);
+    }
+
+    // ---------------------------------------------------------------- the door & cleaning
 
     /// <summary>True when the player is close enough to the door, on the ground, to open or close it.</summary>
     public bool nearDoor(double x, double z)
     {
         if (atTop || feet > 1) return false;
         double dx = cx + Math.Cos(doorAngle) * (R0 - WALL / 2), dz = cz + Math.Sin(doorAngle) * (R0 - WALL / 2);
-        return JS.Hypot(x - dx, z - dz) < 2.2;
+        return JS.Hypot(x - dx, z - dz) < 2.6;
     }
+
+    /// <summary>True when the player has climbed up to the top deck beside the lantern and the lamp still needs cleaning.</summary>
+    public bool nearClean(double x, double z) => !cleaned && atTop;
 
     public void toggleDoor() => doorOpen = !doorOpen;
 
@@ -445,7 +897,7 @@ public class Lighthouse
 
     /// <summary>For the smoke test: where the player is in the tower.</summary>
     public string describe(double x, double z) =>
-        $"{(atTop ? "on the deck" : inside ? "inside" : "outside")}, feet {feet:0.00}, r {JS.Hypot(x - cx, z - cz):0.00}, door {(doorOpen ? "open" : "shut")}";
+        $"{(atTop ? "on the deck" : inside ? "inside" : "outside")}, feet {feet:0.00}, r {JS.Hypot(x - cx, z - cz):0.00}, door {(doorOpen ? "open" : "shut")}, {(cleaned ? "clean" : "dirty")}";
 
     public bool isInside => inside;
     public const double STAIR_R = 2.15, DECK_WALK_R = 2.75;
@@ -632,16 +1084,28 @@ public class Lighthouse
 
     // ---------------------------------------------------------------- every frame
 
-    /// <summary>`night` is 0 by day and 1 in the dark: the lamp is lit and turning only then.</summary>
-    public void update(double t, double dt, double night)
+    /// <summary>`night` is 0 by day and 1 in the dark: once cleaned, the lamp is lit and turning at night and ships sail the horizon.</summary>
+    public void update(double t, double dt, double night, double surfaceY = WATER_LEVEL)
     {
+        lastNight = night;
         // the door swings to where it should be
         double want = doorOpen ? 1 : 0;
         doorSwing += (want - doorSwing) * Math.Min(1, dt * 4);
         doorPivot.rotation.y = doorClosedYaw - doorSwing * 1.75;
         if (lensMat == null) return;
+        if (!cleaned)
+        {
+            lensMat.emissiveIntensity = 0;
+            beams.visible = false;
+            foreach (var m in beamMats) m.opacity = 0;
+            shipsGroup.visible = false;
+            return;
+        }
+        beamPhase += dt * 0.45;
         lensMat.emissiveIntensity = 0.5 + night * 2.2;
-        beams.rotation.y = -t * 0.45;
-        foreach (var m in beamMats) m.opacity = 0.16 * night;
+        beams.visible = night > 0.001;
+        beams.rotation.y = -beamPhase;
+        foreach (var m in beamMats) m.opacity = 0.22 * night;
+        updateShips(t, dt, night, surfaceY);
     }
 }

@@ -102,16 +102,20 @@ public class CleaningStation
 
     public void enter(BuriedItem it, double brush)
     {
-        exit();
-        item = it;
-        brushPx = brush;
         it.crustCanvas ??= LootGenerator.newCrustCanvas();
-        var clean = LootGenerator.buildItem(it.def.id);
+        enterGroup(LootGenerator.buildItem(it.def.id), it.crustCanvas, brush);
+        item = it;
+    }
+
+    public void enterGroup(THREE.Group clean, HTMLCanvasElement canvas, double brush, THREE.Euler initialPose = null, double fitSize = 2.0)
+    {
+        exit();
+        brushPx = brush;
         clean.traverse(o => o.castShadow = true);
-        rig = LootGenerator.wrapWithCrust(clean, it.crustCanvas);
+        rig = LootGenerator.wrapWithCrust(clean, canvas, fitSize);
         pivot.add(rig.root);
         pivot.position.set(0, -0.15, 0);
-        target.setFromEuler(new THREE.Euler(0.9, 0.4, 0, "YXZ"));
+        target.setFromEuler(initialPose ?? new THREE.Euler(0.9, 0.4, 0, "YXZ"));
         pivot.quaternion.copy(target);
         lastUV = null;
         sampleNow();

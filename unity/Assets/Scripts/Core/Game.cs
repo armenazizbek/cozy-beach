@@ -236,7 +236,10 @@ public class Game
     private THREE.Vector3 feet = new THREE.Vector3();
     private BuriedItem hoveredItem = null;
     private string hoveredCamp = null;
+    private bool hoveredLighthouse = false;
     private BuriedItem inspectItem = null;
+    private bool cleaningLighthouse = false;
+    private double lighthouseIntroArmed = 0;
     private bool transitioning = false;
     private bool chillWarned = false;
     private HTMLElement canvas;
@@ -404,6 +407,7 @@ public class Game
         cellar.cave.addShark(sea.sharks[0].root);
         if (state.data.doorOpen) cellar.openDoor(true);
         cellar.cave.setTaken(state.data.hoardTaken);
+        islands[2].lighthouse?.setClean(state.data.lighthouseCleaned);
         applyLuxury();
         void showDecor()
         {
@@ -926,10 +930,17 @@ public class Game
         if (what == "door")
         {
             lh.reset();
-            player.x = lh.cx + Math.Cos(lh.doorAngle) * 7;
-            player.z = lh.cz + Math.Sin(lh.doorAngle) * 7;
+            player.x = lh.cx + Math.Cos(lh.doorAngle) * 5.6;
+            player.z = lh.cz + Math.Sin(lh.doorAngle) * 5.6;
             player.yaw = Math.Atan2(Math.Cos(lh.doorAngle), Math.Sin(lh.doorAngle));
             player.pitch = 0.1;
+        }
+        else if (what == "far")
+        {
+            player.x = lh.cx + Math.Cos(lh.doorAngle) * 15.5;
+            player.z = lh.cz + Math.Sin(lh.doorAngle) * 15.5;
+            player.yaw = Math.Atan2(Math.Cos(lh.doorAngle), Math.Sin(lh.doorAngle));
+            player.pitch = 0.38;
         }
         else if (what == "open")
         {
@@ -967,9 +978,34 @@ public class Game
             player.yaw = Math.Atan2(dx, dz);
             player.pitch = 0.25;
         }
-        else if (what == "night") state.setLighting("night");
-        else if (what == "day") state.setLighting("cycle");
-        return lh.describe(player.x, player.z);
+        else if (what == "inspect")
+        {
+            enterCleanLighthouse();
+        }
+        else if (what == "scrub")
+        {
+            for (int i = -6; i <= 6; i++)
+            {
+                station.pointer(new THREE.Vector2(i * 0.05, i * 0.04), true, 1200);
+            }
+            station.update(0.1);
+        }
+        else if (what == "clean")
+        {
+            if (gameState == "INSPECT" && cleaningLighthouse)
+            {
+                station.instantClean();
+            }
+            else
+            {
+                state.data.lighthouseCleaned = true;
+                lh.setClean(true);
+                startLighthouseIntro();
+            }
+        }
+        else if (what == "night") { state.setLighting("night"); dayTime = 0.78; sky.setTime(dayTime); }
+        else if (what == "day") { state.setLighting("cycle"); dayTime = 0.25; sky.setTime(dayTime); }
+        return $"{lh.describe(player.x, player.z)}, cleaned={lh.cleaned}, beams={lh.beams.visible}, ships={lh.shipsGroup.visible}, intro={lh.introActive} ({lh.introTime:0.0}s), dayTime={dayTime:0.00}";
     }
 
     /// <summary>For the -autoshot-dive test: puts the diver at a spot under the sea (metres from its middle), this high off the floor, looking this way.</summary>
@@ -1249,6 +1285,11 @@ public class Game
     private void onClick(int button)
     {
         if (!started || transitioning || paused || driving) return;
+        if (islands[2].lighthouse?.introActive == true)
+        {
+            if (lighthouseIntroArmed > 0.3) endLighthouseIntro();
+            return;
+        }
         if (hammock != null)
         {
             leaveHammock(false);
@@ -1325,6 +1366,11 @@ public class Game
         if (hoveredCamp != null)
         {
             useCampObject(hoveredCamp);
+            return;
+        }
+        if (hoveredLighthouse && gameState == "EXPLORE")
+        {
+            enterCleanLighthouse();
             return;
         }
         if (gameState == "EXPLORE" && tool == 2 && toolHit != null) tryDig(toolHit);
@@ -1650,6 +1696,12 @@ public class Game
         if (menuKey(code)) return;
         if (!started) return;
 
+        if (islands[2].lighthouse?.introActive == true)
+        {
+            if (code == "KeyN") audio.toggleMute();
+            else if (lighthouseIntroArmed > 0.3) endLighthouseIntro();
+            return;
+        }
         if (hammock != null)
         {
             if (code != "KeyN") leaveHammock(false);
@@ -2296,8 +2348,45 @@ public class Game
         });
     }
 
+    private void enterCleanLighthouse()
+    {
+        var lh = islands[2].lighthouse;
+        if (lh == null || lh.cleaned || transitioning) return;
+        setBinocView(false);
+        transitioning = true;
+        document.exitPointerLock();
+        ui.fade(() =>
+        {
+            inspectItem = null;
+            cleaningLighthouse = true;
+            gameState = "INSPECT";
+            if (lh.crustCanvas == null) lh.crustCanvas = LootGenerator.newCrustCanvas();
+            station.enterGroup(Lighthouse.buildCleanModel(), lh.crustCanvas, state.brushPx, new THREE.Euler(0.18, 0.4, 0, "YXZ"), 1.95);
+            ui.showInspect("The Lighthouse Lamp", "The lighthouse lamp, encrusted in sand…");
+            ui.setProgress(station.progress);
+            ui.setMode("INSPECT");
+            audio.setOceanLevel(0.02);
+            detector.setActive(false);
+            dig.setActive(false);
+            ui.setHint(null);
+            window.setTimeout(() => transitioning = false, 350);
+        });
+    }
+
     private void onCleaned()
     {
+        if (cleaningLighthouse)
+        {
+            cleaningLighthouse = false;
+            audio.discover();
+            state.data.lighthouseCleaned = true;
+            state.emit();
+            islands[2].lighthouse?.setClean(true);
+            discover("ember_spring");
+            achievements.unlock("LIGHTHOUSE");
+            startLighthouseIntro();
+            return;
+        }
         var item = inspectItem;
         if (item == null) return;
         var def = item.def;
@@ -2351,6 +2440,7 @@ public class Game
         {
             station.exit();
             inspectItem = null;
+            cleaningLighthouse = false;
             gameState = "EXPLORE";
             ui.hideInspect();
             ui.setMode("EXPLORE");
@@ -2365,6 +2455,79 @@ public class Game
                 dig.setActive(tool == 2);
             }
             window.setTimeout(() => transitioning = false, 350);
+            grabMouse();
+        });
+    }
+
+    private void startLighthouseIntro()
+    {
+        var lh = islands[2].lighthouse;
+        if (lh == null) return;
+        transitioning = true;
+        ui.fade(() =>
+        {
+            station.exit();
+            inspectItem = null;
+            cleaningLighthouse = false;
+            ui.hideInspect();
+            gameState = "EXPLORE";
+            ui.setMode("MENU");
+            view.group.visible = false;
+            view.proxy.visible = false;
+            detector.setActive(false);
+            dig.setActive(false);
+            ui.setHint(null);
+            ui.setPrompt(null);
+            ui.setPrompt2(null);
+            if (state.data.lighting != "cycle" && state.data.lighting != "night") state.setLighting("cycle");
+            lh.beginIntro(dayTime);
+            dayTime = lh.introDayTime;
+            sky.setTime(dayTime);
+            ocean.setNight(sky.starAmount);
+            lighthouseIntroArmed = 0;
+            input.keys.Clear();
+            ui.setCaption(true, lh.introCaption, "Press any key to skip");
+            audio.setOceanLevel(0.06);
+            window.setTimeout(() => transitioning = false, 350);
+        });
+    }
+
+    private void updateLighthouseIntro(double dt)
+    {
+        var lh = islands[2].lighthouse;
+        if (lh == null || !lh.introActive) return;
+        lh.updateIntro(dt, camera, ocean.surfaceY, mid => ui.fade(mid));
+        sky.update(0, camera.position.x, camera.position.z);
+        ui.setCaption(true, lh.introCaption);
+        lighthouseIntroArmed += dt;
+        bool pressed = input.keys.Count > 0 || (input.buttons & 1) == 1 || pad.anyDown;
+        if (lh.introDone || (lighthouseIntroArmed > 0.8 && pressed)) endLighthouseIntro();
+    }
+
+    private void endLighthouseIntro()
+    {
+        var lh = islands[2].lighthouse;
+        if (lh == null || !lh.introActive) return;
+        lh.endIntro();
+        ui.setCaption(false);
+        ui.fade(() =>
+        {
+            dayTime = 0.78;
+            rain.amount = 0;
+            wasRaining = false;
+            sky.setTime(dayTime);
+            ocean.setNight(sky.starAmount);
+            camera.fov = baseFov;
+            camera.updateProjectionMatrix();
+            view.group.visible = true;
+            view.proxy.visible = true;
+            ui.setMode("EXPLORE");
+            ui.setTool(tool);
+            view.setTool(tool);
+            detector.setActive(tool == 1);
+            dig.setActive(tool == 2);
+            ui.toast("The lighthouse shines out across the night sea, and ships sail the horizon.");
+            autoSave();
             grabMouse();
         });
     }
@@ -2506,6 +2669,13 @@ public class Game
             raining = opening.raining;
             rain.amount = raining ? 1 : 0;
             wasRaining = raining;
+        }
+        else if (islands[2].lighthouse != null && islands[2].lighthouse.introActive)
+        {
+            dayTime = islands[2].lighthouse.introDayTime;
+            raining = false;
+            rain.amount = 0;
+            wasRaining = false;
         }
         rain.update(dt, raining ? 1 : 0, camera.position);
         if (raining != wasRaining)
@@ -2867,6 +3037,11 @@ public class Game
     {
         setUsingPad(true);
 
+        if (islands[2].lighthouse?.introActive == true)
+        {
+            if (down && lighthouseIntroArmed > 0.3) endLighthouseIntro();
+            return;
+        }
         if (hammock != null)
         {
             if (down) leaveHammock(false);
@@ -5221,7 +5396,7 @@ public class Game
         interaction = null;
         interaction2 = null;
         ui.setPrompt2(null);
-        if (hammock != null)
+        if (hammock != null || islands[2].lighthouse?.introActive == true)
         {
             ui.setPrompt(null);
             return;
@@ -5410,18 +5585,30 @@ public class Game
             };
         }
         var tower = islands[2].lighthouse;
-        if (tower != null && tower.nearDoor(player.x, player.z) && !driving && vehicle == null && 0.3 < best)
+        if (tower != null && !driving && vehicle == null)
         {
-            best = 0.3;
-            interaction = new Interaction
+            if (tower.nearDoor(player.x, player.z) && 0.3 < best)
             {
-                label = tower.doorOpen ? "Close the lighthouse door" : "Open the lighthouse door",
-                run = () =>
+                best = 0.3;
+                interaction = new Interaction
                 {
-                    tower.toggleDoor();
-                    audio.thud();
-                },
-            };
+                    label = tower.doorOpen ? "Close the lighthouse door" : "Open the lighthouse door",
+                    run = () =>
+                    {
+                        tower.toggleDoor();
+                        audio.thud();
+                    },
+                };
+            }
+            else if (!tower.cleaned && tower.nearClean(player.x, player.z) && 0.3 < best)
+            {
+                best = 0.3;
+                interaction = new Interaction
+                {
+                    label = "Take and clean the lighthouse lamp",
+                    run = () => enterCleanLighthouse(),
+                };
+            }
         }
         if (!state.data.hasTreasureMap && island.nearMap(player.x, player.z) && 0.3 < best)
         {
@@ -5485,8 +5672,9 @@ public class Game
     {
         hoveredItem = null;
         hoveredCamp = null;
+        hoveredLighthouse = false;
         toolHit = null;
-        if (!started || driving || gameState == "INSPECT" || (campModal.isOpen && isOverPanel())) return;
+        if (!started || driving || gameState == "INSPECT" || islands[2].lighthouse?.introActive == true || (campModal.isOpen && isOverPanel())) return;
         if (underground) return;
         if (diving)
         {
@@ -5513,11 +5701,16 @@ public class Game
         {
             hoveredCamp = camp.kindOf(campHit.@object);
         }
+        else if (gameState == "EXPLORE" && islands[2].lighthouse != null && !islands[2].lighthouse.cleaned && islands[2].lighthouse.nearClean(player.x, player.z))
+        {
+            var lh = islands[2].lighthouse;
+            if (aim(lh.group.position.x, lh.group.position.y + 16.4, lh.group.position.z, 1.4) != null) hoveredLighthouse = true;
+        }
         // the detector only sweeps the sand close to the player; the trowel reaches a little less far
         bool near = beachHit != null && (tool == 2 || tool == 7 || tool == 8
             ? beachDist < 5.5
             : JS.Hypot(beachHit.x - player.x, beachHit.z - player.z) < DETECT_REACH);
-        if (gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && near)
+        if (gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && !hoveredLighthouse && near)
         {
             toolHit = beachHit;
         }
@@ -5563,6 +5756,12 @@ public class Game
         bool finderOn = holdingCamera && camView && gameState == "EXPLORE" && started && !paused && !driving && hammock == null;
         ui.setViewfinder(finderOn, state.photos.Count, Photos.MAX_PHOTOS);
         ui.tickFlash();
+        if (islands[2].lighthouse?.introActive == true)
+        {
+            ui.setHint(null);
+            ui.setCrosshair(false);
+            return;
+        }
         if (hammock != null)
         {
             ui.setHint("Resting... press any key to get up");
@@ -5648,6 +5847,7 @@ public class Game
         }
         string hint = null;
         if (hoveredItem != null) hint = hoveredItem.def.id == "captain_chest" ? (hoveredItem.opened ? "Click to climb down the ladder" : "Click to open the hatch") : "Click to take it to the workbench";
+        else if (hoveredLighthouse) hint = "Click to take and clean the lighthouse lamp (or press F)";
         else if (hoveredCamp != null)
         {
             var campHints = new Dictionary<string, string>
@@ -5727,7 +5927,7 @@ public class Game
     private void frame()
     {
         // losing the mouse pauses the game (Esc, Alt-Tab), but not when it was let go because the player picked up a controller
-        if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
+        if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null && islands[2].lighthouse?.introActive != true) setPaused(true);
         wasLocked = locked;
 
         double rawDt = clock.getDelta();
@@ -5865,6 +6065,7 @@ public class Game
 
         audio.detectorEnabled = gameState == "EXPLORE" && tool == 1 && !driving && !alt;
         if (opening != null) updateOpening(dt);
+        else if (islands[2].lighthouse != null && islands[2].lighthouse.introActive) updateLighthouseIntro(dt);
         else if (gameState == "MENU") updateMenuCamera(dt);
         else using (THREE.Bridge.BridgeStats.Time("camera+move")) updateCamera(dt);
         using (THREE.Bridge.BridgeStats.Time("music")) updateMusic();
@@ -5954,7 +6155,7 @@ public class Game
             using (THREE.Bridge.BridgeStats.Time("minimap")) mapView.drawMini(ui.miniCanvas.getContext("2d"), 150, mapPlayer, holes, waypoint, mapCart, mapBoat);
         }
         using (THREE.Bridge.BridgeStats.Time("hint")) updateHint();
-        canvas.classList.toggle("pointer", hoveredItem != null || hoveredCamp != null);
+        canvas.classList.toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse);
         if (audio.ready)
         {
             double fd = JS.Hypot(camera.position.x - camp.group.position.x, camera.position.z - camp.group.position.z);
