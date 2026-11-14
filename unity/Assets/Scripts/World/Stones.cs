@@ -104,5 +104,26 @@ public class Stones
             lay(x, z, r);
             spots.Add(new Spot(x, z, r));
         }
+        // and boulders out across the rest of the land, alone and in small heaps
+        var far = rng(5678);
+        for (int n = 0, tries = 0; n < 34 && tries < 3000; tries++)
+        {
+            double a = far() * Math.PI * 2, d = 70 + far() * 140;
+            double x = Math.Sin(a) * d, z = -Math.Abs(Math.Cos(a)) * d + 25;
+            double r = 0.5 + far() * 1.2;
+            if (Math.Abs(x) < HALF && z > -HALF) continue;
+            if (z > SHORE_Z - 6 || beach.heightAt(x, z) < WATER_LEVEL + 0.35 || !Scenery.onLand(x, z, r + 3)) continue;
+            if (keepClear.Any(k => JS.Hypot(k.x - x, k.z - z) < k.r + r + 1.4)) continue;
+            if (placed.Any(s => JS.Hypot(s.x - x, s.z - z) < s.r + r + 0.15)) continue;
+            lay(x, z, r);
+            int heap = far() < 0.4 ? 1 + (int)Math.Floor(far() * 3) : 0;
+            for (int k = 0; k < heap; k++)
+            {
+                double ka = far() * Math.PI * 2, kr = 0.3 + far() * 0.5;
+                double kx = x + Math.Cos(ka) * (r + kr), kz = z + Math.Sin(ka) * (r + kr);
+                if (!placed.Any(s => JS.Hypot(s.x - kx, s.z - kz) < s.r + kr + 0.1)) lay(kx, kz, kr);
+            }
+            n++;
+        }
     }
 }

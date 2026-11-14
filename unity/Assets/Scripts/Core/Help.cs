@@ -102,6 +102,11 @@ public static class Help
             {
                 new HelpBlock
                 {
+                    h = "The treasure cove",
+                    p = "The tide leaves its finds in the cove below the camp. Old fishing nets are strung round it and round the camp, down both sides and across the top behind the camp, with gaps to walk through, and banners hang in the gaps. Everything that can be dug up lies inside the nets, on the open sand below the camp. You are free to walk out past them, all the way to the mountains, but out there the detector stays quiet: there is only sand. The map (M) shows the nets as a dashed line.",
+                },
+                new HelpBlock
+                {
                     h = "Sweep, dig, clean",
                     list = new string[] { "Take out the detector (1) and sweep the sand in front of you. It beeps faster, and the screen lights up, the closer something is. Different tones mean different kinds of finds.", "Take out the trowel (2) and click to dig. Dig until the find appears, then pick it up with F or a click.", "Digging uses warmth (the bar at the top left). Warm up at the campfire or with the coffee on the stump, and the bar fills again.", "Cleaning: the find is encrusted with sand. Scrub it with the brush (hold click and move the mouse, or hold RT and use the right stick) until it shines." },
                 },

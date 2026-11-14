@@ -4,7 +4,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
 
 ## What is built in
 
-- **Achievements.** 35 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). When Steam starts the game, each achievement is also unlocked on Steam. Outside Steam it works the same, without any Steam features.
+- **Achievements.** 36 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). When Steam starts the game, each achievement is also unlocked on Steam. Outside Steam it works the same, without any Steam features.
 - **Cloud saves.** In the desktop app every save, the autosave and the achievement list are plain `.json` files in a `saves` folder inside the game's user-data folder, which Steam can copy to the cloud (see step 4). Saves an earlier version kept in the browser's storage are copied across the first time they are read.
 - **Installer.** `npm run dist:win` makes an installer (`Cozy-Treasure-Hunter-Setup-<version>.exe`, with a desktop shortcut, a Start-menu entry, a choice of folder and an uninstaller) and a portable exe. Steam itself does not use the installer: it installs the game from the files you upload (step 5).
 
@@ -57,6 +57,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
 | `ISLAND` | Landfall | Set foot on the island. |
 | `RUINS` | Old Stones | Find the ruins on the island. |
 | `MAP` | An Old Map | Take the map from the island’s altar. |
+| `LIGHTHOUSE` | The Keeper’s View | Climb to the top of the lighthouse on the black rock. |
 | `DIVE` | Into the Blue | Dive for the first time. |
 | `WRECK` | The Sunken Ship | Find the shipwreck. |
 | `HARPOON` | First Catch | Spear your first fish. |

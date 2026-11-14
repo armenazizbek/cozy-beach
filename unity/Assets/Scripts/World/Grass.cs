@@ -125,6 +125,25 @@ public class Grass
             clump(x, z, 3 + (int)Math.Floor(JS.Random() * 3), 0.8);
             c++;
         }
+        // and out across the rest of the land, in the same loose clumps: none of it is diggable, so nothing can hide under it
+        bool far(double x, double z) =>
+            !(Math.Abs(x) < HALF && z > -HALF) && z < SHORE_Z - 8 && beach.heightAt(x, z) > WATER_LEVEL + 0.5 && Scenery.onLand(x, z, 4) &&
+            !keepClear.Any(k => JS.Hypot(k.x - x, k.z - z) < k.r + 1.1);
+        var rnd = Stones.rng(4242);
+        for (int c = 0, tries = 0; c < 70 && tries < 3000; tries++)
+        {
+            double a = rnd() * Math.PI * 2, d = 60 + rnd() * 150;
+            double cx = Math.Sin(a) * d, cz = -Math.Abs(Math.Cos(a)) * d + 30;
+            if (!far(cx, cz)) continue;
+            int n = 4 + (int)Math.Floor(rnd() * 5);
+            for (int i = 0; i < n; i++)
+            {
+                double aa = rnd() * Math.PI * 2, dd = rnd() * 1.3;
+                double x = cx + Math.Cos(aa) * dd, z = cz + Math.Sin(aa) * dd;
+                if (far(x, z)) list.Add((x, z, 0.8 + rnd() * 0.7, rnd() * Math.PI * 2));
+            }
+            c++;
+        }
         if (list.Count == 0) return;
         var im = new THREE.InstancedMesh(geo, mat, list.Count);
         var m = new THREE.Matrix4();

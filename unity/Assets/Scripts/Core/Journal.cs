@@ -419,8 +419,8 @@ public static class Journal
             id = "ember_spring",
             group = "Journeys",
             icon = "🗿",
-            title = "The Warm Heart",
-            text = "The top of the cone is hollow, and in the hollow lies a pool the colour of milk and turquoise, steaming gently into the wind. The mountain is asleep, not gone. On the rim someone long ago piled flat stones into a little tower, to say: I was here, and I climbed it.",
+            title = "The Keeper's Light",
+            text = "On the summit of the black rock stands an old lighthouse, white with red bands. Its stair winds up inside round a stone column, and comes out on a deck with the whole sea around it: the beach, the green island, the pale ring of the cay. The lamp was dark the night the Marigold went onto the reef. Someone keeps it lit now, though you never see who.",
         },
         new JournalPage
         {

@@ -51,7 +51,10 @@ public class Beach
         double ridge = smooth(-50, -68, z) * 0.7;
         // rolling dune hills inland, well away from the diggable sand
         double hills = smooth(-62, -78, z) * (Math.Sin(x * 0.07 + z * 0.05) * 1.1 + Math.Sin(x * 0.13 - z * 0.09) * 0.6);
-        return slope + dune + ridge + hills;
+        // and further back, the long dunes that climb toward the mountains. They come in gently behind the playable square,
+        // so the ground the player walks on out there is the ground that is drawn
+        double back = z < -HALF ? smooth(-HALF, -HALF - 15, z) * (Math.Sin(x * 0.04) * 1.2 + Math.Sin(x * 0.11 + z * 0.05) * 0.5 + (-z - HALF) * 0.02) : 0;
+        return slope + dune + ridge + hills + back;
     }
 
     public static readonly double CAMP_Y = rawHeight(0, CAMP_Z);
@@ -62,7 +65,7 @@ public class Beach
     /// <summary>A ring of pale sand around a lagoon, far out to the east. A gap in the ring lets a boat in.</summary>
     public static readonly IslandSpec LAGOON = new IslandSpec { x = 196, z = 292, R = 34, kind = 1, name = "Lagoon Cay" };
 
-    /// <summary>A dark volcanic cone with a hot spring in its crater, far out to the west.</summary>
+    /// <summary>A dark volcanic cone with a lighthouse on its summit, far out to the west.</summary>
     public static readonly IslandSpec EMBER = new IslandSpec { x = -204, z = 312, R = 30, kind = 2, name = "Ember Rock" };
 
     /// <summary>Every island in the sea. The first is the one with the ruins.</summary>
@@ -152,11 +155,10 @@ public class Beach
         if (h > flat) h = flat + (h - flat) * 0.12;
         double land = smooth(-0.3, 0.8, h);
         h += land * (Math.Sin(x * 0.29 + z * 0.19) * 0.16 + Math.Sin(x * 0.15 - z * 0.31) * 0.18);
-        // the cone, with gullies down its sides, and the crater
+        // the cone, with gullies down its sides, and a level top for the lighthouse to stand on
         double tc = d / s.R;
-        double cone = smooth(0.62, 0.16, tc);
-        h += cone * (7.4 + Math.Sin(5 * a + 0.8) * 0.4 * smooth(0.14, 0.4, tc));
-        h -= 2.0 * smooth(0.17, 0.05, tc);
+        double cone = smooth(0.62, 0.22, tc);
+        h += cone * (7.4 + Math.Sin(5 * a + 0.8) * 0.4 * smooth(0.2, 0.4, tc));
         return h;
     }
 
@@ -249,15 +251,15 @@ public class Beach
         for (int i = 0; i < pos.count; i++)
         {
             double x = pos.getX(i), z = pos.getZ(i);
-            // the same height function as the beach (including the levelled camp pad), so the two meet cleanly
+            // the same height function as the beach (including the levelled camp pad and the dunes behind), so the two meet
+            // cleanly and the player walks on what is drawn
             double y = baseHeightMain(x, z);
-            // rolling dunes far behind the camp, and a floor under the sea
-            if (z < -HALF) y += Math.Sin(x * 0.04) * 1.2 + Math.Sin(x * 0.11 + z * 0.05) * 0.5 + (-z - HALF) * 0.02;
             y = Math.Max(y, -2.2);
-            // the ring of vertices touching the beach sits a little below it. If the coarse terrain were even
-            // slightly higher than the beach edge, the gap between them would show the sky as a pale streak.
+            // the ring of vertices touching the beach sits a hair below it. If the coarse terrain were even slightly higher
+            // than the beach edge, the gap between them would show the sky; the skirt under the beach's edge covers the rest.
+            // Only a hair: walking out there, a step down onto it would show
             bool onEdge = (Math.Abs(Math.Abs(x) - HALF) < 0.01 && Math.Abs(z) <= HALF + 0.01) || (Math.Abs(Math.Abs(z) - HALF) < 0.01 && Math.Abs(x) <= HALF + 0.01);
-            if (onEdge) y -= 0.3;
+            if (onEdge) y -= 0.05;
             pos.setY(i, y);
             c.copy(DRY).lerp(WET, smooth(WET_Z - 2.5, WET_Z + 2, z));
             c.lerp(far, smooth(-HALF, -HALF - 60, z) * 0.5);
@@ -275,7 +277,7 @@ public class Beach
         }
         geo.setIndex(kept);
         geo.computeVertexNormals();
-        var m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial { vertexColors = true, roughness = 1 });
+        var m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial { vertexColors = true, roughness = 1, metalness = 0, bumpMap = grainTexture(size / 1.6), bumpScale = 1.4 });
         m.receiveShadow = true;
         return m;
     }
@@ -617,11 +619,15 @@ public class Beach
         return a * (1 - tz) + b * tz;
     }
 
-    public double heightAt(double x, double z) => baseHeight(x, z) - sample(dug, x, z);
+    /// <summary>True on the finely drawn middle of the beach, the only sand that can be dug.</summary>
+    public static bool inGrid(double x, double z) => Math.Abs(x) <= HALF && Math.Abs(z) <= HALF;
 
-    public double depthAt(double x, double z) => Math.Max(0, sample(dug, x, z));
+    // outside the middle of the beach nothing has ever been dug, and the holes' grid must not be read past its edge
+    public double heightAt(double x, double z) => inGrid(x, z) ? baseHeight(x, z) - sample(dug, x, z) : baseHeight(x, z);
 
-    public bool canDig(double z) => z > DIG_MIN_Z && z < SHORE_Z - 2;
+    public double depthAt(double x, double z) => inGrid(x, z) ? Math.Max(0, sample(dug, x, z)) : 0;
+
+    public bool canDig(double x, double z) => Math.Abs(x) < HALF - 2 && z > DIG_MIN_Z && z < SHORE_Z - 2;
 
     private readonly THREE.Vector3 rayPt = new THREE.Vector3();
 

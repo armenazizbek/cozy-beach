@@ -495,6 +495,25 @@ public class CampModal
         this.body.append(grid);
     }
 
+    /// <summary>Puts the picture of what a shop cell sells at its left, with its name, words and button beside it.</summary>
+    private HTMLElement pictured(HTMLElement cell, string art)
+    {
+        var svg = ShopArt.svg(art);
+        if (svg == null) return cell;
+        var text = document.createElement("div");
+        text.className = "ucell-text";
+        foreach (var ch in cell.children.ToList()) text.append(ch);
+        var pic = document.createElement("div");
+        pic.className = "ucell-pic";
+        pic.innerHTML = svg;
+        cell.append(pic, text);
+        cell.classList.add("pictured");
+        return cell;
+    }
+
+    /// <summary>For the -autoshot-shop test: scrolls the page.</summary>
+    internal void smokeScroll(double y) => this.body.scrollTop = y;
+
     private void renderUpgrades()
     {
         var keys = new string[] { "detector", "digging", "cleaning", "gear" };
@@ -539,7 +558,7 @@ public class CampModal
                 {
                     c.append(this.p(t == cur ? "Equipped" : "Owned", "tag"));
                 }
-                col.append(c);
+                col.append(this.pictured(c, $"{key}_{t}"));
             }
             grid.append(col);
         }
@@ -727,7 +746,7 @@ public class CampModal
                     }
                 }, "small", this.state.data.coins < dCost));
             }
-            return c;
+            return this.pictured(c, $"decor_{d.id}");
         }).ToList();
         var bucketCell = document.createElement("div");
         bucketCell.className = $"ucell {(this.state.data.ownsBucket ? "owned" : "")}";
@@ -758,7 +777,7 @@ public class CampModal
             }, "small", this.state.data.coins < BUCKET_COST));
         }
         // the fishing rod and the diver's net: both bought once
-        HTMLElement gearCell(string title, string text, bool owned, double cost, Func<bool> buy, string bought)
+        HTMLElement gearCell(string art, string title, string text, bool owned, double cost, Func<bool> buy, string bought)
         {
             var c = document.createElement("div");
             c.className = "ucell";
@@ -782,11 +801,11 @@ public class CampModal
                     }
                 }, "small", this.state.data.coins < cost));
             }
-            return c;
+            return this.pictured(c, art);
         }
-        var rodCell = gearCell("Fishing Rod", "Sit on the bench at the end of the pier and fish. Cast, wait for the float to go under, then reel it in. Every new kind of fish gets a place in your aquarium.",
+        var rodCell = gearCell("rod", "Fishing Rod", "Sit on the bench at the end of the pier and fish. Cast, wait for the float to go under, then reel it in. Every new kind of fish gets a place in your aquarium.",
             this.state.data.ownsRod, Catches.ROD_COST, () => this.state.buyRod(), "You bought the fishing rod! The bench is at the end of the pier.");
-        var netCell = gearCell("Hand Net", "Catches fish and other sea creatures alive while you dive, for the aquarium. Underwater, press 2 to take it out. Needs the diving gear.",
+        var netCell = gearCell("net", "Hand Net", "Catches fish and other sea creatures alive while you dive, for the aquarium. Underwater, press 2 to take it out. Needs the diving gear.",
             this.state.data.ownsNet, Catches.NET_COST, () => this.state.buyNet(), "You bought the hand net! Take it out underwater with 2.");
         var boneCell = document.createElement("div");
         boneCell.className = "ucell";
@@ -811,6 +830,14 @@ public class CampModal
                 this.hooks.toast($"You need {BONE_COST}g for that.");
             }
         }, "small", soldOut || this.state.data.coins < BONE_COST));
+        this.pictured(keyCell, "cart_key");
+        this.pictured(boatCell, "boat_key");
+        this.pictured(bowCell, "bow");
+        this.pictured(flagCell, "flags");
+        this.pictured(bucketCell, "bucket");
+        this.pictured(diveCell, "dive");
+        this.pictured(boneCell, "bone");
+        this.pictured(cell, "gun");
         fun.append(fh, keyCell, boatCell, bowCell, flagCell, bucketCell, rodCell, diveCell, netCell);
         foreach (var dc in decorCells) fun.append(dc);
         fun.append(boneCell, cell);
@@ -851,7 +878,7 @@ public class CampModal
                     this.render();
                 }, "small", this.state.data.coins < lCost));
             }
-            grid.append(cell);
+            grid.append(this.pictured(cell, lId));
         }
         this.body.append(grid);
     }

@@ -53,7 +53,7 @@ A stone room lit by torches, a captain's journal left open on a lectern and a gr
 [list]
 [*] Gamepad support, with on-screen prompts that follow what you are using
 [*] Autosave, plus as many manual saves as you like
-[*] 35 Steam achievements
+[*] 36 Steam achievements
 [*] Steam Cloud saves
 [*] Windowed, borderless and fullscreen, with an adjustable resolution
 [/list]

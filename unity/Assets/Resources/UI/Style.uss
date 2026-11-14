@@ -1561,6 +1561,35 @@
   opacity: 0.7;
 }
 
+/* a shop cell with a picture of what it sells: the picture on a sandy tile at the left, the rest beside it */
+.ucell.pictured {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.ucell-pic {
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  margin: 2px 12px 0 0;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 244, 220, 0.75);
+  border-width: 1px;
+  border-color: rgba(150, 110, 60, 0.35);
+  border-radius: 10px;
+}
+
+.ucell-text {
+  flex-grow: 1;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.ucell-text > .btn {
+  align-self: flex-start;
+}
+
 /* the one in use: a coral frame */
 .ucell.current {
   opacity: 1;

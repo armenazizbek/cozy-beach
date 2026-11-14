@@ -58,6 +58,14 @@ public class Achievements
         new AchievementDef { id = "ISLAND", name = "Landfall", desc = "Set foot on the island.", icon = "🏝️", page = "island_first" },
         new AchievementDef { id = "RUINS", name = "Old Stones", desc = "Find the ruins on the island.", icon = "🗿", page = "island_ruins" },
         new AchievementDef { id = "MAP", name = "An Old Map", desc = "Take the map from the island’s altar.", icon = "📜", page = "map_taken" },
+        new AchievementDef
+        {
+            id = "LIGHTHOUSE",
+            name = "The Keeper’s View",
+            desc = "Climb to the top of the lighthouse on the black rock.",
+            icon = "💡",
+            page = "ember_spring",
+        },
         new AchievementDef { id = "DIVE", name = "Into the Blue", desc = "Dive for the first time.", icon = "🤿", page = "dive_first" },
         new AchievementDef { id = "WRECK", name = "The Sunken Ship", desc = "Find the shipwreck.", icon = "⚓", page = "wreck_found" },
         new AchievementDef { id = "HARPOON", name = "First Catch", desc = "Spear your first fish.", icon = "🐟", page = "harpoon_first" },

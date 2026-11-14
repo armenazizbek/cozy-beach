@@ -10,7 +10,7 @@ using static Beach;
 /// the player, the maps and every find already know where the land is; this class builds what you see and what you can bump into.
 /// There are three, each of its own kind: the green island (palms, bushes, boulders, an old stone ruin on the hilltop and a wrecked
 /// boat on the sand), the lagoon cay (a ring of pale sand with a castaway's camp on its dune) and the ember rock (a dark volcanic
-/// cone with basalt columns at its foot and a hot spring in its crater).
+/// cone with basalt columns at its foot and a lighthouse on its summit).
 /// </summary>
 public class Island
 {
@@ -60,7 +60,6 @@ public class Island
     public readonly IslandSpec spec;
     /// <summary>0 the green island, 1 the lagoon cay, 2 the ember rock</summary>
     public readonly int kind;
-    private static readonly THREE.Color STEAM_WHITE = new THREE.Color(0xffffff);
     public readonly THREE.Group group = new THREE.Group();
     /// <summary>solid circles for walking around: trunks, boulders, ruin pillars, the wreck</summary>
     public readonly List<Spot> colliders = new List<Spot>();
@@ -76,10 +75,10 @@ public class Island
     private readonly THREE.Group scroll = new THREE.Group();
     private double scrollY = 0;
     private readonly Func<double> rand;
-    /// <summary>the rag on the camp's signal mast, and the steam over the hot spring</summary>
+    /// <summary>the rag on the camp's signal mast</summary>
     private THREE.Object3D pennant = null;
-    private readonly List<(THREE.Sprite puff, double phase)> steam = new List<(THREE.Sprite, double)>();
-    private double steamY = 0;
+    /// <summary>the ember rock's lighthouse; null on the other islands</summary>
+    public Lighthouse lighthouse = null;
     /// <summary>what lies in the open here, by item id; no other island has the same finds</summary>
     public readonly string[] findIds;
     /// <summary>every material on the island, with its own colour, so distance haze can be applied by hand</summary>
@@ -109,7 +108,7 @@ public class Island
         {
             findIds = new[] { "sun_disc", "fire_opal", "obsidian_blade" };
             ruins = (this.spec.x, this.spec.z);
-            clearR = 0;
+            clearR = 6.5;
             buildTerrain();
             buildFoam();
             buildPalms();
@@ -119,9 +118,10 @@ public class Island
             buildColumns();
             buildSnags();
             buildCairn();
+            buildLighthouse();
             prepareHaze();
-            // the spring and its steam are added after: they glow by themselves, and the scene's own fog is right for them
-            buildSpring();
+            // the lamp and its beams are added after: they shine by their own light, and the haze must not grey them
+            lighthouse.buildLight(group);
         }
         else
         {
@@ -320,9 +320,8 @@ public class Island
                     double p = patches(x, z, 2);
                     g.copy(scrubDark).lerp(scrubLight, p);
                     c.lerp(g, smooth(1.3, 1.9, h) * (1 - smooth(3.8, 5.4, h)) * smooth(0.5, 0.64, patches(x, z, 5)) * 0.9);
-                    // rust-red toward the rim, and yellow crusts round the spring
+                    // rust-red toward the summit
                     c.lerp(rust, smooth(5.2, 7.8, h) * (0.35 + 0.45 * r));
-                    c.lerp(sulphur, smooth(0.135, 0.085, tc) * (0.4 + 0.5 * patches(x, z, 4)));
                 }
                 else
                 {
@@ -944,7 +943,7 @@ public class Island
     /// <summary>A pile of flat stones on the crater's rim: someone climbed up here long ago and left a mark, and something beside it.</summary>
     private void buildCairn()
     {
-        cairn = highestAlong(-1.75, 0.1, 0.3);
+        cairn = highestAlong(-1.75, 0.22, 0.32);
         var mats = new[] { 0x4a4641, 0x3b3835, 0x5a554e }.Select(c => new THREE.MeshStandardMaterial { color = c, roughness = 0.95, flatShading = true }).ToArray();
         double y = baseHeight(cairn.x, cairn.z) - 0.05;
         var radii = new[] { 0.44, 0.36, 0.3, 0.22, 0.15 };
@@ -963,43 +962,22 @@ public class Island
         colliders.Add(new Spot { x = cairn.x, z = cairn.z, r = 0.5 });
     }
 
-    /// <summary>A round white wisp, thick in the middle and gone at the edge.</summary>
-    private static THREE.CanvasTexture steamTexture()
+    /// <summary>
+    /// The lighthouse on the summit. It stands on the highest ground under it, so its floor is never buried; its door faces
+    /// the beach, the way a boat comes in.
+    /// </summary>
+    private void buildLighthouse()
     {
-        var c = new HTMLCanvasElement(64, 64);
-        var g = c.getContext("2d");
-        var grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-        grad.addColorStop(0, "rgba(255,255,255,0.85)");
-        grad.addColorStop(0.45, "rgba(255,255,255,0.4)");
-        grad.addColorStop(1, "rgba(255,255,255,0)");
-        g.fillStyle = grad;
-        g.fillRect(0, 0, 64, 64);
-        return new THREE.CanvasTexture(c);
-    }
-
-    /// <summary>The hot spring in the crater: a pool of milky turquoise water that glows a little, with steam drifting up off it.</summary>
-    private void buildSpring()
-    {
-        double floorY = baseHeight(spec.x, spec.z);
-        var water = new THREE.Mesh(
-            new THREE.CircleGeometry(3.4, 36),
-            new THREE.MeshStandardMaterial { color = 0x35c4b4, emissive = 0x1f9f94, emissiveIntensity = 0.45, roughness = 0.34, metalness = 0.05, transparent = true, opacity = 0.86 });
-        water.rotation.x = -Math.PI / 2;
-        water.position.set(spec.x, floorY + 0.45, spec.z);
-        water.receiveShadow = true;
-        group.add(water);
-        steamY = floorY + 0.5;
-        var soft = steamTexture();
-        for (int i = 0; i < 9; i++)
+        double top = double.NegativeInfinity;
+        for (int i = 0; i < 24; i++)
         {
-            // a soft round wisp that always faces the viewer; each has its own material, so each fades by itself
-            var puff = new THREE.Sprite(new THREE.SpriteMaterial { map = soft, color = 0xffffff, transparent = true, opacity = 0, depthWrite = false, fog = false });
-            puff.renderOrder = 4;
-            group.add(puff);
-            steam.Add((puff, i / 9.0 + rand() * 0.1));
+            double a = i / 24.0 * Math.PI * 2;
+            foreach (var r in new[] { 0.0, 1.5, 3.0, 3.6 })
+                top = Math.Max(top, baseHeight(spec.x + Math.Cos(a) * r, spec.z + Math.Sin(a) * r));
         }
-        // too hot to wade into the middle
-        colliders.Add(new Spot { x = spec.x, z = spec.z, r = 1.9 });
+        double door = Math.Atan2(-spec.z, -spec.x);
+        lighthouse = new Lighthouse(spec.x, spec.z, top, door);
+        group.add(lighthouse.group);
     }
 
     /// <summary>Lays `id` down on a free, walkable spot in a band of heights and distances from the middle.</summary>
@@ -1104,18 +1082,11 @@ public class Island
         scroll.position.y = scrollY + Math.Sin(t * 2) * 0.012;
         // the rag on the mast swings about in the wind
         if (pennant != null) pennant.rotation.y = 0.6 + Math.Sin(t * 1.3) * 0.35 + Math.Sin(t * 3.1) * 0.12;
-        // steam: each puff rises off the spring, swells and thins out, then starts again
-        foreach (var (puff, phase) in steam)
+        // the lighthouse's lamp is lit when the sky is dark: how dark is read off the colour of the haze
+        if (lighthouse != null)
         {
-            double u = t * 0.11 + phase;
-            u -= Math.Floor(u);
-            double drift = phase * 40;
-            puff.position.set(spec.x + Math.Cos(drift) * 1.1 + Math.Sin(t * 0.5 + drift) * 0.35 + u * 0.8, steamY + u * 3.6, spec.z + Math.Sin(drift) * 1.1 + Math.Cos(t * 0.4 + drift) * 0.35);
-            puff.scale.setScalar(1.3 + u * 3.2);
-            var pm = puff.material;
-            pm.opacity = 0.5 * Math.Sin(Math.PI * u);
-            // lit by the sky, so it is white by day and all but gone at night
-            pm.color.copy(fog).lerp(STEAM_WHITE, 0.72).multiplyScalar(0.25 + 0.75 * Math.Min(1, (fog.r + fog.g + fog.b) / 1.5));
+            double light = (fog.r + fog.g + fog.b) / 3;
+            lighthouse.update(t, dt, Math.Max(0, Math.Min(1, (0.42 - light) / 0.27)));
         }
         foreach (var p in palms)
         {

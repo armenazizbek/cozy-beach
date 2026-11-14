@@ -47,14 +47,14 @@ public class MapViewBounds
 public class MapView
 {
     /// <summary>The terrain is painted over the island and plenty of open sea around it, so the boat never leaves the map.</summary>
-    private const double EXT_X0 = -320;
-    private const double EXT_Z0 = -150;
-    private const double EXT = 640;
+    private const double EXT_X0 = -370;
+    private const double EXT_Z0 = -250;
+    private const double EXT = 740;
     private const double PPM = 2; // painted pixels per metre
     private const int BASE_PX = (int)(EXT * PPM);
 
     /// <summary>The part of the world the full map shows: a square centred a little out to sea.</summary>
-    public static readonly MapViewBounds MAP_VIEW = new MapViewBounds { cx = 0, cz = 162, half = 300 };
+    public static readonly MapViewBounds MAP_VIEW = new MapViewBounds { cx = 0, cz = 118, half = 340 };
 
     /// <summary>
     /// The markers on the full map are drawn in metres. The map once showed 344 m across and now shows more, so they are
@@ -72,17 +72,64 @@ public class MapView
     /// <summary>where the captain's strongbox is buried, once the bottle map has been found</summary>
     public List<double[]> captain = new List<double[]>();
 
-    public MapView(IList<Scenery.Trunk> trunks)
+    public MapView(IList<Scenery.Trunk> trunks, IList<Scenery.Mountain> mountains = null)
     {
         this._base.width = this._base.height = BASE_PX;
         var g = this._base.getContext("2d");
         var img = g.createImageData(BASE_PX, BASE_PX);
         var data = img.data;
         var m = EXT / BASE_PX;
+        // The mountains are drawn as shaded relief, like the hills on an old map. Their heights are blended into one range (a soft
+        // maximum, so neighbouring peaks run together into ridges instead of standing as separate cones) with a little
+        // roughness over it, on a coarse grid that each pixel reads between; then each pixel is lit from the top left.
+        const double CELL = 2, BLEND = 0.12;
+        int gw = (int)(EXT / CELL) + 2;
+        var range = new float[gw * gw];
+        for (int j = 0; j < gw; j++)
+        {
+            for (int i = 0; i < gw; i++)
+            {
+                double x = EXT_X0 + i * CELL, z = EXT_Z0 + j * CELL;
+                float val = -100;
+                if (mountains != null && JS.Hypot(x, z) > 110)
+                {
+                    double sum = 0, up = 0;
+                    foreach (var mt in mountains)
+                    {
+                        double d = JS.Hypot(x - mt.x, z - mt.z);
+                        if (d >= mt.radius * 1.05) continue;
+                        double e = mt.footY + mt.height * (1 - d / mt.radius);
+                        sum += Math.Exp(BLEND * e);
+                        up = Math.Max(up, 1 - d / mt.radius);
+                    }
+                    if (sum > 0)
+                    {
+                        double e = Math.Log(sum) / BLEND;
+                        // rough ground on the slopes, more of it higher up
+                        e += (Math.Sin(x * 0.13 + Math.Sin(z * 0.07) * 2) * Math.Sin(z * 0.12 + Math.Sin(x * 0.05) * 2) * 3 + Math.Sin(x * 0.31 - z * 0.27) * 0.8) * up;
+                        val = (float)e;
+                    }
+                }
+                range[j * gw + i] = val;
+            }
+        }
+        double rangeAt(double x, double z)
+        {
+            double fx = Math.Max(0, Math.Min(gw - 1.001, (x - EXT_X0) / CELL)), fz = Math.Max(0, Math.Min(gw - 1.001, (z - EXT_Z0) / CELL));
+            int ci = (int)fx, cj = (int)fz;
+            double tx = fx - ci, tz = fz - cj;
+            int k = cj * gw + ci;
+            double top = range[k] + (range[k + 1] - range[k]) * tx;
+            double bot = range[k + gw] + (range[k + gw + 1] - range[k + gw]) * tx;
+            return top + (bot - top) * tz;
+        }
+        // the light, from the top left of the map and well up in the sky
+        double lx = -0.55, ly = 0.62, lz = -0.55;
         for (int v = 0; v < BASE_PX; v++)
         {
             var z = EXT_Z0 + (v + 0.5) * m;
-            var deepSeaRow = z > 88;
+            // rows of nothing but open sea are filled in one go; the mountains at the sides reach well out into the water
+            var deepSeaRow = z > 140;
             if (deepSeaRow) foreach (var isl in ISLANDS) if (Math.Abs(z - isl.z) <= isl.R * 1.2) deepSeaRow = false;
             if (deepSeaRow)
             {
@@ -98,7 +145,7 @@ public class MapView
             {
                 var x = EXT_X0 + (u + 0.5) * m;
                 var isle = z > 88 ? islandNear(x, z) : null;
-                if (z > 88 && isle == null)
+                if (z > 140 && isle == null)
                 {
                     var idx = (v * BASE_PX + u) * 4;
                     data[idx] = 30; data[idx + 1] = 95; data[idx + 2] = 155; data[idx + 3] = 255;
@@ -108,6 +155,22 @@ public class MapView
                 double r;
                 double gr;
                 double b;
+                double relief = rangeAt(x, z);
+                if (relief > Math.Max(h, WATER_LEVEL) + 0.05)
+                {
+                    double gx = (rangeAt(x + 1, z) - rangeAt(x - 1, z)) / 2, gz = (rangeAt(x, z + 1) - rangeAt(x, z - 1)) / 2;
+                    double nl = Math.Sqrt(gx * gx + 1 + gz * gz);
+                    double lit = Math.Max(0, (-gx * lx + ly - gz * lz) / nl);
+                    double hi = Math.Max(0, Math.Min(1, relief / 70));
+                    double k = 0.42 + 0.75 * lit;
+                    r = (126 + 52 * hi) * k; gr = (118 + 44 * hi) * k; b = (104 + 36 * hi) * k;
+                    // a soft dark line where the slopes meet the land or the water
+                    double foot = Math.Min(1, (relief - Math.Max(h, WATER_LEVEL)) / 1.5);
+                    double f = 0.78 + 0.22 * foot;
+                    var mi = (v * BASE_PX + u) * 4;
+                    data[mi] = (byte)Math.Min(255, r * f); data[mi + 1] = (byte)Math.Min(255, gr * f); data[mi + 2] = (byte)Math.Min(255, b * f); data[mi + 3] = 255;
+                    continue;
+                }
                 if (h < WATER_LEVEL)
                 {
                     var d = Math.Min(1, (WATER_LEVEL - h) / 0.9);
@@ -140,6 +203,12 @@ public class MapView
             }
         }
         g.putImageData(img, 0, 0);
+        // the nets round the treasure cove, painted in once: the little map redraws often, and this costs it nothing
+        g.save();
+        g.scale(PPM, PPM);
+        g.translate(-EXT_X0, -EXT_Z0);
+        drawCove(g, 0.9);
+        g.restore();
         // palms
         g.fillStyle = "rgba(52,120,52,0.9)";
         g.beginPath();
@@ -406,6 +475,23 @@ public class MapView
         ctx.restore();
     }
 
+    /// <summary>The fishing nets round the treasure cove: a dashed line down both sides and across the top. In world units.</summary>
+    private void drawCove(CanvasRenderingContext2D ctx, double width, string color = "rgba(120,72,40,0.85)")
+    {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.setLineDash(new double[] { width * 2.6, width * 1.8 });
+        ctx.beginPath();
+        ctx.moveTo(-CoveNets.SIDE_X, CoveNets.BOTTOM_Z);
+        ctx.lineTo(-CoveNets.SIDE_X, CoveNets.TOP_Z);
+        ctx.lineTo(CoveNets.SIDE_X, CoveNets.TOP_Z);
+        ctx.lineTo(CoveNets.SIDE_X, CoveNets.BOTTOM_Z);
+        ctx.stroke();
+        ctx.setLineDash(Array.Empty<double>());
+        ctx.restore();
+    }
+
     /// <summary>The fishing pier, a brown strip out from the beach. The map's units are the world's.</summary>
     private void drawPier(CanvasRenderingContext2D ctx)
     {
@@ -607,6 +693,11 @@ public class MapView
         ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Sea", size / 2, size - 14);
+        ctx.fillStyle = "#6b3a1c";
+        ctx.font = "italic 600 13px \"Trebuchet MS\", sans-serif";
+        ctx.fillText("Treasure cove", ((0 - cx + half) / (2 * half)) * size, ((CoveNets.BOTTOM_Z - 6 - cz + half) / (2 * half)) * size);
+        ctx.font = "600 14px \"Trebuchet MS\", sans-serif";
+        ctx.fillStyle = "#ffffff";
         this.nameIslands(ctx, size);
 
         ctx.save();

@@ -1755,6 +1755,7 @@ public class UIManager
         <div class=""intro-text"">
           <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat.</p>
           <p>You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it.</p>
+          <p>The finds wash in to the treasure cove, the sand below the camp inside the old fishing nets. Beyond the nets there is only sand.</p>
           <p>There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like.</p>
           <ul class=""intro-first"">
             <li><span>{DETECTOR_ICON}</span>Sweep the sand with the detector and listen for the beep.</li>

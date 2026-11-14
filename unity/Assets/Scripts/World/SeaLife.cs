@@ -24,6 +24,8 @@ public class Shark : Wanderer
     /// <summary>0 while cruising; 0..1 through a leap out of the water</summary>
     public double breach;
     public THREE.Vector2 breachFrom;
+    /// <summary>how far its nose is tipped up and how far it is rolled, eased so a leap never jumps from one pose to the next</summary>
+    public double pitchNow, rollNow;
     /// <summary>hits it can still take; two are needed to bring a shark down</summary>
     public int hp;
     /// <summary>seconds left of darting away after being hit</summary>
@@ -52,6 +54,85 @@ public class SeaLife
     private const double BREACH_PEAK = 2.7;
     /// <summary>the point in the leap, as a fraction of it, where the nose breaks the surface</summary>
     private static readonly double BREACH_OUT = (1 - Math.Sqrt(1 - BREACH_DEPTH / (BREACH_PEAK + BREACH_DEPTH))) / 2;
+    /// <summary>
+    /// A leap is three parts: a dive down to where it gathers speed, the arc out of the water and back in, and a long glide
+    /// back up to cruise at the surface. Before, the arc was all there was, and the shark jumped from the surface to the
+    /// bottom of it, and back, in a single frame.
+    /// </summary>
+    private const double BREACH_DIVE = 1.0, BREACH_RISE = 1.8;
+    private const double BREACH_TOTAL = BREACH_DIVE + BREACH_SECONDS + BREACH_RISE;
+
+    /// <summary>How high a leaping shark is (0 is cruising at the surface) at a time in seconds from the start of its leap.</summary>
+    private static double leapHeight(double tau)
+    {
+        if (tau <= 0) return 0;
+        if (tau < BREACH_DIVE) return -BREACH_DEPTH * smoothstep(0, BREACH_DIVE, tau);
+        double a = tau - BREACH_DIVE;
+        if (a < BREACH_SECONDS)
+        {
+            double u = a / BREACH_SECONDS;
+            return -BREACH_DEPTH + 4 * (BREACH_PEAK + BREACH_DEPTH) * u * (1 - u);
+        }
+        return -BREACH_DEPTH * (1 - smoothstep(BREACH_DIVE + BREACH_SECONDS, BREACH_TOTAL, tau));
+    }
+
+    private static double smoothstep(double a, double b, double x)
+    {
+        double t = Math.Min(1, Math.Max(0, (x - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>
+    /// Keeps a swimmer out of the islands: near one it turns away from the middle, and if it has got onto the shallows anyway
+    /// it is set back out at the edge. The lagoon counts as solid: nothing big swims in through its gap.
+    /// </summary>
+    private static void avoidIslands(Wanderer w, double dt)
+    {
+        foreach (var isl in ISLANDS)
+        {
+            double dx = w.x - isl.x, dz = w.z - isl.z, d = JS.Hypot(dx, dz);
+            double keep = isl.R * 1.3 + 6, wall = isl.R * 1.25;
+            if (d > keep + 25) continue;
+            if (d < keep + 25 && d > 1e-6)
+            {
+                // the closer it is, the harder it turns: heading for (dx, dz) is atan2(-dx, -dz)
+                double away = Math.Atan2(-dx, -dz);
+                double turn = Math.Atan2(Math.Sin(away - w.heading), Math.Cos(away - w.heading));
+                double k = Math.Min(1, (keep + 25 - d) / 25);
+                w.heading += turn * Math.Min(1, dt * 3 * k);
+            }
+            if (d < wall && d > 1e-6)
+            {
+                w.x = isl.x + dx / d * wall;
+                w.z = isl.z + dz / d * wall;
+            }
+        }
+    }
+
+    /// <summary>Mid-leap there is no steering, but a leaping shark is still never let onto an island.</summary>
+    private static void avoidIslandsHard(Wanderer w)
+    {
+        foreach (var isl in ISLANDS)
+        {
+            double dx = w.x - isl.x, dz = w.z - isl.z, d = JS.Hypot(dx, dz), wall = isl.R * 1.25;
+            if (d < wall && d > 1e-6)
+            {
+                w.x = isl.x + dx / d * wall;
+                w.z = isl.z + dz / d * wall;
+            }
+        }
+    }
+
+    /// <summary>A spot in the open water for a swimmer to start at, clear of the islands.</summary>
+    private static (double x, double z) openWater(double zMin, double zMax)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            double z = rand(zMin, zMax), xm = seaHalfWidth(z), x = rand(-xm, xm);
+            if (ISLANDS.All(isl => JS.Hypot(x - isl.x, z - isl.z) > isl.R * 1.4 + 8)) return (x, z);
+        }
+        return (0, zMin);
+    }
 
     // swimming area: out beyond the surf, in front of the beach
     private static readonly double X_MAX = SEA.x;
@@ -268,8 +349,9 @@ public class SeaLife
         {
             root = root, body = body, rest = rest, caudal = caudal, hit = hit, alive = true, respawn = 0, wake = 0, breach = 0,
             breachFrom = new THREE.Vector2(), hp = 2, flinch = 0, baseSpeed = 3,
-            x = rand(-X_MAX, X_MAX), z = rand(Z_MIN + 10, Z_MAX), heading = JS.Random() * 6.28, speed = rand(2.4, 3.6), phase = JS.Random() * 6,
+            heading = JS.Random() * 6.28, speed = rand(2.4, 3.6), phase = JS.Random() * 6,
         };
+        (s.x, s.z) = openWater(Z_MIN + 10, Z_MAX);
         s.baseSpeed = s.speed;
         hit.userData["shark"] = s;
         return s;
@@ -312,10 +394,14 @@ public class SeaLife
             hit.userData["fish"] = f;
             fish.Add(f);
         }
-        return new School
+        var school = new School
         {
-            x = rand(-X_MAX, X_MAX), z = rand(SHORE_Z + 6, Z_MAX - 20), heading = JS.Random() * 6.28, speed = rand(1.2, 2.2), phase = JS.Random() * 6, fish = fish,
+            heading = JS.Random() * 6.28, speed = rand(1.2, 2.2), phase = JS.Random() * 6, fish = fish,
         };
+        var (sx0, sz0) = openWater(SHORE_Z + 6, Z_MAX - 20);
+        school.x = sx0;
+        school.z = sz0;
+        return school;
     }
 
     private Jumper makeJumper(int i)
@@ -345,6 +431,7 @@ public class SeaLife
             d = Math.Atan2(Math.Sin(d), Math.Cos(d));
             w.heading += d * Math.Min(1, dt * 1.4);
         }
+        avoidIslands(w, dt);
         w.x += -Math.Sin(w.heading) * w.speed * dt;
         w.z += -Math.Cos(w.heading) * w.speed * dt;
     }
@@ -410,6 +497,26 @@ public class SeaLife
     /// </summary>
     internal (double x, double z)? smokeHold;
 
+    /// <summary>For the -autoshot-leap test: shark 0 at a spot, heading this way, and either leaping now or just swimming.</summary>
+    internal void smokeShark(double x, double z, double heading, bool leap)
+    {
+        var s = sharks[0];
+        s.alive = true;
+        s.root.visible = true;
+        s.x = x;
+        s.z = z;
+        s.heading = heading;
+        s.breach = leap ? 0.0001 : 0;
+        breachTimer = 1e9;
+    }
+
+    /// <summary>For the -autoshot-leap test: where shark 0 is, how high, and how it is tipped.</summary>
+    internal (double x, double z, double y, double pitch, double roll) smokeSharkPose()
+    {
+        var s = sharks[0];
+        return (s.x, s.z, s.root.position.y, s.root.rotation.x, s.root.rotation.z);
+    }
+
     /// <summary>`level` is the current surface height; onSplash(distance) lets the sound be placed.</summary>
     public void update(double dt, double t, double level, double px, double pz, Action<double> onSplash)
     {
@@ -426,7 +533,7 @@ public class SeaLife
                 sh.heading = Math.PI / 2;
                 sh.x = hx + (i == 0 ? 0 : 3);
                 sh.z = hz + (i == 0 ? 0 : 7);
-                sh.breach = i == 0 ? 0.5 : 0;
+                sh.breach = i == 0 ? (BREACH_DIVE + BREACH_SECONDS * 0.5) / BREACH_TOTAL : 0;
                 sh.breachFrom.set(sh.x, sh.z);
             }
             var j0 = jumpers[0];
@@ -459,6 +566,12 @@ public class SeaLife
                 // always out to sea, never at the beach or off the edge of the water
                 if (pick.z < Z_MIN + 22) pick.heading = Math.PI + (JS.Random() - 0.5) * 0.6;
                 else if (Math.Abs(pick.x) > X_MAX - 18) pick.heading = Math.Atan2(pick.x, 0) + Math.PI * 0.5;
+                // the whole leap covers about thirty metres: none of it may end on an island's shore
+                foreach (var isl in ISLANDS)
+                {
+                    double ex = pick.x - Math.Sin(pick.heading) * 30, ez = pick.z - Math.Cos(pick.heading) * 30;
+                    if (JS.Hypot(ex - isl.x, ez - isl.z) < isl.R * 1.4 + 10) pick.heading = Math.Atan2(-(pick.x - isl.x), -(pick.z - isl.z));
+                }
                 splash(new THREE.Vector3(pick.x, level, pick.z), 45);
                 onSplash(JS.Hypot(pick.x - px, pick.z - pz) * 0.5);
             }
@@ -474,8 +587,7 @@ public class SeaLife
                 {
                     s.alive = true;
                     s.root.visible = true;
-                    s.x = rand(-X_MAX, X_MAX);
-                    s.z = rand(Z_MIN + 10, Z_MAX);
+                    (s.x, s.z) = openWater(Z_MIN + 10, Z_MAX);
                 }
                 continue;
             }
@@ -487,24 +599,36 @@ public class SeaLife
             bool leaping = s.breach > 0;
             double height = 0;
             double pitch = 0;
+            double rollWant = 0;
             if (leaping)
             {
-                // a real leap: it comes up from below the surface at a slant, arcs over and goes back in headfirst
+                // a real leap: it dives to gather speed, comes up from below the surface at a slant, arcs over, goes back in
+                // headfirst, and glides back up to the surface. Every part runs into the next, so it never jumps
                 double prev = s.breach;
-                if (smokeHold == null) s.breach += dt / BREACH_SECONDS;
-                double u0 = Math.Min(1, s.breach);
-                s.x += -Math.Sin(s.heading) * BREACH_SPEED * dt;
-                s.z += -Math.Cos(s.heading) * BREACH_SPEED * dt;
-                height = -BREACH_DEPTH + 4 * (BREACH_PEAK + BREACH_DEPTH) * u0 * (1 - u0);
-                double slope = 4 * (BREACH_PEAK + BREACH_DEPTH) * (1 - 2 * u0) / (BREACH_SPEED * BREACH_SECONDS);
-                pitch = Math.Atan(slope);
+                if (smokeHold == null) s.breach += dt / BREACH_TOTAL;
+                double tau = Math.Min(1, s.breach) * BREACH_TOTAL, tauPrev = prev * BREACH_TOTAL;
+                double arcEnd = BREACH_DIVE + BREACH_SECONDS;
+                // it speeds up into the leap and eases off again after it
+                double v = tau < BREACH_DIVE ? s.speed + (BREACH_SPEED - s.speed) * smoothstep(0, BREACH_DIVE, tau)
+                    : tau < arcEnd ? BREACH_SPEED
+                    : BREACH_SPEED + (s.speed - BREACH_SPEED) * smoothstep(arcEnd, BREACH_TOTAL, tau);
+                s.x += -Math.Sin(s.heading) * v * dt;
+                s.z += -Math.Cos(s.heading) * v * dt;
+                height = leapHeight(tau);
+                const double e = 0.03;
+                pitch = Math.Atan((leapHeight(tau + e) - leapHeight(tau - e)) / (2 * e * Math.Max(1, v)));
+                // the slow half-roll over the top, eased in on the dive and out on the glide back up
+                rollWant = tau < BREACH_DIVE ? -0.75 * smoothstep(0, BREACH_DIVE, tau)
+                    : tau < arcEnd ? ((tau - BREACH_DIVE) / BREACH_SECONDS - 0.5) * 1.5
+                    : 0.75 * (1 - smoothstep(arcEnd, BREACH_TOTAL, tau));
                 var at = new THREE.Vector3(s.x - Math.Sin(s.heading) * 1.8, level, s.z - Math.Cos(s.heading) * 1.8);
-                if (prev < BREACH_OUT && s.breach >= BREACH_OUT)
+                double outAt = BREACH_DIVE + BREACH_OUT * BREACH_SECONDS, inAt = BREACH_DIVE + (1 - BREACH_OUT) * BREACH_SECONDS;
+                if (tauPrev < outAt && tau >= outAt)
                 {
                     splash(at, 60);
                     onSplash(JS.Hypot(s.x - px, s.z - pz) * 0.5);
                 }
-                if (prev < 1 - BREACH_OUT && s.breach >= 1 - BREACH_OUT)
+                if (tauPrev < inAt && tau >= inAt)
                 {
                     splash(at, 70);
                     onSplash(JS.Hypot(s.x - px, s.z - pz) * 0.5);
@@ -516,15 +640,20 @@ public class SeaLife
                     s.breach = 0;
                     leapDone = true;
                 }
+                avoidIslandsHard(s);
             }
             else
             {
                 steer(s, dt, t, 0.55);
             }
-            double u = Math.Min(1, s.breach != 0 ? s.breach : (leapDone ? 1 : 0));
             s.root.position.set(s.x, level - 0.22 + height, s.z);
-            // nose up as it leaves the water, level at the top, nose down as it returns, with a slow half-roll over the top
-            s.root.rotation.set(leaping ? pitch : Math.Sin(t * 1.1 + s.phase) * 0.02, s.heading, leaping ? (u - 0.5) * 1.5 : 0, "YXZ");
+            // nose up as it leaves the water, level at the top, nose down as it returns, with a slow half-roll over the top. The
+            // pose is eased toward where it should be, so the turns at the bottom of the dive and of the glide are smooth too
+            double pitchWant = leaping ? pitch : Math.Sin(t * 1.1 + s.phase) * 0.02;
+            double ease = smokeHold != null ? 1 : Math.Min(1, dt * 10);
+            s.pitchNow += (pitchWant - s.pitchNow) * ease;
+            s.rollNow += (rollWant - s.rollNow) * ease;
+            s.root.rotation.set(s.pitchNow, s.heading, s.rollNow, "YXZ");
 
             // swimming: a wave runs down the body, strongest at the tail
             var pos = s.body.geometry.attributes.position;

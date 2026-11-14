@@ -141,6 +141,10 @@ public class Game
     public readonly Flags flags = new Flags();
     public readonly Dog dog;
     public readonly Stones stones;
+    /// <summary>the fishing nets round the treasure cove, with their banners</summary>
+    private CoveNets coveNets;
+    /// <summary>set once the player has been told that nothing is buried outside the nets</summary>
+    private bool coveToldOnce = false;
     public readonly Grass grass;
     public readonly Sandcastles castles;
     /// <summary>every island in the sea; the first is the green one with the ruins</summary>
@@ -244,8 +248,9 @@ public class Game
         PENDING = takePendingLoad();
         AUTOSTART = takeAutostart();
         state = new StateManager(PENDING?.data);
-        mapView = new MapView(scenery.trunks);
+        mapView = new MapView(scenery.trunks, scenery.mountains);
         stones = new Stones(beach);
+        coveNets = new CoveNets(scenery.trunks);
         grass = new Grass(beach);
         castles = new Sandcastles(beach);
 
@@ -302,6 +307,7 @@ public class Game
             flags.group,
             rain.group,
             stones.group,
+            coveNets.group,
             grass.group,
             castles.group,
             islands[0].group,
@@ -716,6 +722,15 @@ public class Game
     /// For the -autoshot-tour smoke test: opens one of the text-heavy screens ("camp:board", "camp:sell", "book", "mail",
     /// "help", "credits") so it can be photographed, and closes it again with <see cref="smokeTestClose"/>.
     /// </summary>
+    /// <summary>For the -autoshot-shop test: scrolls the camp's page, and opens the Luxury shop with gold to spend.</summary>
+    internal void smokeTestCampScroll(double y) => campModal.smokeScroll(y);
+
+    internal void smokeTestRich()
+    {
+        state.data.hoardTaken = true;
+        state.data.coins = 5000;
+    }
+
     internal void smokeTestOpen(string what)
     {
         if (what.StartsWith("camp:")) openCamp(what.Substring(5), false);
@@ -886,6 +901,75 @@ public class Game
         if (start) menuNewGame();
         else if (opening != null && opening.gale > 0) opening.smokeStrike();
         return opening != null ? $"opening at {opening.time:0.0}s, caption: {opening.caption ?? "none"}, rain {rain.amount:0.0}, hour {dayTime:0.00}" : $"opening over; card up: {ui.introOpen}";
+    }
+
+    /// <summary>For the -autoshot-land test: stands somewhere, looking this way.</summary>
+    internal void smokeTestStandAt(double x, double z, double yaw, double pitch)
+    {
+        player.x = x;
+        player.z = z;
+        player.yaw = yaw;
+        player.pitch = pitch;
+        eyeY = 0;
+    }
+
+    internal string smokeTestWhereLand() => $"x {player.x:0.0}, z {player.z:0.0}, ground {beach.heightAt(player.x, player.z):0.0}";
+
+    /// <summary>
+    /// For the -autoshot-lighthouse test. "door" stands a few steps from the door, facing it; "open" opens it; "steer" points the
+    /// player the way to go (in at the door, then round and up the stair, then round the deck); "night" and "day" set the hour.
+    /// </summary>
+    internal string smokeTestTower(string what)
+    {
+        var lh = islands[2].lighthouse;
+        double dx = player.x - lh.cx, dz = player.z - lh.cz, r = JS.Hypot(dx, dz), a = Math.Atan2(dz, dx);
+        if (what == "door")
+        {
+            lh.reset();
+            player.x = lh.cx + Math.Cos(lh.doorAngle) * 7;
+            player.z = lh.cz + Math.Sin(lh.doorAngle) * 7;
+            player.yaw = Math.Atan2(Math.Cos(lh.doorAngle), Math.Sin(lh.doorAngle));
+            player.pitch = 0.1;
+        }
+        else if (what == "open")
+        {
+            if (!lh.doorOpen) lh.toggleDoor();
+        }
+        else if (what == "steer")
+        {
+            double gx, gz;
+            if (!lh.isInside && !lh.atTop)
+            {
+                // to a point just inside the doorway
+                gx = lh.cx + Math.Cos(lh.doorAngle) * 2.4 - player.x;
+                gz = lh.cz + Math.Sin(lh.doorAngle) * 2.4 - player.z;
+            }
+            else
+            {
+                // round the tower the way the stair climbs, keeping to the middle of the stair or the deck
+                double want = lh.atTop ? Lighthouse.DECK_WALK_R : Lighthouse.STAIR_R;
+                gx = -Math.Sin(a) + (want - r) * 0.9 * Math.Cos(a);
+                gz = Math.Cos(a) + (want - r) * 0.9 * Math.Sin(a);
+            }
+            player.yaw = Math.Atan2(-gx, -gz);
+            player.pitch = lh.atTop ? -0.05 : 0.18;
+        }
+        else if (what == "out")
+        {
+            // at the nearest window, to see out of it
+            var w = lh.nearestWindow(player.x, player.z, camera.position.y);
+            double wx = w.x - player.x, wz = w.z - player.z;
+            player.yaw = Math.Atan2(-wx, -wz);
+            player.pitch = Math.Atan2(w.y - camera.position.y, JS.Hypot(wx, wz)) * 0.6;
+        }
+        else if (what == "lamp")
+        {
+            player.yaw = Math.Atan2(dx, dz);
+            player.pitch = 0.25;
+        }
+        else if (what == "night") state.setLighting("night");
+        else if (what == "day") state.setLighting("cycle");
+        return lh.describe(player.x, player.z);
     }
 
     /// <summary>For the -autoshot-dive test: puts the diver at a spot under the sea (metres from its middle), this high off the floor, looking this way.</summary>
@@ -2127,7 +2211,7 @@ public class Game
             ui.toast(noDigHint());
             return;
         }
-        if (!beach.canDig(hit.z))
+        if (!beach.canDig(hit.x, hit.z))
         {
             ui.toast("Leave the dunes in peace. Dig down on the open beach.");
             audio.error();
@@ -3598,6 +3682,8 @@ public class Game
         // on the island the limit is the water's edge; on the beach it is the shore and the dunes
         var isl = islandAt(p.x, p.z);
         bool onIsl = isl != null;
+        // in the lighthouse the floor is the stair or the deck, not the ground
+        double? towerFloor = null;
         if (onIsl)
         {
             if (beach.heightAt(p.x, p.z) < WATER_LEVEL + 0.25)
@@ -3615,6 +3701,13 @@ public class Game
                     p.z = s.z + ((p.z - s.z) / (d != 0 ? d : 1)) * min;
                 }
             }
+            if (isl.lighthouse != null)
+            {
+                double nx = p.x, nz = p.z;
+                towerFloor = isl.lighthouse.walk(px0, pz0, ref nx, ref nz);
+                p.x = nx;
+                p.z = nz;
+            }
             if (isl.kind == 1)
             {
                 discover("lagoon_first");
@@ -3623,7 +3716,7 @@ public class Game
             else if (isl.kind == 2)
             {
                 discover("ember_first");
-                if (JS.Hypot(p.x - isl.ruins.x, p.z - isl.ruins.z) < 6.5) discover("ember_spring");
+                if (isl.lighthouse != null && isl.lighthouse.atTop) discover("ember_spring");
             }
             else
             {
@@ -3633,9 +3726,11 @@ public class Game
         }
         else
         {
-            // keep out of the sea, off the edge, and out of the fire
-            p.x = Math.Min(HALF - 2, Math.Max(-(HALF - 2), p.x));
-            p.z = Math.Max(-(HALF - 2), p.z);
+            // keep out of the sea, at the foot of the mountains, and out of the fire
+            double lx = p.x, lz = p.z;
+            scenery.keepOnLand(ref lx, ref lz);
+            p.x = lx;
+            p.z = lz;
             double maxZ = SHORE_Z - 3;
             if (p.z > maxZ)
             {
@@ -3717,7 +3812,7 @@ public class Game
             p.x = (p.x / (fd != 0 ? fd : 1)) * 1.6;
             p.z = CAMP_Z + ((p.z - CAMP_Z) / (fd != 0 ? fd : 1)) * 1.6;
         }
-        double ground = beach.heightAt(p.x, p.z);
+        double ground = towerFloor ?? beach.heightAt(p.x, p.z);
         // on the pier the boards are the ground
         bool onPier = Pier.over(p.x, p.z);
         if (onPier) ground = Math.Max(ground, Pier.deckAt(p.z));
@@ -4130,8 +4225,8 @@ public class Game
         foreach (var s in castles.colliders) push(s.x, s.z, s.r + radius * 0.6);
         foreach (var o in camp.obstacles) push(o.x, o.z, o.r + radius * 0.7);
         push(0, CAMP_Z, 1.6 + radius * 0.6);
-        double nx = Math.Min(HALF - 2, Math.Max(-(HALF - 2), x));
-        double nz = Math.Min(SHORE_Z - 4, Math.Max(-(HALF - 2), z));
+        double nx = x, nz = Math.Min(SHORE_Z - 4, z);
+        scenery.keepOnLand(ref nx, ref nz, radius);
         if (nx != x || nz != z) hit = true;
         return new Resolved { x = nx, z = nz, hit = hit };
     }
@@ -4337,7 +4432,9 @@ public class Game
         var onto = Pier.landingFor(boat.x, boat.z);
         if (onto != null) return new LandingSpot { x = onto.Value.x, z = onto.Value.z, island = false };
         double shore = beach.shoreZ(boat.x, ocean.surfaceY);
-        return new LandingSpot { x = Math.Min(HALF - 2, Math.Max(-(HALF - 2), boat.x)), z = Math.Min(SHORE_Z - 3, shore - 1.5), island = false };
+        double lx2 = boat.x, lz2 = Math.Min(SHORE_Z - 3, shore - 1.5);
+        scenery.keepOnLand(ref lx2, ref lz2);
+        return new LandingSpot { x = lx2, z = lz2, island = false };
     }
 
     /// <summary>
@@ -4521,7 +4618,10 @@ public class Game
         var clear = spawner.items.Where(i => !i.collected).Select(i => new Spot { x = i.x, z = i.z, r = 0 }).ToList();
         clear.Add(new Spot { x = 0, z = CAMP_Z, r = 13 });
         clear.Add(new Spot { x = cart.x, z = cart.z, r = 3.5 });
+        // nothing lands on the nets, and they are as solid as the boulders
+        clear.AddRange(coveNets.colliders);
         stones.scatter(clear);
+        stones.colliders.AddRange(coveNets.colliders);
         grass.scatter(clear);
     }
 
@@ -5309,6 +5409,20 @@ public class Game
                 },
             };
         }
+        var tower = islands[2].lighthouse;
+        if (tower != null && tower.nearDoor(player.x, player.z) && !driving && vehicle == null && 0.3 < best)
+        {
+            best = 0.3;
+            interaction = new Interaction
+            {
+                label = tower.doorOpen ? "Close the lighthouse door" : "Open the lighthouse door",
+                run = () =>
+                {
+                    tower.toggleDoor();
+                    audio.thud();
+                },
+            };
+        }
         if (!state.data.hasTreasureMap && island.nearMap(player.x, player.z) && 0.3 < best)
         {
             best = 0.3;
@@ -5586,13 +5700,23 @@ public class Game
         }
         else if (gameState == "EXPLORE" && toolHit != null && tool == 2)
         {
-            if (!beach.canDig(toolHit.z)) hint = "Too close to the dunes";
+            if (!beach.canDig(toolHit.x, toolHit.z)) hint = "Too close to the dunes";
             else if (state.data.warmth <= 0) hint = "Too chilly to dig. Warm up at the campfire";
             else hint = "Click to dig";
         }
         if (hint == null && started && gameState == "EXPLORE" && !locked && !usingPad)
         {
             hint = lockFailed ? "Move the mouse toward a screen edge to turn · click to use your tool" : "Click to take control of the mouse";
+        }
+        // out past the nets there is nothing buried: the detector and the trowel say so, and the first time a word pops up
+        if (hint == null && gameState == "EXPLORE" && (tool == 1 || tool == 2) && vehicle == null && !onIsland && !diving && !underground && !CoveNets.inCove(player.x, player.z) && !Pier.over(player.x, player.z) && player.z < SHORE_Z)
+        {
+            hint = "Nothing to dig out here";
+            if (!coveToldOnce)
+            {
+                coveToldOnce = true;
+                ui.toast("You have left the treasure cove. Finds lie buried only inside the fishing nets.");
+            }
         }
         if (hint == null && gameState == "EXPLORE" && tool == 2 && toolHit == null) hint = "Look at the sand closer to dig";
         if (hint == null && gameState == "EXPLORE" && tool == 1 && toolHit == null) hint = "Aim at the sand near your feet to sweep";
@@ -5671,6 +5795,7 @@ public class Game
             using (THREE.Bridge.BridgeStats.Time("ecology")) ecology.update(dt, player.x, player.z);
             using (THREE.Bridge.BridgeStats.Time("scenery")) scenery.update(t, sky.fog.color, dt, camera.position.x, camera.position.z);
             using (THREE.Bridge.BridgeStats.Time("grass")) grass.update(t);
+            coveNets.update(t);
             using (THREE.Bridge.BridgeStats.Time("birds")) birds.update(dt, t, player.x, player.z, d => audio.gull(d));
             using (THREE.Bridge.BridgeStats.Time("tracks")) tracks.update(dt, sky.starAmount);
             using (THREE.Bridge.BridgeStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, d => audio.splash(d));
@@ -5760,7 +5885,7 @@ public class Game
             }
             else if (tool == 2)
             {
-                dig.hover(toolHit, state, toolHit != null && beach.canDig(toolHit.z) && state.data.warmth > 0, beach);
+                dig.hover(toolHit, state, toolHit != null && beach.canDig(toolHit.x, toolHit.z) && state.data.warmth > 0, beach);
             }
         }
         using (THREE.Bridge.BridgeStats.Time("dig")) dig.update(dt);

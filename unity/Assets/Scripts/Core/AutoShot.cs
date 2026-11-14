@@ -172,6 +172,30 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] after walking: " + game.smokeTestWhere());
         }
 
+        // -autoshot-shop: the pictures beside everything the camp sells
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-shop") >= 0)
+        {
+            game.smokeTestOpen("camp:upgrades");
+            yield return Wait(1.5f);
+            yield return Shot("28-shop-upgrades.png");
+            for (int i = 1; i <= 4; i++)
+            {
+                game.smokeTestCampScroll(i * 520);
+                yield return Wait(0.8f);
+                yield return Shot($"28-shop-upgrades-{i}.png");
+            }
+            game.smokeTestClose("camp:upgrades");
+            yield return Wait(0.5f);
+            game.smokeTestRich();
+            game.smokeTestOpen("camp:luxury");
+            yield return Wait(1.5f);
+            yield return Shot("28-shop-luxury.png");
+            game.smokeTestCampScroll(600);
+            yield return Wait(0.8f);
+            yield return Shot("28-shop-luxury-2.png");
+            game.smokeTestClose("camp:luxury");
+        }
+
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-tour") >= 0)
         {
             // the screens with the most text, for checking wrapping and scrolling
@@ -259,6 +283,157 @@ public class AutoShot : MonoBehaviour
             }
             yield return Measure("diving");
             game.smokeTestGo("out");
+            yield return Wait(3);
+        }
+
+        // -autoshot-leap: a shark's whole leap, frame by frame: no frame may jump in height or pose. Then a shark sent straight at
+        // the island, which must turn away before it reaches the shore
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-leap") >= 0)
+        {
+            game.smokeTestStandAt(-12, 58, Math.PI, -0.02);
+            game.sea.smokeShark(-12, 92, Math.PI / 2, true);
+            float began = Time.realtimeSinceStartup;
+            double lastY = double.NaN, lastP = 0, worstY = 0, worstP = 0, top = double.NegativeInfinity, bottom = double.PositiveInfinity;
+            int shot = 0;
+            var shots = new[] { 0.6f, 1.7f, 2.6f, 3.3f, 4.0f, 5.0f };
+            while (Time.realtimeSinceStartup - began < 5.6f)
+            {
+                var pose = game.sea.smokeSharkPose();
+                if (!double.IsNaN(lastY))
+                {
+                    worstY = Math.Max(worstY, Math.Abs(pose.y - lastY));
+                    worstP = Math.Max(worstP, Math.Abs(pose.pitch - lastP));
+                }
+                lastY = pose.y;
+                lastP = pose.pitch;
+                top = Math.Max(top, pose.y);
+                bottom = Math.Min(bottom, pose.y);
+                if (shot < shots.Length && Time.realtimeSinceStartup - began >= shots[shot])
+                {
+                    yield return Shot($"28-leap-{shot}.png");
+                    shot++;
+                }
+                yield return null;
+            }
+            Debug.Log($"[AutoShot] leap: highest {top:0.00}, lowest {bottom:0.00}, biggest step in a frame {worstY:0.000} m and {worstP:0.000} rad");
+            // at the island, from forty metres out, heading straight for its middle
+            var isl = Beach.ISLAND;
+            game.sea.smokeShark(isl.x, isl.z - isl.R * 1.25 - 40, Math.PI, false);
+            double closest = double.PositiveInfinity;
+            began = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - began < 25)
+            {
+                var pose = game.sea.smokeSharkPose();
+                closest = Math.Min(closest, JS.Hypot(pose.x - isl.x, pose.z - isl.z));
+                yield return null;
+            }
+            Debug.Log($"[AutoShot] shark sent at the island: came no closer than {closest:0.0} m to its middle (its shore is about {isl.R:0} m out, the limit {isl.R * 1.25:0.0} m)");
+        }
+
+        // -autoshot-cove: the nets and their banners, from inside and from outside, and the hint out past them
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-cove") >= 0)
+        {
+            var views = new (string name, double x, double z, double yaw, double pitch)[]
+            {
+                ("top-from-camp", 0, -66, 0, 0.0), ("top-gap", 0, -74, 0, 0.12), ("camp-in", 0, -30, Math.PI, 0.0), ("side-in", 50, -10, -Math.PI / 2, 0.0),
+                ("side-out", 80, -29, Math.PI / 2, 0.08), ("along", 66, 30, 0.0, -0.05), ("corner", -40, -30, 2.4, 0.0),
+            };
+            foreach (var v in views)
+            {
+                game.smokeTestStandAt(v.x, v.z, v.yaw, v.pitch);
+                yield return Wait(1.6f);
+                Debug.Log($"[AutoShot] cove {v.name}: " + game.smokeTestWhereLand());
+                yield return Shot($"27-cove-{v.name}.png");
+            }
+            game.smokeTestOpen("map");
+            yield return Wait(1.3f);
+            yield return Shot("27-cove-map.png");
+            game.smokeTestClose("map");
+            // walk out through a side gap: the player gets through, and is told
+            game.smokeTestStandAt(60, -29, -Math.PI / 2, 0);
+            game.input.held.Add("KeyW");
+            yield return Wait(4);
+            game.input.held.Clear();
+            Debug.Log("[AutoShot] cove walked out of the east gap: " + game.smokeTestWhereLand());
+            yield return Shot("27-cove-walked-out.png");
+            // and into the net where there is no gap: the player stops at it
+            game.smokeTestStandAt(60, -15, -Math.PI / 2, 0);
+            game.input.held.Add("KeyW");
+            yield return Wait(4);
+            game.input.held.Clear();
+            Debug.Log("[AutoShot] cove walked into the net: " + game.smokeTestWhereLand());
+        }
+
+        // -autoshot-land: out to the east, the west and inland, walking until the mountains stop the player, then looking back
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-land") >= 0)
+        {
+            var walks = new (string name, double x, double z, double yaw)[]
+            {
+                ("east", 90, -10, -Math.PI / 2), ("west", -90, 0, Math.PI / 2), ("inland", 10, -90, 0), ("north-east", 80, -80, -Math.PI * 0.75),
+            };
+            foreach (var w in walks)
+            {
+                game.smokeTestStandAt(w.x, w.z, w.yaw, 0.02);
+                yield return Wait(1.5f);
+                yield return Shot($"26-land-{w.name}-start.png");
+                game.input.held.Add("KeyW");
+                game.input.held.Add("ShiftLeft");
+                yield return Wait(30);
+                game.input.held.Clear();
+                Debug.Log($"[AutoShot] walked {w.name}: " + game.smokeTestWhereLand());
+                yield return Wait(1);
+                yield return Shot($"26-land-{w.name}-end.png");
+                game.smokeTestLook(w.yaw + Math.PI, 0.0);
+                yield return Wait(1.5f);
+                yield return Shot($"26-land-{w.name}-back.png");
+            }
+            yield return Measure("far out");
+            game.smokeTestOpen("map");
+            yield return Wait(1.3f);
+            yield return Shot("26-land-map.png");
+            game.smokeTestClose("map");
+        }
+
+        // -autoshot-lighthouse: to the lighthouse door, open it, walk in and up the stair to the deck and round it, then the
+        // lamp at night from the deck and from the sea
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-lighthouse") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestTower("door"));
+            yield return Wait(2.5f);
+            Debug.Log("[AutoShot] " + game.smokeTestPrompt());
+            yield return Shot("25-lighthouse-door.png");
+            Debug.Log("[AutoShot] " + game.smokeTestTower("open"));
+            yield return Wait(1.5f);
+            yield return Shot("25-lighthouse-door-open.png");
+            game.input.held.Add("KeyW");
+            float began = Time.realtimeSinceStartup;
+            string last = "", stage = "outside";
+            float topSince = -1, logT = 0;
+            while (Time.realtimeSinceStartup - began < 60)
+            {
+                string s = game.smokeTestTower("steer");
+                if (Time.realtimeSinceStartup - logT > 2) { logT = Time.realtimeSinceStartup; Debug.Log("[AutoShot] tower: " + s); }
+                if (stage == "outside" && s.StartsWith("inside")) { stage = "in"; yield return Shot("25-lighthouse-inside.png"); }
+                if (stage == "in" && s.Contains("feet 4.")) { stage = "low"; game.smokeTestTower("out"); yield return null; yield return null; yield return Shot("25-lighthouse-window-low.png"); }
+                if (stage == "low" && s.Contains("feet 6")) { stage = "mid"; yield return Shot("25-lighthouse-stair.png"); }
+                if (stage == "mid" && s.Contains("feet 10")) { stage = "high"; game.smokeTestTower("out"); yield return null; yield return null; yield return Shot("25-lighthouse-window-high.png"); }
+                if ((stage == "mid" || stage == "high") && s.StartsWith("on the deck")) { stage = "top"; topSince = Time.realtimeSinceStartup; yield return Shot("25-lighthouse-top.png"); }
+                if (stage == "top" && Time.realtimeSinceStartup - topSince > 5) { stage = "round"; yield return Shot("25-lighthouse-deck.png"); }
+                if (stage == "round" && Time.realtimeSinceStartup - topSince > 12) break;
+                last = s;
+                yield return null;
+            }
+            game.input.held.Clear();
+            Debug.Log("[AutoShot] tower at the end: " + game.smokeTestTower("lamp") + " (" + stage + ")");
+            yield return Wait(1);
+            yield return Shot("25-lighthouse-lamp.png");
+            game.smokeTestTower("night");
+            yield return Wait(4);
+            yield return Shot("25-lighthouse-lamp-night.png");
+            Debug.Log("[AutoShot] " + game.smokeTestBoatAt(Beach.EMBER.x + 40, Beach.EMBER.z - 70, Math.Atan2(40, -70)));
+            yield return Wait(3);
+            yield return Shot("25-lighthouse-night-sea.png");
+            game.smokeTestTower("day");
             yield return Wait(3);
         }
 
@@ -360,9 +535,9 @@ public class AutoShot : MonoBehaviour
             game.smokeTestIsland(emb.R * 0.72, 1.3, 0.1, 2);
             yield return Wait(2.5f);
             yield return Shot("18-ember-cone.png");
-            Debug.Log("[AutoShot] " + game.smokeTestLandmark(2, 4.9, 1.4, -0.45));
+            Debug.Log("[AutoShot] " + game.smokeTestLandmark(2, 13, 8, 0.32));
             yield return Wait(2.5f);
-            yield return Shot("18-ember-spring.png");
+            yield return Shot("18-ember-lighthouse.png");
             Debug.Log("[AutoShot] " + game.smokeTestLandmark(2, -1.4, -5.0, -0.3));
             yield return Wait(2.5f);
             yield return Shot("18-ember-cairn.png");
