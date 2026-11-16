@@ -7,11 +7,12 @@ using UnityEngine.UIElements;
 
 /// <summary>
 /// The view through the telescope on Lagoon Cay: the whole screen goes dark but for a round eyepiece full of sky. The sky is a
-/// band of stars all the way round, from the sea on the horizon to high overhead; the player pans it with the mouse (drag),
-/// the keyboard or a stick, and zooms with the wheel, Q / E or the triggers. The stars are there at any hour, but they are
+/// band of stars all the way round, from the sea on the horizon to high overhead; the player turns the telescope with the
+/// mouse (no cursor: the mouse moves the view, as it moves the player's eyes), the keyboard or a stick, and zooms with the
+/// wheel, Q / E or the triggers. A ring in the middle of the eyepiece is the aim: a click or A lights the star in it. The stars are there at any hour, but they are
 /// fainter by day and brightest at night.
 ///
-/// Hidden among them are the constellations of <see cref="Constellations"/>. A constellation is found by clicking its stars
+/// Hidden among them are the constellations of <see cref="Constellations"/>. A constellation is found by lighting its stars
 /// (each one lights, and the lines between lit neighbours appear) or by holding it framed in the eyepiece, which slowly brings
 /// it into focus. Once found its lines are drawn in with a soft glow, its name is written under it and a card tells its lore.
 /// Nothing is timed and nothing can be failed.
@@ -76,9 +77,13 @@ public class TelescopeView
     private readonly Dictionary<string, HTMLElement> labels = new Dictionary<string, HTMLElement>();
     private static Texture2D softTex, ringTex, cloudTex;
 
-    // the mouse: pressed where, and whether it has moved far enough to be a drag
-    private bool mouseDown = false, dragging = false;
-    private Vector2 downAt, lastAt;
+    /// <summary>the ring in the middle of the eyepiece that aims: its radius on screen, and how far round it a star still counts</summary>
+    private const float AIM_R = 24;
+    private const double AIM_REACH = 34;
+    /// <summary>how far from the ring the stars of a hidden constellation start to glow</summary>
+    private const double NEAR_GLOW = 120;
+    /// <summary>the star a click or A would light right now (-1: none)</summary>
+    private int aimStar = -1;
 
     public TelescopeView()
     {
@@ -189,7 +194,7 @@ public class TelescopeView
         hintT = 0;
         cardT = 0;
         msgT = 0;
-        mouseDown = dragging = false;
+        aimStar = -1;
         if (wrap != null) return;
         isOpen = true;
         ensureTextures();
@@ -216,7 +221,7 @@ public class TelescopeView
         else document.body.append(wrap);
         updateCount();
         message(found.Count == 0
-            ? "A sky full of stars. Somewhere in it are pictures: click their stars, or hold one in the middle of the eyepiece."
+            ? "A sky full of stars, and pictures hidden in it. Their stars glow as the ring comes near: light them one by one, or hold a whole picture in the eyepiece."
             : found.Count >= Constellations.ALL.Length ? "Every constellation is found. The sky is yours to wander." : "Back at the eyepiece. The stars are where you left them.", 7);
     }
 
@@ -256,8 +261,13 @@ public class TelescopeView
         public bool select;
         /// <summary>ask for a hint</summary>
         public bool hint;
-        /// <summary>the mouse may pan, zoom and pick (not while the controller is in use)</summary>
+        /// <summary>the mouse may turn, zoom and pick (not while the controller is in use)</summary>
         public bool mouse = true;
+        /// <summary>the mouse turns the view only while it is captured (no cursor on screen)</summary>
+        public bool mouseLocked = true;
+        /// <summary>the player's mouse-look speed, and whether pushing the mouse forward looks down</summary>
+        public double sensitivity = 1;
+        public bool invert;
     }
 
     public void update(double dt, Controls c)
@@ -274,13 +284,14 @@ public class TelescopeView
         viewAlt += c.panY * fov * 0.55 * dt;
         if (c.zoom != 0) fov *= Math.Exp(-c.zoom * dt * 1.3);
 
-        if (c.mouse) mouseInput(ppd);
+        if (c.mouse) mouseInput(c);
 
         fov = Math.Max(MIN_FOV, Math.Min(MAX_FOV, fov));
         viewAz = (viewAz % 360 + 360) % 360;
         viewAlt = Math.Max(MIN_ALT + fov * 0.3, Math.Min(MAX_ALT - fov * 0.3, viewAlt));
 
-        if (c.select) pick(new Vector2((float)cx(), (float)cy()), 30);
+        aimStar = findStar(new Vector2((float)cx(), (float)cy()), AIM_REACH);
+        if (c.select) pick(new Vector2((float)cx(), (float)cy()), AIM_REACH);
         if (c.hint) giveHint();
 
         updateFocus(dt);
@@ -300,37 +311,22 @@ public class TelescopeView
         layer.MarkDirtyRepaint();
     }
 
-    private void mouseInput(double ppd)
+    /// <summary>
+    /// The mouse turns the telescope as it turns the player's head (the further out the view, the more sky a move covers),
+    /// the wheel zooms, and a click lights the star in the ring.
+    /// </summary>
+    private void mouseInput(Controls c)
     {
         var m = Mouse.current;
-        if (m == null || layer.panel == null) return;
-        var sp = m.position.ReadValue();
-        var p = layer.WorldToLocal(RuntimePanelUtils.ScreenToPanel(layer.panel, new Vector2(sp.x, Screen.height - sp.y)));
+        if (m == null) return;
         double wheel = m.scroll.ReadValue().y;
         if (wheel != 0) fov *= Math.Exp(-Math.Sign(wheel) * 0.12);
-        if (m.leftButton.wasPressedThisFrame)
-        {
-            mouseDown = true;
-            dragging = false;
-            downAt = lastAt = p;
-        }
-        else if (mouseDown && m.leftButton.isPressed)
-        {
-            if (!dragging && (p - downAt).magnitude > 5) dragging = true;
-            if (dragging)
-            {
-                var d = p - lastAt;
-                viewAz -= d.x / ppd;
-                viewAlt += d.y / ppd;
-            }
-            lastAt = p;
-        }
-        if (mouseDown && m.leftButton.wasReleasedThisFrame)
-        {
-            mouseDown = false;
-            if (!dragging) pick(p, 22);
-            dragging = false;
-        }
+        if (!c.mouseLocked) return;
+        var d = m.delta.ReadValue();
+        double k = fov * 0.0011 * c.sensitivity;
+        viewAz += d.x * k;
+        viewAlt += d.y * k * (c.invert ? -1 : 1);
+        if (m.leftButton.wasPressedThisFrame) pick(new Vector2((float)cx(), (float)cy()), AIM_REACH);
     }
 
     // ---------------------------------------------------------------- the sky on the screen
@@ -357,24 +353,12 @@ public class TelescopeView
     private void pick(Vector2 at, double reach)
     {
         if (!inEye(at)) return;
-        int best = -1;
-        double bestD = reach * reach;
-        for (int i = 0; i < stars.Count; i++)
+        int best = findStar(at, reach);
+        if (best < 0)
         {
-            var s = stars[i];
-            // faint field stars are not worth aiming at; the bright ones and the patterns' stars are
-            if (s.con == null && s.b < 0.25) continue;
-            var p = toScreen(s.az, s.alt);
-            double dx = p.x - at.x, dy = p.y - at.y;
-            // a pattern's star wins over a field star at nearly the same distance
-            double d = dx * dx + dy * dy - (s.con != null ? 40 : 0);
-            if (d < bestD)
-            {
-                bestD = d;
-                best = i;
-            }
+            onSound?.Invoke("field");
+            return;
         }
-        if (best < 0) return;
         var st = stars[best];
         pulseStar = best;
         pulseT = 0;
@@ -400,6 +384,33 @@ public class TelescopeView
         }
         if (set.Count == 1) message("That star is part of something bigger. Find its neighbours.", 5);
         else message($"{set.Count} of its {def.stars.Length} stars.", 3);
+    }
+
+    /// <summary>The star nearest a point of the eyepiece within reach (pixels): a pattern's star wins over a field star nearby.</summary>
+    private int findStar(Vector2 at, double reach)
+    {
+        int best = -1;
+        // a pattern's star still counts a little further out than a field star
+        double bestD = (reach + 10) * (reach + 10);
+        double halfDeg = fov / 2 + 3;
+        for (int i = 0; i < stars.Count; i++)
+        {
+            var s = stars[i];
+            // faint field stars are not worth aiming at; the bright ones and the patterns' stars are
+            if (s.con == null && s.b < 0.25) continue;
+            if (Math.Abs(wrap180(s.az - viewAz)) > halfDeg || Math.Abs(s.alt - viewAlt) > halfDeg) continue;
+            var p = toScreen(s.az, s.alt);
+            double dx = p.x - at.x, dy = p.y - at.y;
+            double d = dx * dx + dy * dy;
+            if (s.con == null && d > reach * reach) continue;
+            if (s.con != null && !found.Contains(s.con)) d -= 400;
+            if (d < bestD)
+            {
+                bestD = d;
+                best = i;
+            }
+        }
+        return best;
     }
 
     private void markFound(ConstellationDef def)
@@ -491,7 +502,7 @@ public class TelescopeView
         hintId = best.id;
         hintT = 9;
         onSound?.Invoke("hint");
-        message($"A soft glow marks where {best.name.Replace("The ", "the ")} hides. Follow the arrow, then frame it or click its stars.", 7);
+        message($"A soft glow marks where {best.name.Replace("The ", "the ")} hides. Follow the arrow, then frame it or light its stars.", 7);
     }
 
     // ---------------------------------------------------------------- the words over the sky
@@ -755,11 +766,20 @@ public class TelescopeView
             bool mine = s.con != null && found.Contains(s.con);
             bool lights = s.con != null && lit.TryGetValue(s.con, out var set) && set.Contains(s.idx);
             if (mine || lights) b = Math.Min(1, b + 0.15);
+            var p = toScreen(s.az, s.alt);
+            // the stars of a picture not yet found brighten as the ring comes near them, so it can be found by sweeping
+            double near = 0;
+            if (s.con != null && !mine)
+            {
+                double ex = p.x - ctr.x, ey = p.y - ctr.y;
+                near = Clamp01(1 - Math.Sqrt(ex * ex + ey * ey) / NEAR_GLOW);
+                b = Math.Min(1, b + 0.35 * near);
+            }
             // faint stars wash out in daylight; the haze low over the sea dims them all a little
             double vis = (0.45 + 0.55 * nt) * (b < 0.3 ? 0.35 + 0.65 * nt : 1) * (0.55 + 0.45 * Clamp01(s.alt / 10));
             double size = (2.2 + b * b * 9) * zoomGrow;
-            var p = toScreen(s.az, s.alt);
             B.dot(p, (float)size, Alpha(s.tint, Clamp01((0.25 + 0.75 * b) * tw * vis)));
+            if (near > 0) B.dot(p, (float)(size * 2.6), Col(1.0, 0.9, 0.65, 0.12 * near * vis));
         }
 
         // rings round the lit stars, and a ripple round the one just clicked
@@ -772,6 +792,13 @@ public class TelescopeView
                 var s = stars[idx[k]];
                 B.dot(toScreen(s.az, s.alt), (float)(13 * zoomGrow), Col(0.75, 0.88, 1.0, 0.75));
             }
+        }
+        // the star the ring is on: a click or A lights it
+        if (aimStar >= 0)
+        {
+            var s = stars[aimStar];
+            bool hidden = s.con != null && !found.Contains(s.con);
+            B.dot(toScreen(s.az, s.alt), (float)(11 * zoomGrow), hidden ? Col(1.0, 0.88, 0.6, 0.8) : Col(1, 1, 1, 0.35));
         }
         if (pulseStar >= 0 && pulseT < 0.9)
         {
@@ -796,12 +823,11 @@ public class TelescopeView
 
         // the focus: a thin arc filling round the middle while a pattern is held framed there
         B.use(null);
-        var retC = Col(0.95, 0.92, 0.82, 0.32);
-        float gap = 9, arm = 20;
-        B.quad(new Vector2(ctr.x - gap - arm, ctr.y - 0.7f), new Vector2(ctr.x - gap, ctr.y - 0.7f), new Vector2(ctr.x - gap, ctr.y + 0.7f), new Vector2(ctr.x - gap - arm, ctr.y + 0.7f), retC);
-        B.quad(new Vector2(ctr.x + gap, ctr.y - 0.7f), new Vector2(ctr.x + gap + arm, ctr.y - 0.7f), new Vector2(ctr.x + gap + arm, ctr.y + 0.7f), new Vector2(ctr.x + gap, ctr.y + 0.7f), retC);
-        B.quad(new Vector2(ctr.x - 0.7f, ctr.y - gap - arm), new Vector2(ctr.x + 0.7f, ctr.y - gap - arm), new Vector2(ctr.x + 0.7f, ctr.y - gap), new Vector2(ctr.x - 0.7f, ctr.y - gap), retC);
-        B.quad(new Vector2(ctr.x - 0.7f, ctr.y + gap), new Vector2(ctr.x + 0.7f, ctr.y + gap), new Vector2(ctr.x + 0.7f, ctr.y + gap + arm), new Vector2(ctr.x - 0.7f, ctr.y + gap + arm), retC);
+        // the aiming ring, warmer when a hidden picture's star is in it
+        bool onHidden = aimStar >= 0 && stars[aimStar].con != null && !found.Contains(stars[aimStar].con);
+        var retC = onHidden ? Col(1.0, 0.86, 0.55, 0.85) : Col(0.95, 0.92, 0.82, 0.45);
+        B.annulus(ctr, AIM_R - 1.2f, AIM_R + 1.2f, retC, retC, 64);
+        B.dot(ctr, 1.6f, retC);
         if (focus > 0.02 && focusId != null)
         {
             var fc = Col(1.0, 0.86, 0.55, 0.75);
@@ -848,6 +874,17 @@ public class TelescopeView
         viewAz = c.az;
         viewAlt = c.alt;
         fov = Math.Max(MIN_FOV, Math.Min(MAX_FOV, c.extent * 2.9));
+    }
+
+    /// <summary>Turns the eyepiece so star k of a constellation sits in the aiming ring (framed as lookAt frames it). False past its last star.</summary>
+    public bool aimAtStar(string id, int k)
+    {
+        var idx = conStars[id];
+        if (k >= idx.Length) return false;
+        lookAt(id);
+        viewAz = stars[idx[k]].az;
+        viewAlt = stars[idx[k]].alt;
+        return true;
     }
 
     /// <summary>Clicks the stars of a constellation one after another, as the player would.</summary>

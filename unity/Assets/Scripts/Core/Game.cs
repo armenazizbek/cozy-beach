@@ -557,6 +557,9 @@ public class Game
             openingAfterLoad = false;
             menuNewGame();
         }
+        // a loaded save (or a new game that skips the opening) is in play from the first frame: the game takes the mouse
+        // at once, as Begin does, instead of showing the cursor until the player clicks
+        else if (started && gameState == "EXPLORE" && !paused) grabMouse();
         var boot = document.getElementById("boot");
         boot?.classList.add("gone");
         window.setTimeout(() => boot?.remove(), 700);
@@ -2712,11 +2715,12 @@ public class Game
             return;
         }
         transitioning = true;
-        document.exitPointerLock();
         setBinocView(false);
         ui.fade(() =>
         {
             scopeOpen = true;
+            // the mouse turns the telescope: it stays captured, and no cursor shows over the eyepiece
+            grabMouse();
             paused = true;
             scopeSelect = scopeHint = false;
             scopeFoundNow = 0;
@@ -2789,6 +2793,12 @@ public class Game
         c.panX = Math.Max(-1, Math.Min(1, c.panX));
         c.panY = Math.Max(-1, Math.Min(1, c.panY));
         c.zoom = Math.Max(-1, Math.Min(1, c.zoom));
+        c.mouseLocked = locked;
+        c.sensitivity = settings.sensitivity;
+        c.invert = settings.invertMouse;
+        // the mouse let go (the window lost the focus): a click takes it back first, and lights nothing
+        var mouse = UnityEngine.InputSystem.Mouse.current;
+        if (!usingPad && !locked && mouse != null && mouse.leftButton.wasPressedThisFrame) grabMouse();
         c.select = scopeSelect;
         c.hint = scopeHint;
         scopeSelect = scopeHint = false;
@@ -2830,8 +2840,15 @@ public class Game
         else if (what.StartsWith("part:")) scope.clickAll(what.Substring(5), 3);
         else if (what == "hint") scopeHint = true;
         else if (what == "pan") { scope.viewAz = 0; scope.viewAlt = 30; scope.fov = 60; }
+        // "aim:id:k" turns the ring onto star k of a constellation and presses A (lit in the next frame)
+        else if (what.StartsWith("aim:"))
+        {
+            var parts = what.Split(':');
+            if (scope.aimAtStar(parts[1], int.Parse(parts[2]))) scopeSelect = true;
+            else return "no such star";
+        }
         var saved = state.data.constellations ?? new List<string>();
-        return $"telescope at {ts.x:0.0}, {ts.z:0.0} (ground {ts.ground:0.00}, facing {ts.yaw:0.00}); player at {player.x:0.0}, {player.z:0.0}; {smokeTestPrompt()}; cleaned={ts.cleaned} (saved {state.data.telescopeCleaned}), state {gameState}; open={scopeOpen}; {scope.describe()}; saved [{string.Join(",", saved)}], coins {state.data.coins:0}, STARGAZER={achievements.has("STARGAZER")}";
+        return $"telescope at {ts.x:0.0}, {ts.z:0.0} (ground {ts.ground:0.00}, facing {ts.yaw:0.00}); player at {player.x:0.0}, {player.z:0.0}; {smokeTestPrompt()}; cleaned={ts.cleaned} (saved {state.data.telescopeCleaned}), state {gameState}; open={scopeOpen}, cursor {(locked ? "captured" : "free")}; {scope.describe()}; saved [{string.Join(",", saved)}], coins {state.data.coins:0}, STARGAZER={achievements.has("STARGAZER")}";
     }
 
 
@@ -3299,7 +3316,7 @@ public class Game
                 {
                     new Glyphs.Prompt("Look around", new[] { "LS" }, new[] { "W", "A", "S", "D" }),
                     new Glyphs.Prompt("Zoom", new[] { "LT", "RT" }, new[] { "Scroll" }),
-                    new Glyphs.Prompt("Pick a star", new[] { "A" }, new[] { "Click" }),
+                    new Glyphs.Prompt("Light the star in the ring", new[] { "A" }, new[] { "Click" }),
                     new Glyphs.Prompt("Hint", new[] { "Y" }, new[] { "H" }),
                     new Glyphs.Prompt("Step back", new[] { "B" }, new[] { "Esc" }),
                 });

@@ -83,7 +83,7 @@ public class AutoShot : MonoBehaviour
                 yield return null;
             game = GameHost.Instance != null ? GameHost.Instance.game : null;
             if (game == null || game == old) { Debug.LogError("[AutoShot] the game did not come back after loading"); Quit(1); yield break; }
-            Debug.Log($"[AutoShot] reloaded with the save after {Time.realtimeSinceStartup - t0:0.0} s; load failed flag: {SaveGame.lastLoadFailed}");
+            Debug.Log($"[AutoShot] reloaded with the save after {Time.realtimeSinceStartup - t0:0.0} s; load failed flag: {SaveGame.lastLoadFailed}; mouse {(Cursor.lockState == CursorLockMode.Locked ? "captured" : "free, cursor showing")}");
             yield return Wait(5);
             yield return Shot("1c-loaded.png");
             // the same measurements in a played save, which has more on the beach than a new game
@@ -506,7 +506,14 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] three stars: " + game.smokeTestScope("part:great_bear"));
             yield return Wait(0.8f);
             yield return Shot("27-telescope-lit.png");
-            Debug.Log("[AutoShot] all its stars: " + game.smokeTestScope("click:great_bear"));
+            // the rest of its stars, each turned into the aiming ring and lit with A, as a player does now
+            for (int k = 3; k < 12; k++)
+            {
+                if (game.smokeTestScope($"aim:great_bear:{k}") == "no such star") break;
+                yield return Wait(0.3f);
+                if (k == 3) yield return Shot("27-telescope-aim.png");
+            }
+            Debug.Log("[AutoShot] all its stars, aimed and lit: " + game.smokeTestScope("status"));
             yield return Wait(3);
             yield return Shot("27-telescope-found.png");
             game.smokeTestScope("look:orion");
