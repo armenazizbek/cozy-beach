@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Emoji
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.TextCore.Text.SpriteAsset
   m_Version: 
-  m_Material: {fileID: 2568241759634116933}
+  m_Material: {fileID: 5294571560050268081}
   m_FaceInfo:
     m_FaceIndex: 0
     m_FamilyName: Fluent Emoji
@@ -1762,7 +1762,7 @@ MonoBehaviour:
     m_ClassDefinitionType: 0
     sprite: {fileID: 0}
   fallbackSpriteAssets: []
---- !u!21 &2568241759634116933
+--- !u!21 &5294571560050268081
 Material:
   serializedVersion: 8
   m_ObjectHideFlags: 0
