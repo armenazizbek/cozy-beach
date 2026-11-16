@@ -859,6 +859,86 @@ public class AutoShot : MonoBehaviour
             }
         }
 
+        // -autoshot-house: the old house past the nets, from the beach side, close to its porch, and from behind
+        if (Array.IndexOf(args, "-autoshot-house") >= 0)
+        {
+            double hx = OldHouse.X, hz = OldHouse.Z;
+            foreach (var (dx, dz, pitch, name) in new[] { (13.0, 8.0, -0.06, "beach"), (6.5, 1.5, 0.02, "porch"), (-9.0, 8.0, 0.0, "back"), (2.0, -11.0, 0.0, "side") })
+            {
+                double px = hx + dx, pz = hz + dz;
+                game.smokeTestStandAt(px, pz, Math.Atan2(-(hx - px), -(hz - pz)), pitch);
+                yield return Wait(1.2f);
+                Debug.Log($"[AutoShot] house from the {name}: {game.smokeTestWhere()}");
+                yield return Shot($"32-house-{name}.png");
+            }
+            // the pictures on the back wall: the captain and his ship, in their frames
+            game.smokeTestStandAt(hx + 1.0, hz, Math.PI / 2, 0.02);
+            yield return Wait(1);
+            yield return Shot("32-house-pictures.png");
+            game.smokeTestStandAt(hx - 0.5, hz + 0.6, Math.PI / 2, 0.05);
+            yield return Wait(1);
+            yield return Shot("32-house-frames.png");
+            // the house on the minimap and the big map, seen from up the beach so the player's arrow is clear of it
+            game.smokeTestStandAt(hx + 22, hz, Math.PI / 2, -0.05);
+            yield return Wait(1.5f);
+            yield return Shot("32-house-minimap.png");
+            game.smokeTestOpen("map");
+            yield return Wait(1.2f);
+            yield return Shot("32-house-map.png");
+            game.smokeTestClose("map");
+            yield return Wait(0.5f);
+            // walking in: from the sand in front of the steps, up them, across the porch, in at the door, to the back wall
+            game.smokeTestStandAt(hx + 7.5, hz, Math.PI / 2, -0.05);
+            yield return Wait(0.8f);
+            game.input.held.Add("KeyW");
+            for (int i = 0; i < 8; i++)
+            {
+                yield return Wait(0.5f);
+                Debug.Log($"[AutoShot] walking in, {(i + 1) * 0.5:0.0} s: {game.smokeTestHouse()}");
+                if (i == 2) yield return Shot("32-house-steps.png");
+                if (i == 3) yield return Shot("32-house-room.png");
+            }
+            game.input.held.Clear();
+            yield return Shot("32-house-inside.png");
+            // looking back out of the door
+            game.smokeTestLook(-Math.PI / 2, -0.05);
+            yield return Wait(0.8f);
+            yield return Shot("32-house-door-out.png");
+            // and into a side wall from outside: it must stop you on the sand
+            game.smokeTestStandAt(hx, hz - 7, Math.PI, -0.05);
+            yield return Wait(0.5f);
+            game.input.held.Add("KeyW");
+            yield return Wait(3f);
+            game.input.held.Clear();
+            Debug.Log($"[AutoShot] walked into the end wall from outside: {game.smokeTestHouse()}");
+        }
+
+                // -autoshot-dograin: rain sends the dog to the old house, where it lies until the rain stops; no bone hunts meanwhile
+        if (Array.IndexOf(args, "-autoshot-dograin") >= 0)
+        {
+            Debug.Log("[AutoShot] before: " + game.smokeTestDogRain("status"));
+            game.smokeTestDogRain("rain");
+            for (int i = 0; i < 16; i++)
+            {
+                yield return Wait(3);
+                string st = game.smokeTestDogRain("status");
+                Debug.Log($"[AutoShot] raining, {(i + 1) * 3} s: {st}");
+                if (st.Contains("dog sheltered")) break;
+            }
+            Debug.Log("[AutoShot] a bone in the rain: " + game.smokeTestDogRain("bone"));
+            game.smokeTestDogRain("watch");
+            yield return Wait(1.5f);
+            yield return Shot("33-dog-sheltered.png");
+            game.smokeTestDogRain("dry");
+            for (int i = 0; i < 16; i++)
+            {
+                yield return Wait(3);
+                string st = game.smokeTestDogRain("status");
+                Debug.Log($"[AutoShot] dry, {(i + 1) * 3} s: {st}");
+                if (st.Contains("dog rest")) break;
+            }
+        }
+
         // -autoshot-ui: every menu and the HUD, as they look with the keyboard and then with a controller
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-ui") >= 0)
         {

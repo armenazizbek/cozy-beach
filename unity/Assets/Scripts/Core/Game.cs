@@ -245,6 +245,7 @@ public class Game
     private double miniT = 0, hoverT = 0;
     /// <summary>the view through the telescope on Lagoon Cay, and whether the player is looking through it</summary>
     private readonly TelescopeView scope = new TelescopeView();
+    private readonly OldHouse oldHouse = new OldHouse();
     private bool scopeOpen = false;
     private bool scopeSelect = false, scopeHint = false;
     private int scopeFoundNow = 0;
@@ -342,6 +343,10 @@ public class Game
         dog = new Dog(beach);
         scene.add(dog.group);
         placeDogHome();
+        // out of the rain, the dog goes to the old house
+        dog.shelterRoute = oldHouse.shelterRoute();
+        dog.shelterHeading = OldHouse.SHELTER_HEADING;
+        dog.floorAt = (x, z) => oldHouse.floorAt(x, z);
         // a new game finds the boat tied up alongside the pier
         boat = new Boat(Pier.MOORING.x, Pier.MOORING.z, Pier.MOORING.heading);
         scene.add(boat.group, boat.wake.points);
@@ -439,6 +444,10 @@ public class Game
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
         scene.add(pier.group, fishing.group);
+        // the old house past the nets on the left of the beach
+        scene.add(oldHouse.group);
+        // the chimney stands in everyone's way; the house itself only in the cart's (people walk in, see updateCamera)
+        camp.obstacles.AddRange(oldHouse.solids);
         state.subscribe(refreshAquarium);
         refreshAquarium();
         achievements.onUnlock = a =>
@@ -492,6 +501,9 @@ public class Game
             playerZ = 0,
             resolve = (x, z) =>
             {
+                // at the old house the dog keeps to its way in (the steps, the porch, the door), which the cart's rough
+                // circles round the house would block
+                if (oldHouse.near(x, z)) return (x, z);
                 var r = resolveCart(x, z, 0.35);
                 return (r.x, r.z);
             },
@@ -1261,6 +1273,32 @@ public class Game
         double fx = -Math.Sin(player.yaw), fz = -Math.Cos(player.yaw);
         double dx = toolHit.x - player.x, dz = toolHit.z - player.z;
         return new[] { dx * fx + dz * fz, dx * fz - dz * fx };
+    }
+
+    /// <summary>For the -autoshot-house test: where the player is, what they stand on, and whether they are indoors.</summary>
+    internal string smokeTestHouse() =>
+        $"at {player.x:0.00}, {player.z:0.00}, feet {feet.y:0.00} (sand {beach.heightAt(player.x, player.z):0.00}), inside {oldHouse.contains(player.x, player.z)}";
+
+    /// <summary>For the -autoshot-dograin test: "rain" and "dry" set the weather; anything else just reports. Gives a bone to try.</summary>
+    internal string smokeTestDogRain(string what)
+    {
+        if (what == "rain") state.data.lighting = "rain";
+        else if (what == "dry") state.data.lighting = "day";
+        else if (what == "bone")
+        {
+            state.data.bones = Math.Max(1, state.data.bones);
+            giveBone();
+        }
+        else if (what == "watch")
+        {
+            // standing in the doorway, looking into the room
+            player.x = OldHouse.X + 2.6;
+            player.z = OldHouse.Z;
+            player.yaw = Math.PI / 2;
+            player.pitch = -0.35;
+            eyeY = 0;
+        }
+        return $"rain {rain.amount:0.00}, dog {dog.state} at {dog.x:0.0}, {dog.z:0.0} (feet {dog.group.position.y:0.00}), in the house {oldHouse.contains(dog.x, dog.z)}, bones {state.data.bones}";
     }
 
     internal void smokeTestLook(double yaw, double pitch)
@@ -2998,6 +3036,8 @@ public class Game
             wasRaining = false;
         }
         rain.update(dt, raining ? 1 : 0, camera.position);
+        // under the old house's roof the rain falls outside, not around the player
+        rain.group.visible = !oldHouse.contains(camera.position.x, camera.position.z);
         if (raining != wasRaining)
         {
             wasRaining = raining;
@@ -4352,6 +4392,14 @@ public class Game
             p.x = (p.x / (fd != 0 ? fd : 1)) * 1.6;
             p.z = CAMP_Z + ((p.z - CAMP_Z) / (fd != 0 ? fd : 1)) * 1.6;
         }
+        // the old house: its walls stop you, and its steps, porch and floor carry you
+        if (towerFloor == null)
+        {
+            double hx = p.x, hz = p.z;
+            towerFloor = oldHouse.walk(px0, pz0, ref hx, ref hz);
+            p.x = hx;
+            p.z = hz;
+        }
         double ground = towerFloor ?? beach.heightAt(p.x, p.z);
         // on the pier the boards are the ground
         bool onPier = Pier.over(p.x, p.z);
@@ -4764,6 +4812,7 @@ public class Game
         foreach (var s in stones.colliders) push(s.x, s.z, s.r + radius * 0.8);
         foreach (var s in castles.colliders) push(s.x, s.z, s.r + radius * 0.6);
         foreach (var o in camp.obstacles) push(o.x, o.z, o.r + radius * 0.7);
+        foreach (var o in oldHouse.cartSolids) push(o.x, o.z, o.r + radius * 0.7);
         push(0, CAMP_Z, 1.6 + radius * 0.6);
         double nx = x, nz = Math.Min(SHORE_Z - 4, z);
         scenery.keepOnLand(ref nx, ref nz, radius);
@@ -5134,6 +5183,12 @@ public class Game
     private void giveBone()
     {
         if (dog.away) return;
+        if (dogRain)
+        {
+            audio.error();
+            ui.toast("The dog will not go out in the rain. Bring the bone once it has stopped.");
+            return;
+        }
         var buried = spawner.items.Where(i => !i.collected && !i.revealed).ToList();
         var cands = buried.Where(i => i.def.category == "coin" || i.def.category == "trash").ToList();
         // very rarely the dog's nose leads it to something from the Lost & Found board that is still wanted
@@ -5164,6 +5219,7 @@ public class Game
         var clear = spawner.items.Where(i => !i.collected).Select(i => new Spot { x = i.x, z = i.z, r = 0 }).ToList();
         clear.Add(new Spot { x = 0, z = CAMP_Z, r = 13 });
         clear.Add(new Spot { x = cart.x, z = cart.z, r = 3.5 });
+        clear.Add(OldHouse.footprint);
         // nothing lands on the nets, and they are as solid as the boulders
         clear.AddRange(coveNets.colliders);
         stones.scatter(clear);
@@ -5693,11 +5749,11 @@ public class Game
     /// <summary>A bit of love for the dog: it shakes its head and wags, and little hearts float up.</summary>
     private void petDog()
     {
-        if (dog.state != "rest") return;
+        if (dog.state != "rest" && !dog.sheltered) return;
         dog.pet();
         discover("dog_pet");
         audio.yip();
-        var at = new THREE.Vector3(dog.x, beach.heightAt(dog.x, dog.z) + 0.75, dog.z);
+        var at = new THREE.Vector3(dog.x, dog.group.position.y + 0.75, dog.z);
         hearts.burst(at, 6, 0.4, 0.7, 1.9, new THREE.Color(0xff4d6d));
         var lines = new[]
         {
@@ -5718,8 +5774,14 @@ public class Game
         { "radio", 2.6 }, { "coffee", 2.2 }, { "book", 2.6 }, { "post", 2.6 }, { "hammock", 2.8 }, { "sign", 2.6 }, { "photos", 2.8 }, { "aquarium", 2.8 },
     };
 
+    /// <summary>whether it is raining hard enough for the dog to keep to the old house (with some give, so it does not dither)</summary>
+    private bool dogRain;
+
     private void updateDog(double dt, double t)
     {
+        if (rain.amount > 0.35) dogRain = true;
+        else if (rain.amount < 0.08) dogRain = false;
+        dog.raining = dogRain;
         dogEnv.playerX = player.x;
         dogEnv.playerZ = player.z;
         // a raised camera makes a resting dog sit up and pose
@@ -5927,11 +5989,15 @@ public class Game
         }
         {
             double score = JS.Hypot(player.x - dog.x, player.z - dog.z) / 2.8;
-            double? aimVal = !dog.away && score < 1 ? aim(dog.x, beach.heightAt(dog.x, dog.z) + 0.4, dog.z, 0.8) : null;
+            double? aimVal = (!dog.away || dog.sheltered) && score < 1 ? aim(dog.x, dog.group.position.y + 0.4, dog.z, 0.8) : null;
             if (aimVal != null && score * 0.8 * aimVal.Value < best)
             {
                 best = score * 0.8 * aimVal.Value;
-                if (state.data.bones > 0) interaction = new Interaction { label = "Give the dog a bone", run = () => giveBone() };
+                // no hunting for finds in the rain: the dog keeps to the old house until it stops
+                if (state.data.bones > 0)
+                    interaction = dogRain || dog.sheltered
+                        ? new Interaction { label = "No bone hunts in the rain", run = () => { audio.error(); ui.toast("The dog will not go out in the rain. Bring the bone once it has stopped."); } }
+                        : new Interaction { label = "Give the dog a bone", run = () => giveBone() };
                 // the second button (E, or X on a controller) is always for a little love
                 interaction2 = new Interaction { label = "Pet the dog", run = () => petDog() };
             }
@@ -6137,6 +6203,8 @@ public class Game
             if (near) ground = beachHit;
         }
         if (onIsland && (tool == 1 || tool == 2)) ground = null;
+        // indoors there is no sand to work (the ray would find the sand under the floor)
+        if (oldHouse.contains(player.x, player.z)) ground = null;
         toolHit = smoothAim(ground, dt);
     }
 
@@ -6373,7 +6441,7 @@ public class Game
             hint = lockFailed ? "Move the mouse toward a screen edge to turn · click to use your tool" : "Click to take control of the mouse";
         }
         // out past the nets there is nothing buried: the detector and the trowel say so, and the first time a word pops up
-        if (hint == null && gameState == "EXPLORE" && (tool == 1 || tool == 2) && vehicle == null && !onIsland && !diving && !underground && !CoveNets.inCove(player.x, player.z) && !Pier.over(player.x, player.z) && player.z < SHORE_Z)
+        if (hint == null && gameState == "EXPLORE" && (tool == 1 || tool == 2) && vehicle == null && !onIsland && !diving && !underground && !oldHouse.contains(player.x, player.z) && !CoveNets.inCove(player.x, player.z) && !Pier.over(player.x, player.z) && player.z < SHORE_Z)
         {
             hint = "Nothing to dig out here";
             if (!coveToldOnce)
@@ -6382,8 +6450,9 @@ public class Game
                 ui.toast("You have left the treasure cove. Finds lie buried only inside the fishing nets.");
             }
         }
-        if (hint == null && gameState == "EXPLORE" && tool == 2 && toolHit == null) hint = "Look at the sand closer to dig";
-        if (hint == null && gameState == "EXPLORE" && tool == 1 && toolHit == null) hint = "Aim at the sand near your feet to sweep";
+        bool indoors = oldHouse.contains(player.x, player.z);
+        if (hint == null && gameState == "EXPLORE" && tool == 2 && toolHit == null && !indoors) hint = "Look at the sand closer to dig";
+        if (hint == null && gameState == "EXPLORE" && tool == 1 && toolHit == null && !indoors) hint = "Aim at the sand near your feet to sweep";
         ui.setHint(gameState == "INSPECT" ? null : hint);
         ui.setCrosshair(gameState == "EXPLORE");
     }

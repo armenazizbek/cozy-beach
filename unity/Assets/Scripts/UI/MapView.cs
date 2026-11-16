@@ -310,6 +310,7 @@ public class MapView
         ctx.filter = "none";
         this.drawPier(ctx);
         this.drawCamp(ctx, 0, CAMP_Z, 1.8 * MARK);
+        this.drawHouse(ctx, OldHouse.X, OldHouse.Z, 1.5 * MARK);
         var pulse = 1 + Math.Sin(time * 4) * 0.12;
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9 * MARK);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0 * MARK);
@@ -366,6 +367,7 @@ public class MapView
         ctx.fillStyle = "rgba(70,36,12,0.9)";
         ctx.textAlign = "center";
         ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
+        ctx.fillText("Old house", ((OldHouse.X - cx + half) / (2 * half)) * size, ((OldHouse.Z - cz + half) / (2 * half)) * size + 26);
         this.nameIslands(ctx, size);
         if (bottle)
         {
@@ -536,6 +538,35 @@ public class MapView
         ctx.restore();
     }
 
+    /// <summary>The old house past the nets: a weathered badge with a little house on it.</summary>
+    private void drawHouse(CanvasRenderingContext2D ctx, double x, double z, double scale, double turn = 0)
+    {
+        ctx.save();
+        ctx.translate(x, z);
+        if (turn != 0) ctx.rotate(turn);
+        ctx.scale(scale, scale);
+        ctx.fillStyle = "#efe2c4";
+        ctx.strokeStyle = "#2a1c14";
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // its walls, its roof and its door
+        ctx.fillStyle = "#8a7660";
+        ctx.fillRect(-1.45, -0.2, 2.9, 1.65);
+        ctx.fillStyle = "#4a3b2e";
+        ctx.beginPath();
+        ctx.moveTo(-1.85, -0.15);
+        ctx.lineTo(0, -1.75);
+        ctx.lineTo(1.85, -0.15);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#2a1c14";
+        ctx.fillRect(-0.32, 0.45, 0.64, 1.0);
+        ctx.restore();
+    }
+
     private void arrow(CanvasRenderingContext2D ctx, double px)
     {
         ctx.save();
@@ -590,6 +621,7 @@ public class MapView
         this.drawPier(ctx);
         // the camera of this little map turns with the player; the tent is turned back so it stands upright
         this.drawCamp(ctx, 0, CAMP_Z, 1.15, Math.PI / 2 + Math.Atan2(fz, fx));
+        this.drawHouse(ctx, OldHouse.X, OldHouse.Z, 1.0, Math.PI / 2 + Math.Atan2(fz, fx));
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.2);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 1.3);
         this.drawFlags(ctx, 2.2);
@@ -669,6 +701,7 @@ public class MapView
         this.drawHoles(ctx, holes, 0.8);
         this.drawPier(ctx);
         this.drawCamp(ctx, 0, CAMP_Z, 1.8 * MARK);
+        this.drawHouse(ctx, OldHouse.X, OldHouse.Z, 1.5 * MARK);
         if (cart != null) this.drawCart(ctx, cart.x, cart.z, 1.9 * MARK);
         if (boat != null) this.drawBoat(ctx, boat.x, boat.z, 2.0 * MARK);
         this.drawFlags(ctx, 3.2 * MARK);
@@ -691,6 +724,7 @@ public class MapView
         ctx.fillStyle = "#3b2a1e";
         ctx.textAlign = "center";
         ctx.fillText("Camp", ((0 - cx + half) / (2 * half)) * size, ((CAMP_Z - cz + half) / (2 * half)) * size + 30);
+        ctx.fillText("Old house", ((OldHouse.X - cx + half) / (2 * half)) * size, ((OldHouse.Z - cz + half) / (2 * half)) * size + 26);
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Sea", size / 2, size - 14);
         ctx.fillStyle = "#6b3a1c";

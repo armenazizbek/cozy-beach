@@ -169,8 +169,17 @@ public class Dog
     };
 
     public readonly THREE.Group group = new THREE.Group();
-    /// <summary>'rest' | 'run' | 'find' | 'return'</summary>
+    /// <summary>'rest' | 'run' | 'find' | 'return' | 'shelter' (off to the old house out of the rain) | 'sheltered' (lying
+    /// in it) | 'unshelter' (the rain is over: on the way back)</summary>
     public string state = "rest";
+    /// <summary>set by the game while it rains: a resting dog goes to the old house and lies there until it stops</summary>
+    public bool raining;
+    /// <summary>the way to the old house (world points), which way it lies there, and the floor under its paws there</summary>
+    public List<(double x, double z)> shelterRoute;
+    public double shelterHeading;
+    public Func<double, double, double?> floorAt;
+    /// <summary>True while the dog lies in the old house out of the rain.</summary>
+    public bool sheltered => state == "sheltered";
     public double x = 0, z = 0, heading = 0;
     /// <summary>the find the dog is working on, if any</summary>
     public BuriedItem item;
@@ -197,7 +206,7 @@ public class Dog
     /// <summary>The shutter clicked while the dog was posing: the tail goes wild for a moment.</summary>
     public void photographed()
     {
-        if (state != "rest" || poseAmt < 0.3) return;
+        if ((state != "rest" && state != "sheltered") || poseAmt < 0.3) return;
         loveT = Math.Max(loveT, 0.55);
     }
     private double dig = 0, sniffAmt = 0, kick = 0, barkT = 0, dustT = 0, workT = 0, pauseT = 0, pathT = 0, stride = 0;
@@ -500,7 +509,7 @@ public class Dog
     /// <summary>The player gives the dog some love: it sits up, shakes its head and wags.</summary>
     public void pet()
     {
-        if (state != "rest") return;
+        if (state != "rest" && state != "sheltered") return;
         loveT = 2.4;
         kick = 0.6;
     }
@@ -516,7 +525,8 @@ public class Dog
 
     private void place()
     {
-        double ground = beach.heightAt(x, z);
+        // on the old house's steps, porch or floor, that is what it stands on
+        double ground = floorAt?.Invoke(x, z) ?? beach.heightAt(x, z);
         double bob = speed > 0.5 ? Math.Abs(Math.Sin(gait)) * 0.03 * Math.Min(1, speed / TROT) : 0;
         group.position.set(x, ground - sit * 0.25 - lie * 0.34 + bob, z);
         group.rotation.y = heading;
@@ -526,15 +536,37 @@ public class Dog
     {
         pathT += dt;
         loveT = Math.Max(0, loveT - dt);
+        // rain: a resting dog trots off to the old house; when it stops, a sheltering dog comes back to the camp
+        if (raining && state == "rest" && shelterRoute != null && shelterRoute.Count > 0)
+        {
+            path = shelterRoute.Select(p => new Waypoint { x = p.x, z = p.z, sniff = 0 }).ToList();
+            pauseT = 0;
+            state = "shelter";
+        }
+        else if (!raining && (state == "shelter" || state == "sheltered") && shelterRoute != null)
+        {
+            // back the way it came, from wherever along the way it has got to
+            int at = 0;
+            double best = double.MaxValue;
+            for (int i = 0; i < shelterRoute.Count; i++)
+            {
+                double d = JS.Hypot(shelterRoute[i].x - x, shelterRoute[i].z - z);
+                if (d < best) { best = d; at = i; }
+            }
+            path = new List<Waypoint>();
+            for (int i = at; i >= 0; i--) path.Add(new Waypoint { x = shelterRoute[i].x, z = shelterRoute[i].z, sniff = 0 });
+            pauseT = 0;
+            state = "unshelter";
+        }
         // where is the dog headed?
         double tx = home.x, tz = home.z;
-        if (state == "run")
+        if (state == "run" || state == "shelter" || state == "unshelter")
         {
             var wp = path.Count > 0 ? path[0] : null;
             if (wp != null) { tx = wp.x; tz = wp.z; }
             else if (item != null) { tx = stand.x; tz = stand.z; }
         }
-        bool moving = state == "run" || state == "return";
+        bool moving = state == "run" || state == "return" || state == "shelter" || state == "unshelter";
         bool sniffing = false;
         if (moving)
         {
@@ -564,6 +596,8 @@ public class Dog
                 var r = env.resolve(x, z);
                 x = r.x;
                 z = r.z;
+                // a slower walk up the steps and through the door
+                if (floorAt?.Invoke(x, z) != null) speed = Math.Min(speed, TROT * 0.6);
                 gait += dt * (5 + speed * 2.6);
                 sniffing = trail;
                 // a pair of paw prints every stride: a front paw ahead and the opposite hind paw behind
@@ -579,9 +613,14 @@ public class Dog
                     env.print(x - fx * 0.26 - rx * 0.075 * side, z - fz * 0.26 - rz * 0.075 * side, heading, side > 0);
                 }
             }
-            if (d < (state == "run" && path.Count > 1 ? 0.9 : 0.5) && pauseT <= 0)
+            if (d < ((state == "run" || state == "shelter" || state == "unshelter") && path.Count > 1 ? 0.9 : 0.5) && pauseT <= 0)
             {
-                if (state == "run")
+                if (state == "shelter" || state == "unshelter")
+                {
+                    if (path.Count > 0) path.RemoveAt(0);
+                    if (path.Count == 0) state = state == "shelter" ? "sheltered" : "return";
+                }
+                else if (state == "run")
                 {
                     Waypoint wp = null;
                     if (path.Count > 0) { wp = path[0]; path.RemoveAt(0); }
@@ -604,9 +643,9 @@ public class Dog
         else
         {
             speed *= Math.Exp(-dt * 8);
-            if (state == "rest")
+            if (state == "rest" || state == "sheltered")
             {
-                // sit and face the player when they come near, the fire otherwise
+                // sit and face the player when they come near, the fire otherwise (in the old house: the door)
                 double dx = env.playerX - x, dz = env.playerZ - z;
                 // lie by the fire; sit up and look at the player once they come close, and settle again when they leave
                 double dist = JS.Hypot(dx, dz);
@@ -617,7 +656,7 @@ public class Dog
                 poseAmt += ((pose ? 1 : 0) - poseAmt) * Math.Min(1, dt * 4);
                 if (dist < 5.5 || loveT > 0 || pose) wantSit = true;
                 else if (dist > 8) wantSit = false;
-                double want = wantSit ? Math.Atan2(-dx, -dz) : home.heading;
+                double want = wantSit ? Math.Atan2(-dx, -dz) : state == "sheltered" ? shelterHeading : home.heading;
                 double diff = want - heading;
                 diff = Math.Atan2(Math.Sin(diff), Math.Cos(diff));
                 heading += diff * Math.Min(1, dt * (pose ? 4 : 1.6));
@@ -664,7 +703,7 @@ public class Dog
     /// <summary>Sets every joint for the current state: sitting, trotting, sniffing, digging or barking.</summary>
     private void pose(double dt, double t, DogEnv env, bool digging, bool sniffing)
     {
-        bool resting = state == "rest";
+        bool resting = state == "rest" || state == "sheltered";
         if (!resting) poseAmt = Math.Max(0, poseAmt - dt * 4);
         double P = resting ? poseAmt * Math.Min(1, sit * 1.4) : 0;
         sit += ((resting && wantSit ? 1 : 0) - sit) * Math.Min(1, dt * 3.5);

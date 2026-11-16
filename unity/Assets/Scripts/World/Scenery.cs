@@ -194,6 +194,7 @@ public class Scenery
         var more = new List<(double x, double z)>();
         bool free(double x, double z) =>
             !(Math.Abs(x) < 76 && z > -78) && z < 33 && onLand(x, z, 5) && baseHeight(x, z) > WATER_LEVEL + 0.4 &&
+            JS.Hypot(x - OldHouse.X, z - OldHouse.Z) > 9 &&
             spots.All(p => JS.Hypot(p.x - x, p.z - z) > 3.5) && more.All(p => JS.Hypot(p.x - x, p.z - z) > 3.5);
         for (int g = 0, tries = 0; g < 40 && tries < 4000; tries++)
         {
