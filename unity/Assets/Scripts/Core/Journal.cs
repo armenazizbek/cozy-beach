@@ -604,7 +604,7 @@ public static class Journal
             group = "Sky",
             icon = "🔭",
             title = "The Stargazer’s Glass",
-            text = "Up on the dune of Lagoon Cay, an old brass telescope stands on its tripod, pointed out over the open sea. By day it shows nothing but glare, but after dark the sky through it is crowded with stars, and somewhere among them are pictures: click their stars, or hold one framed in the eyepiece until it comes into focus.",
+            text = "Up on the dune of Lagoon Cay, an old brass telescope stands on its tripod, pointed out over the open sea, caked in sand until someone brushes it clean. By day it shows nothing but glare, but after dark the sky through it is crowded with stars, and somewhere among them are pictures: click their stars, or hold one framed in the eyepiece until it comes into focus.",
         },
     }.Concat(Constellations.ALL.Select(c => new JournalPage
     {

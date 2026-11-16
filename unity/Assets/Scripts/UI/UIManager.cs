@@ -1723,7 +1723,7 @@ public class UIManager
         this.progText.textContent = $"{JS.Round(p * 100)}%";
     }
 
-    public void showResult(string name, string lore, string valueText, string category)
+    public void showResult(string name, string lore, string valueText, string category, string button = "Add to Backpack")
     {
         this.inspectTitle.textContent = name;
         this.result.innerHTML = "";
@@ -1735,7 +1735,7 @@ public class UIManager
             el("div", "worth", valueText)
         );
         var b = el<HTMLButtonElement>("button", "btn big");
-        b.append(Glyphs.key("Space", "A"), el("span", "", "Add to Backpack"));
+        b.append(Glyphs.key("Space", "A"), el("span", "", button));
         b.onclick = () => this.hooks.onContinue();
         card.append(b);
         this.result.append(card);

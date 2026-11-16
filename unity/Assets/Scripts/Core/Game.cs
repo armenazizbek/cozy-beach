@@ -245,6 +245,7 @@ public class Game
     private int scopeFoundNow = 0;
     private BuriedItem inspectItem = null;
     private bool cleaningLighthouse = false;
+    private bool cleaningTelescope = false;
     private double lighthouseIntroArmed = 0;
     private bool transitioning = false;
     private bool chillWarned = false;
@@ -414,6 +415,7 @@ public class Game
         if (state.data.doorOpen) cellar.openDoor(true);
         cellar.cave.setTaken(state.data.hoardTaken);
         islands[2].lighthouse?.setClean(state.data.lighthouseCleaned);
+        islands[1].telescope?.setClean(state.data.telescopeCleaned);
         applyLuxury();
         void showDecor()
         {
@@ -1381,7 +1383,8 @@ public class Game
         }
         if (hoveredScope && gameState == "EXPLORE")
         {
-            openScope();
+            if (islands[1].telescope?.cleaned == true) openScope();
+            else enterCleanTelescope();
             return;
         }
         if (gameState == "EXPLORE" && tool == 2 && toolHit != null) tryDig(toolHit);
@@ -2392,8 +2395,47 @@ public class Game
         });
     }
 
+    /// <summary>The first time at the telescope: its tube goes to the workbench to be brushed free of sand and salt.</summary>
+    private void enterCleanTelescope()
+    {
+        var ts = islands[1].telescope;
+        if (ts == null || ts.cleaned || transitioning || gameState != "EXPLORE") return;
+        setBinocView(false);
+        transitioning = true;
+        document.exitPointerLock();
+        ui.fade(() =>
+        {
+            inspectItem = null;
+            cleaningTelescope = true;
+            gameState = "INSPECT";
+            if (ts.crustCanvas == null) ts.crustCanvas = LootGenerator.newCrustCanvas();
+            station.enterGroup(Telescope.buildCleanModel(), ts.crustCanvas, state.brushPx, new THREE.Euler(0.35, 0.3, 0, "YXZ"), 2.1);
+            ui.showInspect("The Old Telescope", "The telescope, caked in sand and salt…");
+            ui.setProgress(station.progress);
+            ui.setMode("INSPECT");
+            audio.setOceanLevel(0.02);
+            detector.setActive(false);
+            dig.setActive(false);
+            ui.setHint(null);
+            window.setTimeout(() => transitioning = false, 350);
+        });
+    }
+
     private void onCleaned()
     {
+        if (cleaningTelescope)
+        {
+            cleaningTelescope = false;
+            audio.discover();
+            state.data.telescopeCleaned = true;
+            state.emit();
+            islands[1].telescope?.setClean(true);
+            ui.showResult("The Old Telescope",
+                "Under the crust the brass still shines, and the lens is clear and unscratched. Someone looked after it once, and now it is yours to look through.",
+                scopeDark ? "Clean and clear. Look through it now: the stars are out." : "Clean and clear. Come back after dark to look through it.",
+                "Telescope", "Set it back on its stand");
+            return;
+        }
         if (cleaningLighthouse)
         {
             cleaningLighthouse = false;
@@ -2460,6 +2502,7 @@ public class Game
             station.exit();
             inspectItem = null;
             cleaningLighthouse = false;
+            cleaningTelescope = false;
             gameState = "EXPLORE";
             ui.hideInspect();
             ui.setMode("EXPLORE");
@@ -2488,6 +2531,7 @@ public class Game
             station.exit();
             inspectItem = null;
             cleaningLighthouse = false;
+            cleaningTelescope = false;
             ui.hideInspect();
             gameState = "EXPLORE";
             ui.setMode("MENU");
@@ -2560,6 +2604,11 @@ public class Game
     private void openScope()
     {
         if (scopeOpen || transitioning || gameState != "EXPLORE" || paused || islands[1].telescope == null) return;
+        if (!islands[1].telescope.cleaned)
+        {
+            enterCleanTelescope();
+            return;
+        }
         if (!scopeDark)
         {
             ui.toast("🔭 It is far too bright to see any stars. Come back after dusk.");
@@ -2670,6 +2719,14 @@ public class Game
         }
         else if (what == "open") openScope();
         else if (what == "close") closeScope();
+        else if (what == "brush") enterCleanTelescope();
+        else if (what == "scrub")
+        {
+            for (int i = -6; i <= 6; i++) station.pointer(new THREE.Vector2(i * 0.05, i * 0.03), true, 1200);
+            station.update(0.1);
+        }
+        else if (what == "cleaned") { if (gameState == "INSPECT" && cleaningTelescope) station.instantClean(); }
+        else if (what == "done") exitInspect();
         else if (what == "night") { state.setLighting("night"); dayTime = 0.9; sky.setTime(dayTime); scope.night = 1; }
         else if (what == "day") { state.setLighting("cycle"); dayTime = 0.4; sky.setTime(dayTime); scope.night = 0; }
         else if (what.StartsWith("look:")) scope.lookAt(what.Substring(5));
@@ -2678,7 +2735,7 @@ public class Game
         else if (what == "hint") scopeHint = true;
         else if (what == "pan") { scope.viewAz = 0; scope.viewAlt = 30; scope.fov = 60; }
         var saved = state.data.constellations ?? new List<string>();
-        return $"telescope at {ts.x:0.0}, {ts.z:0.0} (ground {ts.ground:0.00}, facing {ts.yaw:0.00}); player at {player.x:0.0}, {player.z:0.0}; {smokeTestPrompt()}; open={scopeOpen}; {scope.describe()}; saved [{string.Join(",", saved)}], coins {state.data.coins:0}, STARGAZER={achievements.has("STARGAZER")}";
+        return $"telescope at {ts.x:0.0}, {ts.z:0.0} (ground {ts.ground:0.00}, facing {ts.yaw:0.00}); player at {player.x:0.0}, {player.z:0.0}; {smokeTestPrompt()}; cleaned={ts.cleaned} (saved {state.data.telescopeCleaned}), state {gameState}; open={scopeOpen}; {scope.describe()}; saved [{string.Join(",", saved)}], coins {state.data.coins:0}, STARGAZER={achievements.has("STARGAZER")}";
     }
 
 
@@ -5789,7 +5846,9 @@ public class Game
         if (glass != null && !driving && vehicle == null && glass.near(player.x, player.z) && 0.3 < best)
         {
             best = 0.3;
-            interaction = new Interaction { label = scopeDark ? "Look through the telescope" : "Look through the telescope (only after dark)", run = () => openScope() };
+            interaction = !glass.cleaned
+                ? new Interaction { label = "Take the telescope to clean it", run = () => enterCleanTelescope() }
+                : new Interaction { label = scopeDark ? "Look through the telescope" : "Look through the telescope (only after dark)", run = () => openScope() };
         }
         if (!state.data.hasTreasureMap && island.nearMap(player.x, player.z) && 0.3 < best)
         {
@@ -6035,6 +6094,7 @@ public class Game
         string hint = null;
         if (hoveredItem != null) hint = hoveredItem.def.id == "captain_chest" ? (hoveredItem.opened ? "Click to climb down the ladder" : "Click to open the hatch") : "Click to take it to the workbench";
         else if (hoveredLighthouse) hint = "Click to take and clean the lighthouse lamp (or press F)";
+        else if (hoveredScope && islands[1].telescope?.cleaned != true) hint = "Click to take the telescope and clean it (or press F)";
         else if (hoveredScope) hint = scopeDark ? "Click to look through the telescope (or press F)" : "The stars only come out after dark. Come back after dusk.";
         else if (hoveredCamp != null)
         {

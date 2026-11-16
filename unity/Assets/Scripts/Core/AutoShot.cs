@@ -462,8 +462,23 @@ public class AutoShot : MonoBehaviour
         // constellation found at last (the log says the coins, the save and the achievement)
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-telescope") >= 0)
         {
+            // first it is caked in sand: it goes to the workbench once, and is clean for good after that
             Debug.Log("[AutoShot] " + game.smokeTestScope("walk"));
             yield return Wait(3);
+            yield return Shot("27-telescope-dirty.png");
+            Debug.Log("[AutoShot] to the bench: " + game.smokeTestScope("brush"));
+            yield return Wait(1.2f);
+            game.smokeTestScope("scrub");
+            yield return Wait(0.5f);
+            yield return Shot("27-telescope-cleaning.png");
+            game.smokeTestScope("cleaned");
+            yield return Wait(3);
+            Debug.Log("[AutoShot] brushed: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-cleaned.png");
+            game.smokeTestScope("done");
+            yield return Wait(1.5f);
+            Debug.Log("[AutoShot] back: " + game.smokeTestScope("walk"));
+            yield return Wait(1);
             yield return Shot("27-telescope-prop.png");
             game.smokeTestScope("night");
             yield return Wait(1);
