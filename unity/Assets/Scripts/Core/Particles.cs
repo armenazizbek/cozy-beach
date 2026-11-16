@@ -36,7 +36,7 @@ public class ParticleSystem
             depthWrite = false,
             blending = additive ? THREE.Blending.AdditiveBlending : THREE.Blending.NormalBlending,
         };
-        points = new THREE.Points(geo, mat) { frustumCulled = false, renderOrder = 10 };
+        points = new THREE.Points(geo, mat) { frustumCulled = false, renderOrder = 10, visible = false };
     }
 
     public void emit(THREE.Vector3 p, THREE.Vector3 v, double lifetime, THREE.Color color)
@@ -48,7 +48,15 @@ public class ParticleSystem
         col[i * 3] = (float)color.r; col[i * 3 + 1] = (float)color.g; col[i * 3 + 2] = (float)color.b;
         life[i] = lifetime;
         maxLife[i] = lifetime;
+        live++;
+        points.visible = true;
     }
+
+    /// <summary>
+    /// How many particles may still be alive (an upper bound: emit counts up, update counts them again). While it is 0 the pool
+    /// is hidden and update does nothing, so the many pools that are idle most of the time (splashes, wakes, sparks) cost nothing.
+    /// </summary>
+    private int live;
 
     public void burst(THREE.Vector3 p, int count, double speed, double up, double lifetime, THREE.Color color)
     {
@@ -64,6 +72,12 @@ public class ParticleSystem
 
     public void update(double dt)
     {
+        if (live == 0)
+        {
+            points.visible = false;
+            return;
+        }
+        live = 0;
         for (int i = 0; i < max; i++)
         {
             if (life[i] <= 0)
@@ -71,6 +85,7 @@ public class ParticleSystem
                 alpha[i] = 0;
                 continue;
             }
+            live++;
             life[i] -= dt;
             int i3 = i * 3;
             vel[i3 + 1] -= gravity * dt;

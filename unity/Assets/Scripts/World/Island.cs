@@ -186,6 +186,36 @@ public class Island
                 }
             }
         });
+        gatherStill();
+    }
+
+    /// <summary>
+    /// Moves everything on the island that never moves by itself (the ground, rocks, bushes, ruins, the camp's lean-to, the
+    /// columns and the cairn) into one group that the scene copy skips (Object3D.syncStatic); its materials still follow the
+    /// haze. What does move stays where it was: the palms, the foam, the old map, the camp with its flapping rag, the
+    /// lighthouse and the telescope. Nothing moves in the world: the new group sits where the island's own group is.
+    /// </summary>
+    private void gatherStill()
+    {
+        var keep = new HashSet<THREE.Object3D>();
+        void keepTop(THREE.Object3D o)
+        {
+            while (o != null && o.parent != group) o = o.parent;
+            if (o != null) keep.Add(o);
+        }
+        foreach (var p in palms) keepTop(p.crown);
+        foreach (var fm in foam) keepTop(fm);
+        keepTop(scroll);
+        if (pennant != null) keepTop(pennant);
+        if (lighthouse != null) keepTop(lighthouse.group);
+        if (telescope != null) keepTop(telescope.group);
+        var still = new THREE.Group { name = "still", syncStatic = true };
+        foreach (var c in group.children.ToList())
+        {
+            if (keep.Contains(c)) continue;
+            still.add(c);
+        }
+        group.add(still);
     }
 
     public bool contains(double x, double z) => JS.Hypot(x - spec.x, z - spec.z) < spec.R * 1.1;
@@ -496,7 +526,8 @@ public class Island
             var trunk = new THREE.Mesh(new THREE.TubeGeometry(curve, 12, 0.2, 7), trunkMat);
             trunk.castShadow = true;
             g.add(trunk);
-            var crown = new THREE.Group();
+            // the crown sways as a whole, but its fronds and coconuts never move inside it (Object3D.syncStatic)
+            var crown = new THREE.Group { syncStatic = true };
             crown.position.copy(curve.getPoint(1));
             var frondMeshes = new List<THREE.Mesh>();
             var nutGroup = new THREE.Group();

@@ -238,6 +238,8 @@ public class Game
     private string hoveredCamp = null;
     private bool hoveredLighthouse = false;
     private bool hoveredScope = false;
+    /// <summary>until the mini-map's markers are drawn again, and until the next check of what the pointer is over</summary>
+    private double miniT = 0, hoverT = 0;
     /// <summary>the view through the telescope on Lagoon Cay, and whether the player is looking through it</summary>
     private readonly TelescopeView scope = new TelescopeView();
     private bool scopeOpen = false;
@@ -5908,15 +5910,20 @@ public class Game
         audio.setMusicLevel(paused ? 0.08 : 1, 1);
     }
 
-    private void updateHover()
+    private void updateHover(double dt)
     {
+        bool off = !started || driving || gameState == "INSPECT" || islands[2].lighthouse?.introActive == true || (campModal.isOpen && isOverPanel()) || underground;
+        // the raycasts below look again sixty times a second at most: above that the eye cannot tell, and at high frame rates
+        // they were a good part of the frame. Whenever there is nothing to look at, everything is cleared at once.
+        hoverT -= dt;
+        if (!off && hoverT > 0) return;
+        hoverT = 1.0 / 60;
         hoveredItem = null;
         hoveredCamp = null;
         hoveredLighthouse = false;
         hoveredScope = false;
         toolHit = null;
-        if (!started || driving || gameState == "INSPECT" || islands[2].lighthouse?.introActive == true || (campModal.isOpen && isOverPanel())) return;
-        if (underground) return;
+        if (off) return;
         if (diving)
         {
             // underwater only the finds can be looked at
@@ -6258,7 +6265,7 @@ public class Game
                     discover("dolphins");
                 }
             }
-            using (THREE.Bridge.BridgeStats.Time("whitecaps")) whitecaps.update(dt, ocean.surfaceY, player.x, player.z, sky.starAmount, (x, z) => ocean.swellAt(x, z));
+            using (THREE.Bridge.BridgeStats.Time("whitecaps")) whitecaps.update(dt, ocean.surfaceY, player.x, player.z, sky.starAmount, ocean.swellTime);
             var chest = treasure.update(dt, t, ocean.surfaceY, vehicle == "boat" ? (double?)boat.x : null, vehicle == "boat" ? (double?)boat.z : null);
             if (chest != null)
             {
@@ -6319,7 +6326,7 @@ public class Game
         else using (THREE.Bridge.BridgeStats.Time("camera+move")) updateCamera(dt);
         using (THREE.Bridge.BridgeStats.Time("music")) updateMusic();
         using (THREE.Bridge.BridgeStats.Time("interaction")) updateInteraction();
-        using (THREE.Bridge.BridgeStats.Time("hover")) updateHover();
+        using (THREE.Bridge.BridgeStats.Time("hover")) updateHover(dt);
 
         if (gameState == "EXPLORE")
         {
@@ -6392,8 +6399,12 @@ public class Game
                 ui.toast("You have reached your destination.");
             }
         }
-        if (!alt)
+        // the mini-map's markers are drawn on the CPU: thirty times a second is as smooth as the eye needs, and saves most of it
+        // (and the garbage of its change check) at high frame rates
+        miniT -= dt;
+        if (!alt && miniT <= 0)
         {
+            miniT = 1.0 / 30;
             mapPlayer.x = player.x;
             mapPlayer.z = player.z;
             mapPlayer.yaw = player.yaw;

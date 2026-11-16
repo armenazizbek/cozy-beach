@@ -48,6 +48,28 @@ namespace THREE
         /// <summary>The Unity side of this object, made the first time it is synced.</summary>
         internal Bridge.Node node;
 
+        /// <summary>
+        /// (Not in Three.js.) Marks a group whose insides do not change by themselves: once copied into Unity, the scene copy
+        /// and the world-matrix update leave everything under it alone until <see cref="touch"/> is called (by the code that
+        /// changes something inside: a part shown or hidden, scaled, moved, or a material swapped), or a child is added or
+        /// removed. The group itself is still moved, shown and hidden as usual. Thousands of objects on the beach (the palms'
+        /// trunks, rings, crowns and coconuts) never change, and walking them every frame was most of the copy's work.
+        /// The materials drawn under it are still brought up to date every frame (an island's haze changes them).
+        /// </summary>
+        public bool syncStatic;
+        internal bool syncDirty = true, matrixDirty = true;
+
+        /// <summary>Tells the static groups this object is in (and itself) that something inside has changed.</summary>
+        public void touch()
+        {
+            for (var o = this; o != null; o = o.parent)
+            {
+                if (!o.syncStatic) continue;
+                o.syncDirty = true;
+                o.matrixDirty = true;
+            }
+        }
+
         public Object3D()
         {
             rotation._onChange = () => quaternion.setFromEuler(rotation, false);
@@ -137,6 +159,7 @@ namespace THREE
                 o.removeFromParent();
                 o.parent = this;
                 children.Add(o);
+                touch();
             }
             return this;
         }
@@ -150,6 +173,7 @@ namespace THREE
                 {
                     o.parent = null;
                     Bridge.SceneSync.Detach(o);
+                    touch();
                 }
             }
             return this;
@@ -295,6 +319,9 @@ namespace THREE
                 matrixWorldNeedsUpdate = false;
                 force = true;
             }
+            // a static group that has not moved and has nothing changed inside keeps every world matrix under it as it was
+            if (syncStatic && !force && !matrixDirty) return;
+            matrixDirty = false;
             foreach (var c in children) c.updateMatrixWorld(force);
         }
 

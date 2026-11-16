@@ -77,9 +77,13 @@ public class Birds
         mantle.position.set(0, 0.09, -0.06);
         var breast = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), white);
         breast.position.set(0, 0.0, 0.2);
-        root.add(body, head, beak, eyeL, eyeR, tail, mantle, breast);
+        // the gull's parts never move against each other: each set of them is a static group (Object3D.syncStatic), so the
+        // scene copy only follows the gull itself and its wings
+        var still = new THREE.Group { syncStatic = true };
+        still.add(body, head, beak, eyeL, eyeR, tail, mantle, breast);
+        root.add(still);
         // orange legs, only visible while standing
-        var legs = new THREE.Group();
+        var legs = new THREE.Group { syncStatic = true };
         foreach (var x in new[] { -0.05, 0.05 })
         {
             var leg = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.009, 0.2, 6), beakMat);
@@ -91,7 +95,7 @@ public class Birds
         root.add(legs);
 
         // standing, the wings lie folded along the flanks with dark tips crossing at the tail
-        var folded = new THREE.Group();
+        var folded = new THREE.Group { syncStatic = true };
         foreach (var sx in new[] { -1, 1 })
         {
             var w = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), grey);
@@ -107,7 +111,7 @@ public class Birds
 
         THREE.Group wing()
         {
-            var w = new THREE.Group();
+            var w = new THREE.Group { syncStatic = true };
             var m = new THREE.Mesh(wingGeo, grey);
             var tip = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.018, 0.1), dark);
             tip.position.set(1.2, 0.005, -0.06);

@@ -1,11 +1,15 @@
-// Footprints, paw prints and tyre tracks (src/world/Tracks.ts VERT / FRAG). Instances are baked by the bridge; aAlpha is
-// arrives in TEXCOORD2.x. A Three ShaderMaterial without colour-space conversion writes its colour as sRGB, reproduced here.
+// Footprints, paw prints and tyre tracks (src/world/Tracks.ts VERT / FRAG). Instances are baked by the bridge; each mark's
+// aAge (when it was laid, when it left the trail) arrives in TEXCOORD2.xy and its fade is worked out here (World/Tracks.cs).
+// A Three ShaderMaterial without colour-space conversion writes its colour as sRGB, reproduced here.
 Shader "Cozy/Tracks"
 {
     Properties
     {
         uMap ("Map", 2D) = "white" {}
         uColor ("Color", Vector) = (1, 1, 1, 1)
+        uClock ("Clock", Float) = 0
+        uLife ("Life", Float) = 1
+        uStrength ("Strength", Float) = 1
         [HideInInspector] _Cull ("Cull", Float) = 0
         [HideInInspector] _ZWrite ("ZWrite", Float) = 0
         [HideInInspector] _ZTest ("ZTest", Float) = 4
@@ -44,6 +48,7 @@ Shader "Cozy/Tracks"
             CBUFFER_START(UnityPerMaterial)
                 float4 uMap_ST;
                 float4 uColor;
+                float uClock, uLife, uStrength;
                 float _Cull, _ZWrite, _ZTest, _SrcBlend, _DstBlend, _SrcBlendA, _DstBlendA, _ColorMask, _OffsetFactor, _OffsetUnits;
             CBUFFER_END
 
@@ -58,7 +63,12 @@ Shader "Cozy/Tracks"
                 o.depth = -vs.z;
                 o.positionCS = TransformWViewToHClip(vs);
                 o.uv = v.uv;
-                o.alpha = v.inst.x;
+                // inst.x: when the mark was laid; inst.y: when newer marks pushed it out of the trail, after which it ages five
+                // times as fast. Visible for most of its life, then it smooths away.
+                float age = uClock - v.inst.x;
+                if (uClock > v.inst.y) age = (v.inst.y - v.inst.x) + (uClock - v.inst.y) * 5.0;
+                float t = max(0, age / uLife);
+                o.alpha = t > 1.0 ? 0.0 : max(0, t < 0.55 ? 1.0 : 1.0 - (t - 0.55) / 0.45) * uStrength;
                 return o;
             }
 

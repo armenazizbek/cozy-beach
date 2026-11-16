@@ -179,6 +179,9 @@ public class Ocean
 
     private double timeValue => Convert.ToDouble(time.value);
 
+    /// <summary>the clock the swell runs by (see swellAt), for shaders that ride the swell themselves (Cozy/Whitecaps)</summary>
+    public double swellTime => timeValue;
+
     /// <summary>The swell alone, without the tide, at a point on the open sea.</summary>
     public double swellAt(double x, double z, double? t = null)
     {

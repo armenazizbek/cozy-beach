@@ -30,6 +30,12 @@ namespace THREE.Bridge
         public bool cast, receive;
         public int sortingOrder;
         public bool unculled;
+        /// <summary>whether the renderer is switched on (off while the only material is an invisible one)</summary>
+        public bool drawn = true;
+        /// <summary>a static group (Object3D.syncStatic) whose inside has been copied at least once</summary>
+        public bool staticSynced;
+        /// <summary>the materials drawn under that static group, kept up to date while the group itself is skipped</summary>
+        public readonly List<(THREE.Material, MaterialCache.Kind)> staticMats = new List<(THREE.Material, MaterialCache.Kind)>();
         public Transform[] bones;
     }
 
@@ -195,6 +201,23 @@ namespace THREE.Bridge
                 n.go.layer = layer;
             }
             PushTransform(o, n);
+            // a static group already copied, with nothing touched since: its whole inside is as it was (Object3D.syncStatic)
+            if (o.syncStatic)
+            {
+                if (!o.syncDirty && n.staticSynced)
+                {
+                    BridgeStats.staticSkipped++;
+                    // the objects are as they were, but their materials may still change (an island's haze): those are
+                    // brought up to date as if their meshes had been visited
+                    foreach (var (tm, kind) in n.staticMats) MaterialCache.Get(tm, kind);
+                    return;
+                }
+                BridgeStats.staticSynced++;
+                o.syncDirty = false;
+                n.staticSynced = true;
+                n.staticMats.Clear();
+                CollectMaterials(o, n.staticMats, new HashSet<(THREE.Material, MaterialCache.Kind)>());
+            }
             switch (o)
             {
                 case InstancedMesh im: SyncInstanced(im, n); break;
@@ -206,6 +229,30 @@ namespace THREE.Bridge
                 case THREE.Light l: lights.Add((l, n)); break;
             }
             foreach (var c in o.children) SyncNode(c, n.tf, layer, scene);
+        }
+
+        /// <summary>Every material drawn under a static group, with the kind of object it is drawn on (see SyncNode).</summary>
+        private static void CollectMaterials(Object3D o, List<(THREE.Material, MaterialCache.Kind)> list, HashSet<(THREE.Material, MaterialCache.Kind)> seen)
+        {
+            if (!o.visible) return;
+            void add(THREE.Material m, MaterialCache.Kind k)
+            {
+                if (m != null && m.visible && seen.Add((m, k))) list.Add((m, k));
+            }
+            switch (o)
+            {
+                case InstancedMesh im: add(im.material, MaterialCache.Kind.Instanced); break;
+                case SkinnedMesh sk: add(sk.material, MaterialCache.Kind.Mesh); break;
+                case THREE.Mesh m:
+                    if (m.isMultiMaterial && m.geometry.groups.Count > 0)
+                        foreach (var g in m.geometry.groups) add(m.MaterialFor(g.materialIndex), MaterialCache.Kind.Mesh);
+                    else add(m.material, MaterialCache.Kind.Mesh);
+                    break;
+                case Points p: add(p.material, MaterialCache.Kind.Points); break;
+                case Line l: add(l.material, MaterialCache.Kind.Line); break;
+                case Sprite s: add(s.material, MaterialCache.Kind.Sprite); break;
+            }
+            foreach (var c in o.children) CollectMaterials(c, list, seen);
         }
 
         private static void EnsureRenderer(Node n)
@@ -223,9 +270,19 @@ namespace THREE.Bridge
         /// <summary>The usual single-material case, without building an array every frame.</summary>
         private static void SetMaterial(Node n, Renderer r, U.Material mat)
         {
+            // a mesh whose material is not visible (the hit spheres round fish, sharks and coconuts) draws nothing: its renderer
+            // is switched off rather than drawing an empty pass for every one of them
+            SetDrawn(n, r, !ReferenceEquals(mat, _invisible));
             if (n.mats.Length == 1 && ReferenceEquals(n.mats[0], mat)) return;
             n.mats = new[] { mat };
             r.sharedMaterials = n.mats;
+        }
+
+        private static void SetDrawn(Node n, Renderer r, bool on)
+        {
+            if (n.drawn == on) return;
+            n.drawn = on;
+            r.enabled = on;
         }
 
         private static void SetMaterials(Node n, Renderer r, U.Material[] mats)

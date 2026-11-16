@@ -44,26 +44,64 @@ public class Whitecaps
 
     private class Patch
     {
-        public double x, z, age, life = 1, len = 1, yaw;
+        /// <summary>where it was put down, and when (on the foam's own clock): the shader drifts it on from there</summary>
+        public double x, z, born, life = 1, len = 1, yaw;
     }
 
-    public readonly THREE.InstancedMesh mesh;
+    /// <summary>
+    /// One mesh of COUNT quads, never moved on the CPU: each quad carries its patch's spawn point, size, heading, birth and life
+    /// (aPatch, aLife), and Cozy/Whitecaps drifts it, bobs it on the swell, grows it and fades it in and out. The CPU only puts a
+    /// spent patch down somewhere new, and sends the new values at most ten times a second. (The patches used to be an
+    /// InstancedMesh whose every matrix changed each frame, so the bridge baked all of them into a new mesh every frame.)
+    /// </summary>
+    public readonly THREE.Mesh mesh;
     private readonly List<Patch> patches = new List<Patch>();
-    private readonly THREE.InstancedBufferAttribute alpha;
-    private readonly THREE.Object3D dummy = new THREE.Object3D();
+    private readonly float[] patchData = new float[COUNT * 4 * 4], lifeData = new float[COUNT * 4 * 4];
+    private readonly THREE.BufferAttribute patchAttr, lifeAttr;
+    private readonly THREE.Uniform clockU = new THREE.Uniform(0.0), swellU = new THREE.Uniform(0.0), levelU = new THREE.Uniform(0.0);
     private readonly THREE.Color color = new THREE.Color();
     private readonly THREE.Color nightTint = new THREE.Color(0x6f86a8);
+    private const double DRIFT_X = 0.35, DRIFT_Z = 0.12;
+    /// <summary>the foam's own clock, and when its patches were last sent to the GPU</summary>
+    private double clock = 0, sentAt = -1;
+    private bool dirty = true;
 
     public Whitecaps()
     {
-        var geo = new THREE.PlaneGeometry(1, 1);
-        geo.rotateX(-Math.PI / 2);
-        alpha = new THREE.InstancedBufferAttribute(new float[COUNT], 1);
-        geo.setAttribute("aAlpha", alpha);
+        // four corners per patch, as PlaneGeometry(1, 1) laid flat: x and z from -0.5 to 0.5
+        var pos = new float[COUNT * 4 * 3];
+        var uv = new float[COUNT * 4 * 2];
+        var index = new List<int>(COUNT * 6);
+        double[][] corners = { new[] { -0.5, -0.5 }, new[] { 0.5, -0.5 }, new[] { -0.5, 0.5 }, new[] { 0.5, 0.5 } };
+        for (int i = 0; i < COUNT; i++)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                int v = i * 4 + c;
+                pos[v * 3] = (float)corners[c][0];
+                pos[v * 3 + 2] = (float)corners[c][1];
+                uv[v * 2] = (float)(corners[c][0] + 0.5);
+                uv[v * 2 + 1] = (float)(0.5 - corners[c][1]);
+            }
+            int b = i * 4;
+            index.AddRange(new[] { b, b + 2, b + 1, b + 2, b + 3, b + 1 });
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        patchAttr = new THREE.BufferAttribute(patchData, 4);
+        lifeAttr = new THREE.BufferAttribute(lifeData, 4);
+        geo.setAttribute("aPatch", patchAttr);
+        geo.setAttribute("aLife", lifeAttr);
+        geo.setIndex(index);
         var mat = new THREE.ShaderMaterial
         {
             customShader = "Cozy/Whitecaps",
-            uniforms = new Dictionary<string, THREE.Uniform> { { "uMap", new THREE.Uniform(foamTexture()) }, { "uColor", new THREE.Uniform(new THREE.Color(0xffffff)) } },
+            uniforms = new Dictionary<string, THREE.Uniform>
+            {
+                { "uMap", new THREE.Uniform(foamTexture()) }, { "uColor", new THREE.Uniform(new THREE.Color(0xffffff)) },
+                { "uClock", clockU }, { "uSwellTime", swellU }, { "uLevel", levelU },
+            },
             transparent = true,
             depthWrite = false,
             side = THREE.Side.DoubleSide,
@@ -71,17 +109,17 @@ public class Whitecaps
             polygonOffsetFactor = -2,
             polygonOffsetUnits = -2,
         };
-        mesh = new THREE.InstancedMesh(geo, mat, COUNT) { frustumCulled = false, renderOrder = 2 };
+        mesh = new THREE.Mesh(geo, mat) { frustumCulled = false, renderOrder = 2 };
         for (int i = 0; i < COUNT; i++)
         {
             var p = new Patch();
             patches.Add(p);
-            spawn(p, 0, SHORE_Z + 60, true);
+            spawn(i, p, 0, SHORE_Z + 60, true);
         }
     }
 
     /// <summary>Puts a patch somewhere in the sea near the player (or near a given spot at the start).</summary>
-    private void spawn(Patch p, double px, double pz, bool scatterAge = false)
+    private void spawn(int i, Patch p, double px, double pz, bool scatterAge = false)
     {
         for (int tries = 0; tries < 8; tries++)
         {
@@ -93,36 +131,45 @@ public class Whitecaps
         }
         if (p.z <= SHORE_Z + 4) p.z = SHORE_Z + 6 + JS.Random() * 80;
         p.life = 7 + JS.Random() * 9;
-        p.age = scatterAge ? JS.Random() * p.life : 0;
+        p.born = clock - (scatterAge ? JS.Random() * p.life : 0);
         p.len = 5 + JS.Random() * 11;
         // the streaks run roughly along the shore, as swell does
         p.yaw = (JS.Random() - 0.5) * 0.6;
+        // a patch that was set down before it began drifts on from there: move its start back by the drift it has done
+        double age = clock - p.born;
+        p.x -= DRIFT_X * age;
+        p.z -= DRIFT_Z * age;
+        for (int c = 0; c < 4; c++)
+        {
+            int o = (i * 4 + c) * 4;
+            patchData[o] = (float)p.x; patchData[o + 1] = (float)p.z; patchData[o + 2] = (float)p.yaw; patchData[o + 3] = (float)p.len;
+            lifeData[o] = (float)p.born; lifeData[o + 1] = (float)p.life;
+        }
+        dirty = true;
     }
 
-    public void update(double dt, double level, double px, double pz, double night, Func<double, double, double> swell)
+    public void update(double dt, double level, double px, double pz, double night, double swellTime)
     {
-        const double drift = 0.35;
+        clock += dt;
         for (int i = 0; i < COUNT; i++)
         {
             var p = patches[i];
-            p.age += dt;
-            p.x += drift * dt;
-            p.z += 0.12 * dt;
-            bool far = JS.Hypot(p.x - px, p.z - pz) > RADIUS * 1.15;
-            if (p.age >= p.life || far) spawn(p, px, pz);
-            double u = p.age / p.life;
-            // swell up quickly, hold, then melt away
-            double a = Math.Pow(Math.Sin(Math.PI * Math.Min(1, u)), 0.7);
-            alpha.array[i] = (float)(a * 0.8);
-            double grow = 0.75 + 0.35 * u;
-            dummy.position.set(p.x, level + swell(p.x, p.z) + 0.07, p.z);
-            dummy.rotation.set(0, p.yaw, 0);
-            dummy.scale.set(p.len * grow, 1, p.len * grow * 0.34);
-            dummy.updateMatrix();
-            mesh.setMatrixAt(i, dummy.matrix);
+            double age = clock - p.born;
+            double x = p.x + DRIFT_X * age, z = p.z + DRIFT_Z * age;
+            bool far = JS.Hypot(x - px, z - pz) > RADIUS * 1.15;
+            if (age >= p.life || far) spawn(i, p, px, pz);
         }
-        mesh.instanceMatrix.needsUpdate = true;
-        alpha.needsUpdate = true;
+        // a spent patch is invisible in the shader until it is sent again, so a tenth of a second's wait shows nothing
+        if (dirty && (clock - sentAt >= 0.1 || sentAt < 0))
+        {
+            patchAttr.needsUpdate = true;
+            lifeAttr.needsUpdate = true;
+            dirty = false;
+            sentAt = clock;
+        }
+        clockU.value = clock;
+        swellU.value = swellTime;
+        levelU.value = level;
         // foam looks grey-blue in the dark
         color.set(0xffffff).lerp(nightTint, night * 0.8);
         ((THREE.Color)((THREE.ShaderMaterial)mesh.material).uniforms["uColor"].value).copy(color);

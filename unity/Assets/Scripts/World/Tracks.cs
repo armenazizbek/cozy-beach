@@ -4,32 +4,43 @@ using static Beach;
 
 // Port of src/world/Tracks.ts (the GLSL is in Resources/Shaders/CozyTracks.shader)
 
+/// <summary>
+/// A pool of marks on the sand. Each mark fades in Cozy/Tracks from when it was laid (aAge.x on the marks' own clock) and, once
+/// newer marks have pushed it out of the trail, from then on five times as fast (aAge.y). So the mesh only changes when a mark is
+/// laid; it used to change every frame, as every mark's fade was worked out here and sent again.
+/// </summary>
 internal class Decals
 {
     public readonly THREE.InstancedMesh mesh;
-    private readonly double[] age, seq;
-    private double seqNow;
-    private readonly THREE.InstancedBufferAttribute alpha;
+    private readonly THREE.InstancedBufferAttribute ageAttr;
+    private readonly THREE.Uniform clockU = new THREE.Uniform(0.0), strengthU = new THREE.Uniform(1.0);
+    private double clock;
     private int next;
     private readonly THREE.Matrix4 m = new THREE.Matrix4();
     private readonly THREE.Quaternion q = new THREE.Quaternion();
     private readonly THREE.Matrix4 basis = new THREE.Matrix4();
-    private readonly int max;
-    private readonly double life, trail;
+    private readonly int max, trail;
+    /// <summary>"not pushed out of the trail yet"</summary>
+    private const float NEVER = 1e9f;
 
     public Decals(int max, double life, double trail, THREE.Texture texture)
     {
         this.max = max;
-        this.life = life;
-        this.trail = trail;
+        this.trail = (int)trail;
         var geo = new THREE.PlaneGeometry(1, 1);
         geo.rotateX(-Math.PI / 2);
-        alpha = new THREE.InstancedBufferAttribute(new float[max], 1);
-        geo.setAttribute("aAlpha", alpha);
+        var ages = new float[max * 2];
+        for (int i = 0; i < max; i++) { ages[i * 2] = -NEVER; ages[i * 2 + 1] = NEVER; }
+        ageAttr = new THREE.InstancedBufferAttribute(ages, 2);
+        geo.setAttribute("aAge", ageAttr);
         var mat = new THREE.ShaderMaterial
         {
             customShader = "Cozy/Tracks",
-            uniforms = new Dictionary<string, THREE.Uniform> { { "uMap", new THREE.Uniform(texture) }, { "uColor", new THREE.Uniform(new THREE.Color(0x4a321e)) } },
+            uniforms = new Dictionary<string, THREE.Uniform>
+            {
+                { "uMap", new THREE.Uniform(texture) }, { "uColor", new THREE.Uniform(new THREE.Color(0x4a321e)) },
+                { "uClock", clockU }, { "uLife", new THREE.Uniform(life) }, { "uStrength", strengthU },
+            },
             transparent = true,
             depthWrite = false,
             side = THREE.Side.DoubleSide,
@@ -38,9 +49,6 @@ internal class Decals
             polygonOffsetUnits = -2,
         };
         mesh = new THREE.InstancedMesh(geo, mat, max) { frustumCulled = false, renderOrder = 1 };
-        age = new double[max];
-        for (int i = 0; i < max; i++) age[i] = 1e9;
-        seq = new double[max];
         // park every instance out of sight until it is used
         m.makeScale(0, 0, 0);
         for (int i = 0; i < max; i++) mesh.setMatrixAt(i, m);
@@ -66,26 +74,20 @@ internal class Decals
         next = (next + 1) % max;
         mesh.setMatrixAt(i, m);
         mesh.instanceMatrix.needsUpdate = true;
-        age[i] = 0;
-        seq[i] = ++seqNow;
+        var a = ageAttr.array;
+        a[i * 2] = (float)clock;
+        a[i * 2 + 1] = NEVER;
+        // the mark laid `trail` marks before this one is now out of the trail: from here on it fades away quickly
+        int old = ((i - trail - 1) % max + max) % max;
+        if (a[old * 2 + 1] >= NEVER && a[old * 2] > -NEVER) a[old * 2 + 1] = (float)clock;
+        ageAttr.needsUpdate = true;
     }
 
     public void update(double dt, double strength)
     {
-        for (int i = 0; i < max; i++)
-        {
-            if (age[i] > life)
-            {
-                alpha.array[i] = 0;
-                continue;
-            }
-            // marks beyond the newest `trail` ones age much faster, so a long walk never leaves a permanent road
-            age[i] += seqNow - seq[i] > trail ? dt * 5 : dt;
-            double t = Math.Max(0, age[i] / life);
-            // visible for most of its life, then it smooths away
-            alpha.array[i] = (float)(Math.Max(0, t < 0.55 ? 1 : 1 - (t - 0.55) / 0.45) * strength);
-        }
-        alpha.needsUpdate = true;
+        clock += dt;
+        clockU.value = clock;
+        strengthU.value = strength;
     }
 }
 

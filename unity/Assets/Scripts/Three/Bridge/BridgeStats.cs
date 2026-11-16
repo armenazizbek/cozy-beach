@@ -16,6 +16,8 @@ namespace THREE.Bridge
         public static int frames;
         /// <summary>Objects walked by the scene sync, and how many of them draw something (meshes, points, lines, sprites).</summary>
         public static long objects, drawables, composed, pushed;
+        /// <summary>static groups (Object3D.syncStatic) skipped by the scene copy, and copied again because something in them was touched</summary>
+        public static long staticSkipped, staticSynced;
         public static double tickMs, syncMs, buildMs;
         public static int builds;
         public static long verts;
@@ -25,7 +27,7 @@ namespace THREE.Bridge
         {
             frames = builds = 0;
             tickMs = syncMs = buildMs = 0;
-            verts = objects = drawables = composed = pushed = 0;
+            verts = objects = drawables = composed = pushed = staticSkipped = staticSynced = 0;
             byMesh.Clear();
             sections.Clear();
         }
@@ -69,7 +71,7 @@ namespace THREE.Bridge
             int f = System.Math.Max(1, frames);
             var top = byMesh.OrderByDescending(kv => kv.Value.ms).Take(6)
                 .Select(kv => $"{kv.Key} x{kv.Value.n / (double)f:0.##}/frame {kv.Value.ms / f:0.00}ms {kv.Value.verts / f} verts");
-            return $"game+sync {tickMs / f:0.00} ms, of it scene sync {syncMs / f:0.00} ms ({objects / f} objects, {drawables / f} drawn, {composed / f} matrices recomposed, {pushed / f} transforms pushed), mesh rebuilds {builds / (double)f:0.##}/frame " +
+            return $"game+sync {tickMs / f:0.00} ms, of it scene sync {syncMs / f:0.00} ms ({objects / f} objects, {drawables / f} drawn, {composed / f} matrices recomposed, {pushed / f} transforms pushed, static groups {staticSkipped / f} skipped and {staticSynced / f} copied), mesh rebuilds {builds / (double)f:0.##}/frame " +
                    $"{buildMs / f:0.00} ms {verts / f} verts; top: {string.Join("; ", top)}";
         }
     }

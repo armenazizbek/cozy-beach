@@ -143,15 +143,27 @@ public class SeaLife
     {
         public class Fish
         {
-            public THREE.Group mesh;
-            public THREE.Mesh tail;
-            public double ox, oz, ph;
+            public double ox, oz, ph, size;
+            /// <summary>where its vertices are in the school's mesh</summary>
+            public int first, count;
             public THREE.Mesh hit;
             public bool alive;
             public double respawn;
         }
 
         public List<Fish> fish;
+        /// <summary>the school's object (its mesh and the fish's hit spheres), and the fish's data on the mesh's vertices</summary>
+        public THREE.Group root;
+        public THREE.BufferAttribute fishAttr;
+
+        /// <summary>Shows or hides one fish (a caught fish is drawn at size 0 until it comes back).</summary>
+        public void show(Fish f, bool on)
+        {
+            var a = fishAttr.array;
+            float s = on ? (float)f.size : 0f;
+            for (int v = f.first; v < f.first + f.count; v++) a[v * 4 + 3] = s;
+            fishAttr.needsUpdate = true;
+        }
     }
 
     private class Jumper
@@ -177,6 +189,9 @@ public class SeaLife
     /// <summary>the fish of the open sea: the same kinds as bite at the pier, a body and a tail that wags for each</summary>
     private readonly List<(THREE.BufferGeometry body, THREE.BufferGeometry tail)> fishKinds = new List<(THREE.BufferGeometry, THREE.BufferGeometry)>();
     private readonly THREE.MeshStandardMaterial fishMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.38, metalness = 0.18, side = THREE.Side.DoubleSide };
+    /// <summary>the schools' material: the same look, swimming in its shader by this clock</summary>
+    private readonly THREE.MeshStandardMaterial schoolMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.38, metalness = 0.18, side = THREE.Side.DoubleSide, customShader = "Cozy/FishSchool" };
+    private readonly THREE.Uniform schoolTime = new THREE.Uniform(0.0);
     private double breachTimer = 40;
 
     public SeaLife()
@@ -191,6 +206,7 @@ public class SeaLife
             (0.0, 0.0), (0.015, 0.075), (0.05, 0.15), (0.1, 0.225), (0.2, 0.33), (0.34, 0.425), (0.46, 0.435), (0.6, 0.365),
             (0.72, 0.265), (0.82, 0.17), (0.9, 0.105), (0.95, 0.078), (1.0, 0.068),
         });
+        schoolMat.customUniforms["uTime"] = schoolTime;
         sharkBody = buildSharkBody();
         caudal = buildCaudal();
         foreach (var k in Catches.ROD) fishKinds.Add(Underwater.fishModel(k.top, k.belly, k.accent, k.pattern));
@@ -264,10 +280,15 @@ public class SeaLife
     {
         var root = new THREE.Group();
         var bodyMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.42, metalness = 0.05 };
-        var bodyGeo = sharkBody.clone();
-        var body = new THREE.Mesh(bodyGeo, bodyMat);
+        // the body bends with the swimming wave in its shader (Cozy/SharkBody), so every shark shares one mesh and only two
+        // numbers change each frame; the tail fin, eyes and teeth keep the plain material
+        var bendMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.42, metalness = 0.05, customShader = "Cozy/SharkBody" };
+        bendMat.customUniforms["uWave"] = new THREE.Uniform(0.0);
+        bendMat.customUniforms["uAmp"] = new THREE.Uniform(0.0);
+        bendMat.customUniforms["uLen"] = new THREE.Uniform(SHARK_LEN);
+        var body = new THREE.Mesh(sharkBody, bendMat);
         body.castShadow = true;
-        var rest = (float[])bodyGeo.attributes.position.array.Clone();
+        float[] rest = null;
 
         var caudal = new THREE.Group();
         var lobe = new THREE.Mesh(this.caudal, bodyMat);
@@ -382,21 +403,53 @@ public class SeaLife
         int kind = JS.Random() < 0.7 ? (int)Math.Floor(JS.Random() * 2) : 2 + (int)Math.Floor(JS.Random() * (fishKinds.Count - 2));
         var fish = new List<School.Fish>();
         int n = 8 + (int)Math.Floor(JS.Random() * 5);
+        // the whole school is one mesh that swims in its shader (Cozy/FishSchool); each fish's place, phase and size ride along
+        // on its vertices. Only the school's own object moves on the CPU.
+        var (bodyGeo, tailGeo) = fishKinds[kind % fishKinds.Count];
+        var root = new THREE.Group();
+        var parts = new List<THREE.BufferGeometry>();
+        int at = 0;
         for (int i = 0; i < n; i++)
         {
-            var (g, tail) = makeFish(kind, rand(0.55, 0.8));
-            var hit = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial { visible = false });
+            double size = rand(0.55, 0.8);
+            var f = new School.Fish { ox = rand(-1.6, 1.6), oz = rand(-1.6, 1.6), ph = JS.Random() * 6, size = size, alive = true, respawn = 0 };
+            foreach (var (geo, isTail) in new[] { (bodyGeo, 0f), (tailGeo, 1f) })
+            {
+                var g = geo.clone();
+                int vc = g.attributes.position.count;
+                var fa = new float[vc * 4];
+                var ka = new float[vc];
+                for (int v = 0; v < vc; v++)
+                {
+                    fa[v * 4] = (float)f.ox; fa[v * 4 + 1] = (float)f.oz; fa[v * 4 + 2] = (float)f.ph; fa[v * 4 + 3] = (float)size;
+                    ka[v] = isTail;
+                }
+                g.setAttribute("aFish", new THREE.BufferAttribute(fa, 4));
+                g.setAttribute("aKind", new THREE.BufferAttribute(ka, 1));
+                parts.Add(g);
+            }
+            f.first = at;
+            f.count = bodyGeo.attributes.position.count + tailGeo.attributes.position.count;
+            at += f.count;
+            // the hit sphere sits at the fish's place in the school (it no longer follows its small drift about it); it is
+            // never drawn, and the raycasts that use it do not care whether it is shown
+            var hit = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial { visible = false }) { visible = false };
             hit.scale.setScalar(0.28);
+            hit.position.set(f.ox, 0.02, f.oz);
             hit.userData["hitRadius"] = 0.55;
-            g.add(hit);
-            group.add(g);
-            var f = new School.Fish { mesh = g, tail = tail, ox = rand(-1.6, 1.6), oz = rand(-1.6, 1.6), ph = JS.Random() * 6, hit = hit, alive = true, respawn = 0 };
+            root.add(hit);
+            f.hit = hit;
             hit.userData["fish"] = f;
             fish.Add(f);
         }
+        var merged = THREE.BufferGeometryUtils.mergeGeometries(parts, false);
+        var mesh = new THREE.Mesh(merged, schoolMat) { frustumCulled = false };
+        root.add(mesh);
+        group.add(root);
         var school = new School
         {
             heading = JS.Random() * 6.28, speed = rand(1.2, 2.2), phase = JS.Random() * 6, fish = fish,
+            root = root, fishAttr = merged.attributes["aFish"],
         };
         var (sx0, sz0) = openWater(SHORE_Z + 6, Z_MAX - 20);
         school.x = sx0;
@@ -440,7 +493,11 @@ public class SeaLife
     public List<THREE.Object3D> targets()
     {
         var o = sharks.Where(s => s.alive).Select(s => (THREE.Object3D)s.hit).ToList();
-        foreach (var sc in schools) foreach (var f in sc.fish) if (f.alive && f.mesh.visible) o.Add(f.hit);
+        foreach (var sc in schools)
+        {
+            if (!sc.root.visible) continue;
+            foreach (var f in sc.fish) if (f.alive) o.Add(f.hit);
+        }
         return o;
     }
 
@@ -478,8 +535,8 @@ public class SeaLife
         {
             f.alive = false;
             f.respawn = rand(18, 30);
-            f.mesh.visible = false;
-            var at = f.mesh.getWorldPosition(new THREE.Vector3());
+            schools.First(sc => sc.fish.Contains(f)).show(f, false);
+            var at = f.hit.getWorldPosition(new THREE.Vector3());
             splash(at, 12);
             return new SeaHit { kind = "fish", killed = true, at = at };
         }
@@ -655,18 +712,12 @@ public class SeaLife
             s.rollNow += (rollWant - s.rollNow) * ease;
             s.root.rotation.set(s.pitchNow, s.heading, s.rollNow, "YXZ");
 
-            // swimming: a wave runs down the body, strongest at the tail
-            var pos = s.body.geometry.attributes.position;
+            // swimming: a wave runs down the body, strongest at the tail (bent in the shader, see Cozy/SharkBody)
             double amp = leaping ? 0.28 : 0.12;
             double w = t * (leaping ? 7 : 3.6) + s.phase;
-            for (int i = 0; i < pos.count; i++)
-            {
-                double z = s.rest[i * 3 + 2];
-                double k = (z + SHARK_LEN / 2) / SHARK_LEN; // 0 at the nose, 1 at the tail
-                pos.setX(i, s.rest[i * 3] + Math.Sin(w - k * 3.4) * amp * k * k);
-            }
-            pos.needsUpdate = true;
-            s.body.geometry.computeVertexNormals();
+            var bend = s.body.material.customUniforms;
+            bend["uWave"].value = w;
+            bend["uAmp"].value = amp;
             double tailOff = Math.Sin(w - 3.4) * amp;
             s.caudal.position.x = tailOff;
             s.caudal.rotation.y = Math.Cos(w - 3.4) * amp * 1.6;
@@ -689,33 +740,27 @@ public class SeaLife
             }
         }
 
+        // each fish wags, turns, drifts and bobs in the shader (Cozy/FishSchool); only the school itself moves here
+        schoolTime.value = t;
         foreach (var sc in schools)
         {
             steer(sc, dt, t, 0.9);
-            double cs = Math.Cos(sc.heading);
-            double sn = Math.Sin(sc.heading);
             foreach (var f in sc.fish)
             {
-                if (!f.alive)
+                if (f.alive) continue;
+                f.respawn -= dt;
+                if (f.respawn <= 0)
                 {
-                    f.respawn -= dt;
-                    if (f.respawn <= 0)
-                    {
-                        f.alive = true;
-                        f.mesh.visible = true;
-                    }
-                    continue;
+                    f.alive = true;
+                    sc.show(f, true);
                 }
-                // a school far across the water is not drawn, and does not need animating either
-                bool far = JS.Hypot(sc.x - px, sc.z - pz) > 130;
-                f.mesh.visible = !far;
-                if (far) continue;
-                double ox = f.ox + Math.Sin(t * 1.3 + f.ph) * 0.35;
-                double oz = f.oz + Math.Cos(t * 1.1 + f.ph) * 0.35;
-                f.mesh.position.set(sc.x + cs * ox + sn * oz, level + 0.02 + Math.Sin(t * 5 + f.ph) * 0.02, sc.z - sn * ox + cs * oz);
-                f.mesh.rotation.y = sc.heading + Math.Sin(t * 6 + f.ph) * 0.12;
-                f.tail.rotation.y = Math.Sin(t * 14 + f.ph) * 0.7;
             }
+            // a school far across the water is not drawn
+            bool far = JS.Hypot(sc.x - px, sc.z - pz) > 130;
+            sc.root.visible = !far;
+            if (far) continue;
+            sc.root.position.set(sc.x, level, sc.z);
+            sc.root.rotation.y = sc.heading;
         }
 
         // now and then a fish leaps clear of the water

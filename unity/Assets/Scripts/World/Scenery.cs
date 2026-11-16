@@ -115,6 +115,8 @@ public class Scenery
     }
     private readonly THREE.Color tmp = new THREE.Color();
     private readonly THREE.Color tint = new THREE.Color(0x6f8fa6);
+    /// <summary>the clock the fronds sway by, in their shader</summary>
+    private readonly THREE.Uniform swayTime = new THREE.Uniform(0.0);
 
     public Scenery()
     {
@@ -150,7 +152,9 @@ public class Scenery
         var rand = Stones.rng(7);
         var frondGeo = frondGeometry();
         var frondCols = new[] { 0x3f8f3a, 0x4d9d41, 0x35802f }.Select(c => new THREE.Color(c)).ToArray();
-        var frondMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.85, side = THREE.Side.DoubleSide };
+        // the crowns sway in the shader (Cozy/PalmSway), so no palm's crown has to be turned on the CPU each frame
+        var frondMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.85, side = THREE.Side.DoubleSide, customShader = "Cozy/PalmSway" };
+        frondMat.customUniforms["uTime"] = swayTime;
         var trunkMat = new THREE.MeshStandardMaterial { color = 0x8a6a46, roughness = 1 };
         var nutMat = new THREE.MeshStandardMaterial { color = 0x5a3a1e, roughness = 0.7 };
 
@@ -276,6 +280,9 @@ public class Scenery
             g.add(crown);
             g.position.set(x, baseHeight(x, z) - 0.1, z);
             g.rotation.y = rand() * Math.PI * 2;
+            // nothing in a palm moves by itself (the crown sways in its shader): the scene copy skips it until the distance
+            // detail or a coconut changes something, which touch()es it
+            g.syncStatic = true;
             group.add(g);
             palms.Add(new Palm { group = g, crown = crown, phase = rand() * 6, x = x, z = z, rings = rings, nuts = nutGroup, crownA = crownA, crownB = crownB, lod = 0, k = 1, kf = 1 });
             trunks.Add(new Trunk { x = x, z = z });
@@ -459,6 +466,7 @@ public class Scenery
                     n.growT = Math.Min(1, n.growT + dt / 2);
                     double e = n.growT * n.growT * (3 - 2 * n.growT);
                     n.mesh.scale.setScalar(Math.Max(0.01, e));
+                    n.mesh.touch();
                 }
                 continue;
             }
@@ -530,15 +538,12 @@ public class Scenery
             m.mat.color.copy(ROCK).multiplyScalar(near);
             m.mat.emissive.copy(haze).multiplyScalar(1 - near);
         }
+        // every crown sways in its shader by this clock (Cozy/PalmSway)
+        swayTime.value = t;
         foreach (var p in palms)
         {
-            if (p.rings == null)
-            {
-                // a palm out across the land has no parts to drop; it only sways
-                p.crown.rotation.z = Math.Sin(t * 0.8 + p.phase) * 0.03;
-                p.crown.rotation.x = Math.Cos(t * 0.6 + p.phase) * 0.025;
-                continue;
-            }
+            // a palm out across the land has no parts to drop
+            if (p.rings == null) continue;
             // fewer parts the further away it is, with a few metres of give so it does not flicker at the edge
             double d = JS.Hypot(p.x - camX, p.z - camZ);
             int want = d > LOD_FAR + (p.lod == 2 ? -4 : 4) ? 2 : d > LOD_MID + (p.lod >= 1 ? -4 : 4) ? 1 : 0;
@@ -559,9 +564,8 @@ public class Scenery
                 p.nuts.scale.setScalar(k);
                 p.crownB.visible = p.kf > 0.01;
                 p.crownB.scale.setScalar(Math.Max(p.kf, 0.001));
+                p.group.touch();
             }
-            p.crown.rotation.z = Math.Sin(t * 0.8 + p.phase) * 0.03;
-            p.crown.rotation.x = Math.Cos(t * 0.6 + p.phase) * 0.025;
         }
     }
 }
