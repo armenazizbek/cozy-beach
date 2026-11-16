@@ -100,6 +100,9 @@ public class OldHouse
         walls.Add((STEPS_HALF + 0.05, z1, STEPS_HALF + 0.05, z1 + STEPS));
         // the barrel on the porch
         walls.Add((-W / 2 + 0.6, D / 2 + 0.55, -W / 2 + 0.6, D / 2 + 0.55));
+        // the table and chair under the left window inside
+        walls.Add((-2.35, D / 2 - 0.55, -1.25, D / 2 - 0.55));
+        walls.Add((-1.68, 1.02, -1.68, 1.02));
     }
 
     // ---------------------------------------------------------------- walking in and out
@@ -554,5 +557,106 @@ public class OldHouse
             double bx = W / 2 + 0.6 + rand() * 0.8, bz = -D / 2 + rand() * D;
             box(1.2 + rand() * 1.2, 0.05, 0.19, bx, sandAt(bx, bz) + 0.03, bz, 0, rand() * 3, (rand() - 0.5) * 0.04, board());
         }
+        buildTable();
+    }
+
+    private void cyl(double rTop, double rBot, double h, int segs, double x, double y, double z, double rx, double ry, double rz, int color, List<THREE.BufferGeometry> into)
+    {
+        var g = Ecology.paint(new THREE.CylinderGeometry(rTop, rBot, h, segs), color);
+        place.position.set(x, y, z);
+        place.rotation.set(rx, ry, rz);
+        place.scale.set(1, 1, 1);
+        place.updateMatrix();
+        g.applyMatrix4(place.matrix);
+        into.Add(g);
+    }
+
+    /// <summary>
+    /// Captain Holt's table and chair under the left window, with a half-unrolled chart of the cove, a stick of red sealing wax
+    /// and an empty green bottle (see Story.cs: "I drew a map of this beach, marked the hatch... and sealed it in a green bottle").
+    /// </summary>
+    private void buildTable()
+    {
+        var tbl = new List<THREE.BufferGeometry>();
+        const double tw = 1.16, td = 0.68, th = 0.74;
+        // four legs, apron rails under the top, and a stretcher between the legs
+        foreach (var lx in new[] { -tw / 2 + 0.08, tw / 2 - 0.08 })
+            foreach (var lz in new[] { -td / 2 + 0.07, td / 2 - 0.07 })
+                box(0.065, th - 0.04, 0.065, lx, (th - 0.04) / 2, lz, 0, 0, 0, POST, tbl);
+        foreach (var lz in new[] { -td / 2 + 0.07, td / 2 - 0.07 })
+            box(tw - 0.16, 0.08, 0.04, 0, th - 0.08, lz, 0, 0, 0, DARK, tbl);
+        foreach (var lx in new[] { -tw / 2 + 0.08, tw / 2 - 0.08 })
+        {
+            box(0.04, 0.08, td - 0.14, lx, th - 0.08, 0, 0, 0, 0, DARK, tbl);
+            box(0.045, 0.045, td - 0.14, lx, 0.18, 0, 0, 0, 0, POST, tbl);
+        }
+        box(tw - 0.16, 0.045, 0.045, 0, 0.18, 0, 0, 0, 0, POST, tbl);
+        // four weathered planks for the tabletop
+        for (int i = 0; i < 4; i++)
+            box(tw, 0.042, 0.162, 0, th - 0.021, -0.255 + i * 0.17, 0, 0, 0, BOARDS[i % BOARDS.Length], tbl);
+
+        double top = th;
+        // the chart of the cove: parchment unrolled across the boards, curled into a scroll at either end
+        var map = new List<THREE.BufferGeometry>();
+        box(0.46, 0.008, 0.32, 0, 0.004, 0, 0, 0, 0, 0xdccaa2, map);
+        cyl(0.024, 0.024, 0.33, 10, -0.22, 0.024, 0, Math.PI / 2, 0, 0, 0xceb98e, map);
+        cyl(0.015, 0.015, 0.334, 8, -0.22, 0.024, 0, Math.PI / 2, 0, 0, 0x5a4a32, map);
+        cyl(0.014, 0.014, 0.325, 10, 0.22, 0.014, 0, Math.PI / 2, 0, 0, 0xceb98e, map);
+        // the sea along its edge, the curve of the beach, a compass cross, and a red X where the hatch was buried
+        box(0.38, 0.004, 0.095, 0, 0.008, -0.09, 0, 0, 0, 0x7ea199, map);
+        box(0.38, 0.004, 0.016, 0, 0.009, -0.04, 0, 0.03, 0, 0x5c4732, map);
+        box(0.055, 0.004, 0.007, -0.12, 0.009, 0.07, 0, 0, 0, 0x3d2e20, map);
+        box(0.007, 0.004, 0.055, -0.12, 0.009, 0.07, 0, 0, 0, 0x3d2e20, map);
+        box(0.048, 0.005, 0.010, 0.04, 0.009, 0.04, 0, 0.78, 0, 0xa82820, map);
+        box(0.048, 0.005, 0.010, 0.04, 0.009, 0.04, 0, -0.78, 0, 0xa82820, map);
+        cyl(0.022, 0.025, 0.008, 10, 0.13, 0.009, 0.09, 0, 0, 0, 0x9e201b, map);
+        var mapGeo = THREE.BufferGeometryUtils.mergeGeometries(map);
+        place.position.set(-0.12, top, -0.02);
+        place.rotation.set(0, -0.14, 0);
+        place.scale.set(1, 1, 1);
+        place.updateMatrix();
+        mapGeo.applyMatrix4(place.matrix);
+        tbl.Add(mapGeo);
+
+        // a stick of red sealing wax, a small brass signet stamp, and a cork beside the bottle
+        box(0.13, 0.018, 0.024, 0.21, top + 0.009, -0.11, 0, 0.58, 0, 0xa8241e, tbl);
+        box(0.018, 0.016, 0.022, 0.16, top + 0.008, -0.078, 0, 0.58, 0, 0x5c1410, tbl);
+        cyl(0.018, 0.020, 0.014, 8, 0.15, top + 0.007, 0.02, 0, 0, 0, 0xb8923a, tbl);
+        cyl(0.015, 0.010, 0.052, 8, 0.15, top + 0.038, 0.02, 0, 0, 0, DARK, tbl);
+        cyl(0.014, 0.012, 0.034, 10, 0.22, top + 0.013, 0.15, Math.PI / 2, 0.4, 0.5, 0xb98b57, tbl);
+
+        var tblGeo = THREE.BufferGeometryUtils.mergeGeometries(tbl);
+        place.position.set(-1.8, floorY, D / 2 - 0.52);
+        place.rotation.set(0, 0.04, 0);
+        place.scale.set(1, 1, 1);
+        place.updateMatrix();
+        tblGeo.applyMatrix4(place.matrix);
+        wood.Add(tblGeo);
+
+        // the empty green glass bottle from LootGenerator, lying on the table where the window light catches it
+        var bottle = LootGenerator.buildItem("glass_bottle");
+        bottle.scale.setScalar(0.44);
+        bottle.position.set(-1.8 + 0.35, floorY + top + 0.049, D / 2 - 0.52 + 0.10);
+        bottle.rotation.set(0, -1.1, 0);
+        group.add(bottle);
+
+        // a wooden chair pushed back from the table and turned a little toward the door
+        var ch = new List<THREE.BufferGeometry>();
+        const double cw = 0.44, cd = 0.42, sh = 0.44;
+        foreach (var lx in new[] { -cw / 2 + 0.035, cw / 2 - 0.035 })
+        {
+            box(0.048, sh, 0.048, lx, sh / 2, cd / 2 - 0.035, 0, 0, 0, POST, ch);
+            box(0.048, 0.88, 0.048, lx, 0.44, -cd / 2 + 0.035, -0.04, 0, 0, POST, ch);
+        }
+        box(cw, 0.038, cd, 0, sh + 0.019, 0, 0, 0, 0, BOARDS[2], ch);
+        box(cw - 0.06, 0.07, 0.026, 0, 0.65, -cd / 2 + 0.025, 0, 0, 0.02, BOARDS[0], ch);
+        box(cw - 0.06, 0.075, 0.026, 0, 0.81, -cd / 2 + 0.018, 0, 0, -0.015, BOARDS[4], ch);
+        var chGeo = THREE.BufferGeometryUtils.mergeGeometries(ch);
+        place.position.set(-1.68, floorY, 1.02);
+        place.rotation.set(0, -2.7, 0);
+        place.scale.set(1, 1, 1);
+        place.updateMatrix();
+        chGeo.applyMatrix4(place.matrix);
+        wood.Add(chGeo);
     }
 }

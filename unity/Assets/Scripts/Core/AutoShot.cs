@@ -878,6 +878,10 @@ public class AutoShot : MonoBehaviour
             game.smokeTestStandAt(hx - 0.5, hz + 0.6, Math.PI / 2, 0.05);
             yield return Wait(1);
             yield return Shot("32-house-frames.png");
+            // the captain's table and chair under the left window: chart, sealing wax and green bottle
+            game.smokeTestStandAt(hx - 0.1, hz + 0.3, Math.Atan2(-1.88, -1.5), -0.32);
+            yield return Wait(1);
+            yield return Shot("32-house-table.png");
             // the house on the minimap and the big map, seen from up the beach so the player's arrow is clear of it
             game.smokeTestStandAt(hx + 22, hz, Math.PI / 2, -0.05);
             yield return Wait(1.5f);
