@@ -2687,7 +2687,8 @@ public class Game
         sky.rain = rain.amount;
         if (sky.isDark) discover("night_first");
         // the rain is a sound of the open air: under the sea it is not heard at all
-        audio.setRain(diving ? 0 : rain.amount);
+        // and in the opening it is kept low so the narrator is heard over it
+        audio.setRain(diving ? 0 : rain.amount * (opening != null ? 0.45 : 1));
         sky.focus.set(player.x, 0, player.z);
         sky.setTime(dayTime);
         // lightning lights the whole sky for a moment
