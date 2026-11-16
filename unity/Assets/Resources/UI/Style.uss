@@ -2908,3 +2908,72 @@
 .t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:active {
   background-color: #ea6a47;
 }
+
+/* ---------- the telescope's eyepiece (UI/TelescopeView.cs) ----------
+   The sky, the black surround and the brass rim are drawn by the view's own layer; these are the words over it. */
+.glass {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000000;
+}
+
+.glass-count {
+  position: absolute;
+  left: 40px;
+  top: 32px;
+  color: #e9d9b0;
+  font-size: 22px;
+  -unity-font-style: bold;
+}
+
+.glass-msg {
+  position: absolute;
+  left: 520px;
+  right: 520px;
+  top: 30px;
+  -unity-text-align: upper-center;
+  color: #cfd8e8;
+  font-size: 19px;
+}
+
+.glass-card {
+  position: absolute;
+  right: 34px;
+  top: 340px;
+  width: 400px;
+  padding: 22px 26px 24px 26px;
+  background-color: rgba(10, 14, 26, 0.88);
+  border-width: 2px;
+  border-color: rgba(196, 158, 88, 0.85);
+  border-radius: 14px;
+}
+
+.glass-card > .t-h2 {
+  color: #f3d58c;
+  font-size: 30px;
+  margin: 0 0 10px 0;
+}
+
+.glass-card > .t-p {
+  color: #e4e8f2;
+  font-size: 19px;
+  margin: 0 0 14px 0;
+}
+
+.glass-reward {
+  color: #f6c453;
+  font-size: 18px;
+  -unity-font-style: bold;
+}
+
+.glass-label {
+  position: absolute;
+  width: 320px;
+  -unity-text-align: upper-center;
+  color: #f3d58c;
+  font-size: 20px;
+  -unity-font-style: italic;
+}

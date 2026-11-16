@@ -164,6 +164,11 @@ public static class Help
                 },
                 new HelpBlock
                 {
+                    h = "The telescope",
+                    list = new string[] { "An old telescope stands on the dune of Lagoon Cay, looking out to sea. Walk up to it after dark and press F (or click it) to look through. By day it is far too bright to see any stars.", "Drag with the mouse, or use W A S D, the arrows or the left stick, to look around the sky. The wheel, Q and E, or the triggers zoom in and out.", "Constellations hide among the stars. Click their stars one by one (A picks the star in the middle with a controller), or hold one framed in the middle of the eyepiece until it comes into focus.", "H (or Y) gives a hint: a soft glow and an arrow toward one you have not found yet.", "Each one you find pays a few coins and gets its own page in the journal. Esc, F or B steps back from the eyepiece." },
+                },
+                new HelpBlock
+                {
                     h = "Diving",
                     list = new string[] { "Buy the diving gear at the camper. Stand at the water’s edge and press F to dive in. Press Q to come back up.", "Down there you can find starfish, plates, bells and gold. Press F near a find to clean it.", "The harpoon spears fish for a coin each. Turtles are friendly and cannot be hit.", "It gets deeper the further out you swim, and the water changes with the time of day." },
                 },

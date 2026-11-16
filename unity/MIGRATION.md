@@ -96,6 +96,10 @@ Add `-autoshot-opening` to choose New Game and photograph the opening at a momen
 dawn, camp) and the how-to-play card after it (`24-*`). The log gives the caption, the rain and the hour at each. Keep
 hands off the keyboard and mouse while it runs: any key skips the opening.
 
+Add `-autoshot-telescope` to photograph the telescope on Lagoon Cay and the view through it (`27-*`): the eyepiece at night,
+stars of the Great Bear lit and then the whole of it found, Orion brought into focus by framing it, a hint, the telescope refusing to open by
+day, and every constellation found. The log gives the view, what is found, the saved list, the coins and the achievement.
+
 Add `-autoshot-dive` to photograph the sea floor from nine places (the way in, the reef, the wreck, the deep, looking up)
 and measure the frame rate down there (`22-*`).
 

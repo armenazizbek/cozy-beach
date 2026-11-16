@@ -457,6 +457,69 @@ public class AutoShot : MonoBehaviour
             yield return Wait(3);
         }
 
+        // -autoshot-telescope: the telescope on Lagoon Cay, then the view through it at night: the sky as it opens, a few stars of
+        // the Great Bear lit, the Great Bear found, Orion brought into focus by framing it, a hint, the view by day, and every
+        // constellation found at last (the log says the coins, the save and the achievement)
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-telescope") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestScope("walk"));
+            yield return Wait(3);
+            yield return Shot("27-telescope-prop.png");
+            game.smokeTestScope("night");
+            yield return Wait(1);
+            Debug.Log("[AutoShot] opening: " + game.smokeTestScope("open"));
+            yield return Wait(1.5f);
+            Debug.Log("[AutoShot] eyepiece: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-eyepiece.png");
+            game.smokeTestScope("pan");
+            yield return Wait(0.6f);
+            yield return Shot("27-telescope-wide.png");
+            game.smokeTestScope("look:great_bear");
+            Debug.Log("[AutoShot] three stars: " + game.smokeTestScope("part:great_bear"));
+            yield return Wait(0.8f);
+            yield return Shot("27-telescope-lit.png");
+            Debug.Log("[AutoShot] all its stars: " + game.smokeTestScope("click:great_bear"));
+            yield return Wait(3);
+            yield return Shot("27-telescope-found.png");
+            game.smokeTestScope("look:orion");
+            yield return Wait(1.5f);
+            Debug.Log("[AutoShot] framing Orion: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-focusing.png");
+            yield return Wait(3);
+            Debug.Log("[AutoShot] after framing: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-focused.png");
+            Debug.Log("[AutoShot] hint: " + game.smokeTestScope("hint"));
+            yield return Wait(1.5f);
+            yield return Shot("27-telescope-hint.png");
+            game.smokeTestScope("close");
+            yield return Wait(1.2f);
+            // by day there is nothing to see: the telescope stays shut and says to come back after dusk
+            game.smokeTestScope("day");
+            yield return Wait(1.5f);
+            game.smokeTestScope("open");
+            yield return Wait(0.8f);
+            Debug.Log("[AutoShot] by day (must stay shut): " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-day-refused.png");
+            game.smokeTestScope("night");
+            yield return Wait(1.5f);
+            game.smokeTestScope("open");
+            yield return Wait(1.5f);
+            foreach (var c in Constellations.ALL)
+            {
+                game.smokeTestScope("look:" + c.id);
+                game.smokeTestScope("click:" + c.id);
+                yield return Wait(0.3f);
+            }
+            game.smokeTestScope("look:marigold");
+            yield return Wait(2.5f);
+            Debug.Log("[AutoShot] all found: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-all.png");
+            game.smokeTestScope("close");
+            yield return Wait(1.5f);
+            Debug.Log("[AutoShot] closed: " + game.smokeTestScope("status"));
+            yield return Shot("27-telescope-after.png");
+        }
+
         // -autoshot-dolphins: a run across open water with the pod called up: arriving, alongside, and left behind when the boat stops
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-dolphins") >= 0)
         {

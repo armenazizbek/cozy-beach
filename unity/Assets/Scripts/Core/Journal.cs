@@ -598,7 +598,23 @@ public static class Journal
             title = "The First Night",
             text = "The fire is the only warm thing for miles. Stars come out one by one, and the sea sounds close and enormous.",
         },
-    };
+        new JournalPage
+        {
+            id = "telescope_first",
+            group = "Sky",
+            icon = "🔭",
+            title = "The Stargazer’s Glass",
+            text = "Up on the dune of Lagoon Cay, an old brass telescope stands on its tripod, pointed out over the open sea. By day it shows nothing but glare, but after dark the sky through it is crowded with stars, and somewhere among them are pictures: click their stars, or hold one framed in the eyepiece until it comes into focus.",
+        },
+    }.Concat(Constellations.ALL.Select(c => new JournalPage
+    {
+        // one page for each constellation, written in when the telescope finds it
+        id = Constellations.pageId(c.id),
+        group = "Stars",
+        icon = "⭐",
+        title = c.name,
+        text = c.lore,
+    })).ToArray();
 
     public static readonly string[] INITIAL_PAGE_IDS = JOURNAL_PAGES.Where(p => p.initial).Select(p => p.id).ToArray();
     public static readonly Dictionary<string, JournalPage> PAGE_BY_ID = JOURNAL_PAGES.ToDictionary(p => p.id);

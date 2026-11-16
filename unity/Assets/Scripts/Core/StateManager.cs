@@ -106,6 +106,8 @@ public class GameData
     public int fishCaught = 0;
     /// <summary>the lighthouse on the ember rock has been brushed clean, so its lamp shines at night and ships sail the horizon</summary>
     public bool lighthouseCleaned = false;
+    /// <summary>the constellations found through the telescope on Lagoon Cay, by id (Constellations.ALL)</summary>
+    public List<string> constellations = new List<string>();
 
     public GameData DeepClone() => JsonConvert.DeserializeObject<GameData>(JsonConvert.SerializeObject(this, SaveGame.Json), SaveGame.Json);
 }

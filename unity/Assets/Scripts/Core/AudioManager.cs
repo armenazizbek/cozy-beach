@@ -517,6 +517,23 @@ public class AudioManager
         tone(1760, 0.22, Wave.Triangle, 0.12, 0.07);
     }
 
+    /// <summary>The telescope's small sounds: 'light' a star of a pattern, 'field' a star on its own, 'hint' and 'found'.</summary>
+    public void star(string what)
+    {
+        if (what == "light") tone(1174.7, 0.5, Wave.Sine, 0.09);
+        else if (what == "field") tone(880, 0.25, Wave.Sine, 0.05);
+        else if (what == "hint")
+        {
+            tone(784, 0.6, Wave.Sine, 0.06);
+            tone(1046.5, 0.8, Wave.Sine, 0.05, 0.12);
+        }
+        else if (what == "found")
+        {
+            var a = new[] { 784.0, 987.8, 1174.7, 1568 };
+            for (int i = 0; i < a.Length; i++) tone(a[i], 1.6 - i * 0.2, Wave.Sine, 0.08, i * 0.14);
+        }
+    }
+
     public void discover()
     {
         var a = new[] { 523.25, 659.25, 783.99, 1046.5 };

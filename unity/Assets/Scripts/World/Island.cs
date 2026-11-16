@@ -79,6 +79,10 @@ public class Island
     private THREE.Object3D pennant = null;
     /// <summary>the ember rock's lighthouse; null on the other islands</summary>
     public Lighthouse lighthouse = null;
+    /// <summary>the lagoon cay's telescope on the dune; null on the other islands</summary>
+    public Telescope telescope = null;
+    /// <summary>where the telescope stands, kept clear of palms and bushes</summary>
+    private (double x, double z)? scopeSpot = null;
     /// <summary>what lies in the open here, by item id; no other island has the same finds</summary>
     public readonly string[] findIds;
     /// <summary>every material on the island, with its own colour, so distance haze can be applied by hand</summary>
@@ -95,6 +99,7 @@ public class Island
             findIds = new[] { "spyglass", "nautilus", "red_coral" };
             ruins = highestAlong(LAGOON_GAP + Math.PI, 0.4, 0.9);
             clearR = 5.5;
+            scopeSpot = highestAlong(SCOPE_ANGLE, 0.5, 0.85);
             buildTerrain();
             buildFoam();
             buildPalms();
@@ -102,6 +107,7 @@ public class Island
             buildShrubs();
             buildRocks();
             buildCamp();
+            buildTelescope();
             prepareHaze();
         }
         else if (kind == 2)
@@ -438,6 +444,7 @@ public class Island
             double h = baseHeight(x, z);
             if (h < minH || h > maxH || slopeAt(x, z) > maxSlope) continue;
             if (JS.Hypot(x - ruins.x, z - ruins.z) < clearR) continue;
+            if (scopeSpot.HasValue && JS.Hypot(x - scopeSpot.Value.x, z - scopeSpot.Value.z) < 3.4) continue;
             if (avoid.Any(s => JS.Hypot(s.x - x, s.z - z) < s.r + gap)) continue;
             return (x, z);
         }
@@ -978,6 +985,19 @@ public class Island
         double door = Math.Atan2(-spec.z, -spec.x);
         lighthouse = new Lighthouse(spec.x, spec.z, top, door);
         group.add(lighthouse.group);
+    }
+
+    /// <summary>which way from the middle of the cay the telescope stands: along the ring from the camp's dune, facing the open sea to the north</summary>
+    private const double SCOPE_ANGLE = LAGOON_GAP + Math.PI + 0.9;
+
+    /// <summary>The telescope, on the crest of the ring a little way round from the camp, its tube turned out to sea.</summary>
+    private void buildTelescope()
+    {
+        var at = scopeSpot.Value;
+        double ox = at.x - spec.x, oz = at.z - spec.z;
+        telescope = new Telescope(at.x, at.z, baseHeight(at.x, at.z) - 0.03, Math.Atan2(ox, oz));
+        group.add(telescope.group);
+        colliders.Add(new Spot { x = at.x, z = at.z, r = 0.55 });
     }
 
     /// <summary>Lays `id` down on a free, walkable spot in a band of heights and distances from the middle.</summary>

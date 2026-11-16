@@ -1677,6 +1677,9 @@ public class UIManager
         document.body.classList.add("menu-open");
     }
 
+    /// <summary>Puts a full-screen layer (the telescope's eyepiece) over the HUD but under the toasts and the fade.</summary>
+    public void addLayer(HTMLElement e) => this.toasts.before(e);
+
     public void toast(string msg)
     {
         var t = el("div", "toast", padText(msg));

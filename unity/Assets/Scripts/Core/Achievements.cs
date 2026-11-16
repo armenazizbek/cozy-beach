@@ -66,6 +66,7 @@ public class Achievements
             icon = "💡",
             page = "ember_spring",
         },
+        new AchievementDef { id = "STARGAZER", name = "Stargazer", desc = "Find every constellation through the telescope on Lagoon Cay.", icon = "🔭" },
         new AchievementDef { id = "DIVE", name = "Into the Blue", desc = "Dive for the first time.", icon = "🤿", page = "dive_first" },
         new AchievementDef { id = "WRECK", name = "The Sunken Ship", desc = "Find the shipwreck.", icon = "⚓", page = "wreck_found" },
         new AchievementDef { id = "HARPOON", name = "First Catch", desc = "Spear your first fish.", icon = "🐟", page = "harpoon_first" },

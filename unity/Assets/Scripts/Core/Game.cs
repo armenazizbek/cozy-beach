@@ -237,6 +237,12 @@ public class Game
     private BuriedItem hoveredItem = null;
     private string hoveredCamp = null;
     private bool hoveredLighthouse = false;
+    private bool hoveredScope = false;
+    /// <summary>the view through the telescope on Lagoon Cay, and whether the player is looking through it</summary>
+    private readonly TelescopeView scope = new TelescopeView();
+    private bool scopeOpen = false;
+    private bool scopeSelect = false, scopeHint = false;
+    private int scopeFoundNow = 0;
     private BuriedItem inspectItem = null;
     private bool cleaningLighthouse = false;
     private double lighthouseIntroArmed = 0;
@@ -479,7 +485,7 @@ public class Game
         {
             if (locked) setLockFailed(false);
             // (not when the mouse was let go because the player picked up a controller)
-            if (!locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null) setPaused(true);
+            if (!locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null) setPaused(true);
         });
         window.addEventListener("resize", _ => resize());
         resize();
@@ -1373,6 +1379,11 @@ public class Game
             enterCleanLighthouse();
             return;
         }
+        if (hoveredScope && gameState == "EXPLORE")
+        {
+            openScope();
+            return;
+        }
         if (gameState == "EXPLORE" && tool == 2 && toolHit != null) tryDig(toolHit);
         if (gameState == "EXPLORE" && tool == 4) shoot();
         if (gameState == "EXPLORE" && tool == 7) plantFlag();
@@ -1705,6 +1716,14 @@ public class Game
         if (hammock != null)
         {
             if (code != "KeyN") leaveHammock(false);
+            return;
+        }
+        if (scopeOpen)
+        {
+            if (code == "KeyN") audio.toggleMute();
+            else if (code == "Escape" || code == "KeyF") closeScope();
+            else if (code == "KeyH") scopeHint = true;
+            else if (code == "Space" || code == "Enter" || code == "NumpadEnter") scopeSelect = true;
             return;
         }
         if (code == "KeyN")
@@ -2532,6 +2551,137 @@ public class Game
         });
     }
 
+    // ---------------------------------------------------------------- the telescope
+
+    /// <summary>The stars are out (from late dusk until dawn): only then is there anything to see through the telescope.</summary>
+    private bool scopeDark => sky.starAmount >= 0.5;
+
+    /// <summary>Looks through the telescope on Lagoon Cay: the world pauses as for the map, and the eyepiece fills the screen.</summary>
+    private void openScope()
+    {
+        if (scopeOpen || transitioning || gameState != "EXPLORE" || paused || islands[1].telescope == null) return;
+        if (!scopeDark)
+        {
+            ui.toast("🔭 It is far too bright to see any stars. Come back after dusk.");
+            audio.ui();
+            return;
+        }
+        transitioning = true;
+        document.exitPointerLock();
+        setBinocView(false);
+        ui.fade(() =>
+        {
+            scopeOpen = true;
+            paused = true;
+            scopeSelect = scopeHint = false;
+            scopeFoundNow = 0;
+            input.keys.Clear();
+            state.data.constellations ??= new List<string>();
+            ui.setPrompt(null);
+            ui.setPrompt2(null);
+            ui.setHint(null);
+            ui.setCrosshair(false);
+            scope.onFound = scopeFound;
+            scope.onSound = what => audio.star(what);
+            scope.mount = e => ui.addLayer(e);
+            scope.show(state.data.constellations, Math.Max(0, Math.Min(1, sky.starAmount)));
+            audio.setOceanLevel(0.03);
+            discover("telescope_first");
+            window.setTimeout(() => transitioning = false, 350);
+        });
+    }
+
+    private void closeScope()
+    {
+        if (!scopeOpen || transitioning) return;
+        transitioning = true;
+        ui.fade(() =>
+        {
+            scope.hide();
+            scopeOpen = false;
+            paused = false;
+            input.keys.Clear();
+            ui.setMenuBar(null);
+            audio.setOceanLevel(0.06);
+            if (scopeFoundNow > 0) autoSave();
+            grabMouse();
+            window.setTimeout(() => transitioning = false, 350);
+        });
+    }
+
+    /// <summary>A constellation found through the telescope: a few coins, its journal page, and the achievement for the last one.</summary>
+    private void scopeFound(ConstellationDef def)
+    {
+        var list = state.data.constellations ??= new List<string>();
+        if (list.Contains(def.id)) return;
+        list.Add(def.id);
+        scopeFoundNow++;
+        state.addCoins(Constellations.REWARD);
+        audio.coin();
+        discover(Constellations.pageId(def.id));
+        if (Constellations.ALL.All(c => list.Contains(c.id)))
+        {
+            state.addCoins(Constellations.ALL_BONUS);
+            achievements.unlock("STARGAZER");
+        }
+    }
+
+    /// <summary>Each frame at the eyepiece (the world is paused): the keys, the sticks and the triggers move the view.</summary>
+    private void updateScope(double dt)
+    {
+        var c = new TelescopeView.Controls();
+        bool k(string a, string b) => input.keys.Contains(a) || input.keys.Contains(b);
+        c.panX = (k("KeyD", "ArrowRight") ? 1 : 0) - (k("KeyA", "ArrowLeft") ? 1 : 0);
+        c.panY = (k("KeyW", "ArrowUp") ? 1 : 0) - (k("KeyS", "ArrowDown") ? 1 : 0);
+        c.zoom = (k("KeyE", "Equal") || input.keys.Contains("NumpadAdd") ? 1 : 0) - (k("KeyQ", "Minus") || input.keys.Contains("NumpadSubtract") ? 1 : 0);
+        if (pad.connected && usingPad)
+        {
+            c.panX += pad.move.x + pad.look.x * 0.6;
+            c.panY -= pad.move.y + pad.look.y * 0.6;
+            c.zoom += pad.rt - pad.lt;
+            c.mouse = false;
+        }
+        c.panX = Math.Max(-1, Math.Min(1, c.panX));
+        c.panY = Math.Max(-1, Math.Min(1, c.panY));
+        c.zoom = Math.Max(-1, Math.Min(1, c.zoom));
+        c.select = scopeSelect;
+        c.hint = scopeHint;
+        scopeSelect = scopeHint = false;
+        scope.update(dt, c);
+    }
+
+    /// <summary>
+    /// For the -autoshot-telescope test: "walk" stands behind the telescope, "open" and "close" look through it and step back,
+    /// "night" and "day" set the hour, "look:id" points the eyepiece at a constellation, "click:id" clicks its stars,
+    /// "part:id" clicks only its first three, "hint" asks for a hint; it always says where the view is and what is found.
+    /// </summary>
+    internal string smokeTestScope(string what)
+    {
+        var ts = islands[1].telescope;
+        if (ts == null) return "no telescope";
+        if (what == "walk")
+        {
+            double bx = -Math.Sin(ts.yaw), bz = -Math.Cos(ts.yaw);
+            player.x = ts.x + bx * 2.2 + Math.Cos(ts.yaw) * 0.6;
+            player.z = ts.z + bz * 2.2 - Math.Sin(ts.yaw) * 0.6;
+            // looking past the telescope out to sea
+            player.yaw = Math.Atan2(-(ts.x - player.x), -(ts.z - player.z));
+            player.pitch = 0.05;
+        }
+        else if (what == "open") openScope();
+        else if (what == "close") closeScope();
+        else if (what == "night") { state.setLighting("night"); dayTime = 0.9; sky.setTime(dayTime); scope.night = 1; }
+        else if (what == "day") { state.setLighting("cycle"); dayTime = 0.4; sky.setTime(dayTime); scope.night = 0; }
+        else if (what.StartsWith("look:")) scope.lookAt(what.Substring(5));
+        else if (what.StartsWith("click:")) scope.clickAll(what.Substring(6));
+        else if (what.StartsWith("part:")) scope.clickAll(what.Substring(5), 3);
+        else if (what == "hint") scopeHint = true;
+        else if (what == "pan") { scope.viewAz = 0; scope.viewAlt = 30; scope.fov = 60; }
+        var saved = state.data.constellations ?? new List<string>();
+        return $"telescope at {ts.x:0.0}, {ts.z:0.0} (ground {ts.ground:0.00}, facing {ts.yaw:0.00}); player at {player.x:0.0}, {player.z:0.0}; {smokeTestPrompt()}; open={scopeOpen}; {scope.describe()}; saved [{string.Join(",", saved)}], coins {state.data.coins:0}, STARGAZER={achievements.has("STARGAZER")}";
+    }
+
+
     // ---------------------------------------------------------------- camp
 
     private void useCampObject(string kind)
@@ -2990,7 +3140,18 @@ public class Game
         if (root == null)
         {
             chosenIn.Clear();
-            if (mapOpen)
+            if (scopeOpen)
+            {
+                ui.setMenuBar(new List<Glyphs.Prompt>
+                {
+                    new Glyphs.Prompt("Look around", new[] { "LS" }, new[] { "W", "A", "S", "D" }),
+                    new Glyphs.Prompt("Zoom", new[] { "LT", "RT" }, new[] { "Scroll" }),
+                    new Glyphs.Prompt("Pick a star", new[] { "A" }, new[] { "Click" }),
+                    new Glyphs.Prompt("Hint", new[] { "Y" }, new[] { "H" }),
+                    new Glyphs.Prompt("Step back", new[] { "B" }, new[] { "Esc" }),
+                });
+            }
+            else if (mapOpen)
             {
                 var keys = new List<Glyphs.Prompt>
                 {
@@ -3046,6 +3207,14 @@ public class Game
         if (hammock != null)
         {
             if (down) leaveHammock(false);
+            return;
+        }
+        if (scopeOpen)
+        {
+            if (!down) return;
+            if (b == "a") scopeSelect = true;
+            else if (b == "y") scopeHint = true;
+            else if (b == "b" || b == "start") closeScope();
             return;
         }
         var root = overlayRoot();
@@ -3170,6 +3339,11 @@ public class Game
         {
             foreach (var c in padKeys.ToArray()) setPadKey(c, false);
             releasePadBrush();
+            return;
+        }
+        if (scopeOpen)
+        {
+            foreach (var c in padKeys.ToArray()) setPadKey(c, false);
             return;
         }
         var root = overlayRoot();
@@ -5611,6 +5785,12 @@ public class Game
                 };
             }
         }
+        var glass = islands[1].telescope;
+        if (glass != null && !driving && vehicle == null && glass.near(player.x, player.z) && 0.3 < best)
+        {
+            best = 0.3;
+            interaction = new Interaction { label = scopeDark ? "Look through the telescope" : "Look through the telescope (only after dark)", run = () => openScope() };
+        }
         if (!state.data.hasTreasureMap && island.nearMap(player.x, player.z) && 0.3 < best)
         {
             best = 0.3;
@@ -5674,6 +5854,7 @@ public class Game
         hoveredItem = null;
         hoveredCamp = null;
         hoveredLighthouse = false;
+        hoveredScope = false;
         toolHit = null;
         if (!started || driving || gameState == "INSPECT" || islands[2].lighthouse?.introActive == true || (campModal.isOpen && isOverPanel())) return;
         if (underground) return;
@@ -5707,11 +5888,16 @@ public class Game
             var lh = islands[2].lighthouse;
             if (aim(lh.group.position.x, lh.group.position.y + 16.4, lh.group.position.z, 1.4) != null) hoveredLighthouse = true;
         }
+        else if (gameState == "EXPLORE" && islands[1].telescope != null && islands[1].telescope.near(player.x, player.z))
+        {
+            var ts = islands[1].telescope;
+            if (aim(ts.x, ts.ground + 1.3, ts.z, 0.75) != null) hoveredScope = true;
+        }
         // the detector only sweeps the sand close to the player; the trowel reaches a little less far
         bool near = beachHit != null && (tool == 2 || tool == 7 || tool == 8
             ? beachDist < 5.5
             : JS.Hypot(beachHit.x - player.x, beachHit.z - player.z) < DETECT_REACH);
-        if (gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && !hoveredLighthouse && near)
+        if (gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && !hoveredLighthouse && !hoveredScope && near)
         {
             toolHit = beachHit;
         }
@@ -5849,6 +6035,7 @@ public class Game
         string hint = null;
         if (hoveredItem != null) hint = hoveredItem.def.id == "captain_chest" ? (hoveredItem.opened ? "Click to climb down the ladder" : "Click to open the hatch") : "Click to take it to the workbench";
         else if (hoveredLighthouse) hint = "Click to take and clean the lighthouse lamp (or press F)";
+        else if (hoveredScope) hint = scopeDark ? "Click to look through the telescope (or press F)" : "The stars only come out after dark. Come back after dusk.";
         else if (hoveredCamp != null)
         {
             var campHints = new Dictionary<string, string>
@@ -5928,7 +6115,7 @@ public class Game
     private void frame()
     {
         // losing the mouse pauses the game (Esc, Alt-Tab), but not when it was let go because the player picked up a controller
-        if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && hammock == null && islands[2].lighthouse?.introActive != true) setPaused(true);
+        if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null && islands[2].lighthouse?.introActive != true) setPaused(true);
         wasLocked = locked;
 
         double rawDt = clock.getDelta();
@@ -5937,6 +6124,7 @@ public class Game
         menuTick();
         if (paused)
         {
+            if (scopeOpen) updateScope(Math.Min(rawDt, 0.05));
             if (mapOpen)
             {
                 time += Math.Min(rawDt, 0.05);
@@ -6156,7 +6344,7 @@ public class Game
             using (THREE.Bridge.BridgeStats.Time("minimap")) mapView.drawMini(ui.miniCanvas.getContext("2d"), 150, mapPlayer, holes, waypoint, mapCart, mapBoat);
         }
         using (THREE.Bridge.BridgeStats.Time("hint")) updateHint();
-        canvas.classList.toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse);
+        canvas.classList.toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse || hoveredScope);
         if (audio.ready)
         {
             double fd = JS.Hypot(camera.position.x - camp.group.position.x, camera.position.z - camp.group.position.z);
