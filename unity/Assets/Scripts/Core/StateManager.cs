@@ -445,18 +445,21 @@ public class StateManager
         emit();
     }
 
+    private static readonly List<string> NO_LETTERS = new List<string>();
+
     /// <summary>Moves time along for letters in the post. Returns the ids of any that just arrived.</summary>
     public List<string> tickMail(double dt)
     {
         var pending = data.pendingLetters;
-        var arrived = new List<string>();
-        if (pending == null || pending.Count == 0) return arrived;
+        // called every frame: nothing is made unless a letter has actually arrived
+        if (pending == null || pending.Count == 0) return NO_LETTERS;
+        List<string> arrived = null;
         foreach (var p in pending)
         {
             p.inSeconds -= dt;
-            if (p.inSeconds <= 0) arrived.Add(p.id);
+            if (p.inSeconds <= 0) (arrived ??= new List<string>()).Add(p.id);
         }
-        if (arrived.Count == 0) return arrived;
+        if (arrived == null) return NO_LETTERS;
         data.pendingLetters = pending.Where(p => !arrived.Contains(p.id)).ToList();
         data.letters ??= new List<string>();
         data.unreadLetters ??= new List<string>();

@@ -131,7 +131,15 @@ namespace THREE.Bridge
             }
             int layer = scene.unityLayer;
             PushTransform(scene, scene.node);
-            using (BridgeStats.Time("sync.objects")) foreach (var c in scene.children) SyncNode(c, scene.node.tf, layer, scene);
+            using (BridgeStats.Time("sync.objects"))
+            {
+                for (int i = 0; i < scene.children.Count; i++)
+                {
+                    long before = BridgeStats.objects;
+                    SyncNode(scene.children[i], scene.node.tf, layer, scene);
+                    BridgeStats.CountRoot(i, scene.children[i], BridgeStats.objects - before);
+                }
+            }
             using (BridgeStats.Time("sync.lights")) ApplyLights(scene);
             using (BridgeStats.Time("sync.globals")) ApplyGlobals(scene, renderer);
             using (BridgeStats.Time("sync.cleanup")) CleanUp();

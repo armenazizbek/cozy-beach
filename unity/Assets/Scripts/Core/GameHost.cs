@@ -19,6 +19,8 @@ public class GameHost : MonoBehaviour
             Debug.Log("Quit requested:\n" + System.Environment.StackTrace);
             return true;
         };
+        // nothing in the game uses Unity's physics (the world is moved by the game's own code), so it is not stepped
+        Physics.simulationMode = SimulationMode.Script;
         EnsureHost();
         // Main.unity holds no objects, so every scene load needs its host made again: Load Game, New Game and Main Menu all
         // reload the scene, and without this they left an empty scene (the last picture frozen on screen)

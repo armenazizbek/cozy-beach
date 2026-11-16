@@ -42,6 +42,7 @@ public static class DomHost
         document.activeElement = null;
         HTMLElement.ElementByVe.Clear();
         CssAnimations.Clear();
+        HTMLCanvasElement.OnPage.Clear();
         _isTyping = false;
 
         RefreshMetricsInternal(out float scale);
@@ -361,23 +362,10 @@ public static class DomHost
         // 3. Run scheduled timers (setTimeout, setInterval, requestAnimationFrame)
         window.RunTimers();
 
-        // 4. Re-upload dirty HTMLCanvasElement textures attached to the UI
-        if (document.body != null)
+        // 4. Re-upload dirty HTMLCanvasElement textures attached to the UI (only the canvases on the page are looked at)
+        foreach (var canvas in HTMLCanvasElement.OnPage)
         {
-            SyncConnectedCanvases(document.body);
-        }
-    }
-
-    private static void SyncConnectedCanvases(HTMLElement root)
-    {
-        if (root is HTMLCanvasElement canvas && canvas.id != "scene")
-        {
-            canvas.SyncUITexture();
-        }
-        var ch = root.children;
-        for (int i = 0; i < ch.Count; i++)
-        {
-            SyncConnectedCanvases(ch[i]);
+            if (canvas.id != "scene") canvas.SyncUITexture();
         }
     }
 

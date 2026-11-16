@@ -204,15 +204,18 @@ namespace THREE
 
         public BufferAttribute getIndex() => index;
 
-        public BufferGeometry setIndex(BufferAttribute a) { index = a; structureVersion++; return this; }
+        // a new index alone is not a change of shape: the bridge re-sends only the triangles (the beach swaps its detail
+        // level this way as the camera moves), so it bumps indexSerial rather than structureVersion
+        public BufferGeometry setIndex(BufferAttribute a) { index = a; indexSerial++; return this; }
         public BufferGeometry setIndex(IList<int> a)
         {
             var f = new float[a.Count];
             for (int i = 0; i < a.Count; i++) f[i] = a[i];
-            index = new BufferAttribute(f, 1);
-            structureVersion++;
-            return this;
+            return setIndex(new BufferAttribute(f, 1));
         }
+
+        /// <summary>Bumped whenever a different index is set.</summary>
+        internal int indexSerial;
         public BufferGeometry setIndex(int[] a) => setIndex((IList<int>)a);
 
         public BufferAttribute getAttribute(string name) => attributes.TryGetValue(name, out var a) ? a : null;
@@ -432,6 +435,7 @@ namespace THREE
             int v = structureVersion * 7919;
             foreach (var a in attributes.Values) v += a.version;
             if (index != null) v += index.version * 31;
+            v += indexSerial * 104729;
             return v;
         }
     }

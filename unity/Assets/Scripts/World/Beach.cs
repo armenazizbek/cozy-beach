@@ -423,10 +423,13 @@ public class Beach
     private class Chunk
     {
         public THREE.Mesh mesh;
-        public List<int>[] lods;
+        /// <summary>the triangles at each detail level, made once and swapped in as the camera moves</summary>
+        public THREE.BufferAttribute[] lods;
         public double x, z;
         public int lod;
         public bool dug;
+        /// <summary>seconds of full rain since the rain last smoothed this chunk</summary>
+        public double rainT;
         public int r0, c0;
         public THREE.BufferAttribute pos, nor, col, damp;
     }
@@ -505,8 +508,8 @@ public class Beach
                     col = new THREE.BufferAttribute(new float[ln * ln * 3], 3),
                     damp = new THREE.BufferAttribute(new float[ln * ln], 1),
                 };
-                ch.lods = new List<int>[LOD_STEPS.Length];
-                for (int k = 0; k < LOD_STEPS.Length; k++) ch.lods[k] = chunkIndex(0, 0, LOD_STEPS[k], ln);
+                ch.lods = new THREE.BufferAttribute[LOD_STEPS.Length];
+                for (int k = 0; k < LOD_STEPS.Length; k++) ch.lods[k] = new THREE.BufferAttribute(chunkIndex(0, 0, LOD_STEPS[k], ln).ToArray(), 1);
                 var g = new THREE.BufferGeometry();
                 g.setAttribute("position", ch.pos);
                 g.setAttribute("normal", ch.nor);
@@ -607,6 +610,19 @@ public class Beach
         return Math.Min(n - 1, Math.Max(0, r)) * n + Math.Min(n - 1, Math.Max(0, c));
     }
 
+    /// <summary>Bilinear read of one component of a grid attribute (`stride` floats per vertex, starting at `offset`).</summary>
+    private double sample(float[] arr, double x, double z, int stride, int offset)
+    {
+        double fx = Math.Min(n - 1.001, Math.Max(0, (x + HALF) / step));
+        double fz = Math.Min(n - 1.001, Math.Max(0, (z + HALF) / step));
+        int c = (int)Math.Floor(fx), r = (int)Math.Floor(fz);
+        double tx = fx - c, tz = fz - r;
+        int i = r * n + c;
+        double a = arr[i * stride + offset] * (1 - tx) + arr[(i + 1) * stride + offset] * tx;
+        double b = arr[(i + n) * stride + offset] * (1 - tx) + arr[(i + n + 1) * stride + offset] * tx;
+        return a * (1 - tz) + b * tz;
+    }
+
     private double sample(float[] arr, double x, double z)
     {
         double fx = Math.Min(n - 1.001, Math.Max(0, (x + HALF) / step));
@@ -623,7 +639,9 @@ public class Beach
     public static bool inGrid(double x, double z) => Math.Abs(x) <= HALF && Math.Abs(z) <= HALF;
 
     // outside the middle of the beach nothing has ever been dug, and the holes' grid must not be read past its edge
-    public double heightAt(double x, double z) => inGrid(x, z) ? baseHeight(x, z) - sample(dug, x, z) : baseHeight(x, z);
+    // on the grid the height is read off the vertices (the sand as it is drawn) rather than worked out from the terrain's
+    // formula: thousands of calls a frame (rings that follow the ground, the sea's depth, ray marching) are cheaper so
+    public double heightAt(double x, double z) => inGrid(x, z) ? sample(pos.array, x, z, 3, 1) : baseHeight(x, z);
 
     public double depthAt(double x, double z) => inGrid(x, z) ? Math.Max(0, sample(dug, x, z)) : 0;
 
@@ -723,7 +741,8 @@ public class Beach
 
     /// <summary>Seconds of full rain for a hole to settle to a third of its depth; a whole spell of rain all but fills it.</summary>
     private const double RAIN_FILL_TIME = 20;
-    private double rainClock = 0;
+    private int rainCursor = 0;
+    private const int RAIN_CHUNKS_PER_FRAME = 3;
 
     /// <summary>
     /// Rain washes the sand back into the holes, and the heaps beside them down, a little at a time, until the beach is
@@ -735,17 +754,22 @@ public class Beach
     {
         if (rain <= 0.3)
         {
-            rainClock = 0;
+            foreach (var c in chunks) c.rainT = 0;
             return false;
         }
-        rainClock += dt * rain;
-        if (rainClock < 0.5) return false;
-        double k = Math.Exp(-rainClock / RAIN_FILL_TIME);
-        rainClock = 0;
+        // each dug chunk keeps its own clock, and only a few chunks are smoothed in any one frame, so a beach full of holes
+        // is filled bit by bit instead of all in one frame every half second (a stutter)
+        foreach (var c in chunks) if (c.dug) c.rainT += dt * rain;
         bool any = false;
-        foreach (var ch in chunks)
+        int done = 0;
+        for (int step = 0; step < chunks.Count && done < RAIN_CHUNKS_PER_FRAME; step++)
         {
-            if (!ch.dug) continue;
+            var ch = chunks[rainCursor];
+            rainCursor = (rainCursor + 1) % chunks.Count;
+            if (!ch.dug || ch.rainT < 0.5) continue;
+            done++;
+            double k = Math.Exp(-ch.rainT / RAIN_FILL_TIME);
+            ch.rainT = 0;
             int r1 = Math.Min(n - 1, ch.r0 + CHUNK_CELLS), c1 = Math.Min(n - 1, ch.c0 + CHUNK_CELLS);
             bool changed = false, still = false;
             for (int r = ch.r0; r <= r1; r++)

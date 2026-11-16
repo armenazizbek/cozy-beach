@@ -1267,10 +1267,15 @@ public class UIManager
         this.prompt.classList.toggle("on", !string.IsNullOrEmpty(label));
     }
 
+    private string clockIcon;
+    private int clockDay = -1;
+
     public void setClock(string icon, int day)
     {
-        var text = $"{icon} Day {day}";
-        if (this.clock.textContent != text) this.clock.textContent = text;
+        if (icon == this.clockIcon && day == this.clockDay) return;
+        this.clockIcon = icon;
+        this.clockDay = day;
+        this.clock.textContent = $"{icon} Day {day}";
     }
 
     public CanvasRenderingContext2D miniCtx => this.miniCanvas.getContext("2d");
@@ -1391,7 +1396,9 @@ public class UIManager
     /// <summary>The two-lens binocular view with a range readout. Redraws only when something changed.</summary>
     public void setBinoculars(bool on, string zoom = "", string range = "")
     {
-        var key = $"{on}|{pad.on}|{zoom}|{range}|{JS.Str(window.innerWidth)}x{JS.Str(window.innerHeight)}";
+        // put away (nearly always): nothing to build or compare
+        if (!on && this.binocKey == "off") return;
+        var key = on ? $"{pad.on}|{zoom}|{range}|{JS.Str(window.innerWidth)}x{JS.Str(window.innerHeight)}" : "off";
         if (key == this.binocKey) return;
         this.binocKey = key;
         this.binoc.classList.toggle("hidden", !on);

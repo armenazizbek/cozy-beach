@@ -123,6 +123,26 @@ public class Scenery
         // the mountains first: the palms out across the land keep clear of them
         buildMountains();
         buildPalms();
+        gatherStill();
+    }
+
+    /// <summary>
+    /// The scene copy walks every object every frame unless it sits in a static group (Object3D.syncStatic). The mountains,
+    /// the palms out across the land (their crowns sway in the shader) and their shared trunk mesh never move: they go into
+    /// one such group. The beach's own palms go into another; each palm is a static group itself, and the distance detail
+    /// that changes one touch()es it, which marks this group too, so only that frame walks the palms again.
+    /// Nothing moves in the world: both groups sit where the scenery's own group is.
+    /// </summary>
+    private void gatherStill()
+    {
+        var still = new THREE.Group { name = "scenery still", syncStatic = true };
+        var beachPalms = new THREE.Group { name = "beach palms", syncStatic = true };
+        foreach (var c in group.children.ToList())
+        {
+            if (palms.Any(p => p.group == c)) beachPalms.add(c);
+            else still.add(c);
+        }
+        group.add(still, beachPalms);
     }
 
     // ------------------------------------------------------------ palms

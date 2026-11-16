@@ -23,8 +23,24 @@ namespace THREE.Bridge
         public static long verts;
         private static readonly Dictionary<string, (int n, long verts, double ms)> byMesh = new Dictionary<string, (int, long, double)>();
 
+        /// <summary>Objects the scene copy visited under each top-level object of the scene (by its index there).</summary>
+        private static readonly Dictionary<int, (string name, long n)> byRoot = new Dictionary<int, (string, long)>();
+
+        public static void CountRoot(int index, Object3D o, long n)
+        {
+            byRoot.TryGetValue(index, out var t);
+            byRoot[index] = (string.IsNullOrEmpty(o.name) ? o.type : o.name, t.n + n);
+        }
+
+        public static string RootReport(int count = 16)
+        {
+            int f = System.Math.Max(1, frames);
+            return string.Join(", ", byRoot.OrderByDescending(kv => kv.Value.n).Take(count).Select(kv => $"{kv.Key}:{kv.Value.name} {kv.Value.n / f}"));
+        }
+
         public static void Reset()
         {
+            byRoot.Clear();
             frames = builds = 0;
             tickMs = syncMs = buildMs = 0;
             verts = objects = drawables = composed = pushed = staticSkipped = staticSynced = 0;
@@ -72,7 +88,7 @@ namespace THREE.Bridge
             var top = byMesh.OrderByDescending(kv => kv.Value.ms).Take(6)
                 .Select(kv => $"{kv.Key} x{kv.Value.n / (double)f:0.##}/frame {kv.Value.ms / f:0.00}ms {kv.Value.verts / f} verts");
             return $"game+sync {tickMs / f:0.00} ms, of it scene sync {syncMs / f:0.00} ms ({objects / f} objects, {drawables / f} drawn, {composed / f} matrices recomposed, {pushed / f} transforms pushed, static groups {staticSkipped / f} skipped and {staticSynced / f} copied), mesh rebuilds {builds / (double)f:0.##}/frame " +
-                   $"{buildMs / f:0.00} ms {verts / f} verts; top: {string.Join("; ", top)}";
+                   $"{buildMs / f:0.00} ms {verts / f} verts; top: {string.Join("; ", top)}; by root: {RootReport()}";
         }
     }
 }

@@ -108,7 +108,13 @@ public class HTMLCanvasElement : HTMLElement
         _w = Math.Max(1, width);
         _h = Math.Max(1, height);
         px = new byte[_w * _h * 4];
+        // the canvases on the page, so DomHost.Tick uploads them without walking the whole page every frame
+        ve?.RegisterCallback<UnityEngine.UIElements.AttachToPanelEvent>(_ => OnPage.Add(this));
+        ve?.RegisterCallback<UnityEngine.UIElements.DetachFromPanelEvent>(_ => OnPage.Remove(this));
     }
+
+    /// <summary>Every canvas that is on the page right now.</summary>
+    internal static readonly HashSet<HTMLCanvasElement> OnPage = new HashSet<HTMLCanvasElement>();
 
     public int width
     {

@@ -231,6 +231,9 @@ public class LootSpawner
                 mesh.position.set(it.x, ground(it.x, it.z) + 0.05, it.z);
                 mesh.rotation.y = JS.Random() * Math.PI * 2;
                 mesh.userData["item"] = it;
+                // the find itself is moved and scaled (popping up, swelling when looked at), but nothing inside it ever
+                // changes: the scene copy skips its parts (Object3D.syncStatic)
+                mesh.syncStatic = true;
                 it.mesh = mesh;
                 group.add(mesh);
                 fresh.Add(it);
@@ -253,6 +256,7 @@ public class LootSpawner
         mesh.position.copy(old.position);
         mesh.rotation.copy(old.rotation);
         mesh.userData["item"] = it;
+        mesh.syncStatic = true;
         group.remove(old);
         it.mesh = mesh;
         it.opened = true;
@@ -260,7 +264,15 @@ public class LootSpawner
     }
 
     /// <summary>Meshes the player can click on right now.</summary>
-    public List<THREE.Object3D> pickables() => items.Where(i => i.revealed && !i.collected && i.mesh != null).Select(i => (THREE.Object3D)i.mesh).ToList();
+    private readonly List<THREE.Object3D> pickList = new List<THREE.Object3D>();
+
+    /// <summary>The finds lying uncovered, ready to pick up. The list is reused: read it before the next call.</summary>
+    public List<THREE.Object3D> pickables()
+    {
+        pickList.Clear();
+        foreach (var i in items) if (i.revealed && !i.collected && i.mesh != null) pickList.Add(i.mesh);
+        return pickList;
+    }
 
     public BuriedItem itemFromObject(THREE.Object3D obj)
     {

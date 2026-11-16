@@ -5708,23 +5708,6 @@ public class Game
         if (JS.Hypot(player.x, player.z - CAMP_Z) < 16)
         {
             var reach = CAMP_REACH;
-            var labels = new Dictionary<string, string>
-            {
-                { "fire", "Rest by the campfire" },
-                { "bin", "Recycle your trash" },
-                { "board", "Read the Lost & Found board" },
-                { "aquarium", state.aquarium.Count > 0 ? $"Look at the aquarium ({state.aquarium.Count} of {Catches.ALL.Length})" : "Look at the aquarium" },
-                { "photos", state.photos.Count > 0 ? $"Look at your photos ({state.photos.Count})" : "Look at the photo board" },
-                { "bench", "Use the workbench" },
-                { "lantern", lanternOn ? "Turn the lantern off" : "Turn the lantern on" },
-                { "camper", "Open the camper (upgrades)" },
-                { "radio", audio.radioOn ? $"Turn the radio off ({audio.trackName})" : "Turn the radio on" },
-                { "coffee", "Drink the coffee (rest and warm up)" },
-                { "hammock", "Lie in the hammock (sleep until morning)" },
-                { "sign", "Change the sign" },
-                { "post", (state.data.unreadLetters?.Count ?? 0) > 0 ? $"Check the post ({state.data.unreadLetters.Count} new)" : "Check the post" },
-                { "book", (state.data.unreadPages?.Count ?? 0) > 0 ? $"Read the journal ({state.data.unreadPages.Count} new)" : "Read the journal" },
-            };
             foreach (var obj in camp.clickables)
             {
                 string kind = obj.userData.Str("kind");
@@ -5738,7 +5721,7 @@ public class Game
                 {
                     best = rank;
                     string kCopy = kind;
-                    interaction = new Interaction { label = labels[kCopy], run = () => useCampObject(kCopy) };
+                    interaction = new Interaction { label = campLabel(kCopy), run = () => useCampObject(kCopy) };
                     interaction2 = kCopy == "radio" ? new Interaction { label = "Change the song", run = () => changeSong() } : null;
                 }
             }
@@ -5899,6 +5882,29 @@ public class Game
         ui.setPrompt2(interaction2?.label);
     }
 
+    /// <summary>What the F prompt says beside each thing at the camp (worked out only for the one that is chosen).</summary>
+    private string campLabel(string kind)
+    {
+        switch (kind)
+        {
+            case "fire": return "Rest by the campfire";
+            case "bin": return "Recycle your trash";
+            case "board": return "Read the Lost & Found board";
+            case "aquarium": return state.aquarium.Count > 0 ? $"Look at the aquarium ({state.aquarium.Count} of {Catches.ALL.Length})" : "Look at the aquarium";
+            case "photos": return state.photos.Count > 0 ? $"Look at your photos ({state.photos.Count})" : "Look at the photo board";
+            case "bench": return "Use the workbench";
+            case "lantern": return lanternOn ? "Turn the lantern off" : "Turn the lantern on";
+            case "camper": return "Open the camper (upgrades)";
+            case "radio": return audio.radioOn ? $"Turn the radio off ({audio.trackName})" : "Turn the radio on";
+            case "coffee": return "Drink the coffee (rest and warm up)";
+            case "hammock": return "Lie in the hammock (sleep until morning)";
+            case "sign": return "Change the sign";
+            case "post": return (state.data.unreadLetters?.Count ?? 0) > 0 ? $"Check the post ({state.data.unreadLetters.Count} new)" : "Check the post";
+            case "book": return (state.data.unreadPages?.Count ?? 0) > 0 ? $"Read the journal ({state.data.unreadPages.Count} new)" : "Read the journal";
+            default: return null;
+        }
+    }
+
     /// <summary>with the radio on the music plays everywhere; the tune follows the place the player is in</summary>
     private void updateMusic()
     {
@@ -5973,6 +5979,28 @@ public class Game
             toolHit = beachHit;
         }
         if (onIsland && (tool == 1 || tool == 2)) toolHit = null;
+    }
+
+    private string campHint(string kind)
+    {
+        switch (kind)
+        {
+            case "fire": return "Click: rest at the campfire";
+            case "bin": return "Click: recycling bin";
+            case "board": return "Click: Lost & Found board";
+            case "bench": return "Click: workbench (sell & assemble)";
+            case "lantern": return lanternOn ? "Click: turn the lantern off" : "Click: turn the lantern on";
+            case "camper": return "Click: camper (upgrades)";
+            case "radio": return audio.radioOn ? "Click: turn the radio off" : "Click: turn the radio on";
+            case "coffee": return "Click: drink the coffee";
+            case "book": return "Click: read the journal";
+            case "post": return "Click: check the post";
+            case "hammock": return "Click: lie in the hammock";
+            case "sign": return "Click: change the sign";
+            case "photos": return "Click: photo board";
+            case "aquarium": return "Click: aquarium";
+            default: return null;
+        }
     }
 
     private bool isOverPanel()
@@ -6110,20 +6138,7 @@ public class Game
         else if (hoveredScope) hint = scopeDark ? "Click to look through the telescope (or press F)" : "The stars only come out after dark. Come back after dusk.";
         else if (hoveredCamp != null)
         {
-            var campHints = new Dictionary<string, string>
-            {
-                { "fire", "Click: rest at the campfire" }, { "bin", "Click: recycling bin" }, { "board", "Click: Lost & Found board" },
-                { "bench", "Click: workbench (sell & assemble)" }, { "lantern", lanternOn ? "Click: turn the lantern off" : "Click: turn the lantern on" }, { "camper", "Click: camper (upgrades)" },
-                { "radio", audio.radioOn ? "Click: turn the radio off" : "Click: turn the radio on" },
-                { "coffee", "Click: drink the coffee" },
-                { "book", "Click: read the journal" },
-                { "post", "Click: check the post" },
-                { "hammock", "Click: lie in the hammock" },
-                { "sign", "Click: change the sign" },
-                { "photos", "Click: photo board" },
-                { "aquarium", "Click: aquarium" },
-            };
-            campHints.TryGetValue(hoveredCamp, out hint);
+            hint = campHint(hoveredCamp);
         }
         else if ((tool == 1 || tool == 2) && nearCache() && !onIsland)
         {
@@ -6184,8 +6199,39 @@ public class Game
         ui.setCrosshair(gameState == "EXPLORE");
     }
 
+    // the callbacks the frame hands to the world each frame, made once (a lambda written in the call is a new object every frame)
+    private ArrowHooks arrowHooks;
+    private BulletHooks bulletHooks;
+    private Action<double> gullCry, splashSound;
+    private Func<double, double, double> swellFn, groundFn;
+    private Func<double, double, Resolved> boatResolve;
+    private Action<double, double, bool> castleWashed;
+
+    private void makeFrameHooks()
+    {
+        arrowHooks = new ArrowHooks { onHit = (o, at) => onBulletHit(o, at, 0.2), onStick = () => audio.thud() };
+        bulletHooks = new BulletHooks
+        {
+            onHit = (o, at) => onBulletHit(o, at, 0.14),
+            onGround = p => dig.particles.burst(p.setY(p.y + 0.05), 10, 1, 1.6, 0.5, new THREE.Color(0xe6ccb2)),
+        };
+        gullCry = d => audio.gull(d);
+        splashSound = d => audio.splash(d);
+        swellFn = (x, z) => ocean.swellAt(x, z);
+        groundFn = (x, z) => beach.heightAt(x, z);
+        boatResolve = (x, z) => vehicle == "boat" ? resolveBoat(x, z) : new Resolved { x = x, z = z, hit = false };
+        castleWashed = (x, z, byRain) =>
+        {
+            dig.particles.burst(new THREE.Vector3(x, beach.heightAt(x, z) + 0.2, z), 24, 1.6, 1.4, 0.9, new THREE.Color(0xdcc38f));
+            audio.crumble();
+            ui.toast(byRain ? "The rain has washed away one of your sandcastles." : "The sea has taken one of your sandcastles.");
+            discover("castle_washed");
+        };
+    }
+
     private void frame()
     {
+        if (arrowHooks == null) makeFrameHooks();
         // losing the mouse pauses the game (Esc, Alt-Tab), but not when it was let go because the player picked up a controller
         if (wasLocked && !locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null && islands[2].lighthouse?.introActive != true) setPaused(true);
         wasLocked = locked;
@@ -6257,12 +6303,12 @@ public class Game
             using (THREE.Bridge.BridgeStats.Time("scenery")) scenery.update(t, sky.fog.color, dt, camera.position.x, camera.position.z);
             using (THREE.Bridge.BridgeStats.Time("grass")) grass.update(t);
             coveNets.update(t);
-            using (THREE.Bridge.BridgeStats.Time("birds")) birds.update(dt, t, player.x, player.z, d => audio.gull(d));
+            using (THREE.Bridge.BridgeStats.Time("birds")) birds.update(dt, t, player.x, player.z, gullCry);
             using (THREE.Bridge.BridgeStats.Time("tracks")) tracks.update(dt, sky.starAmount);
-            using (THREE.Bridge.BridgeStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, d => audio.splash(d));
+            using (THREE.Bridge.BridgeStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, splashSound);
             using (THREE.Bridge.BridgeStats.Time("dolphins"))
             {
-                bool came = dolphins.update(dt, t, vehicle == "boat", boat.x, boat.z, boat.heading, boat.speed, ocean.surfaceY, (x, z) => ocean.swellAt(x, z), (x, z) => beach.heightAt(x, z), d => audio.splash(d));
+                bool came = dolphins.update(dt, t, vehicle == "boat", boat.x, boat.z, boat.heading, boat.speed, ocean.surfaceY, swellFn, groundFn, splashSound);
                 if (came)
                 {
                     // the first time, a word about it; after that they simply turn up
@@ -6285,7 +6331,7 @@ public class Game
             // when nobody is driving, the boat just bobs gently at its mooring
             if (!(vehicle == "boat" && driving))
             {
-                using (THREE.Bridge.BridgeStats.Time("boat")) boat.update(dt, t, null, ocean.heightAt(boat.x, boat.z), (x, z) => vehicle == "boat" ? resolveBoat(x, z) : new Resolved { x = x, z = z, hit = false });
+                using (THREE.Bridge.BridgeStats.Time("boat")) boat.update(dt, t, null, ocean.heightAt(boat.x, boat.z), boatResolve);
                 if (vehicle == "boat")
                 {
                     double sp = Math.Abs(boat.speed) / 14;
@@ -6357,16 +6403,8 @@ public class Game
             : NO_TARGETS;
         if (!alt)
         {
-            arrows.update(dt, targets, beach, scenery.trunks, new ArrowHooks
-            {
-                onHit = (o, at) => onBulletHit(o, at, 0.2),
-                onStick = () => audio.thud(),
-            });
-            bullets.update(dt, targets, beach, new BulletHooks
-            {
-                onHit = (o, at) => onBulletHit(o, at, 0.14),
-                onGround = p => dig.particles.burst(p.setY(p.y + 0.05), 10, 1, 1.6, 0.5, new THREE.Color(0xe6ccb2)),
-            });
+            arrows.update(dt, targets, beach, scenery.trunks, arrowHooks);
+            bullets.update(dt, targets, beach, bulletHooks);
         }
         using (THREE.Bridge.BridgeStats.Time("spawner")) spawner.update(dt, t, hoveredItem);
         if (!alt)
@@ -6386,13 +6424,7 @@ public class Game
                 // a hole the rain has filled comes off the maps
                 holes.RemoveAll(h => beach.depthAt(h[0], h[1]) < 0.05);
             }
-            castles.update(dt, rain.amount, (x, z, byRain) =>
-            {
-                dig.particles.burst(new THREE.Vector3(x, beach.heightAt(x, z) + 0.2, z), 24, 1.6, 1.4, 0.9, new THREE.Color(0xdcc38f));
-                audio.crumble();
-                ui.toast(byRain ? "The rain has washed away one of your sandcastles." : "The sea has taken one of your sandcastles.");
-                discover("castle_washed");
-            });
+            castles.update(dt, rain.amount, castleWashed);
         }
         if (waypoint != null)
         {

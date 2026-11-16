@@ -235,6 +235,8 @@ public class HTMLElement
         }
         set
         {
+            // the same words again: nothing to rebuild
+            if (_children.Count == 0 && string.Equals(_directText, value ?? "", StringComparison.Ordinal) && (_textLabel != null || string.IsNullOrEmpty(value))) return;
             ClearChildrenOnly();
             SetDirectText(value ?? "", isRich: false);
         }

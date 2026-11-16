@@ -290,8 +290,20 @@ namespace THREE.Bridge
         }
 
         /// <summary>Uniform values by name. Vector3s are positions or directions, so they arrive in Unity's axes (z negated).</summary>
-        public static void SetUniform(UnityEngine.Material u, string name, object v)
+        // uniform names to shader property ids, worked out once (setting by name hashes the string every call)
+        private static readonly Dictionary<string, int> ids = new Dictionary<string, int>();
+        private static readonly Dictionary<string, int> stIds = new Dictionary<string, int>();
+
+        private static int Id(Dictionary<string, int> map, string name, string suffix)
         {
+            if (!map.TryGetValue(name, out var id)) map[name] = id = Shader.PropertyToID(name + suffix);
+            return id;
+        }
+
+        public static void SetUniform(UnityEngine.Material u, string uniform, object v)
+        {
+            if (v == null) return;
+            int name = Id(ids, uniform, "");
             switch (v)
             {
                 case null: return;
@@ -308,7 +320,7 @@ namespace THREE.Bridge
                 {
                     var tex = TextureCache.Get(t);
                     if (tex != null) u.SetTexture(name, tex);
-                    u.SetVector(name + "_ST", ST(t));
+                    u.SetVector(Id(stIds, uniform, "_ST"), ST(t));
                     break;
                 }
                 case double[] arr:
