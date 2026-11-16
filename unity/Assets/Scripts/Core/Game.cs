@@ -3548,20 +3548,35 @@ public class Game
         var parts = (st.windowSize ?? "1280x720").Split('x');
         int width = parts.Length > 0 && int.TryParse(parts[0], out var pw) && pw > 0 ? pw : 1280;
         int height = parts.Length > 1 && int.TryParse(parts[1], out var ph) && ph > 0 ? ph : 720;
+        // the screen's own size and its fastest refresh rate, read from the display as it is set up in Windows. Not
+        // Screen.currentResolution: in exclusive fullscreen that is the mode the game itself picked last time, and without a
+        // refresh rate Unity could keep a slower one (a 360 Hz screen ran at 240 Hz)
+        var (nw, nh, hz) = nativeMode(width, height);
         if (st.displayMode == "windowed")
         {
-            Screen.SetResolution(width, height, FullScreenMode.Windowed);
+            Screen.SetResolution(width, height, FullScreenMode.Windowed, hz);
         }
         else if (st.displayMode == "borderless")
         {
-            var res = Screen.currentResolution;
-            Screen.SetResolution(res.width > 0 ? res.width : width, res.height > 0 ? res.height : height, FullScreenMode.FullScreenWindow);
+            Screen.SetResolution(nw, nh, FullScreenMode.FullScreenWindow, hz);
         }
         else
         {
-            var res = Screen.currentResolution;
-            Screen.SetResolution(res.width > 0 ? res.width : width, res.height > 0 ? res.height : height, FullScreenMode.ExclusiveFullScreen);
+            Screen.SetResolution(nw, nh, FullScreenMode.ExclusiveFullScreen, hz);
         }
+        UnityEngine.Debug.Log($"Display: {st.displayMode} {(st.displayMode == "windowed" ? $"{width}x{height}" : $"{nw}x{nh}")} at {hz.value:0.##} Hz");
+    }
+
+    /// <summary>The display's native size and the fastest refresh rate it offers at that size.</summary>
+    private static (int w, int h, RefreshRate hz) nativeMode(int fallbackW, int fallbackH)
+    {
+        var info = Screen.mainWindowDisplayInfo;
+        int w = info.width > 0 ? info.width : Screen.currentResolution.width > 0 ? Screen.currentResolution.width : fallbackW;
+        int h = info.height > 0 ? info.height : Screen.currentResolution.height > 0 ? Screen.currentResolution.height : fallbackH;
+        var hz = info.refreshRate.value > 0 ? info.refreshRate : Screen.currentResolution.refreshRateRatio;
+        foreach (var r in Screen.resolutions)
+            if (r.width == w && r.height == h && r.refreshRateRatio.value > hz.value) hz = r.refreshRateRatio;
+        return (w, h, hz);
     }
 
     private void openSettings(Action onClose = null)

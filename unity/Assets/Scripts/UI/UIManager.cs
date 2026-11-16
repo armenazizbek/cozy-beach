@@ -721,8 +721,10 @@ public class UIManager
             new[] { "windowed", "Windowed" },
             new[] { "borderless", "Windowed, no border" },
         }, () => settings.displayMode, v => settings.displayMode = v);
-        int sw = UnityEngine.Screen.currentResolution.width > 0 ? UnityEngine.Screen.currentResolution.width : UnityEngine.Screen.width;
-        int sh = UnityEngine.Screen.currentResolution.height > 0 ? UnityEngine.Screen.currentResolution.height : UnityEngine.Screen.height;
+        // the display's own size (in exclusive fullscreen currentResolution is only the mode the game picked)
+        var disp = UnityEngine.Screen.mainWindowDisplayInfo;
+        int sw = disp.width > 0 ? disp.width : UnityEngine.Screen.currentResolution.width > 0 ? UnityEngine.Screen.currentResolution.width : UnityEngine.Screen.width;
+        int sh = disp.height > 0 ? disp.height : UnityEngine.Screen.currentResolution.height > 0 ? UnityEngine.Screen.currentResolution.height : UnityEngine.Screen.height;
         var allSizes = new int[][]
         {
             new[] { 1280, 720 }, new[] { 1366, 768 }, new[] { 1600, 900 },

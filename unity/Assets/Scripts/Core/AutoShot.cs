@@ -57,6 +57,8 @@ public class AutoShot : MonoBehaviour
             yield break;
         }
         Debug.Log($"[AutoShot] loaded after {Time.realtimeSinceStartup - t0:0.0} s");
+        // -autoshot-novsync: measure with VSync off and no frame limit, whatever the player's settings say
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-novsync") >= 0) FramePacing.Apply(false, 0);
 
         // let the boot screen fade and the title camera settle
         yield return Wait(6);
@@ -998,11 +1000,20 @@ public class AutoShot : MonoBehaviour
         double mainMs = 0, renderMs = 0, gpuMs = 0;
         var ft = new FrameTiming[1];
         THREE.Bridge.BridgeStats.Reset();
+        // the memory the frame threw away (the garbage collector's work later), and how uneven the frames were: a frame
+        // longer than a screen refresh misses it, which with VSync on costs a whole refresh
+        var gcRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Memory, "GC Allocated In Frame");
+        double gcSum = 0;
+        int gc0 = GC.CollectionCount(0);
+        var times = new System.Collections.Generic.List<float>();
+        double refreshMs = 1000.0 / Math.Max(30, Screen.currentResolution.refreshRateRatio.value);
         while (Time.realtimeSinceStartup - start < 3)
         {
             yield return null;
             frames++;
             worst = Mathf.Max(worst, Time.unscaledDeltaTime);
+            times.Add(Time.unscaledDeltaTime * 1000f);
+            gcSum += gcRec.LastValue;
             // where Unity's frame went: the main thread, the render thread, the GPU (needs Frame Timing Stats, see ProjectSetup)
             FrameTimingManager.CaptureFrameTimings();
             if (FrameTimingManager.GetLatestTimings(1, ft) > 0)
@@ -1019,6 +1030,14 @@ public class AutoShot : MonoBehaviour
                   $"Unity main thread {mainMs / n:0.00} ms, render thread {renderMs / n:0.00} ms, GPU {gpuMs / n:0.00} ms; " +
                   THREE.Bridge.BridgeStats.Report());
         Debug.Log($"[AutoShot] {label} slowest parts (ms/frame): {THREE.Bridge.BridgeStats.SectionReport()}");
+        times.Sort();
+        int fr = Math.Max(1, frames);
+        float P(double q) => times.Count > 0 ? times[Math.Min(times.Count - 1, (int)(q * times.Count))] : 0;
+        int late = 0;
+        foreach (var t in times) if (t > refreshMs * 1.5) late++;
+        Debug.Log($"[AutoShot] {label} pacing: frame ms median {P(0.5):0.00}, 90% {P(0.9):0.00}, 99% {P(0.99):0.00}; {late} of {times.Count} frames took over 1.5 refreshes ({refreshMs:0.00} ms); " +
+                  $"garbage {gcSum / fr / 1024:0.0} KB/frame, {GC.CollectionCount(0) - gc0} collections; vsync {QualitySettings.vSyncCount}, target fps {Application.targetFrameRate}");
+        gcRec.Dispose();
     }
 
     private IEnumerator Shot(string name)

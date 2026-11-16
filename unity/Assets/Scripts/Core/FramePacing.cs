@@ -39,6 +39,9 @@ public static class FramePacing
             return;
         }
         QualitySettings.vSyncCount = vsync ? 1 : 0;
+        // with VSync on, a frame that runs a little over one refresh misses it and waits for the next; letting the CPU work
+        // up to three frames ahead evens that out, so a fast screen (360 Hz: 2.8 ms a frame) keeps its full rate
+        QualitySettings.maxQueuedFrames = vsync ? 3 : 2;
         // Unity ignores the target frame rate while VSync is on: the screen's refresh is the limit then
         Application.targetFrameRate = !vsync && limit > 0 ? limit : -1;
     }
