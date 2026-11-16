@@ -202,20 +202,21 @@ public class Camp
             flames.Add(f);
             g.add(f);
         }
-        // Tin mug on a stump beside the fire
-        // the coffee mug on its own stump is a separate thing to interact with
+        // the hot drink on its own stump beside the fire, a separate thing to interact with. What stands on the stump is
+        // the "Thermos & Gear" upgrade the player owns, drawn as the camper's shop pictures it (setGear)
         var cup = new THREE.Group();
         var stump = cyl(0.3, 0.34, 0.4, wood(0x7a5538), 14);
         stump.position.y = 0.2;
-        var mug = cyl(0.1, 0.09, 0.2, new THREE.MeshStandardMaterial { color = 0xc9ced3, metalness = 0.8, roughness = 0.35 }, 14);
-        mug.position.y = 0.5;
-        var handle = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.012, 6, 12, Math.PI), new THREE.MeshStandardMaterial { color = 0xc9ced3, metalness = 0.8, roughness = 0.35 });
-        handle.position.set(0.1, 0.5, 0);
-        handle.rotation.z = -Math.PI / 2;
-        var coffee = new THREE.Mesh(new THREE.CircleGeometry(0.085, 14), new THREE.MeshStandardMaterial { color = 0x3a2112, roughness = 0.3 });
-        coffee.rotation.x = -Math.PI / 2;
-        coffee.position.y = 0.595;
-        cup.add(stump, mug, handle, coffee);
+        cup.add(stump);
+        gearModels = new[] { enamelMug(), chaiThermos(), brassFlask() };
+        foreach (var gm in gearModels)
+        {
+            gm.position.y = 0.4;
+            gm.visible = false;
+            gearHolder.add(gm);
+        }
+        gearModels[0].visible = true;
+        cup.add(gearHolder);
         cup.position.set(1.7, 0, 0.9);
         mark(cup, "coffee", 0.4, 0.5);
         group.add(cup);
@@ -679,10 +680,138 @@ public class Camp
         fireLight.visible = lanternLight.visible = camperLight.visible = near;
     }
 
+    // ---------------------------------------------------------------- the drink on the stump (Thermos & Gear)
+
+    private readonly THREE.Group gearHolder = new THREE.Group();
+    private THREE.Group[] gearModels;
+
+    /// <summary>Shows the drink for the "Thermos & Gear" tier the player owns (1..3), as the camper's shop pictures it.</summary>
+    public void setGear(int tier)
+    {
+        int k = Math.Max(1, Math.Min(gearModels.Length, tier)) - 1;
+        for (int i = 0; i < gearModels.Length; i++) gearModels[i].visible = i == k;
+    }
+
+    /// <summary>A round vessel turned on a lathe from (radius, height) pairs: outer wall, rim, inner wall.</summary>
+    private static THREE.LatheGeometry turned(params double[] rh)
+    {
+        var pts = new List<THREE.Vector2>();
+        for (int i = 0; i + 1 < rh.Length; i += 2) pts.Add(new THREE.Vector2(rh[i], rh[i + 1]));
+        return new THREE.LatheGeometry(pts, 24);
+    }
+
+    /// <summary>The surface of a drink, `r` across, at height `y`.</summary>
+    private static THREE.Mesh drink(double r, double y, int color)
+    {
+        var m = new THREE.Mesh(new THREE.CircleGeometry(r, 20), new THREE.MeshStandardMaterial { color = color, roughness = 0.15 });
+        m.rotation.x = -Math.PI / 2;
+        m.position.y = y;
+        return m;
+    }
+
+    /// <summary>A C-shaped handle on the +x side of a wall at radius `r`, from height `y0` to `y1`.</summary>
+    private static THREE.Mesh handle(double r, double y0, double y1, double tube, THREE.Material mat)
+    {
+        double half = (y1 - y0) / 2;
+        var m = new THREE.Mesh(new THREE.TorusGeometry(half, tube, 8, 16, Math.PI), mat);
+        // the torus' half arc runs over its top: turned a quarter, it bulges out sideways
+        m.rotation.z = -Math.PI / 2;
+        m.position.set(r - half * 0.25, y0 + half, 0);
+        m.castShadow = true;
+        return m;
+    }
+
+    /// <summary>Tier 1, the Tin Mug: a speckled blue enamel camping mug with a cream rim, full of coffee.</summary>
+    private static THREE.Group enamelMug()
+    {
+        var g = new THREE.Group();
+        var c = new HTMLCanvasElement(128, 64);
+        var x = c.getContext("2d");
+        x.fillStyle = "#4a82b8";
+        x.fillRect(0, 0, 128, 64);
+        var rnd = Stones.rng(31);
+        x.fillStyle = "rgba(232,226,214,0.9)";
+        for (int i = 0; i < 70; i++)
+        {
+            x.beginPath();
+            x.arc(rnd() * 128, rnd() * 64, 0.6 + rnd() * 0.9, 0, Math.PI * 2);
+            x.fill();
+        }
+        var blue = new THREE.MeshStandardMaterial { map = new THREE.CanvasTexture(c) { colorSpace = THREE.ColorSpace.SRGBColorSpace }, roughness = 0.3, metalness = 0.05 };
+        var cream = new THREE.MeshStandardMaterial { color = 0xe8e2d6, roughness = 0.3 };
+        var body = new THREE.Mesh(turned(0, 0, 0.085, 0, 0.09, 0.006, 0.092, 0.16, 0.084, 0.16, 0.082, 0.012, 0, 0.012), blue) { castShadow = true };
+        var rim = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0055, 6, 28), cream);
+        rim.rotation.x = Math.PI / 2;
+        rim.position.y = 0.16;
+        var foot = new THREE.Mesh(new THREE.TorusGeometry(0.087, 0.005, 6, 28), cream);
+        foot.rotation.x = Math.PI / 2;
+        foot.position.y = 0.004;
+        g.add(body, rim, foot, handle(0.09, 0.035, 0.135, 0.011, blue), drink(0.083, 0.14, 0x3a2112));
+        // a little larger than life, so it reads from where the player stands
+        g.scale.setScalar(1.25);
+        return g;
+    }
+
+    /// <summary>Tier 2, the Insulated Thermos: a tall green flask with a steel neck, and its cup-lid beside it full of chai.</summary>
+    private static THREE.Group chaiThermos()
+    {
+        var g = new THREE.Group();
+        var green = new THREE.MeshStandardMaterial { color = 0x3f7f5e, roughness = 0.45 };
+        var band = new THREE.MeshStandardMaterial { color = 0x2b5c43, roughness = 0.5 };
+        var steel = new THREE.MeshStandardMaterial { color = 0xc9ced4, roughness = 0.3, metalness = 0.6 };
+        var flask = new THREE.Group();
+        var body = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.38, 20), green) { castShadow = true };
+        body.position.y = 0.19;
+        var low = new THREE.Mesh(new THREE.CylinderGeometry(0.077, 0.077, 0.035, 20), band);
+        low.position.y = 0.06;
+        var high = new THREE.Mesh(new THREE.CylinderGeometry(0.077, 0.077, 0.035, 20), band);
+        high.position.y = 0.32;
+        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.05, 20), steel);
+        neck.position.y = 0.405;
+        var stopper = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 16), band);
+        stopper.position.y = 0.445;
+        flask.add(body, low, high, neck, stopper);
+        flask.position.set(-0.07, 0, -0.04);
+        // the lid, turned up as a cup
+        var lid = new THREE.Group();
+        var cupBody = new THREE.Mesh(turned(0, 0, 0.055, 0, 0.07, 0.085, 0.064, 0.085, 0.05, 0.008, 0, 0.008), green) { castShadow = true };
+        var lip = new THREE.Mesh(new THREE.TorusGeometry(0.067, 0.004, 6, 24), steel);
+        lip.rotation.x = Math.PI / 2;
+        lip.position.y = 0.085;
+        lid.add(cupBody, lip, drink(0.064, 0.072, 0xb5753f));
+        lid.position.set(0.11, 0, 0.07);
+        g.add(flask, lid);
+        return g;
+    }
+
+    /// <summary>Tier 3, the Brass Espresso Flask: a polished brass hip flask with an engraved panel and a dark cap.</summary>
+    private static THREE.Group brassFlask()
+    {
+        var g = new THREE.Group();
+        var brass = new THREE.MeshStandardMaterial { color = 0xd9ab45, roughness = 0.28, metalness = 0.55 };
+        var dark = new THREE.MeshStandardMaterial { color = 0xb98a2c, roughness = 0.35, metalness = 0.5 };
+        var cap = new THREE.MeshStandardMaterial { color = 0x3a2a1c, roughness = 0.6 };
+        var body = new THREE.Mesh(new THREE.RoundedBoxGeometry(0.2, 0.26, 0.07, 4, 0.03), brass) { castShadow = true };
+        body.position.y = 0.13;
+        var panel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.004), dark);
+        panel.position.set(0, 0.12, 0.036);
+        var crossA = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.006, 0.002), brass);
+        crossA.position.set(0, 0.12, 0.039);
+        var crossB = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.05, 0.002), brass);
+        crossB.position.set(0, 0.12, 0.039);
+        var neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.04, 16), dark);
+        neck.position.y = 0.28;
+        var top = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.035, 16), cap);
+        top.position.y = 0.315;
+        g.add(body, panel, crossA, crossB, neck, top);
+        g.rotation.y = -0.5;
+        return g;
+    }
+
     /// <summary>Welds the fixed parts of each prop together; what moves or lights up on its own stays separate.</summary>
     private void weldProps()
     {
-        var keep = new HashSet<THREE.Object3D>(flames.Cast<THREE.Object3D>().Concat(tikiFlames).Concat(new THREE.Object3D[] { mailFlag, radioAntenna, hammockCloth, lanternGlass, shelf })
+        var keep = new HashSet<THREE.Object3D>(flames.Cast<THREE.Object3D>().Concat(tikiFlames).Concat(new THREE.Object3D[] { mailFlag, radioAntenna, hammockCloth, lanternGlass, shelf, gearHolder })
             .Concat(photoSlots.Select(p => (THREE.Object3D)p.slot)));
         foreach (var prop in group.children.ToList().Concat(new THREE.Object3D[] { radio, hammockCloth }))
         {

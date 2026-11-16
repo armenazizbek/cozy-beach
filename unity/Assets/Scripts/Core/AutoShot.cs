@@ -174,6 +174,17 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] after walking: " + game.smokeTestWhere());
         }
 
+        // -autoshot-gear: the drink on the stump by the fire, for each Thermos & Gear tier (it must match the shop's picture)
+        if (Array.IndexOf(args, "-autoshot-gear") >= 0)
+        {
+            for (int tier = 1; tier <= 3; tier++)
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestGear(tier));
+                yield return Wait(1.2f);
+                yield return Shot($"28-gear-{tier}.png");
+            }
+        }
+
         // -autoshot-shop: the pictures beside everything the camp sells
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-shop") >= 0)
         {
@@ -752,6 +763,93 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] " + game.smokeTestCartOnHole(6, 5));
             yield return Wait(2);
             yield return Shot("9-cart-on-hole.png");
+        }
+
+        // -autoshot-smash: a castle burst by the golf cart, watched from the side at moments through it, then the cart driven
+        // through two castles in a line (the log says whether it got through and how many still stand)
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-smash") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestSmash("watch", -8, 8));
+            yield return Wait(2.5f);
+            yield return Shot("29-smash-0.png");
+            Debug.Log("[AutoShot] " + game.smokeTestSmash("burst", -8, 8));
+            float began = Time.realtimeSinceStartup;
+            foreach (var (at, name) in new[] { (0.12f, "1"), (0.35f, "2"), (0.7f, "3"), (1.3f, "4"), (2.6f, "5") })
+            {
+                while (Time.realtimeSinceStartup - began < at) yield return null;
+                yield return Shot($"29-smash-{name}.png");
+            }
+            Debug.Log("[AutoShot] " + game.smokeTestSmash("drive", -20, 0));
+            yield return Wait(0.5f);
+            game.input.held.Add("KeyW");
+            for (int i = 0; i < 4; i++)
+            {
+                yield return Wait(0.6f);
+                Debug.Log("[AutoShot] " + game.smokeTestSmash("status", 0, 0));
+                yield return Shot($"29-drive-{i}.png");
+            }
+            game.input.held.Clear();
+        }
+
+        // -autoshot-newgame: New Game from the pause menu must play the opening, as New Game on the title screen does
+        if (Array.IndexOf(args, "-autoshot-newgame") >= 0)
+        {
+            var before = game;
+            game.smokeTestPauseNewGame();
+            float t1 = Time.realtimeSinceStartup;
+            while ((GameHost.Instance == null || GameHost.Instance.game == null || GameHost.Instance.game == before || !GameHost.Instance.game.loaded)
+                   && Time.realtimeSinceStartup - t1 < 180)
+                yield return null;
+            game = GameHost.Instance != null ? GameHost.Instance.game : null;
+            if (game == null || game == before) { Debug.LogError("[AutoShot] the new game did not come up"); Quit(1); yield break; }
+            yield return Wait(3);
+            Debug.Log("[AutoShot] new game from the pause menu, after 3 s: " + game.smokeTestStage());
+            yield return Shot("30-newgame-opening.png");
+            Quit(0);
+            yield break;
+        }
+
+        // -autoshot-sweep: where the detector sweeps looking ahead and looking down; then, running, the spot it sweeps must
+        // move smoothly (the log gives the biggest jump from one frame to the next, ahead and sideways)
+        if (Array.IndexOf(args, "-autoshot-sweep") >= 0)
+        {
+            game.smokeTestStandAt(-10, 0, Math.PI, -0.02);
+            yield return Wait(1);
+            var a0 = game.smokeTestAim();
+            Debug.Log(a0 != null ? $"[AutoShot] sweep looking ahead: {a0[0]:0.00} m ahead, {a0[1]:0.00} m aside" : "[AutoShot] sweep looking ahead: NOTHING swept");
+            yield return Shot("31-sweep-ahead.png");
+            game.smokeTestStandAt(-10, 0, Math.PI, -0.75);
+            yield return Wait(1);
+            var a1 = game.smokeTestAim();
+            Debug.Log(a1 != null ? $"[AutoShot] sweep looking down: {a1[0]:0.00} m ahead, {a1[1]:0.00} m aside" : "[AutoShot] sweep looking down: NOTHING swept");
+            foreach (var pitch in new[] { -0.02, -0.45 })
+            {
+                game.smokeTestStandAt(-10, -20, Math.PI, pitch);
+                yield return Wait(0.5f);
+                game.input.held.Add("KeyW");
+                game.input.held.Add("ShiftLeft");
+                yield return Wait(0.8f);
+                double[] prev = null;
+                double jumpAhead = 0, jumpSide = 0;
+                int frames = 0, none = 0;
+                float until = Time.realtimeSinceStartup + 2;
+                while (Time.realtimeSinceStartup < until)
+                {
+                    yield return null;
+                    var a = game.smokeTestAim();
+                    frames++;
+                    if (a == null) { none++; prev = null; continue; }
+                    if (prev != null)
+                    {
+                        jumpAhead = Math.Max(jumpAhead, Math.Abs(a[0] - prev[0]));
+                        jumpSide = Math.Max(jumpSide, Math.Abs(a[1] - prev[1]));
+                    }
+                    prev = a;
+                }
+                game.input.held.Clear();
+                Debug.Log($"[AutoShot] sweep while running, pitch {pitch:0.00}: biggest jump in a frame {jumpAhead * 100:0.0} cm ahead, {jumpSide * 100:0.0} cm aside; nothing swept in {none} of {frames} frames");
+                yield return Shot($"31-sweep-run{(pitch < -0.1 ? "-down" : "")}.png");
+            }
         }
 
         // -autoshot-ui: every menu and the HUD, as they look with the keyboard and then with a controller

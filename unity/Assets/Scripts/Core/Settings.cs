@@ -77,15 +77,28 @@ public static class Settings
         }
     }
 
-    /// <summary>Flag so that "New game" from the pause menu starts straight away instead of returning to the main menu.</summary>
+    /// <summary>Flag so that "New game" from the pause menu starts a new game instead of returning to the main menu.</summary>
     private static bool autostart;
+    /// <summary>...and whether it goes straight onto the beach, without the opening (only the smoke test asks for that).</summary>
+    private static bool autostartSkipOpening;
 
-    public static void requestAutostart() => autostart = true;
+    public static void requestAutostart(bool skipOpening = false)
+    {
+        autostart = true;
+        autostartSkipOpening = skipOpening;
+    }
 
     public static bool takeAutostart()
     {
         var v = autostart;
         autostart = false;
+        return v;
+    }
+
+    public static bool takeAutostartSkipOpening()
+    {
+        var v = autostartSkipOpening;
+        autostartSkipOpening = false;
         return v;
     }
 }

@@ -78,6 +78,9 @@ public class Game
     private readonly Snapshot PENDING;
     /// <summary>set when "New game" was chosen from the pause menu: skip the main menu and start straight away</summary>
     private readonly bool AUTOSTART;
+    private readonly bool AUTOSTART_SKIP_OPENING;
+    /// <summary>A new game asked for from the pause menu: the opening plays as soon as the world has loaded (finishStart).</summary>
+    private bool openingAfterLoad;
 
     public readonly THREE.WebGLRenderer renderer;
     public readonly THREE.Scene scene = new THREE.Scene { name = "Main" };
@@ -259,6 +262,7 @@ public class Game
         this.canvas = canvas;
         PENDING = takePendingLoad();
         AUTOSTART = takeAutostart();
+        AUTOSTART_SKIP_OPENING = takeAutostartSkipOpening();
         state = new StateManager(PENDING?.data);
         mapView = new MapView(scenery.trunks, scenery.mountains);
         stones = new Stones(beach);
@@ -428,6 +432,9 @@ public class Game
             if (decorList.Count > 0) discover("camp_decor");
         }
         state.subscribe(showDecor);
+        // the drink on the stump by the fire follows the Thermos & Gear upgrade
+        state.subscribe(() => camp.setGear(state.tier("gear")));
+        camp.setGear(state.tier("gear"));
         showDecor();
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
@@ -451,11 +458,19 @@ public class Game
             ui.skipIntro();
             restoreWorld(PENDING);
         }
-        else if (AUTOSTART)
+        else if (AUTOSTART && AUTOSTART_SKIP_OPENING)
         {
             ui.skipIntro();
             started = true;
             ui.toast("A fresh start. Sweep the sand with your detector.");
+        }
+        else if (AUTOSTART)
+        {
+            // New Game from the pause menu goes the way New Game on the title screen does: the opening, then the controls
+            // card, then the beach. It used to drop the player straight onto the beach and the story was never told.
+            enterMenu();
+            ui.hideMainMenu();
+            openingAfterLoad = true;
         }
         else
         {
@@ -537,6 +552,11 @@ public class Game
     private void finishStart()
     {
         renderer.setAnimationLoop(() => frame());
+        if (openingAfterLoad)
+        {
+            openingAfterLoad = false;
+            menuNewGame();
+        }
         var boot = document.getElementById("boot");
         boot?.classList.add("gone");
         window.setTimeout(() => boot?.remove(), 700);
@@ -793,6 +813,43 @@ public class Game
     }
 
     /// <summary>For the -autoshot-holes test: parks the cart on a hole and says how far it sits below the sand around it.</summary>
+    /// <summary>
+    /// For the -autoshot-smash test. Watch: a finished castle at (x, z), the player a few metres to the side, and the cart
+    /// going through it from the right at 7 m/s. Drive: two castles in a line ahead of the cart, the player at the wheel.
+    /// </summary>
+    internal string smokeTestSmash(string what, double x, double z)
+    {
+        if (what == "watch")
+        {
+            var c = castles.add(x, z, 3);
+            player.x = x;
+            player.z = z + 5.5;
+            player.yaw = 0;
+            player.pitch = -0.12;
+            eyeY = 0;
+            return $"castle at {x:0.0}, {z:0.0}, style {c.style}";
+        }
+        if (what == "burst")
+        {
+            var hit = castles.smashAt(x, z, 1.5, Math.PI / 2, 7);
+            if (hit != null) foreach (var k in hit) onCartSmash(k, 7);
+            return $"smashed {hit?.Count ?? 0}, castles left standing {castles.count}";
+        }
+        if (what == "drive")
+        {
+            castles.add(x, z + 7, 3);
+            castles.add(x + 0.4, z + 13, 3);
+            state.data.ownsCartKey = true;
+            cart.x = x;
+            cart.z = z;
+            cart.heading = Math.PI;
+            cart.speed = 0;
+            enterVehicle("cart");
+            return $"cart at {cart.x:0.0}, {cart.z:0.0}, {castles.count} castles standing ahead";
+        }
+        return $"cart at {cart.x:0.0}, {cart.z:0.0} going {cart.speed:0.0} m/s, {castles.count} castles standing";
+    }
+
     internal string smokeTestCartOnHole(double x, double z)
     {
         cart.x = x;
@@ -1099,7 +1156,19 @@ public class Game
     }
 
     /// <summary>For the -autoshot-saves test: starts a brand new game, as New Game in the pause menu does.</summary>
-    internal void smokeTestNewGame() => newGame();
+    /// <summary>For the -autoshot-saves test: a new game that starts on the beach at once (it autosaves straight after).</summary>
+    internal void smokeTestNewGame()
+    {
+        requestAutostart(skipOpening: true);
+        GameHost.Reload();
+    }
+
+    /// <summary>For the -autoshot-newgame test: New Game exactly as the pause menu's button does it.</summary>
+    internal void smokeTestPauseNewGame() => newGame();
+
+    /// <summary>For the -autoshot-newgame test: what the player sees right now.</summary>
+    internal string smokeTestStage() =>
+        $"state {gameState}, started {started}, opening {(opening != null ? $"at {opening.time:0.0}s, caption: {opening.caption ?? "none"}" : "none")}, card up: {ui.introOpen}";
 
     internal bool smokeTestStarted => started;
 
@@ -1166,6 +1235,31 @@ public class Game
     internal void smokeTestMinimapClear() => setWaypoint(null);
 
     /// <summary>For the -autoshot smoke test: turns the player to look somewhere.</summary>
+    /// <summary>For the -autoshot-gear test: owns this Thermos & Gear tier and stands close to the stump, looking down at it.</summary>
+    internal string smokeTestGear(int tier)
+    {
+        state.data.tiers["gear"] = tier;
+        state.emit();
+        var stump = camp.clickables.First(o => o.userData.Str("kind") == "coffee");
+        var at = stump.getWorldPosition(new THREE.Vector3());
+        player.x = at.x + 0.75;
+        player.z = at.z + 0.75;
+        player.yaw = Math.Atan2(-(at.x - player.x), -(at.z - player.z));
+        // looking a little past it, so it shows above the prompt; the tool in hand is lowered for the picture
+        player.pitch = -0.95;
+        view.group.visible = false;
+        return $"gear tier {state.tier("gear")}: {TIER_INFO["gear"].names[tier - 1]}";
+    }
+
+    /// <summary>For the -autoshot-sweep test: where the detector is sweeping, ahead of and beside the player (null: nowhere).</summary>
+    internal double[] smokeTestAim()
+    {
+        if (toolHit == null) return null;
+        double fx = -Math.Sin(player.yaw), fz = -Math.Cos(player.yaw);
+        double dx = toolHit.x - player.x, dz = toolHit.z - player.z;
+        return new[] { dx * fx + dz * fz, dx * fz - dz * fx };
+    }
+
     internal void smokeTestLook(double yaw, double pitch)
     {
         player.yaw = yaw;
@@ -4931,6 +5025,12 @@ public class Game
             },
             (x, z) =>
             {
+                // a sandcastle in the way bursts apart instead of stopping the cart (unless it is barely moving)
+                if (Math.Abs(c.speed) > 0.8)
+                {
+                    var smashed = castles.smashAt(x, z, 0.95 + 1.1 * 0.6, c.heading, c.speed);
+                    if (smashed != null) foreach (var k2 in smashed) onCartSmash(k2, c.speed);
+                }
                 var r = resolveCart(x, z, 1.1);
                 if (r.hit && Math.Abs(c.speed) > 2) audio.thud();
                 return r;
@@ -5364,6 +5464,17 @@ public class Game
         puff();
         audio.sandBuild();
         discover("castle_first");
+    }
+
+    /// <summary>The cart has burst a sandcastle: sand sprays up, it crumbles loudly, and the cart loses a little speed.</summary>
+    private void onCartSmash(Castle k, double speed)
+    {
+        double y = beach.heightAt(k.x, k.z);
+        dig.particles.burst(new THREE.Vector3(k.x, y + 0.35, k.z), 40, 2.4, 2.2, 1.1, new THREE.Color(0xdcc38f));
+        dig.particles.burst(new THREE.Vector3(k.x, y + 0.1, k.z), 20, 1.4, 1.2, 0.8, new THREE.Color(0xc9ab72));
+        audio.crumble();
+        audio.thud();
+        cart.speed *= 0.82;
     }
 
     /// <summary>Knocks down the castle you are aiming at.</summary>
@@ -5911,7 +6022,7 @@ public class Game
             case "lantern": return lanternOn ? "Turn the lantern off" : "Turn the lantern on";
             case "camper": return "Open the camper (upgrades)";
             case "radio": return audio.radioOn ? $"Turn the radio off ({audio.trackName})" : "Turn the radio on";
-            case "coffee": return "Drink the coffee (rest and warm up)";
+            case "coffee": return $"Drink the {drinkName} (rest and warm up)";
             case "hammock": return "Lie in the hammock (sleep until morning)";
             case "sign": return "Change the sign";
             case "post": return (state.data.unreadLetters?.Count ?? 0) > 0 ? $"Check the post ({state.data.unreadLetters.Count} new)" : "Check the post";
@@ -5939,62 +6050,108 @@ public class Game
     private void updateHover(double dt)
     {
         bool off = !started || driving || gameState == "INSPECT" || islands[2].lighthouse?.introActive == true || (campModal.isOpen && isOverPanel()) || underground;
-        // the raycasts below look again sixty times a second at most: above that the eye cannot tell, and at high frame rates
-        // they were a good part of the frame. Whenever there is nothing to look at, everything is cleared at once.
+        // what the pointer is over (finds, camp props) is looked up sixty times a second at most: above that the eye cannot
+        // tell, and at high frame rates those raycasts were a good part of the frame. The spot on the sand the tool works
+        // on is found every frame, though: looked up 60 times a second at 360 fps, the rings on the sand jumped every few
+        // frames as the player moved (they seemed to shake while running)
         hoverT -= dt;
-        if (!off && hoverT > 0) return;
-        hoverT = 1.0 / 60;
-        hoveredItem = null;
-        hoveredCamp = null;
-        hoveredLighthouse = false;
-        hoveredScope = false;
+        bool look = off || hoverT <= 0;
+        if (look)
+        {
+            hoverT = 1.0 / 60;
+            hoveredItem = null;
+            hoveredCamp = null;
+            hoveredLighthouse = false;
+            hoveredScope = false;
+        }
         toolHit = null;
-        if (off) return;
+        if (off)
+        {
+            aimOn = false;
+            return;
+        }
         if (diving)
         {
+            aimOn = false;
             // underwater only the finds can be looked at
-            if (gameState != "EXPLORE") return;
+            if (!look || gameState != "EXPLORE") return;
             var hits = input.ray(camera, true).intersectObjects(spawner.pickables(), true);
             var hit = hits.Count > 0 ? hits[0] : null;
             if (hit != null && hit.distance < 6) hoveredItem = spawner.itemFromObject(hit.@object);
             return;
         }
         var ray = input.ray(camera, gameState == "EXPLORE");
-        bool nearCamp = gameState != "EXPLORE" || JS.Hypot(player.x, player.z - CAMP_Z) < 22;
         var beachHit = beach.raycast(ray.ray.origin, ray.ray.direction, 12);
         double beachDist = beachHit != null ? beachHit.distanceTo(ray.ray.origin) : double.PositiveInfinity;
-        var itemHits = gameState == "EXPLORE" ? ray.intersectObjects(spawner.pickables(), true) : null;
-        var itemHit = itemHits != null && itemHits.Count > 0 ? itemHits[0] : null;
-        var campHits = nearCamp ? ray.intersectObjects(camp.clickables, true) : null;
-        var campHit = campHits != null && campHits.Count > 0 ? campHits[0] : null;
-        if (itemHit != null && itemHit.distance < 6 && itemHit.distance < (campHit?.distance ?? double.PositiveInfinity))
+        if (look)
         {
-            hoveredItem = spawner.itemFromObject(itemHit.@object);
+            bool nearCamp = gameState != "EXPLORE" || JS.Hypot(player.x, player.z - CAMP_Z) < 22;
+            var itemHits = gameState == "EXPLORE" ? ray.intersectObjects(spawner.pickables(), true) : null;
+            var itemHit = itemHits != null && itemHits.Count > 0 ? itemHits[0] : null;
+            var campHits = nearCamp ? ray.intersectObjects(camp.clickables, true) : null;
+            var campHit = campHits != null && campHits.Count > 0 ? campHits[0] : null;
+            if (itemHit != null && itemHit.distance < 6 && itemHit.distance < (campHit?.distance ?? double.PositiveInfinity))
+            {
+                hoveredItem = spawner.itemFromObject(itemHit.@object);
+            }
+            else if (campHit != null && campHit.distance < 8 && campHit.distance < beachDist + 0.5)
+            {
+                hoveredCamp = camp.kindOf(campHit.@object);
+            }
+            else if (gameState == "EXPLORE" && islands[2].lighthouse != null && !islands[2].lighthouse.cleaned && islands[2].lighthouse.nearClean(player.x, player.z))
+            {
+                var lh = islands[2].lighthouse;
+                if (aim(lh.group.position.x, lh.group.position.y + 16.4, lh.group.position.z, 1.4) != null) hoveredLighthouse = true;
+            }
+            else if (gameState == "EXPLORE" && islands[1].telescope != null && islands[1].telescope.near(player.x, player.z))
+            {
+                var ts = islands[1].telescope;
+                if (aim(ts.x, ts.ground + 1.3, ts.z, 0.75) != null) hoveredScope = true;
+            }
         }
-        else if (campHit != null && campHit.distance < 8 && campHit.distance < beachDist + 0.5)
+        THREE.Vector3 ground = null;
+        bool free = gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && !hoveredLighthouse && !hoveredScope;
+        if (free)
         {
-            hoveredCamp = camp.kindOf(campHit.@object);
+            // the detector only sweeps the sand close to the player; the trowel reaches a little less far
+            bool near = beachHit != null && (tool == 2 || tool == 7 || tool == 8
+                ? beachDist < 5.5
+                : JS.Hypot(beachHit.x - player.x, beachHit.z - player.z) < DETECT_REACH);
+            if (near) ground = beachHit;
         }
-        else if (gameState == "EXPLORE" && islands[2].lighthouse != null && !islands[2].lighthouse.cleaned && islands[2].lighthouse.nearClean(player.x, player.z))
-        {
-            var lh = islands[2].lighthouse;
-            if (aim(lh.group.position.x, lh.group.position.y + 16.4, lh.group.position.z, 1.4) != null) hoveredLighthouse = true;
-        }
-        else if (gameState == "EXPLORE" && islands[1].telescope != null && islands[1].telescope.near(player.x, player.z))
-        {
-            var ts = islands[1].telescope;
-            if (aim(ts.x, ts.ground + 1.3, ts.z, 0.75) != null) hoveredScope = true;
-        }
-        // the detector only sweeps the sand close to the player; the trowel reaches a little less far
-        bool near = beachHit != null && (tool == 2 || tool == 7 || tool == 8
-            ? beachDist < 5.5
-            : JS.Hypot(beachHit.x - player.x, beachHit.z - player.z) < DETECT_REACH);
-        if (gameState == "EXPLORE" && hoveredItem == null && hoveredCamp == null && !hoveredLighthouse && !hoveredScope && near)
-        {
-            toolHit = beachHit;
-        }
-        if (onIsland && (tool == 1 || tool == 2)) toolHit = null;
+        if (onIsland && (tool == 1 || tool == 2)) ground = null;
+        toolHit = smoothAim(ground, dt);
     }
+
+    private readonly THREE.Vector3 aimAt = new THREE.Vector3();
+    private bool aimOn;
+
+    /// <summary>
+    /// The spot on the sand the tool works on, eased toward where it is aimed: the camera bobs as the player walks and runs,
+    /// and the rings drawn there followed every bob. A jump (aiming somewhere else entirely) is taken at once.
+    /// </summary>
+    private THREE.Vector3 smoothAim(THREE.Vector3 target, double dt)
+    {
+        if (target == null)
+        {
+            aimOn = false;
+            return null;
+        }
+        if (!aimOn || JS.Hypot(target.x - aimAt.x, target.z - aimAt.z) > 1.5)
+        {
+            aimAt.copy(target);
+            aimOn = true;
+            return aimAt;
+        }
+        double k = 1 - Math.Exp(-dt * 22);
+        aimAt.x += (target.x - aimAt.x) * k;
+        aimAt.z += (target.z - aimAt.z) * k;
+        aimAt.y = beach.heightAt(aimAt.x, aimAt.z);
+        return aimAt;
+    }
+
+    /// <summary>What is in the Thermos & Gear the player owns: coffee in the tin mug, chai in the thermos, espresso in the flask.</summary>
+    private string drinkName => state.tier("gear") >= 3 ? "espresso" : state.tier("gear") == 2 ? "chai" : "coffee";
 
     private string campHint(string kind)
     {
@@ -6007,7 +6164,7 @@ public class Game
             case "lantern": return lanternOn ? "Click: turn the lantern off" : "Click: turn the lantern on";
             case "camper": return "Click: camper (upgrades)";
             case "radio": return audio.radioOn ? "Click: turn the radio off" : "Click: turn the radio on";
-            case "coffee": return "Click: drink the coffee";
+            case "coffee": return $"Click: drink the {drinkName}";
             case "book": return "Click: read the journal";
             case "post": return "Click: check the post";
             case "hammock": return "Click: lie in the hammock";

@@ -24,9 +24,22 @@ public class Castle
     public List<Falling> falling = new List<Falling>();
     public List<THREE.MeshStandardMaterial> mats = new List<THREE.MeshStandardMaterial>();
     public double wet;
+    /// <summary>run over by the golf cart: its pieces are flying off and it is gone once they have landed</summary>
+    public bool smashed;
 
     public class Rising { public THREE.Group pivot; public double t; }
-    public class Falling { public THREE.Group pivot; public THREE.Vector3 v, spin; public double t; }
+    public class Falling
+    {
+        public THREE.Group pivot;
+        public THREE.Vector3 v, spin;
+        public double t;
+        /// <summary>a piece knocked off by the cart: it lands on the sand, slides to a stop and sinks away</summary>
+        public bool smash;
+        public bool landed;
+        public double sink;
+        /// <summary>the base mound, which is not thrown but squashed flat under the wheels</summary>
+        public bool squash;
+    }
 }
 
 /// <summary>
@@ -91,6 +104,7 @@ public class Sandcastles
         double bd = reach;
         foreach (var c in castles)
         {
+            if (c.smashed) continue;
             double d = JS.Hypot(c.x - x, c.z - z);
             if (d < bd)
             {
@@ -101,17 +115,17 @@ public class Sandcastles
         return best;
     }
 
-    public int count => castles.Count;
+    public int count => castles.Count(c => !c.smashed);
 
     /// <summary>What bullets and arrows can hit.</summary>
-    public List<THREE.Object3D> targets() => castles.Select(c => c.target).ToList();
+    public List<THREE.Object3D> targets() => castles.Where(c => !c.smashed).Select(c => c.target).ToList();
 
     public Castle castleOf(THREE.Object3D obj) => castles.FirstOrDefault(c => c.target == obj);
 
     private void refreshColliders()
     {
         colliders.Clear();
-        foreach (var c in castles) colliders.Add(new Collider { x = c.x, z = c.z, r = 0.95 });
+        foreach (var c in castles) if (!c.smashed) colliders.Add(new Collider { x = c.x, z = c.z, r = 0.95 });
     }
 
     private void build(Castle c)
@@ -306,10 +320,76 @@ public class Sandcastles
     }
 
     /// <summary>
+    /// The golf cart runs into any castle within `reach` of (x, z), going at `speed` (m/s, negative in reverse) with its nose
+    /// toward `heading` (Three's yaw). Each castle hit bursts: its towers, roofs and flags are thrown up and off to both sides
+    /// of the cart's path, the walls tumble after them, and the mound is squashed flat. Returns the castles hit.
+    /// </summary>
+    public List<Castle> smashAt(double x, double z, double reach, double heading, double speed)
+    {
+        List<Castle> hit = null;
+        foreach (var c in castles)
+        {
+            if (c.smashed || JS.Hypot(c.x - x, c.z - z) > reach) continue;
+            smash(c, heading, speed);
+            (hit ??= new List<Castle>()).Add(c);
+        }
+        if (hit != null) refreshColliders();
+        return hit;
+    }
+
+    private void smash(Castle c, double heading, double speed)
+    {
+        c.smashed = true;
+        c.rising.Clear();
+        double s = Math.Min(1.25, Math.Max(0.6, Math.Abs(speed) / 6));
+        // the cart's way forward and its right hand, in the world (Three's axes: yaw 0 looks toward -z)
+        double dir = speed >= 0 ? 1 : -1;
+        double fx = -Math.Sin(heading) * dir, fz = -Math.Cos(heading) * dir;
+        double rx = Math.Cos(heading), rz = -Math.Sin(heading);
+        // the castle group is turned: world directions are turned back into its own frame
+        double a = c.group.rotation.y, ca = Math.Cos(a), sa = Math.Sin(a);
+        THREE.Vector3 local(double wx, double wy, double wz) => new THREE.Vector3(wx * ca - wz * sa, wy, wx * sa + wz * ca);
+        var already = new HashSet<THREE.Group>(c.falling.Select(f => f.pivot));
+        for (int stage = 0; stage < 3; stage++)
+        {
+            foreach (var p in c.parts[stage])
+            {
+                if (!p.visible || already.Contains(p)) continue;
+                if (stage == 0)
+                {
+                    c.falling.Add(new Castle.Falling { pivot = p, v = new THREE.Vector3(), spin = new THREE.Vector3(), smash = true, squash = true });
+                    continue;
+                }
+                // which side of the cart's path this piece stands on, in the world
+                double wx = p.position.x * ca + p.position.z * sa, wz = -p.position.x * sa + p.position.z * ca;
+                double side = wx * rx + wz * rz;
+                double sign = Math.Abs(side) < 0.08 ? (JS.Random() < 0.5 ? -1 : 1) : Math.Sign(side);
+                // thrown out to the sides of the cart, not up at the windscreen: sideways is the strongest push, and what stood
+                // in the cart's way (near its centre line) is pushed aside hardest. The higher it stood (roofs, cones, flags),
+                // the further it goes
+                double high = Math.Min(1, Math.Max(0, p.position.y / 1.2));
+                double centre = 1 - Math.Min(1, Math.Abs(side) / 0.9);
+                double out_ = (2.6 + JS.Random() * 1.2 + high * 1.6 + centre * 1.4) * s;
+                double ahead = (0.4 + JS.Random() * 0.7) * s;
+                double up = (1.3 + JS.Random() * 0.9 + high * 1.1) * s;
+                c.falling.Add(new Castle.Falling
+                {
+                    pivot = p,
+                    v = local(rx * sign * out_ + fx * ahead, up, rz * sign * out_ + fz * ahead),
+                    spin = new THREE.Vector3((JS.Random() - 0.5) * 9, (JS.Random() - 0.5) * 7, sign * (3 + JS.Random() * 5)),
+                    t = -JS.Random() * 0.08 * (1 - high),
+                    smash = true,
+                });
+            }
+        }
+    }
+
+    /// <summary>
     /// A shot lands. Knocks the chunks nearest to `at` off the castle and wears it down. Returns true if the whole castle came down.
     /// </summary>
     public bool hit(Castle c, THREE.Vector3 at, double power)
     {
+        if (c.smashed) return false;
         c.hp -= power;
         var world = new THREE.Vector3();
         var live = c.parts[1].Concat(c.parts[2]).Where(p => p.visible && !c.falling.Any(f => f.pivot == p)).ToList();
@@ -336,6 +416,11 @@ public class Sandcastles
     {
         foreach (var c in castles.ToList())
         {
+            if (c.smashed)
+            {
+                updateSmash(c, dt);
+                continue;
+            }
             for (int i = c.rising.Count - 1; i >= 0; i--)
             {
                 var r = c.rising[i];
@@ -379,7 +464,69 @@ public class Sandcastles
         }
     }
 
-    public List<CastleSave> data() => castles.Select(c => new CastleSave { x = c.x, z = c.z, stage = c.stage, hp = c.hp, seed = c.seed }).ToList();
+    /// <summary>The pieces of a castle the cart went through: thrown, tumbling, landing on the sand, sliding, then sinking away.</summary>
+    private void updateSmash(Castle c, double dt)
+    {
+        double sy = Math.Max(0.2, c.group.scale.y);
+        for (int i = c.falling.Count - 1; i >= 0; i--)
+        {
+            var f = c.falling[i];
+            f.t += dt;
+            if (f.t < 0) continue;
+            var p = f.pivot;
+            if (f.squash)
+            {
+                // the mound under the wheels flattens and spreads a little, then is gone
+                double k = Math.Min(1, f.t / 0.45);
+                p.scale.y = Math.Max(0.02, (1 - k) * (p.userData.TryGetValue("sy0", out var s0) ? (double)s0 : (double)(p.userData["sy0"] = p.scale.y)));
+                p.scale.x = p.scale.z = 1 + k * 0.25;
+                if (k >= 1) { p.visible = false; c.falling.RemoveAt(i); }
+                continue;
+            }
+            if (!f.landed)
+            {
+                f.v.y -= 9.8 * dt / sy;
+                p.position.addScaledVector(f.v, dt);
+                p.rotation.x += f.spin.x * dt;
+                p.rotation.y += f.spin.y * dt;
+                p.rotation.z += f.spin.z * dt;
+                // on the sand (the castle's own floor): a dull bounce, then it slides to a stop
+                if (p.position.y <= 0 && f.v.y < 0)
+                {
+                    p.position.y = 0;
+                    if (f.v.y < -3)
+                    {
+                        f.v.y *= -0.25;
+                        f.v.x *= 0.5;
+                        f.v.z *= 0.5;
+                        f.spin.multiplyScalar(0.4);
+                    }
+                    else f.landed = true;
+                }
+            }
+            else
+            {
+                double drag = Math.Exp(-dt * 6);
+                f.v.x *= drag;
+                f.v.z *= drag;
+                p.position.x += f.v.x * dt;
+                p.position.z += f.v.z * dt;
+                f.sink += dt;
+                // after a moment on the sand it sinks into it and is gone
+                if (f.sink > 0.6)
+                {
+                    double k = Math.Max(0, 1 - (f.sink - 0.6) / 0.5);
+                    p.scale.setScalar(Math.Max(0.001, k));
+                    if (k <= 0) { p.visible = false; c.falling.RemoveAt(i); continue; }
+                }
+            }
+            // never longer than a few seconds, wherever it ended up
+            if (f.t > 3.5) { p.visible = false; c.falling.RemoveAt(i); }
+        }
+        if (c.falling.Count == 0) remove(c);
+    }
+
+    public List<CastleSave> data() => castles.Where(c => !c.smashed).Select(c => new CastleSave { x = c.x, z = c.z, stage = c.stage, hp = c.hp, seed = c.seed }).ToList();
 
     public void setAll(IEnumerable<CastleSave> list)
     {
