@@ -41,6 +41,7 @@ public static class DomHost
         document.ClearListeners();
         document.activeElement = null;
         HTMLElement.ElementByVe.Clear();
+        CssAnimations.Clear();
         _isTyping = false;
 
         RefreshMetricsInternal(out float scale);

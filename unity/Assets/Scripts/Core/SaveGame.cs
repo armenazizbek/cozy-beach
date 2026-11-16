@@ -224,7 +224,41 @@ public static class SaveGame
     /// <summary>Saves a snapshot as a new entry, or over the entry `id`. Returns null if storage refused.</summary>
     public static SaveMeta writeSave(Snapshot snap, string name, string id = null, bool auto = false)
     {
-        var meta = new SaveMeta
+        var meta = metaFor(snap, name, id, auto);
+        return store(meta, JsonConvert.SerializeObject(snap, Json)) ? meta : null;
+    }
+
+    /// <summary>
+    /// The autosave: the snapshot becomes text now (it holds the live game data, which must not change under it), and the
+    /// files are written on a worker thread, so the game does not stop for the disk.
+    /// </summary>
+    public static void writeSaveInBackground(Snapshot snap, string name, string id = null, bool auto = false)
+    {
+        var meta = metaFor(snap, name, id, auto);
+        string json = JsonConvert.SerializeObject(snap, Json);
+        System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+        {
+            if (!store(meta, json)) UnityEngine.Debug.LogWarning($"Autosave '{meta.id}' could not be written.");
+        });
+    }
+
+    /// <summary>Saves and the index are written one at a time (an autosave on its thread and a save from the menu can overlap).</summary>
+    private static readonly object writeGate = new object();
+
+    private static bool store(SaveMeta meta, string json)
+    {
+        lock (writeGate)
+        {
+            if (!Storage.setItem(SLOT_PREFIX + meta.id, json)) return false;
+            var list = readIndex().Where(m => m.id != meta.id).ToList();
+            list.Add(meta);
+            return writeIndex(list);
+        }
+    }
+
+    private static SaveMeta metaFor(Snapshot snap, string name, string id, bool auto)
+    {
+        return new SaveMeta
         {
             id = id ?? Base36((long)JS.DateNow()) + Base36((long)Math.Floor(JS.Random() * 1e4)),
             name = string.IsNullOrWhiteSpace(name) ? "Unnamed save" : name.Trim(),
@@ -236,16 +270,15 @@ public static class SaveGame
             day = snap.data.day,
             auto = auto,
         };
-        if (!Storage.setItem(SLOT_PREFIX + meta.id, JsonConvert.SerializeObject(snap, Json))) return null;
-        var list = readIndex().Where(m => m.id != meta.id).ToList();
-        list.Add(meta);
-        return writeIndex(list) ? meta : null;
     }
 
     public static void deleteSave(string id)
     {
-        Storage.removeItem(SLOT_PREFIX + id);
-        writeIndex(readIndex().Where(m => m.id != id).ToList());
+        lock (writeGate)
+        {
+            Storage.removeItem(SLOT_PREFIX + id);
+            writeIndex(readIndex().Where(m => m.id != id).ToList());
+        }
     }
 
     /// <summary>Loading swaps the whole world, so we remember which save and rebuild the game into it.</summary>

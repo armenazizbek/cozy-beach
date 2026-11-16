@@ -3507,6 +3507,8 @@ public class Game
     {
         var st = settings;
         audio.setVolumes(st.master, st.music, st.ambience);
+        THREE.Bridge.UrpSettings.SetQuality(st.quality);
+        FramePacing.Apply(st.vsync, st.fpsLimit);
         renderer.setPixelRatio(pixelRatio(st.sharp) * st.renderScale);
         resize();
         bool changed = renderer.shadowMap.enabled != st.shadows;
@@ -3802,7 +3804,9 @@ public class Game
         {
             v = 1,
             savedAt = JS.DateNow(), // wall-clock time, like Date.now() in the browser: the save list shows and sorts by it
-            data = JsonConvert.DeserializeObject<GameData>(JsonConvert.SerializeObject(state.data, SaveGame.Json), SaveGame.Json),
+            // the live data, not a copy: every save turns the snapshot into text at once, on this thread (writeSave,
+            // writeSaveInBackground), so nothing can change under it. The copy was a whole extra JSON round trip per save.
+            data = state.data,
             player = new PlayerPose { x = pl.x, z = pl.z, yaw = pl.yaw, pitch = pl.pitch },
             tool = tool,
             radio = audio.radioOn,
@@ -3880,7 +3884,8 @@ public class Game
         if (!started || gameState == "MENU" || hammock != null) return;
         lastAuto = now;
         claimGameId(state.data);
-        writeSave(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
+        // the snapshot is turned into text here; the disk is written on another thread, so play does not stop for it
+        writeSaveInBackground(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
     }
 
     /// <summary>Writes the whole world as a new save, or over an existing one.</summary>

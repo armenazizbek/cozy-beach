@@ -116,12 +116,26 @@ public class DetectorTool
         double pr = Math.Max(0.05, ph * radius);
         pulse.scale.set(pr, 1, pr);
         pulseDark.scale.set(pr, 1, pr);
-        // the rings and the heat map follow the ground, so hills and holes never cut them off
+        // the rings and the heat map follow the ground, so hills and holes never cut them off. The growing pulse needs it
+        // every frame; the fixed edge and the heat map only when the aim point, the reach or the sand under them has moved
+        // (each is a mesh sent to the graphics chip again)
         Conform.conformToTerrain(pulse, beach, hit.x, hit.y, hit.z, 0.07);
-        Conform.conformToTerrain(edge, beach, hit.x, hit.y, hit.z, 0.075);
         Conform.conformToTerrain(pulseDark, beach, hit.x, hit.y, hit.z, 0.066);
-        Conform.conformToTerrain(edgeDark, beach, hit.x, hit.y, hit.z, 0.068);
-        if (tier >= 3) Conform.conformToTerrain(heat, beach, hit.x, hit.y, hit.z, 0.1);
+        bool moved = Math.Abs(hit.x - edgeAt.x) > 0.02 || Math.Abs(hit.z - edgeAt.z) > 0.02 || Math.Abs(hit.y - edgeAt.y) > 0.005
+            || radius != edgeRadius || beach.version != edgeSand;
+        if (moved)
+        {
+            edgeAt.copy(hit);
+            edgeRadius = radius;
+            edgeSand = beach.version;
+            Conform.conformToTerrain(edge, beach, hit.x, hit.y, hit.z, 0.075);
+            Conform.conformToTerrain(edgeDark, beach, hit.x, hit.y, hit.z, 0.068);
+        }
+        if (tier >= 3 && (moved || !heatShaped))
+        {
+            heatShaped = true;
+            Conform.conformToTerrain(heat, beach, hit.x, hit.y, hit.z, 0.1);
+        }
         var pm = (THREE.MeshBasicMaterial)pulse.material;
         pm.opacity = (1 - ph) * (0.5 + s * 0.5);
         pulseDark.material.opacity = (1 - ph) * 0.3;
@@ -142,8 +156,19 @@ public class DetectorTool
         }
         else pingTimer = Math.Min(pingTimer, 0);
 
-        if (tier >= 3) drawHeat(hit, spawner);
+        // the heat map is a canvas drawn on the CPU and uploaded: ten times a second is plenty for blobs that barely move
+        heatT -= dt;
+        if (tier >= 3 && (heatT <= 0 || moved))
+        {
+            heatT = 0.1;
+            drawHeat(hit, spawner);
+        }
     }
+
+    private readonly THREE.Vector3 edgeAt = new THREE.Vector3(double.NaN, 0, 0);
+    private double edgeRadius = -1, heatT;
+    private int edgeSand = -1;
+    private bool heatShaped;
 
     private void drawHeat(THREE.Vector3 hit, LootSpawner spawner)
     {

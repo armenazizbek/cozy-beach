@@ -9,7 +9,26 @@ using UnityEngine.UIElements;
 
 public class HTMLElement
 {
-    internal static readonly Dictionary<VisualElement, HTMLElement> ElementByVe = new Dictionary<VisualElement, HTMLElement>();
+    /// <summary>
+    /// The element each VisualElement stands for. Kept on the VisualElement itself (userData) rather than in a static
+    /// dictionary, which held on to every element ever made (each hint, toast and menu redraw makes new ones) until the next
+    /// reload; now an element is forgotten as soon as nothing points at it.
+    /// </summary>
+    internal static readonly VeMap ElementByVe = new VeMap();
+
+    internal sealed class VeMap
+    {
+        public HTMLElement this[VisualElement ve] { set { if (ve != null) ve.userData = value; } }
+
+        public bool TryGetValue(VisualElement ve, out HTMLElement el)
+        {
+            el = ve?.userData as HTMLElement;
+            return el != null;
+        }
+
+        /// <summary>Nothing to clear: each entry goes with its VisualElement.</summary>
+        public void Clear() { }
+    }
 
     private static readonly HashSet<string> ScrollableClasses = new HashSet<string>(StringComparer.Ordinal)
     {

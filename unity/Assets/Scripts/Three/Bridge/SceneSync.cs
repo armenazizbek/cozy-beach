@@ -536,7 +536,7 @@ namespace THREE.Bridge
                         var dir = new U.Vector3((float)(_b.x - _a.x), (float)(_b.y - _a.y), (float)-(_b.z - _a.z));
                         if (dir.sqrMagnitude > 1e-9f) n.tf.rotation = U.Quaternion.LookRotation(dir.normalized);
                         SetLightCommon(ul, l);
-                        ul.shadows = d.castShadow ? LightShadows.Soft : LightShadows.None;
+                        ul.shadows = d.castShadow ? (UrpSettings.SoftShadows ? LightShadows.Soft : LightShadows.Hard) : LightShadows.None;
                         if (d.castShadow && d.intensity > sunPower) { sun = ul; sunPower = d.intensity; }
                         else if (sun == null && d.intensity > sunPower) { sun = ul; sunPower = d.intensity; }
                         break;
@@ -554,7 +554,7 @@ namespace THREE.Bridge
                         float outer = (float)(s.angle * 2 * Mathf.Rad2Deg);
                         ul.spotAngle = Mathf.Clamp(outer, 1f, 179f);
                         ul.innerSpotAngle = Mathf.Clamp((float)(outer * (1 - s.penumbra)), 0f, ul.spotAngle);
-                        ul.shadows = s.castShadow ? LightShadows.Soft : LightShadows.None;
+                        ul.shadows = s.castShadow ? (UrpSettings.SoftShadows ? LightShadows.Soft : LightShadows.Hard) : LightShadows.None;
                         break;
                     }
                     case PointLight p:
@@ -562,7 +562,7 @@ namespace THREE.Bridge
                         var ul = EnsureLight(n, LightType.Point);
                         SetLightCommon(ul, l);
                         ul.range = p.distance > 0 ? (float)p.distance : 1000f;
-                        ul.shadows = p.castShadow ? LightShadows.Soft : LightShadows.None;
+                        ul.shadows = p.castShadow ? (UrpSettings.SoftShadows ? LightShadows.Soft : LightShadows.Hard) : LightShadows.None;
                         break;
                     }
                 }

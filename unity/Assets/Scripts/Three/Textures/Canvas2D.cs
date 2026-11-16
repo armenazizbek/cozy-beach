@@ -181,6 +181,13 @@ public class HTMLCanvasElement : HTMLElement
     internal byte[] ToUnityRGBA(bool flipY)
     {
         var o = new byte[_w * _h * 4];
+        CopyUnityRGBA(flipY, o);
+        return o;
+    }
+
+    /// <summary>The same, into a buffer the caller keeps (at least width * height * 4 bytes), so repeated uploads allocate nothing.</summary>
+    internal void CopyUnityRGBA(bool flipY, byte[] o)
+    {
         for (int y = 0; y < _h; y++)
         {
             int sy = flipY ? _h - 1 - y : y;
@@ -196,7 +203,6 @@ public class HTMLCanvasElement : HTMLElement
                 o[di + 3] = (byte)a;
             }
         }
-        return o;
     }
 
     /// <summary>A PNG data URL is not needed in Unity; this hands back the canvas itself for UI images to show.</summary>

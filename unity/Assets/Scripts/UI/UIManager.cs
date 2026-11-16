@@ -673,12 +673,13 @@ public class UIManager
         }
         void toggle(string label, string hintText, string key)
         {
-            bool get() => key == "shadows" ? settings.shadows : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
+            bool get() => key == "shadows" ? settings.shadows : key == "vsync" ? settings.vsync : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
             var row = rowEl(label, hintText);
             var val = el("span", "set-val");
             void put(bool on)
             {
                 if (key == "shadows") settings.shadows = on;
+                else if (key == "vsync") settings.vsync = on;
                 else if (key == "sharp") settings.sharp = on;
                 else if (key == "invertMouse") settings.invertMouse = on;
                 else if (key == "invertStick") settings.invertStick = on;
@@ -732,7 +733,16 @@ public class UIManager
             .ToArray();
         choice("Window size", sizes, () => settings.windowSize, v => settings.windowSize = v);
         slider("Field of view", "fov", GameSettings.FOV_MIN, GameSettings.FOV_MAX, 1, v => $"{JS.Round(v)}°");
+        toggle("VSync", "waits for the screen's refresh: no tearing", "vsync");
+        choice("Frame limit (VSync off)", FramePacing.LIMITS.Select(n => new[] { JS.Str(n), n == 0 ? "No limit" : $"{n} fps" }).ToArray(),
+            () => JS.Str(settings.fpsLimit), v => settings.fpsLimit = int.TryParse(v, out var n) ? n : 0);
         rows.append(el("h3", "caps", "Graphics"));
+        choice("Quality", new[]
+        {
+            new[] { "high", "High" },
+            new[] { "medium", "Medium" },
+            new[] { "low", "Low" },
+        }, () => settings.quality, v => settings.quality = v);
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);

@@ -25,6 +25,12 @@ public class GameSettings
     public bool sharp = true;
     /// <summary>0.5..1 how much of that resolution is actually drawn; the picture is stretched back up to fill the screen</summary>
     public double renderScale = 1;
+    /// <summary>graphics quality: 'low' | 'medium' | 'high' (antialiasing, shadow detail and softness)</summary>
+    public string quality = "high";
+    /// <summary>wait for the screen's refresh before showing each picture (no tearing)</summary>
+    public bool vsync = true;
+    /// <summary>most pictures a second when VSync is off; 0 for no limit</summary>
+    public int fpsLimit = 0;
     /// <summary>how the game window is shown: 'fullscreen' | 'windowed' | 'borderless'</summary>
     public string displayMode = "fullscreen";
     /// <summary>window size in windowed mode, "widthxheight"</summary>

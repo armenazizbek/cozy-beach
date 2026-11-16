@@ -37,6 +37,29 @@ namespace THREE.Bridge
             if (a != null && ShadowsOn && !Mathf.Approximately(a.shadowDistance, d)) a.shadowDistance = d;
         }
 
+        /// <summary>Soft (filtered) or hard shadow edges for the lights the scene copy makes (SceneSync.ApplyLights).</summary>
+        public static bool SoftShadows = true;
+
+        /// <summary>
+        /// The graphics quality the player picked: "low", "medium" or "high" (high is how the game always looked). Low and
+        /// medium trade antialiasing, shadow detail and shadow softness for speed on slower graphics chips.
+        /// </summary>
+        public static void SetQuality(string q)
+        {
+            var a = Asset;
+            if (a == null) return;
+            int msaa, shadowRes, cascades;
+            switch (q)
+            {
+                case "low": msaa = 1; shadowRes = 1024; cascades = 1; SoftShadows = false; break;
+                case "medium": msaa = 2; shadowRes = 2048; cascades = 2; SoftShadows = true; break;
+                default: msaa = 4; shadowRes = 4096; cascades = 2; SoftShadows = true; break;
+            }
+            if (a.msaaSampleCount != msaa) a.msaaSampleCount = msaa;
+            if (a.mainLightShadowmapResolution != shadowRes) a.mainLightShadowmapResolution = shadowRes;
+            if (a.shadowCascadeCount != cascades) a.shadowCascadeCount = cascades;
+        }
+
         public static void SetupCamera(UnityEngine.Camera cam)
         {
             var data = cam.GetUniversalAdditionalCameraData();

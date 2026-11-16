@@ -98,7 +98,10 @@ namespace THREE
         public void setPixelRatio(double r)
         {
             pixelRatio = r;
-            Bridge.UrpSettings.SetRenderScale(r);
+            // r is picture pixels per pixel of the UI's 1920x1080 page, which is stretched to the screen by
+            // window.devicePixelRatio; URP's render scale is per screen pixel, so the stretch is taken out. Handing r over
+            // as it was rendered a 1440p screen at 1.33x and a 4K one at up to 2x, and a 720p one at 0.67x.
+            if (!offscreen) Bridge.UrpSettings.SetRenderScale(r / Math.Max(0.01, window.devicePixelRatio));
         }
 
         public double getPixelRatio() => pixelRatio;

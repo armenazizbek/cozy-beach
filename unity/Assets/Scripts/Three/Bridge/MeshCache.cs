@@ -21,6 +21,17 @@ namespace THREE.Bridge
             public int version = int.MinValue;
             public int structure = int.MinValue;
             public int vertexCount = -1;
+            // what each channel was last built from, so a change to one attribute re-sends only that one
+            public BufferAttribute posRef, norRef, uvRef, colRef, idxRef;
+            public int posVer, norVer, uvVer, colVer, idxVer, extraVer, skinVer;
+        }
+
+        private static bool Stale(BufferAttribute a, ref BufferAttribute seen, ref int ver)
+        {
+            if (a == seen && (a == null || a.version == ver)) return false;
+            seen = a;
+            ver = a?.version ?? 0;
+            return true;
         }
 
         // keys: geometry plus a variant (plain, multi-material, points, lines, linestrip, baked instances)
@@ -121,30 +132,39 @@ namespace THREE.Bridge
             var pos = g.attributes.position;
             int n = pos?.count ?? 0;
             bool structural = g.structureVersion != e.structure || n != e.vertexCount;
-            if (structural) mesh.Clear();
+            if (structural)
+            {
+                mesh.Clear();
+                e.posRef = e.norRef = e.uvRef = e.colRef = e.idxRef = null;
+                e.extraVer = e.skinVer = int.MinValue;
+            }
             e.structure = g.structureVersion;
             e.vertexCount = n;
             if (n == 0) return;
-            mesh.indexFormat = n > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-            v3.Clear();
-            for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], -pos.array[i * 3 + 2]));
-            mesh.SetVertices(v3);
+            if (structural) mesh.indexFormat = n > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+            bool moved = Stale(pos, ref e.posRef, ref e.posVer);
+            if (moved)
+            {
+                v3.Clear();
+                for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], -pos.array[i * 3 + 2]));
+                mesh.SetVertices(v3);
+            }
             var nor = g.attributes.normal;
-            if (nor != null && nor.count == n)
+            if (nor != null && nor.count == n && Stale(nor, ref e.norRef, ref e.norVer))
             {
                 v3.Clear();
                 for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(nor.array[i * 3], nor.array[i * 3 + 1], -nor.array[i * 3 + 2]));
                 mesh.SetNormals(v3);
             }
             var uv = g.attributes.uv;
-            if (uv != null && uv.count == n)
+            if (uv != null && uv.count == n && Stale(uv, ref e.uvRef, ref e.uvVer))
             {
                 v2.Clear();
                 for (int i = 0; i < n; i++) v2.Add(new UnityEngine.Vector2(uv.array[i * 2], uv.array[i * 2 + 1]));
                 mesh.SetUVs(0, v2);
             }
             var col = g.attributes.color;
-            if (col != null && col.count == n)
+            if (col != null && col.count == n && Stale(col, ref e.colRef, ref e.colVer))
             {
                 cols.Clear();
                 int s = col.itemSize;
@@ -152,8 +172,13 @@ namespace THREE.Bridge
                     cols.Add(new UnityEngine.Color(col.array[i * s], col.array[i * s + 1], col.array[i * s + 2], s > 3 ? col.array[i * s + 3] : 1));
                 mesh.SetColors(cols);
             }
+            var extras = ExtraNames(g);
+            int extraVer = 0;
+            foreach (var name in extras) extraVer = unchecked(extraVer * 31 + g.attributes[name].version);
+            bool extrasStale = extraVer != e.extraVer;
+            e.extraVer = extraVer;
             int slot = 2;
-            foreach (var name in ExtraNames(g))
+            if (extrasStale) foreach (var name in extras)
             {
                 if (slot > 7) break;
                 var a = g.attributes[name];
@@ -167,8 +192,10 @@ namespace THREE.Bridge
             }
             var si = g.attributes.skinIndex;
             var sw = g.attributes.skinWeight;
-            if (si != null && sw != null && si.count == n)
+            int skinVer = si != null && sw != null ? unchecked(si.version * 31 + sw.version) : 0;
+            if (si != null && sw != null && si.count == n && (structural || skinVer != e.skinVer))
             {
+                e.skinVer = skinVer;
                 var bw = new BoneWeight[n];
                 for (int i = 0; i < n; i++)
                 {
@@ -180,7 +207,7 @@ namespace THREE.Bridge
                 }
                 mesh.boneWeights = bw;
             }
-            if (structural || g.index != null)
+            if (Stale(g.index, ref e.idxRef, ref e.idxVer) || structural)
             {
                 if (variant == LINES || variant == LINESTRIP)
                 {
@@ -207,7 +234,7 @@ namespace THREE.Bridge
                     mesh.SetTriangles(tris, 0, false);
                 }
             }
-            mesh.RecalculateBounds();
+            if (moved) mesh.RecalculateBounds();
         }
 
         private static void FillTriangles(BufferGeometry g, int n, int start, int count)

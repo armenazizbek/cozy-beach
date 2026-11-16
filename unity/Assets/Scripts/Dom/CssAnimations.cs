@@ -67,6 +67,18 @@ public static class CssAnimations
 
     private static readonly Dictionary<VisualElement, ActiveAnim> _active = new Dictionary<VisualElement, ActiveAnim>();
 
+    /// <summary>
+    /// Forgets every running animation (on a reload, see DomHost.Ensure). An element taken off the page never gets its
+    /// scheduled step again (UI Toolkit only runs the schedules of elements on a panel), so its entry here stayed for good
+    /// and held on to the old page and, through its handlers, the whole old game: each New Game or Load Game kept one more
+    /// world in memory.
+    /// </summary>
+    public static void Clear()
+    {
+        foreach (var a in _active.Values) a.task?.Pause();
+        _active.Clear();
+    }
+
     public static void OnAttached(HTMLElement el)
     {
         if (el == null || el.ve == null) return;
@@ -221,6 +233,12 @@ public static class CssAnimations
         StartAnimation(ve, kind, delayMs);
     }
 
+    private static readonly EventCallback<DetachFromPanelEvent> OnDetach = e =>
+    {
+        var v = (VisualElement)e.currentTarget;
+        if (_active.TryGetValue(v, out var a)) StopAnimation(v, a);
+    };
+
     private static void StopAnimation(VisualElement ve, ActiveAnim anim)
     {
         if (anim.task != null)
@@ -245,6 +263,8 @@ public static class CssAnimations
             delayMs = delayMs,
         };
         _active[ve] = anim;
+        // taken off the page, its steps stop running, so it is forgotten then (registering the same callback twice is a no-op)
+        ve.RegisterCallback(OnDetach);
 
         // Apply initial frame immediately (honours backwards fill-mode / 0% keyframe)
         StepAnimation(ve, anim);

@@ -665,9 +665,13 @@ public class Beach
         return null;
     }
 
+    /// <summary>Goes up whenever the sand changes shape, so what follows the ground knows to look again.</summary>
+    public int version { get; private set; }
+
     /// <summary>Hands the changed part of the grid to the chunks that show it (the TS marked update ranges on the GPU buffers).</summary>
     private void markRowsDirty(int minR, int maxR, int minC = 0, int maxC = int.MaxValue)
     {
+        version++;
         int r0 = Math.Max(0, minR - 1), r1 = Math.Min(n - 1, maxR + 1);
         int c0 = Math.Max(0, minC - 1), c1 = Math.Min(n - 1, maxC + 1);
         foreach (var ch in chunks)

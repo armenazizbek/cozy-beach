@@ -12,6 +12,8 @@ namespace THREE.Bridge
             public int version = int.MinValue;
             public int w, h;
             public bool srgb, mips;
+            /// <summary>kept between uploads of a canvas that is drawn on again and again (the cleaning brush, the heat map)</summary>
+            public byte[] buf;
         }
 
         private static readonly Dictionary<THREE.Texture, Entry> cache = new Dictionary<THREE.Texture, Entry>();
@@ -65,7 +67,13 @@ namespace THREE.Bridge
                 e.mips = mips;
             }
             byte[] bytes = null;
-            if (t.image is HTMLCanvasElement c) bytes = c.ToUnityRGBA(t.flipY);
+            if (t.image is HTMLCanvasElement c)
+            {
+                int len = c.width * c.height * 4;
+                if (e.buf == null || e.buf.Length != len) e.buf = new byte[len];
+                c.CopyUnityRGBA(t.flipY, e.buf);
+                bytes = e.buf;
+            }
             else if (t.image is ImageData d) bytes = Expand(d, t.flipY);
             if (bytes != null)
             {
