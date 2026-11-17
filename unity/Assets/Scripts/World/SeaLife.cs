@@ -300,6 +300,7 @@ public class SeaLife
         var glossy = new THREE.MeshStandardMaterial { color = 0x07090b, roughness = 0.08, metalness = 0.4 };
         var whiteMat = new THREE.MeshStandardMaterial { color = 0xf5f3ec, roughness = 0.35 };
         var gum = new THREE.MeshStandardMaterial { color = 0x4a1418, roughness = 0.6 };
+        var glintMat = new THREE.MeshBasicMaterial { color = 0xffffff };
         double zAt(double u) => -SHARK_LEN / 2 + u * SHARK_LEN;
         foreach (var side in new[] { -1, 1 })
         {
@@ -313,7 +314,7 @@ public class SeaLife
             socket.position.set(side * (ex - 0.005), ey, zAt(ue));
             var eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 14, 10), glossy);
             eye.position.set(side * (ex + 0.012), ey, zAt(ue) - 0.005);
-            var glint = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5), new THREE.MeshBasicMaterial { color = 0xffffff });
+            var glint = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5), glintMat);
             glint.position.set(side * (ex + 0.05), ey + 0.028, zAt(ue) - 0.03);
             root.add(socket, eye, glint);
             // five curved gill slits behind the head
@@ -364,6 +365,8 @@ public class SeaLife
         hit.position.set(0, 0.4, 0);
         hit.userData["hitRadius"] = 2.2;
         root.add(body, caudal, hit);
+        // the eyes, gills, nostrils, gape and 30 teeth never move against the body: one mesh per material instead of about 46 draws
+        Merge.mergeStatic(root, new HashSet<THREE.Object3D> { body, caudal, hit });
         root.scale.setScalar(1.3);
         group.add(root);
         var s = new Shark

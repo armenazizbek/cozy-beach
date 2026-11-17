@@ -61,6 +61,7 @@ public class Birds
         body.scale.set(0.85, 0.8, 1.9);
         body.castShadow = true;
         var head = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8), white);
+        head.castShadow = true; // like the body, so that they weld into one mesh below
         head.position.set(0, 0.07, 0.34);
         var beak = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 6), beakMat);
         beak.rotation.x = Math.PI / 2;
@@ -76,6 +77,7 @@ public class Birds
         mantle.scale.set(0.14, 0.06, 0.3);
         mantle.position.set(0, 0.09, -0.06);
         var breast = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), white);
+        breast.castShadow = true;
         breast.position.set(0, 0.0, 0.2);
         // the gull's parts never move against each other: each set of them is a static group (Object3D.syncStatic), so the
         // scene copy only follows the gull itself and its wings
@@ -125,6 +127,10 @@ public class Birds
         left.position.set(-0.1, 0.05, 0.02);
         left.scale.x = -1;
         root.add(right, left);
+        // a gull's fixed parts are welded into one mesh per material (about 16 draws became 7), in the shadow map too
+        Merge.mergeStatic(still);
+        Merge.mergeStatic(legs);
+        Merge.mergeStatic(folded);
         root.scale.setScalar(1.5);
         group.add(root);
         return new Gull { root = root, legs = legs, left = left, right = right, folded = folded };

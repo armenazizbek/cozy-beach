@@ -180,3 +180,7 @@ Speed pass 4: a material whose colour, glow, opacity, roughness or metalness cha
 properties instead of re-setting about 30 (the state hash and a values hash are kept apart in `MaterialCache`); the minimap's change check
 is a few integers instead of a built text. On the dev PC the numbers stay within noise (camp by day sync 0.74 ms); the saving is garbage
 and calls into Unity, which weigh more on the Deck's CPU.
+
+Speed pass 5 (draw calls): palm rings are part of the trunk mesh, a gull's fixed parts and a shark's eyes, gills, gape and teeth are welded
+into one mesh per material (`Merge.mergeStatic`). Camp by day: 1429 -> 1247 synced objects, 911 -> 729 drawn, scene sync 0.74 -> 0.57 ms,
+main thread about 1.8 ms (dev PC, Mono, `-force-deck`, 1280x800); boat 1467 -> 1255 objects.

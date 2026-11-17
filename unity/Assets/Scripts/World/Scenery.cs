@@ -244,10 +244,6 @@ public class Scenery
             // the trunk reaches well down into the sand, so even the deepest hole never uncovers its foot
             var rootGeo = new THREE.CylinderGeometry(0.2, 0.22, 2, 8);
             rootGeo.translate(0, -1, 0);
-            var trunk = new THREE.Mesh(THREE.BufferGeometryUtils.mergeGeometries(new THREE.BufferGeometry[] { rootGeo, new THREE.TubeGeometry(curve, 14, 0.2, 8) }), trunkMat);
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            g.add(trunk);
             // rings along the trunk (and down the buried foot, in case someone digs beside the tree)
             var ringGeos = new List<THREE.BufferGeometry>();
             for (int i = -3; i < 12; i++)
@@ -258,8 +254,13 @@ public class Scenery
                 ring.translate(pt.x, pt.y, pt.z);
                 ringGeos.Add(ring);
             }
-            var rings = new THREE.Mesh(THREE.BufferGeometryUtils.mergeGeometries(ringGeos), trunkMat);
-            g.add(rings);
+            // the rings are part of the trunk's own mesh: one draw (and one shadow draw) per palm instead of two
+            var parts = new List<THREE.BufferGeometry> { rootGeo, new THREE.TubeGeometry(curve, 14, 0.2, 8) };
+            parts.AddRange(ringGeos);
+            var trunk = new THREE.Mesh(THREE.BufferGeometryUtils.mergeGeometries(parts), trunkMat);
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            g.add(trunk);
             var crown = new THREE.Group();
             crown.position.copy(curve.getPoint(1));
             var halves = new[] { new List<THREE.BufferGeometry>(), new List<THREE.BufferGeometry>() };
@@ -305,7 +306,7 @@ public class Scenery
             // detail or a coconut changes something, which touch()es it
             g.syncStatic = true;
             group.add(g);
-            palms.Add(new Palm { group = g, crown = crown, phase = rand() * 6, x = x, z = z, rings = rings, nuts = nutGroup, crownA = crownA, crownB = crownB, lod = 0, k = 1, kf = 1 });
+            palms.Add(new Palm { group = g, crown = crown, phase = rand() * 6, x = x, z = z, rings = null, nuts = nutGroup, crownA = crownA, crownB = crownB, lod = 0, k = 1, kf = 1 });
             trunks.Add(new Trunk { x = x, z = z });
         }
         if (outerTrunks.Count > 0)
@@ -564,7 +565,7 @@ public class Scenery
         foreach (var p in palms)
         {
             // a palm out across the land has no parts to drop
-            if (p.rings == null) continue;
+            if (p.nuts == null) continue;
             // fewer parts the further away it is, with a few metres of give so it does not flicker at the edge
             double d = JS.Hypot(p.x - camX, p.z - camZ);
             int want = d > LOD_FAR + (p.lod == 2 ? -4 : 4) ? 2 : d > LOD_MID + (p.lod >= 1 ? -4 : 4) ? 1 : 0;
@@ -580,7 +581,6 @@ public class Scenery
                 if (Math.Abs(wantK - p.k) < 0.01) p.k = wantK;
                 if (Math.Abs(wantF - p.kf) < 0.01) p.kf = wantF;
                 double k = Math.Max(p.k, 0.001);
-                p.rings.visible = p.k > 0.01;
                 p.nuts.visible = p.k > 0.01;
                 p.nuts.scale.setScalar(k);
                 p.crownB.visible = p.kf > 0.01;
