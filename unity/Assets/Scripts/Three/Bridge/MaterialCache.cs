@@ -19,6 +19,8 @@ namespace THREE.Bridge
         {
             public UnityEngine.Material mat;
             public long hash = long.MinValue;
+            /// <summary>the colour, emissive, opacity, roughness and metalness part, which changes often and is cheap to push alone</summary>
+            public long vhash = long.MinValue;
             public int frame = -1;
             public string shader;
         }
@@ -113,11 +115,20 @@ namespace THREE.Bridge
             if (e.frame == frame) return e.mat;
             e.frame = frame;
             long h = Hash(m);
+            long vh = ValuesHash(m);
             bool custom = m is ShaderMaterial || m.customUniforms.Count > 0;
             if (h != e.hash)
             {
+                // anything about the material's state changed (or the first time): everything is set
                 e.hash = h;
+                e.vhash = vh;
                 Apply(m, e.mat, kind);
+            }
+            else if (vh != e.vhash)
+            {
+                // only a colour, glow, opacity or surface value moved (a lamp, the haze, the sky's tint): a few properties, not ~30
+                e.vhash = vh;
+                ApplyValues(m, e.mat);
             }
             if (custom) ApplyUniforms(m, e.mat);
             return e.mat;
@@ -129,7 +140,7 @@ namespace THREE.Bridge
         private static long Hash(THREE.Material m)
         {
             long h = 17;
-            h = Mix(h, (int)m.side); h = Mix(h, m.transparent ? 1 : 0); h = Mix(h, m.opacity); h = Mix(h, m.depthWrite ? 1 : 0);
+            h = Mix(h, (int)m.side); h = Mix(h, m.transparent ? 1 : 0); h = Mix(h, m.depthWrite ? 1 : 0);
             h = Mix(h, m.depthTest ? 1 : 0); h = Mix(h, (int)m.blending); h = Mix(h, m.alphaTest); h = Mix(h, m.toneMapped ? 1 : 0);
             h = Mix(h, m.fog ? 1 : 0); h = Mix(h, m.vertexColors ? 1 : 0); h = Mix(h, m.colorWrite ? 1 : 0); h = Mix(h, m.polygonOffset ? 1 : 0);
             h = Mix(h, m.polygonOffsetFactor); h = Mix(h, m.polygonOffsetUnits); h = Mix(h, m.visible ? 1 : 0); h = Mix(h, m.version);
@@ -137,29 +148,72 @@ namespace THREE.Bridge
             switch (m)
             {
                 case MeshStandardMaterial s:
-                    h = MixC(h, s.color); h = Mix(h, s.roughness); h = Mix(h, s.metalness); h = MixC(h, s.emissive); h = Mix(h, s.emissiveIntensity);
-                    h = Mix(h, s.flatShading ? 1 : 0); h = Mix(h, s.envMapIntensity); h = Mix(h, s.bumpScale);
+                                        h = Mix(h, s.flatShading ? 1 : 0); h = Mix(h, s.envMapIntensity); h = Mix(h, s.bumpScale);
                     h = MixTex(h, s.map); h = MixTex(h, s.emissiveMap); h = MixTex(h, s.alphaMap); h = MixTex(h, s.bumpMap); h = MixTex(h, s.roughnessMap);
                     if (s is MeshPhysicalMaterial p) { h = Mix(h, p.transmission); h = Mix(h, p.clearcoat); h = Mix(h, p.ior); }
                     break;
                 case MeshLambertMaterial l:
-                    h = MixC(h, l.color); h = MixC(h, l.emissive); h = Mix(h, l.emissiveIntensity); h = Mix(h, l.flatShading ? 1 : 0);
+                    h = Mix(h, l.flatShading ? 1 : 0);
                     h = MixTex(h, l.map); h = MixTex(h, l.emissiveMap); h = MixTex(h, l.alphaMap);
                     break;
                 case MeshBasicMaterial b:
-                    h = MixC(h, b.color); h = MixTex(h, b.map); h = MixTex(h, b.alphaMap);
+                    h = MixTex(h, b.map); h = MixTex(h, b.alphaMap);
                     break;
                 case SpriteMaterial sp:
-                    h = MixC(h, sp.color); h = MixTex(h, sp.map); h = Mix(h, sp.rotation); h = Mix(h, sp.sizeAttenuation ? 1 : 0);
+                    h = MixTex(h, sp.map); h = Mix(h, sp.rotation); h = Mix(h, sp.sizeAttenuation ? 1 : 0);
                     break;
                 case PointsMaterial pm:
-                    h = MixC(h, pm.color); h = MixTex(h, pm.map); h = Mix(h, pm.size); h = Mix(h, pm.sizeAttenuation ? 1 : 0);
-                    break;
-                case LineBasicMaterial lb:
-                    h = MixC(h, lb.color);
+                    h = MixTex(h, pm.map); h = Mix(h, pm.size); h = Mix(h, pm.sizeAttenuation ? 1 : 0);
                     break;
             }
             return h;
+        }
+
+        /// <summary>What <see cref="Hash"/> leaves out: the numbers that are pushed alone when only they change (see <see cref="ApplyValues"/>).</summary>
+        private static long ValuesHash(THREE.Material m)
+        {
+            long h = Mix(19, m.opacity);
+            switch (m)
+            {
+                case MeshStandardMaterial s:
+                    h = MixC(h, s.color); h = Mix(h, s.roughness); h = Mix(h, s.metalness); h = MixC(h, s.emissive); h = Mix(h, s.emissiveIntensity);
+                    if (s is MeshPhysicalMaterial p) h = Mix(h, p.transmission);
+                    break;
+                case MeshLambertMaterial l: h = MixC(h, l.color); h = MixC(h, l.emissive); h = Mix(h, l.emissiveIntensity); break;
+                case MeshBasicMaterial b: h = MixC(h, b.color); break;
+                case SpriteMaterial sp: h = MixC(h, sp.color); break;
+                case PointsMaterial pm: h = MixC(h, pm.color); break;
+                case LineBasicMaterial lb: h = MixC(h, lb.color); break;
+            }
+            return h;
+        }
+
+        /// <summary>Colour, emissive, roughness and metalness only (the same values <see cref="Apply"/> sets).</summary>
+        private static void ApplyValues(THREE.Material m, UnityEngine.Material u)
+        {
+            Color color = null, emissive = null;
+            double emissiveIntensity = 1, rough = 1, metal = 0;
+            bool hasEmissiveMap = false;
+            double opacity = m.opacity;
+            switch (m)
+            {
+                case MeshStandardMaterial s:
+                    color = s.color; emissive = s.emissive; emissiveIntensity = s.emissiveIntensity; rough = s.roughness; metal = s.metalness;
+                    hasEmissiveMap = s.emissiveMap != null;
+                    if (s is MeshPhysicalMaterial ph && ph.transmission > 0) opacity = m.opacity * (1 - ph.transmission * 0.75);
+                    break;
+                case MeshLambertMaterial l: color = l.color; emissive = l.emissive; emissiveIntensity = l.emissiveIntensity; hasEmissiveMap = l.emissiveMap != null; break;
+                case MeshBasicMaterial b: color = b.color; break;
+                case SpriteMaterial sp: color = sp.color; break;
+                case PointsMaterial pm: color = pm.color; break;
+                case LineBasicMaterial lb: color = lb.color; break;
+            }
+            var c = color ?? new Color(0xffffff);
+            u.SetVector(_Color, new U.Vector4((float)c.r, (float)c.g, (float)c.b, (float)opacity));
+            var e = emissive ?? new Color(0x000000);
+            u.SetVector(_Emissive, new U.Vector4((float)(e.r * emissiveIntensity), (float)(e.g * emissiveIntensity), (float)(e.b * emissiveIntensity), hasEmissiveMap ? 1 : 0));
+            u.SetFloat(_Rough, (float)rough);
+            u.SetFloat(_Metal, (float)metal);
         }
 
         private static long MixTex(long h, THREE.Texture t)

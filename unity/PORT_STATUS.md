@@ -175,3 +175,8 @@ Speed pass 3: the grass is culled by its real bounds (it was always drawn), rend
 same Unity mesh was refilled), the detector's line is redrawn at 30 Hz with a point every 4 px. Camp by day main thread 2.33 -> 1.99 ms,
 beach walking 2.65 -> 2.18 ms (dev PC, Mono, `-force-deck`). Not done: warm-up and load time (3.10) need profiling of the 3.6 s world
 build first.
+
+Speed pass 4: a material whose colour, glow, opacity, roughness or metalness changes alone (lamps, haze, the sky's tint) pushes four
+properties instead of re-setting about 30 (the state hash and a values hash are kept apart in `MaterialCache`); the minimap's change check
+is a few integers instead of a built text. On the dev PC the numbers stay within noise (camp by day sync 0.74 ms); the saving is garbage
+and calls into Unity, which weigh more on the Deck's CPU.

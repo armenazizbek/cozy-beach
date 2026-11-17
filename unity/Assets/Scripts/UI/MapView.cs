@@ -590,15 +590,23 @@ public class MapView
         ctx.restore();
     }
 
-    private string lastMiniKey = "";
+    private int miniKey1, miniKey2;
     private MiniMapGpu miniGpu;
 
     /// <summary>Round mini-map that turns so that "forward" is always up.</summary>
     public void drawMini(CanvasRenderingContext2D ctx, double size, MapPlayer p, IList<double[]> holes, Waypoint dest = null, Waypoint cart = null, Waypoint boat = null)
     {
-        var key = $"{JS.Str(size)}|{JS.ToInt32(p.x * 40)},{JS.ToInt32(p.z * 40)},{JS.ToInt32(p.yaw * 400)}|{holes.Count}|{this.flags.Count}|{(dest != null ? $"{JS.ToInt32(dest.x * 10)},{JS.ToInt32(dest.z * 10)}" : "")}|{(cart != null ? $"{JS.ToInt32(cart.x * 20)},{JS.ToInt32(cart.z * 20)}" : "")}|{(boat != null ? $"{JS.ToInt32(boat.x * 20)},{JS.ToInt32(boat.z * 20)}" : "")}|{(this.dog != null ? $"{JS.ToInt32(this.dog.x * 20)},{JS.ToInt32(this.dog.z * 20)}" : "")}";
-        if (key == this.lastMiniKey) return;
-        this.lastMiniKey = key;
+        // what the little map shows, as numbers (this runs every frame while moving: building a text for it made garbage)
+        int k1 = HashCode.Combine((int)size, JS.ToInt32(p.x * 40), JS.ToInt32(p.z * 40), JS.ToInt32(p.yaw * 400), holes.Count, this.flags.Count,
+            dest != null ? HashCode.Combine(JS.ToInt32(dest.x * 10), JS.ToInt32(dest.z * 10)) : 0);
+        int k2 = HashCode.Combine(
+            cart != null ? HashCode.Combine(JS.ToInt32(cart.x * 20), JS.ToInt32(cart.z * 20)) : 0,
+            boat != null ? HashCode.Combine(JS.ToInt32(boat.x * 20), JS.ToInt32(boat.z * 20)) : 0,
+            this.dog != null ? HashCode.Combine(JS.ToInt32(this.dog.x * 20), JS.ToInt32(this.dog.z * 20)) : 0,
+            (dest != null ? 1 : 0) | (cart != null ? 2 : 0) | (boat != null ? 4 : 0) | (this.dog != null ? 8 : 0));
+        if (k1 == this.miniKey1 && k2 == this.miniKey2 && this.miniGpu != null) return;
+        this.miniKey1 = k1;
+        this.miniKey2 = k2;
 
         var r = size / 2;
         var sc = size / 60; // 60 metres across
