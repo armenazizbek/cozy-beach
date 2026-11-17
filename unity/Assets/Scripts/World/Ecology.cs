@@ -150,6 +150,8 @@ public class Ecology
         double z = JS.Random() < 0.7 ? rand(DIG_MIN_Z - 6, DIG_MIN_Z + 4) : rand(-40, 26);
         if (JS.Hypot(x, z - CAMP_Z) < 13) g.position.set(x, beach.heightAt(x, DIG_MIN_Z + 6), DIG_MIN_Z + 6);
         else g.position.set(x, beach.heightAt(x, z) - 0.02, z);
+        // the blades never move inside the tuft (the tuft itself can be moved or removed): the scene copy skips them
+        g.syncStatic = true;
         group.add(g);
         tufts.Add(g);
     }

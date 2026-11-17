@@ -161,3 +161,7 @@ their centre is the default, `padText` cached):
 | lighthouse and ships at night | 535 fps, sync 0.84 ms | 632 fps, sync 0.55 ms |
 | diving | 614 fps, sync 0.70 ms | 715 fps, sync 0.49 ms |
 | underground | 1122 fps, sync 0.31 ms | 1401 fps, sync 0.14 ms |
+
+Speed pass 2 (clouds and grass tufts marked static for the scene copy, small things cast no shadow on `low`/`handheld`, ocean depth
+refresh in slices, smoke test says when garbage is not recorded): camp by day 407 fps, sync 0.84 ms, 1429 objects (was 1518);
+lighthouse at night 677 fps; diving 737 fps; underground 1455 fps (dev PC, Mono, `-force-deck`, 1280x800).

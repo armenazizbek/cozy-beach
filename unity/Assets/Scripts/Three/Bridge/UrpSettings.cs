@@ -44,6 +44,12 @@ namespace THREE.Bridge
         /// The graphics quality the player picked: "low", "medium" or "high" (high is how the game always looked). Low and
         /// medium trade antialiasing, shadow detail and shadow softness for speed on slower graphics chips.
         /// </summary>
+        /// <summary>things whose bounding box diagonal is smaller than this (metres) cast no shadow; 0 = all cast (medium, high)</summary>
+        public static float SmallCasterCutoff;
+
+        /// <summary>bumped when the cutoff changes, so every object looks again</summary>
+        public static int CasterVersion;
+
         public static void SetQuality(string q)
         {
             var a = Asset;
@@ -58,6 +64,12 @@ namespace THREE.Bridge
                 case "handheld": msaa = 2; shadowRes = 2048; cascades = 1; SoftShadows = true; softQuality = SoftShadowQuality.Low; reach = 35f; break;
                 case "medium": msaa = 2; shadowRes = 2048; cascades = 2; SoftShadows = true; break;
                 default: msaa = 4; shadowRes = 4096; cascades = 2; SoftShadows = true; break;
+            }
+            float cutoff = q == "low" || q == "handheld" ? 0.5f : 0f;
+            if (cutoff != SmallCasterCutoff)
+            {
+                SmallCasterCutoff = cutoff;
+                CasterVersion++;
             }
             SetSoftShadowQuality(a, softQuality);
             SetShadowDistance(reach);

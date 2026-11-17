@@ -1317,6 +1317,7 @@ public class AutoShot : MonoBehaviour
         // longer than a screen refresh misses it, which with VSync on costs a whole refresh
         var gcRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Memory, "GC Allocated In Frame");
         double gcSum = 0;
+        bool gcValid = false;
         int gc0 = GC.CollectionCount(0);
         var times = new System.Collections.Generic.List<float>();
         double refreshMs = 1000.0 / Math.Max(30, Screen.currentResolution.refreshRateRatio.value);
@@ -1326,6 +1327,7 @@ public class AutoShot : MonoBehaviour
             frames++;
             worst = Mathf.Max(worst, Time.unscaledDeltaTime);
             times.Add(Time.unscaledDeltaTime * 1000f);
+            gcValid |= gcRec.Valid && gcRec.Count > 0;
             gcSum += gcRec.LastValue;
             // where Unity's frame went: the main thread, the render thread, the GPU (needs Frame Timing Stats, see ProjectSetup)
             FrameTimingManager.CaptureFrameTimings();
@@ -1349,7 +1351,8 @@ public class AutoShot : MonoBehaviour
         int late = 0;
         foreach (var t in times) if (t > refreshMs * 1.5) late++;
         Debug.Log($"[AutoShot] {label} pacing: frame ms median {P(0.5):0.00}, 90% {P(0.9):0.00}, 99% {P(0.99):0.00}; {late} of {times.Count} frames took over 1.5 refreshes ({refreshMs:0.00} ms); " +
-                  $"garbage {gcSum / fr / 1024:0.0} KB/frame, {GC.CollectionCount(0) - gc0} collections; vsync {QualitySettings.vSyncCount}, target fps {Application.targetFrameRate}");
+                  // Unity records the garbage a frame makes only in development players: in a release build the collection count is the signal
+                  $"garbage {(gcValid ? $"{gcSum / fr / 1024:0.0} KB/frame" : "not recorded in this build")}, {GC.CollectionCount(0) - gc0} collections; vsync {QualitySettings.vSyncCount}, target fps {Application.targetFrameRate}");
         gcRec.Dispose();
     }
 

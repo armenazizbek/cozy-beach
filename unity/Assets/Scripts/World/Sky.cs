@@ -214,6 +214,9 @@ public class Sky
             double ang = JS.Random() * Math.PI * 2;
             double r = 120 + JS.Random() * 150;
             g.position.set(Math.Cos(ang) * r, 70 + JS.Random() * 60, Math.Sin(ang) * r);
+            // the cloud drifts as a whole, its puffs never move inside it: the scene copy skips them (their material colours
+            // still follow the light, see syncStatic)
+            g.syncStatic = true;
             group.add(g);
             clouds.Add(new Cloud { group = g, speed = 1.2 + JS.Random() * 2.2 });
         }

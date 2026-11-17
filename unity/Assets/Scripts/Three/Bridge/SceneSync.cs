@@ -26,6 +26,8 @@ namespace THREE.Bridge
         public Transform parentTf;
         public double spriteCx = double.NaN, spriteCy = double.NaN;
         public bool spriteBlock;
+        public bool castWanted, casterSmall;
+        public int casterVersion = -1;
         public U.Mesh lastMesh;
         public U.Material[] mats = new U.Material[0];
         public bool cast, receive;
@@ -313,10 +315,26 @@ namespace THREE.Bridge
 
         private static void SetShadowFlags(Node n, Renderer r, Object3D o)
         {
-            if (n.cast != o.castShadow)
+            bool cast = o.castShadow;
+            // on the weaker presets small things (coconuts, shells, coins, the parts of gulls and sharks) cast no shadow: their
+            // shadows are a few pixels and each one is another draw into the shadow map
+            if (cast && UrpSettings.SmallCasterCutoff > 0)
             {
-                n.cast = o.castShadow;
-                r.shadowCastingMode = o.castShadow ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                if (n.casterVersion != UrpSettings.CasterVersion || n.castWanted != o.castShadow)
+                {
+                    n.casterVersion = UrpSettings.CasterVersion;
+                    var m = n.mf != null ? n.mf.sharedMesh : null;
+                    double big = System.Math.Max(o.scale.x, System.Math.Max(o.scale.y, o.scale.z));
+                    n.casterSmall = m != null && m.bounds.size.magnitude * big < UrpSettings.SmallCasterCutoff;
+                }
+                if (n.casterSmall) cast = false;
+            }
+            else if (n.casterSmall) n.casterSmall = false;
+            if (n.cast != cast || n.castWanted != o.castShadow)
+            {
+                n.castWanted = o.castShadow;
+                n.cast = cast;
+                r.shadowCastingMode = cast ? ShadowCastingMode.On : ShadowCastingMode.Off;
             }
             if (n.receive != o.receiveShadow)
             {
