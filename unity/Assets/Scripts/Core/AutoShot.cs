@@ -57,6 +57,7 @@ public class AutoShot : MonoBehaviour
             yield break;
         }
         Debug.Log($"[AutoShot] loaded after {Time.realtimeSinceStartup - t0:0.0} s");
+        Debug.Log("[AutoShot] context: " + Context());
         // -autoshot-novsync: measure with VSync off and no frame limit, whatever the player's settings say
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-novsync") >= 0) FramePacing.Apply(false, 0);
 
@@ -172,6 +173,60 @@ public class AutoShot : MonoBehaviour
             yield return Measure("running");
             game.input.held.Clear();
             Debug.Log("[AutoShot] after walking: " + game.smokeTestWhere());
+        }
+
+        // -autoshot-perf: the performance tour for the Steam Deck (STEAM_DECK_PLAN.md): the frame rate, the main, render and
+        // graphics chip times and the slowest parts in each of the heavy places, then quit. Use it with -autoshot-novsync for headroom.
+        if (Array.IndexOf(args, "-autoshot-perf") >= 0)
+        {
+            // by day: standing, walking, running along the beach
+            game.smokeTestLook(Math.PI / 2, -0.05);
+            yield return Wait(2);
+            yield return Measure("perf: camp by day, standing");
+            game.input.held.Add("KeyW");
+            yield return Wait(1);
+            yield return Measure("perf: beach, walking");
+            game.input.held.Add("ShiftLeft");
+            yield return Measure("perf: beach, running");
+            game.input.held.Clear();
+            // rain at the camp
+            game.smokeTestDogRain("rain");
+            yield return Wait(12);
+            yield return Measure("perf: rain at the camp");
+            game.smokeTestDogRain("dry");
+            // night at the camp, with the fire and the lanterns
+            game.smokeTestTower("night");
+            yield return Wait(3);
+            yield return Measure("perf: camp at night");
+            game.smokeTestTower("day");
+            // out on the open sea at full speed
+            game.smokeTestBoatAt(0, 150, 0);
+            yield return Wait(2);
+            game.input.held.Add("KeyW");
+            yield return Wait(3);
+            yield return Measure("perf: boat at full speed");
+            game.input.held.Clear();
+            // the lighthouse at night with its beams, once cleaned, and the ships on the horizon
+            game.smokeTestTower("clean");
+            yield return Wait((float)Lighthouse.INTRO_LENGTH + 2);
+            game.smokeTestTower("night");
+            yield return Wait(3);
+            game.smokeTestBoatAt(Beach.EMBER.x + 40, Beach.EMBER.z - 70, Math.Atan2(40, -70));
+            yield return Wait(3);
+            yield return Measure("perf: lighthouse and ships at night");
+            game.smokeTestTower("day");
+            // under the sea, and in the room under the dunes
+            game.smokeTestGo("dive");
+            yield return Wait(3);
+            yield return Measure("perf: diving");
+            game.smokeTestGo("surface");
+            yield return Wait(2);
+            game.smokeTestGo("underground");
+            yield return Wait(3);
+            yield return Measure("perf: underground");
+            game.smokeTestGo("surface");
+            Quit(0);
+            yield break;
         }
 
         // -autoshot-gear: the drink on the stump by the fire, for each Thermos & Gear tier (it must match the shop's picture)
@@ -1223,6 +1278,26 @@ public class AutoShot : MonoBehaviour
         yield return Shot("3-sea.png");
 
         Quit(0);
+    }
+
+    /// <summary>What this run is on and with which graphics settings, so a log line can be read without knowing the machine.</summary>
+    private static string Context()
+    {
+        var a = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+        string urp = a == null ? "no URP asset"
+            : $"render scale {a.renderScale:0.00}, MSAA {a.msaaSampleCount}x, shadows {a.mainLightShadowmapResolution} px / {a.shadowCascadeCount} cascade(s) / {a.shadowDistance:0} m, soft {THREE.Bridge.UrpSettings.SoftShadowQualityName()}";
+        var g = GameHost.Instance?.game;
+        return $"{Platform.Describe()}; quality {g?.settings?.quality}; {urp}; UI ratio {window.devicePixelRatio:0.000}, OS ratio {window.osPixelRatio:0.00}; " +
+               $"scripting {(IsIl2Cpp() ? "IL2CPP" : "Mono")}, development build {Debug.isDebugBuild}";
+    }
+
+    private static bool IsIl2Cpp()
+    {
+#if ENABLE_IL2CPP
+        return true;
+#else
+        return false;
+#endif
     }
 
     private static IEnumerator Wait(float seconds)

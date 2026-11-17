@@ -727,7 +727,7 @@ public class UIManager
         int sh = disp.height > 0 ? disp.height : UnityEngine.Screen.currentResolution.height > 0 ? UnityEngine.Screen.currentResolution.height : UnityEngine.Screen.height;
         var allSizes = new int[][]
         {
-            new[] { 1280, 720 }, new[] { 1366, 768 }, new[] { 1600, 900 },
+            new[] { 1280, 720 }, new[] { 1280, 800 }, new[] { 1366, 768 }, new[] { 1600, 900 },
             new[] { 1920, 1080 }, new[] { 2560, 1440 }, new[] { 3840, 2160 },
         };
         var sizes = allSizes.Where(wh => sw <= 0 || (wh[0] <= sw && wh[1] <= sh))
@@ -741,6 +741,7 @@ public class UIManager
         rows.append(el("h3", "caps", "Graphics"));
         choice("Quality", new[]
         {
+            new[] { "handheld", "Handheld (Steam Deck)" },
             new[] { "high", "High" },
             new[] { "medium", "Medium" },
             new[] { "low", "Low" },

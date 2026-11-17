@@ -25,7 +25,7 @@ public class GameSettings
     public bool sharp = true;
     /// <summary>0.5..1 how much of that resolution is actually drawn; the picture is stretched back up to fill the screen</summary>
     public double renderScale = 1;
-    /// <summary>graphics quality: 'low' | 'medium' | 'high' (antialiasing, shadow detail and softness)</summary>
+    /// <summary>graphics quality: 'handheld' | 'low' | 'medium' | 'high' (antialiasing, shadow detail, reach and softness)</summary>
     public string quality = "high";
     /// <summary>wait for the screen's refresh before showing each picture (no tearing)</summary>
     public bool vsync = true;
@@ -43,7 +43,25 @@ public static class Settings
 {
     private const string KEY = "cozy-treasure-hunter-settings-v1";
 
-    public static GameSettings DEFAULT_SETTINGS => new GameSettings();
+    public static GameSettings DEFAULT_SETTINGS => Defaults();
+
+    /// <summary>
+    /// What a player who has never changed anything gets. On a Steam Deck: the handheld graphics preset, a borderless window
+    /// at the screen's own size, and VSync (the Deck's own frame limiter sits on top). Saved settings are never replaced.
+    /// </summary>
+    private static GameSettings Defaults()
+    {
+        var s = new GameSettings();
+        if (Platform.IsSteamDeck)
+        {
+            s.quality = "handheld";
+            s.displayMode = "borderless";
+            s.windowSize = "1280x800";
+            s.vsync = true;
+            s.fpsLimit = 0;
+        }
+        return s;
+    }
 
     public static GameSettings loadSettings()
     {
@@ -52,7 +70,7 @@ public static class Settings
             var raw = PlayerPrefs.GetString(KEY, null);
             if (!string.IsNullOrEmpty(raw))
             {
-                var s = new GameSettings();
+                var s = Defaults();
                 JsonConvert.PopulateObject(raw, s);
                 return s;
             }
@@ -61,7 +79,7 @@ public static class Settings
         {
             /* ignore */
         }
-        return new GameSettings();
+        return Defaults();
     }
 
     public static void saveSettings(GameSettings s)

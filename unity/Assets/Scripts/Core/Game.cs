@@ -3758,6 +3758,8 @@ public class Game
     private void applyDisplay(bool atStart)
     {
         var st = settings;
+        // the smoke test picks its own window size (-screen-width/-screen-height), whatever the saved settings say
+        if (AutoShot.Active && Array.IndexOf(Environment.GetCommandLineArgs(), "-screen-width") >= 0) return;
         string key = $"{st.displayMode}|{st.windowSize}";
         if (key == shownDisplay) return;
         shownDisplay = key;

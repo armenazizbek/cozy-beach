@@ -49,15 +49,51 @@ namespace THREE.Bridge
             var a = Asset;
             if (a == null) return;
             int msaa, shadowRes, cascades;
+            float reach = 60f;
+            var softQuality = SoftShadowQuality.Medium;
             switch (q)
             {
-                case "low": msaa = 1; shadowRes = 1024; cascades = 1; SoftShadows = false; break;
+                case "low": msaa = 1; shadowRes = 1024; cascades = 1; SoftShadows = false; reach = 40f; break;
+                // the Steam Deck: half the antialiasing, one smaller shadow map over a shorter reach, cheaper soft edges
+                case "handheld": msaa = 2; shadowRes = 2048; cascades = 1; SoftShadows = true; softQuality = SoftShadowQuality.Low; reach = 35f; break;
                 case "medium": msaa = 2; shadowRes = 2048; cascades = 2; SoftShadows = true; break;
                 default: msaa = 4; shadowRes = 4096; cascades = 2; SoftShadows = true; break;
             }
+            SetSoftShadowQuality(a, softQuality);
+            SetShadowDistance(reach);
             if (a.msaaSampleCount != msaa) a.msaaSampleCount = msaa;
             if (a.mainLightShadowmapResolution != shadowRes) a.mainLightShadowmapResolution = shadowRes;
             if (a.shadowCascadeCount != cascades) a.shadowCascadeCount = cascades;
+        }
+
+        private static System.Reflection.FieldInfo softField;
+
+        /// <summary>The asset has no public setter for how soft the shadow edges are, only its serialized field.</summary>
+        private static void SetSoftShadowQuality(UniversalRenderPipelineAsset a, SoftShadowQuality q)
+        {
+            try
+            {
+                softField ??= typeof(UniversalRenderPipelineAsset).GetField("m_SoftShadowQuality", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                softField?.SetValue(a, q);
+            }
+            catch
+            {
+                /* keep the asset's own */
+            }
+        }
+
+        /// <summary>How soft the shadow edges are now, for the smoke test's log.</summary>
+        public static string SoftShadowQualityName()
+        {
+            try
+            {
+                softField ??= typeof(UniversalRenderPipelineAsset).GetField("m_SoftShadowQuality", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                return softField?.GetValue(Asset)?.ToString() ?? "?";
+            }
+            catch
+            {
+                return "?";
+            }
         }
 
         public static void SetupCamera(UnityEngine.Camera cam)
