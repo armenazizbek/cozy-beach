@@ -184,3 +184,7 @@ and calls into Unity, which weigh more on the Deck's CPU.
 Speed pass 5 (draw calls): palm rings are part of the trunk mesh, a gull's fixed parts and a shark's eyes, gills, gape and teeth are welded
 into one mesh per material (`Merge.mergeStatic`). Camp by day: 1429 -> 1247 synced objects, 911 -> 729 drawn, scene sync 0.74 -> 0.57 ms,
 main thread about 1.8 ms (dev PC, Mono, `-force-deck`, 1280x800); boat 1467 -> 1255 objects.
+
+Speed pass 6: particle pools upload their colours only when a particle is emitted and are drawn only up to their highest live particle
+(rounded up to 32), so a pool with a few live sparks no longer rebuilds all its quads each frame (embers 74 vertices a frame).
+No change in the dev PC's numbers (within noise).

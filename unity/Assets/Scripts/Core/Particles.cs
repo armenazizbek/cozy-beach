@@ -49,6 +49,8 @@ public class ParticleSystem
         life[i] = lifetime;
         maxLife[i] = lifetime;
         live++;
+        colDirty = true;
+        if (i >= range) range = i + 1;
         points.visible = true;
     }
 
@@ -57,6 +59,11 @@ public class ParticleSystem
     /// is hidden and update does nothing, so the many pools that are idle most of the time (splashes, wakes, sparks) cost nothing.
     /// </summary>
     private int live;
+    // the colours only change when a particle is emitted; the pool is drawn only up to its highest live particle (rounded up to
+    // 32, so the mesh behind it is not rebuilt at a new size every frame)
+    private bool colDirty = true;
+    private int range;
+    private int drawn = -1;
 
     public void burst(THREE.Vector3 p, int count, double speed, double up, double lifetime, THREE.Color color)
     {
@@ -78,6 +85,7 @@ public class ParticleSystem
             return;
         }
         live = 0;
+        int hi = 0;
         for (int i = 0; i < max; i++)
         {
             if (life[i] <= 0)
@@ -86,6 +94,7 @@ public class ParticleSystem
                 continue;
             }
             live++;
+            hi = i + 1;
             life[i] -= dt;
             int i3 = i * 3;
             vel[i3 + 1] -= gravity * dt;
@@ -97,6 +106,17 @@ public class ParticleSystem
         var g = points.geometry;
         g.attributes.position.needsUpdate = true;
         g.attributes["aAlpha"].needsUpdate = true;
-        g.attributes["aColor"].needsUpdate = true;
+        if (colDirty)
+        {
+            colDirty = false;
+            g.attributes["aColor"].needsUpdate = true;
+        }
+        range = hi;
+        int want = Math.Min(max, (hi + 31) / 32 * 32);
+        if (want != drawn)
+        {
+            drawn = want;
+            g.setDrawRange(0, want);
+        }
     }
 }
