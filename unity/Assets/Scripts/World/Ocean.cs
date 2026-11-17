@@ -161,6 +161,15 @@ public class Ocean
     public readonly THREE.Group group = new THREE.Group();
     private readonly Beach beach;
     private readonly THREE.Mesh water;
+
+    /// <summary>The sea surface takes shadows (boat, pier) on the full presets; on the weaker ones it skips the shadow lookups, which cost a lot over a screen that is half sea.</summary>
+    public void setReceiveShadow(bool on)
+    {
+        if (water != null) water.receiveShadow = on;
+        shadowUniform.value = on ? 1.0 : 0.0;
+    }
+
+    private readonly THREE.Uniform shadowUniform = new THREE.Uniform(1.0);
     private readonly THREE.Uniform time = new THREE.Uniform(0.0);
     private readonly THREE.Mesh foam;
     private readonly THREE.CanvasTexture foamTex;
@@ -224,6 +233,7 @@ public class Ocean
         var ripple = rippleTexture();
         mat.customShader = "Cozy/Ocean";
         mat.customUniforms["uTime"] = time;
+        mat.customUniforms["uShadow"] = shadowUniform;
         mat.customUniforms["uRipple"] = new THREE.Uniform(ripple);
         mat.customUniforms["uShallow"] = new THREE.Uniform(new THREE.Color(0x1aa0b6));
         mat.customUniforms["uMid"] = new THREE.Uniform(new THREE.Color(0x1573c4));

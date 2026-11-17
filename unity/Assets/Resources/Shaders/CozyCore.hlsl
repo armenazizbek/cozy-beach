@@ -196,8 +196,10 @@ void CozyShadeSplit(float3 positionWS, float3 N, float3 V, float2 screenUV, Cozy
     out float3 diffuseOut, out float3 directSpecularOut, out float3 indirectSpecularOut)
 {
     float3 diffuse = 0, specular = 0;
-    float4 shadowCoord = TransformWorldToShadowCoord(positionWS);
-    Light mainLight = GetMainLight(shadowCoord);
+    // without shadows (a material that does not receive them) the shadow map is not sampled at all
+    Light mainLight;
+    [branch] if (receiveShadows) mainLight = GetMainLight(TransformWorldToShadowCoord(positionWS));
+    else mainLight = GetMainLight();
     float mainShadow = receiveShadows ? mainLight.shadowAttenuation : 1.0;
     CozyDirect(mainLight.direction, mainLight.color * mainLight.distanceAttenuation * mainShadow, N, V, s, diffuse, specular);
 

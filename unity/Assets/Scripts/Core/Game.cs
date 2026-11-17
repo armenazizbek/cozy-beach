@@ -3737,6 +3737,7 @@ public class Game
         DomHost.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
         audio.setVolumes(st.master, st.music, st.ambience);
         THREE.Bridge.UrpSettings.SetQuality(st.quality);
+        ocean?.setReceiveShadow(st.quality != "handheld" && st.quality != "low");
         FramePacing.Apply(st.vsync, st.fpsLimit);
         renderer.setPixelRatio(pixelRatio(st.sharp) * st.renderScale);
         resize();

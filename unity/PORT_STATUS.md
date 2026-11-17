@@ -143,3 +143,21 @@ no errors in the player log. Fixed on the way:
 
 Not checked yet: playing by hand (mouse look, digging, cleaning, camp pages, saves), the boat, diving, the underground and the
 ending, controller input, sound, and how close the colours and light are to the browser build side by side.
+
+## Steam Deck (STEAM_DECK_PLAN.md)
+
+Done so far on branch `steam-deck`: Deck detection and defaults, `handheld` quality, UI size setting and 14px font floor, pad mode
+at boot, focus/quit/audio handling, Steamworks.NET (achievements, overlay pause, on-screen keyboard for save names, photos into
+the Steam screenshot library), bundled fonts (Fira Sans, PT Serif, Noto Sans Symbols 2). None of it is measured on a real Deck yet.
+
+Dev PC (RTX 5090, Mono build, `-force-deck`, 1280x800, `-autoshot-perf -autoshot-novsync`), before and after the first speed pass
+(hidden subtrees skipped by the matrix pass, ocean not sampling shadows on handheld/low, sprites without a property block when
+their centre is the default, `padText` cached):
+
+| scene | before | after |
+|---|---|---|
+| camp by day | 357 fps, sync 1.14 ms, GPU 0.17 ms | 395 fps, sync 0.86 ms, GPU 0.13 ms |
+| beach, running | 330 fps, sync 1.32 ms | 367 fps, sync 1.00 ms |
+| lighthouse and ships at night | 535 fps, sync 0.84 ms | 632 fps, sync 0.55 ms |
+| diving | 614 fps, sync 0.70 ms | 715 fps, sync 0.49 ms |
+| underground | 1122 fps, sync 0.31 ms | 1401 fps, sync 0.14 ms |

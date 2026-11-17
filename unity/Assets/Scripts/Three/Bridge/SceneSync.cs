@@ -25,6 +25,7 @@ namespace THREE.Bridge
         /// <summary>The parent last given to tf, so the sync need not ask Unity every frame.</summary>
         public Transform parentTf;
         public double spriteCx = double.NaN, spriteCy = double.NaN;
+        public bool spriteBlock;
         public U.Mesh lastMesh;
         public U.Material[] mats = new U.Material[0];
         public bool cast, receive;
@@ -118,8 +119,16 @@ namespace THREE.Bridge
             MaterialCache.NextFrame();
             using (BridgeStats.Time("sync.matrices"))
             {
-                scene.updateMatrixWorld();
-                if (camera.parent == null) camera.updateMatrixWorld();
+                THREE.Object3D.skipHidden = true;
+                try
+                {
+                    scene.updateMatrixWorld();
+                    if (camera.parent == null) camera.updateMatrixWorld();
+                }
+                finally
+                {
+                    THREE.Object3D.skipHidden = false;
+                }
             }
             lights.Clear();
             hemiSky = hemiGround = ambient = U.Vector4.zero;
@@ -502,8 +511,12 @@ namespace THREE.Bridge
                 n.sortingOrder = s.renderOrder;
                 n.mr.sortingOrder = s.renderOrder;
             }
-            if (mat != Invisible && (newMat || s.center.x != n.spriteCx || s.center.y != n.spriteCy))
+            // a sprite with the usual centre needs no property block (the shader reads 0,0 as 0.5,0.5), and one without a
+            // block can be drawn by the SRP Batcher together with the rest
+            bool plainCentre = s.center.x == 0.5 && s.center.y == 0.5 && !n.spriteBlock;
+            if (mat != Invisible && !plainCentre && (newMat || s.center.x != n.spriteCx || s.center.y != n.spriteCy))
             {
+                n.spriteBlock = true;
                 n.spriteCx = s.center.x;
                 n.spriteCy = s.center.y;
                 spriteBlock.Clear();

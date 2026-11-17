@@ -306,8 +306,28 @@ namespace THREE
             quaternion._x != _cqx || quaternion._y != _cqy || quaternion._z != _cqz || quaternion._w != _cqw ||
             scale.x != _csx || scale.y != _csy || scale.z != _csz;
 
+        /// <summary>
+        /// Set while the per-frame pass for the scene runs: hidden objects (the sea floor above water, the cellar, the opening
+        /// scene) are not drawn or synced, so nothing under them is brought up to date until they are shown again. Explicit
+        /// calls (building, merging, raycasts) leave it off and still compute everything.
+        /// </summary>
+        public static bool skipHidden;
+
+        // a hidden object was passed over: its world matrices are stale, so everything under it is recomputed when it shows
+        private bool worldStale;
+
         public virtual void updateMatrixWorld(bool force = false)
         {
+            if (skipHidden && !visible && parent != null)
+            {
+                worldStale = true;
+                return;
+            }
+            if (worldStale)
+            {
+                worldStale = false;
+                force = true;
+            }
             if (matrixAutoUpdate && LocalChanged()) updateMatrix();
             if (matrixWorldNeedsUpdate || force)
             {

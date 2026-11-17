@@ -42,11 +42,18 @@ public static class PadText
         (new Regex(@"\(Space\)"), "(A)", true),
     };
 
+    private static readonly System.Collections.Generic.Dictionary<string, string> cache = new System.Collections.Generic.Dictionary<string, string>();
+
     /// <summary>Rewrites a keyboard-and-mouse sentence for a controller. Unchanged while the keyboard is in use.</summary>
     public static string padText(string t)
     {
         if (!pad.on || t == null) return t;
+        // the same hints and labels come round every frame: rewrite each text once
+        if (cache.TryGetValue(t, out var hit)) return hit;
+        var src = t;
         foreach (var (re, to, all) in SWAPS) t = all ? re.Replace(t, to) : re.Replace(t, to, 1);
+        if (cache.Count > 2000) cache.Clear();
+        cache[src] = t;
         return t;
     }
 }

@@ -15,6 +15,7 @@ Shader "Cozy/Ocean"
         _Params ("Params", Vector) = (1, 0, 0, 1)
         uRipple ("Ripple", 2D) = "grey" {}
         uTime ("Time", Float) = 0
+        uShadow ("Receive shadows", Float) = 1
         uShallow ("Shallow", Vector) = (0, 0.3, 0.4, 1)
         uMid ("Mid", Vector) = (0, 0.2, 0.5, 1)
         uDeep ("Deep", Vector) = (0, 0.1, 0.4, 1)
@@ -68,6 +69,7 @@ Shader "Cozy/Ocean"
                 float4 _Params;
                 float4 uRipple_ST;
                 float uTime;
+                float uShadow;
                 float4 uShallow;
                 float4 uMid;
                 float4 uDeep;
@@ -172,7 +174,7 @@ Shader "Cozy/Ocean"
 
                 CozySurface s = CozyMakeSurface(albedo, _Metal, _Rough, flatN, 0);
                 float3 diffuse, directSpec, indirectSpec;
-                CozyShadeSplit(i.positionWS, N, V, GetNormalizedScreenSpaceUV(i.positionCS), s, _Params.x, true, diffuse, directSpec, indirectSpec);
+                CozyShadeSplit(i.positionWS, N, V, GetNormalizedScreenSpaceUV(i.positionCS), s, _Params.x, uShadow > 0.5, diffuse, directSpec, indirectSpec);
                 // keep the sun's reflection a glitter on the water rather than a white sheet across it
                 directSpec *= 0.3;
                 float3 outgoing = diffuse + directSpec + indirectSpec + _Emissive.rgb;
