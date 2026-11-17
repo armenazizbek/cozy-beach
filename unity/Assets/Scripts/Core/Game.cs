@@ -1474,7 +1474,8 @@ public class Game
     /// </summary>
     private double pixelRatio(bool sharp)
     {
-        double os = Math.Max(0.5, window.osPixelRatio);
+        // on a Deck the screen is the 1280x800 it is: a high DPI figure from Proton must not shrink the 3D picture
+        double os = Platform.IsSteamDeck ? 1 : Math.Max(0.5, window.osPixelRatio);
         return window.devicePixelRatio / os * (sharp ? Math.Min(os, MAX_PIXEL_RATIO) : 1);
     }
 
@@ -3342,6 +3343,9 @@ public class Game
     /// <summary>The button that leaves a menu (Back, Done, Close, Cancel, Resume), if it has one.</summary>
     private HTMLButtonElement backButton(HTMLElement root)
     {
+        // a big photo in the album: B closes the photo, not the whole camp behind it
+        var photoClose = root.querySelector<HTMLButtonElement>(".photo-btns .ghost");
+        if (photoClose != null && !photoClose.disabled) return photoClose;
         var back = root.querySelectorAll<HTMLButtonElement>("button").FirstOrDefault(b => BACK_RE.IsMatch(b.textContent ?? ""));
         return back != null && !back.disabled ? back : null;
     }

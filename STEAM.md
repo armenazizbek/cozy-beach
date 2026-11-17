@@ -4,7 +4,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
 
 ## What is built in
 
-- **Achievements.** 36 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). When Steam starts the game, each achievement is also unlocked on Steam. Outside Steam it works the same, without any Steam features.
+- **Achievements.** 37 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). The Unity build uses Steamworks.NET (`Core/SteamService.cs`): when Steam is running, every achievement already earned is unlocked on Steam at start and new ones as they happen. It also pauses the game when the Steam overlay opens, opens Steam's on-screen keyboard for the save name on a controller, and adds saved photos to the Steam screenshot library. Outside Steam it works the same, without any Steam features.
 - **Cloud saves.** In the desktop app every save, the autosave and the achievement list are plain `.json` files in a `saves` folder inside the game's user-data folder, which Steam can copy to the cloud (see step 4). Saves an earlier version kept in the browser's storage are copied across the first time they are read.
 - **Installer.** `npm run dist:win` makes an installer (`Cozy-Treasure-Hunter-Setup-<version>.exe`, with a desktop shortcut, a Start-menu entry, a choice of folder and an uninstaller) and a portable exe. Steam itself does not use the installer: it installs the game from the files you upload (step 5).
 
@@ -25,7 +25,8 @@ What the game already does for Steam, and what is left to do on Steam's side.
 
 ## Notes
 
-- The Steam module (`steamworks.js`) is an optional dependency. If it is missing or Steam is not running, the game just carries on without it.
+- Steam is optional: if it is not running, or `steam_api64.dll` is missing, the game just carries on without it. For testing outside Steam, put a `steam_appid.txt` containing 480 next to the exe (never upload it). Once the real App ID exists, call `SteamAPI.RestartAppIfNecessary(appId)` in `SteamService.Init`.
+- Steam Input: set the default configuration to "Gamepad" so the Deck's trackpads are not a mouse by default (the game shows Xbox button glyphs).
 - The game is not code-signed, so Windows SmartScreen may warn on the first run of the installer. Steam installs do not show that warning.
 - Keep the licence notices that the build bundles (`LICENSE.electron.txt` and `LICENSES.chromium.html`).
 
@@ -69,3 +70,4 @@ What the game already does for Steam, and what is left to do on Steam's side.
 | `DOOR` | Knock Knock | Try the great door. (secret) |
 | `DOOR_OPEN` | High Noon | Open the great door. (secret) |
 | `HOARD` | The Marigold’s Gold | Find the lost gold. (secret) |
+| `STARGAZER` | Stargazer | Find every constellation through the telescope on Lagoon Cay. |

@@ -58,8 +58,8 @@ they no longer look like a web page:
 - **One highlight.** The mouse, the keyboard (arrows or W A S D, Enter, Esc, Q and E for tabs) and a controller all move the
   same focus through a menu (`Game.menuKey`, `Game.padNav`, `HTMLElement.HoverFocus`), and a line along the bottom of every
   menu says what the keys do (`Game.menuTick`, `UIManager.setMenuBar`).
-- **Fonts** come from the system for now (Trebuchet MS for text, Georgia Bold for headings). A font file put in
-  `Assets/Resources/UI/Fonts` as `Body`, `BodyBold` or `Display` is used instead, which is what a console build will need.
+- **Fonts:** Windows PCs use the system's (Trebuchet MS for text, Georgia Bold for headings). The bundled OFL fonts in
+  `Assets/Resources/UI/Fonts` (Fira Sans, PT Serif, Noto Sans Symbols 2) are used on a Steam Deck and wherever Trebuchet MS is missing.
 
 ### Smoke test
 
@@ -180,3 +180,12 @@ Three.js maths.
 ## What is ported
 
 See `PORT_STATUS.md` for the file-by-file list.
+
+### Measuring on a Steam Deck
+
+1. Build with `BuildScript.BuildWindows` (IL2CPP). Copy `unity/Builds/Windows` to the Deck without the `*_BackUpThisFolder_ButDontShipItWithYourGame` and `*_BurstDebugInformation_DoNotShip` folders (e.g. `/home/deck/Games/Cozy`).
+2. Desktop Mode: Steam, Add a Non-Steam Game, `CozyTreasureHunter.exe`. Properties, Compatibility: force the current stable Proton (also try Proton Experimental once).
+3. Launch options: `-autoshot Z:\home\deck\perf -autoshot-perf -logFile Z:\home\deck\perf\Player.log` (add `-autoshot-novsync` for a headroom run). Results land in `/home/deck/perf`.
+4. Run it from Game Mode, plugged in, default TDP and refresh, Steam frame limiter off. Repeat once on battery.
+5. Graphics API A/B: the same run with `-force-d3d11`, then `-force-d3d12`.
+On a PC, `-force-deck` pretends to be a Deck (Deck defaults, handheld quality, larger UI, bundled fonts).

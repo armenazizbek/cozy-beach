@@ -21,7 +21,7 @@ The 8 screenshots, in the order I would show them: golden-hour camp, camp at nig
 
 ## Achievements (Steamworks > Stats & Achievements)
 
-- 36 achievements. Create each one with the API name from `../STEAM.md`.
+- 37 achievements. Create each one with the API name from `../STEAM.md`.
 - Icons: `achievements/<API_NAME>.png` (earned) and `achievements/<API_NAME>_locked.png` (not yet earned), 256 x 256.
 - Names and descriptions are in `../STEAM.md`.
 
@@ -43,3 +43,13 @@ The 8 screenshots, in the order I would show them: golden-hour camp, camp at nig
 
 - The screenshots show the world only: no menus or on-screen text, so they work in any language.
 - The captures were rendered at full size straight from the game, so they look as sharp as it really is.
+
+## Steam Deck checks (before requesting the compatibility review)
+
+Run the release (IL2CPP) build from Game Mode with the default settings (no saved settings):
+- `-autoshot-perf` scenes hold 60 fps: main thread <= 10 ms, GPU <= 12 ms, 99th percentile frame <= 20 ms (see `unity/MIGRATION.md`).
+- Every menu readable at 1280x800 with controller only; no keyboard or mouse wording; no cursor.
+- Saving with a typed name opens Steam's on-screen keyboard.
+- Suspend and resume: paused, sound back. Steam overlay pauses the game. Quit, relaunch: autosave present.
+- Achievements unlock on Steam, cloud saves move between PC and Deck, photos appear in the Steam screenshot library.
+- No missing glyphs (check marks, arrows, headings) under Proton.

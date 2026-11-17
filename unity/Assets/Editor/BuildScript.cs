@@ -11,6 +11,7 @@ using UnityEngine;
 /// Command-line and menu build entry points. Both write `Builds/Windows/CozyTreasureHunter.exe`.
 ///   BuildScript.BuildWindows      the release build: IL2CPP (C# compiled to native code) when Unity's IL2CPP module is
 ///                                 installed, otherwise Mono with a warning
+///   BuildScript.BuildWindowsDevelopment  the release build as a development player, for the Unity Profiler
 ///   BuildScript.BuildWindowsMono  a quick Mono build for testing changes; several minutes faster to make, slower to run
 /// </summary>
 public static class BuildScript
@@ -24,7 +25,10 @@ public static class BuildScript
     [MenuItem("Cozy Treasure Hunter/Build Windows (x64, quick Mono)")]
     public static void BuildWindowsMono() => Build(preferIl2Cpp: false);
 
-    private static void Build(bool preferIl2Cpp)
+    [MenuItem("Cozy Treasure Hunter/Build Windows (x64, IL2CPP development, for the Profiler)")]
+    public static void BuildWindowsDevelopment() => Build(preferIl2Cpp: true, development: true);
+
+    private static void Build(bool preferIl2Cpp, bool development = false)
     {
         ProjectSetup.Apply();
         EmojiSpriteAssetBuilder.Rebuild();
@@ -50,7 +54,8 @@ public static class BuildScript
             scenes = scenes,
             locationPathName = WINDOWS_OUT,
             target = BuildTarget.StandaloneWindows64,
-            options = BuildOptions.None,
+            // a development build can be profiled over the network (Unity Profiler on a Steam Deck) and shows GC allocations
+            options = development ? BuildOptions.Development | BuildOptions.ConnectWithProfiler : BuildOptions.None,
         };
 
         var report = BuildPipeline.BuildPlayer(opts);
