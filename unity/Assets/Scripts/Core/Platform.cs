@@ -21,6 +21,7 @@ public static class Platform
             try
             {
                 v = Array.IndexOf(Environment.GetCommandLineArgs(), "-force-deck") >= 0
+                    || SteamService.OnDeck
                     || Environment.GetEnvironmentVariable("SteamDeck") == "1";
                 if (!v)
                 {

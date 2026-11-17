@@ -1173,6 +1173,7 @@ public class UIManager
 
         Action renderList = null;
         HTMLInputElement nameInput = null;
+        bool nameEdited = false;
         if (mode == "save")
         {
             var row = el("div", "save-new");
@@ -1191,6 +1192,19 @@ public class UIManager
             };
             nameInput.value = $"Save {hooks.list().Count + 1}";
             nameInput.addEventListener("keydown", e => e.stopPropagation());
+            // the pre-filled "Save N" is only a suggestion: it must not rename a save that is overwritten
+            var typed = nameInput;
+            typed.addEventListener("input", _ => nameEdited = true);
+            // a controller presses A on the box: Steam's on-screen keyboard types the name (a Deck has no real keyboard handy)
+            typed.onclick = () =>
+            {
+                SteamService.ShowKeyboard("Save name", typed.value, 40, text =>
+                {
+                    if (text == null) return;
+                    typed.value = text;
+                    nameEdited = true;
+                });
+            };
         }
 
         var list = el("div", "save-list");
@@ -1222,7 +1236,7 @@ public class UIManager
                 {
                     if (mode == "save")
                     {
-                        var trimmed = nameInput != null && nameInput.value != null ? nameInput.value.Trim() : "";
+                        var trimmed = nameEdited && nameInput != null && nameInput.value != null ? nameInput.value.Trim() : "";
                         hooks.save(!string.IsNullOrEmpty(trimmed) ? trimmed : metaName, metaId);
                         renderList();
                     }

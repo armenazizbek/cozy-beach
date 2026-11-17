@@ -3245,7 +3245,8 @@ public class Game
             // a slider inside a settings row: the row is what is chosen
             if (e.classList.contains("nofocus")) return false;
             // a text box is for the mouse and the keyboard: walked onto, it would swallow every key after
-            if (e is HTMLInputElement text && text.type == "text") return false;
+            // (with Steam's on-screen keyboard available, pressing A on it opens that keyboard instead)
+            if (e is HTMLInputElement text && text.type == "text" && !SteamService.Ready) return false;
             var r = e.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
         }).ToList();

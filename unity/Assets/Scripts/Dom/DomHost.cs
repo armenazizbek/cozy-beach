@@ -111,16 +111,24 @@ public static class DomHost
 
             // Body text: a friendly sans. Headings and the title: a bold serif (see DisplayFont). A font file dropped into
             // Resources/UI/Fonts (Body, BodyBold, Display) is used ahead of the system's, which is what a console will need.
-            FontAsset mainFont = LoadFontAsset("UI/Fonts/Body")
+            // The bundled faces (Fira Sans, PT Serif, both SIL OFL) are used where Windows' own fonts cannot be counted on:
+            // on a Steam Deck (Proton ships no Trebuchet, Georgia or Segoe) and wherever Trebuchet MS is not installed.
+            // On a normal Windows PC the look stays as it was.
+            bool bundled = Platform.IsSteamDeck || !HasOsFont("Trebuchet MS");
+            FontAsset mainFont = (bundled ? LoadFontAsset("UI/Fonts/Body") : null)
                               ?? CreateOsFontAsset("Trebuchet MS", "Regular")
                               ?? CreateOsFontAsset("Segoe UI", "Regular")
-                              ?? CreateOsFontAsset("Arial", "Regular");
-            FontAsset boldFont = LoadFontAsset("UI/Fonts/BodyBold")
+                              ?? CreateOsFontAsset("Arial", "Regular")
+                              ?? LoadFontAsset("UI/Fonts/Body");
+            FontAsset boldFont = (bundled ? LoadFontAsset("UI/Fonts/BodyBold") : null)
                               ?? CreateOsFontAsset("Trebuchet MS", "Bold")
-                              ?? CreateOsFontAsset("Segoe UI", "Bold");
-            DisplayFont = LoadFontAsset("UI/Fonts/Display")
+                              ?? CreateOsFontAsset("Segoe UI", "Bold")
+                              ?? LoadFontAsset("UI/Fonts/BodyBold");
+            DisplayFont = (bundled ? LoadFontAsset("UI/Fonts/Display") : null)
                        ?? CreateOsFontAsset("Georgia", "Bold")
+                       ?? LoadFontAsset("UI/Fonts/Display")
                        ?? boldFont;
+            Debug.Log($"[Fonts] bundled faces first: {bundled}");
 
             if (mainFont != null)
             {
@@ -131,6 +139,9 @@ public static class DomHost
                     FontAsset fb = CreateOsFontAsset(name, "Regular");
                     if (fb != null && fb != mainFont) fallbacks.Add(fb);
                 }
+                // the bundled symbol font last: the glyphs the system fonts do not have (it is all there is under Proton)
+                var symbols = LoadFontAsset("UI/Fonts/Symbols");
+                if (symbols != null) fallbacks.Add(symbols);
                 foreach (var f in new[] { mainFont, boldFont, DisplayFont })
                 {
                     if (f == null) continue;
@@ -179,6 +190,20 @@ public static class DomHost
 
     /// <summary>The heading face (card titles, the game's name). Null until the text settings are built.</summary>
     public static FontAsset DisplayFont { get; private set; }
+
+    private static bool HasOsFont(string family)
+    {
+        try
+        {
+            foreach (var n in Font.GetOSInstalledFontNames())
+                if (string.Equals(n, family, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        catch
+        {
+            /* cannot tell: treat as missing */
+        }
+        return false;
+    }
 
     private static FontAsset LoadFontAsset(string resource)
     {

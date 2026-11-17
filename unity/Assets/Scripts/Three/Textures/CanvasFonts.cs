@@ -109,7 +109,7 @@ public static class CanvasFonts
         var key = string.Join("|", names);
         if (!fonts.TryGetValue(key, out var font) || font == null)
         {
-            font = Font.CreateDynamicFontFromOSFont(names.ToArray(), Math.Max(4, (int)Math.Round(size)));
+            font = Bundled(names, fams) ?? Font.CreateDynamicFontFromOSFont(names.ToArray(), Math.Max(4, (int)Math.Round(size)));
             fonts[key] = font;
         }
         var face = new Face
@@ -126,6 +126,30 @@ public static class CanvasFonts
         if (face.glyphs.TryGetValue('H', out var hg) && hg.bits != null) face.ascent = Math.Max(hg.bearingY / 0.72, size * 0.6);
         if (face.glyphs.TryGetValue('g', out var gg) && gg.bits != null) face.descent = Math.Max(gg.h - gg.bearingY, size * 0.15);
         return face;
+    }
+
+    private static HashSet<string> installed;
+
+    /// <summary>
+    /// The game's own font (Resources/UI/Fonts) when none of the wanted ones is installed, as under Proton on a Steam Deck.
+    /// Null while the system has one of them, so a Windows PC keeps drawing with its own.
+    /// </summary>
+    private static Font Bundled(List<string> names, string css)
+    {
+        try
+        {
+            if (installed == null) installed = new HashSet<string>(Font.GetOSInstalledFontNames(), StringComparer.OrdinalIgnoreCase);
+            if (!Platform.IsSteamDeck)
+                foreach (var n in names)
+                    if (installed.Contains(n)) return null;
+            bool serif = css.IndexOf("serif", StringComparison.OrdinalIgnoreCase) >= 0 && css.IndexOf("sans", StringComparison.OrdinalIgnoreCase) < 0
+                         || css.IndexOf("georgia", StringComparison.OrdinalIgnoreCase) >= 0;
+            return Resources.Load<Font>(serif ? "UI/Fonts/Display" : "UI/Fonts/Body");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static RenderTexture readRT;

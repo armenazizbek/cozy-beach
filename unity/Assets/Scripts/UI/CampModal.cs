@@ -410,7 +410,7 @@ public class CampModal
             if (folder != null)
             {
                 this.audio.coin();
-                this.hooks.toast($"Saved to {folder}");
+                this.hooks.toast(Photos.lastToSteam ? "Saved to your Steam screenshots" : $"Saved to {folder}");
             }
             else
             {

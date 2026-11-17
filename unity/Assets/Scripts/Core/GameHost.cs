@@ -41,6 +41,10 @@ public class GameHost : MonoBehaviour
         Instance = this;
         AutoShot.Trace("host start");
         THREE.Scene.ResetLayers();
+        // Steam first: Deck detection and achievements already earned need it before the game is built
+        SteamService.Init();
+        SteamBridge.unlockHandler = SteamService.UnlockAchievement;
+        SteamService.overlayChanged = open => { if (open) game?.onFocusLost(); };
         DomHost.Ensure();
         AutoShot.Trace("page ready");
 
@@ -58,6 +62,7 @@ public class GameHost : MonoBehaviour
 
     private void Update()
     {
+        SteamService.Tick();
         game?.input?.poll();
         DomHost.Tick();
         THREE.WebGLRenderer.Main?.Tick();
@@ -71,6 +76,7 @@ public class GameHost : MonoBehaviour
     private void OnApplicationQuit()
     {
         game?.onQuit();
+        SteamService.Shutdown();
     }
 
     private void OnDestroy()

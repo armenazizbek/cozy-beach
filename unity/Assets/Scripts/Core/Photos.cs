@@ -127,12 +127,16 @@ public static class Photos
         });
     }
 
+    /// <summary>true when the last <see cref="export"/> also added the picture to the Steam screenshot library</summary>
+    public static bool lastToSteam;
+
     /// <summary>
     /// Copies a photo to the player's own Pictures folder (in a "Cozy Treasure Hunter" folder), where it is easy to find and
     /// share. Returns the folder it went to, or null when it could not be written.
     /// </summary>
     public static string export(string id)
     {
+        lastToSteam = false;
         try
         {
             string pictures = exportRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
@@ -146,6 +150,9 @@ public static class Photos
             if (File.Exists(source)) File.Copy(source, target, true);
             else if (cache.TryGetValue(id, out var tex) && tex != null && tex.isReadable) File.WriteAllBytes(target, tex.EncodeToJPG(90));
             else return null;
+            // with Steam running the picture also goes into the Steam screenshot library, which is where a Deck player looks
+            // (Proton hides the Windows Pictures folder inside the game's prefix)
+            lastToSteam = SteamService.AddScreenshot(target, 1200, 900);
             return folder;
         }
         catch (Exception e)
