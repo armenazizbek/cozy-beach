@@ -470,6 +470,38 @@ public class AutoShot : MonoBehaviour
             yield return Wait(3);
         }
 
+        // -autoshot-gullshadow: a gull held high over the beach: its shadow on the sand, then the bird itself
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-gullshadow") >= 0)
+        {
+            Debug.Log("[AutoShot] " + game.smokeTestGull("hold"));
+            yield return Wait(2.5f);
+            Debug.Log("[AutoShot] " + game.smokeTestGull("look"));
+            yield return Wait(0.5f);
+            yield return Shot("32-gull-shadow.png");
+            game.smokeTestGull("up");
+            yield return Wait(0.4f);
+            yield return Shot("32-gull-up.png");
+        }
+
+        // -autoshot-ships: each of the four horizon ships held still at night, near and far, broadside and from the bow, with the
+        // lighthouse beam on her and without
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-ships") >= 0)
+        {
+            string[] names = { "cruise", "container", "tanker", "bulk" };
+            for (int i = 0; i < names.Length; i++)
+            {
+                Debug.Log("[AutoShot] " + game.smokeTestShips(i, 85, Math.PI / 2, 0));
+                yield return Wait(2.5f);
+                yield return Shot($"31-ship-{names[i]}-side.png");
+                game.smokeTestShips(i, 75, 0.8, 1);
+                yield return Wait(0.6f);
+                yield return Shot($"31-ship-{names[i]}-quarter-lit.png");
+                game.smokeTestShips(i, 300, 1.2, 0);
+                yield return Wait(0.6f);
+                yield return Shot($"31-ship-{names[i]}-far.png");
+            }
+        }
+
         // -autoshot-telescope: the telescope on Lagoon Cay, then the view through it at night: the sky as it opens, a few stars of
         // the Great Bear lit, the Great Bear found, Orion brought into focus by framing it, a hint, the view by day, and every
         // constellation found at last (the log says the coins, the save and the achievement)

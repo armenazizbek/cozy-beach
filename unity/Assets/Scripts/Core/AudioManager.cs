@@ -328,23 +328,9 @@ public class AudioManager
         }
     }
 
-    /// <summary>A seagull call; `distance` in metres sets how loud and muffled it is.</summary>
+    /// <summary>Gulls make no sound: the synthesised call was tried and disliked, so every caller (the circling birds, a gull startled or shot) is silent.</summary>
     public void gull(double distance)
     {
-        if (host == null) return;
-        double near = Math.Max(0, 1 - distance / 70);
-        if (near <= 0.02) return;
-        double vol = 0.05 * near * near + 0.004;
-        double bas = 1500 + JS.Random() * 300;
-        double t0 = JS.Random() * 0.05;
-        int calls = 2 + (int)Math.Floor(JS.Random() * 2);
-        for (int i = 0; i < calls; i++)
-        {
-            host.Enqueue(new SynthHost.Voice
-            {
-                kind = 2, wave = Wave.Sawtooth, freq = bas, q = 3, vol = vol, delay = t0 + i * 0.22, dur = 0.22, attack = 0.03, stopAfter = 0.26,
-            });
-        }
     }
 
     /// <summary>Whirr of the cart's electric motor plus tyre noise on sand. level 0..1 is the speed.</summary>

@@ -605,122 +605,54 @@ public class Lighthouse
 
     // ---------------------------------------------------------------- distant horizon ships (night only, unreachable)
 
-    private HorizonShip makeHorizonShip(double startX, double startZ, double endX, double endZ, double duration, double pause, double offset, double baseScale)
+    /// <summary>One distant vessel of the given kind (see <see cref="ModernShips"/>): a container ship, a tanker, a cruise liner or a bulk carrier.</summary>
+    private HorizonShip makeHorizonShip(int kind, double startX, double startZ, double endX, double endZ, double duration, double pause, double offset, double baseScale)
     {
         var root = new THREE.Group();
         var vessel = new THREE.Group();
         vessel.scale.setScalar(baseScale);
         vessel.rotation.order = "YXZ";
-
-        var hullMat = new THREE.MeshStandardMaterial { color = 0x1b2634, emissive = 0xc9964c, emissiveIntensity = 0, roughness = 0.82, side = THREE.Side.DoubleSide, fog = false };
-        var bootMat = new THREE.MeshStandardMaterial { color = 0x6b2822, roughness = 0.88, side = THREE.Side.DoubleSide, fog = false };
-        var deckMat = new THREE.MeshStandardMaterial { color = 0x36414d, roughness = 0.9, side = THREE.Side.DoubleSide, fog = false };
-        var cabinMat = new THREE.MeshStandardMaterial { color = 0xdce3ec, emissive = 0xffdf9a, emissiveIntensity = 0, roughness = 0.75, side = THREE.Side.DoubleSide, fog = false };
-        var stackMat = new THREE.MeshStandardMaterial { color = 0xb54434, roughness = 0.8, fog = false };
-        var darkMat = new THREE.MeshStandardMaterial { color = 0x151b22, roughness = 0.85, fog = false };
-
-        var glowMat = new THREE.MeshBasicMaterial { color = 0xffd88a, fog = false };
-        var navRedMat = new THREE.MeshBasicMaterial { color = 0xff4b3e, fog = false };
-        var navGreenMat = new THREE.MeshBasicMaterial { color = 0x3ce87a, fog = false };
-
-        var lamps = new List<THREE.Mesh>();
-        THREE.Mesh put(THREE.BufferGeometry g, THREE.Material m, double x, double y, double z)
-        {
-            var mesh = new THREE.Mesh(g, m);
-            mesh.position.set(x, y, z);
-            vessel.add(mesh);
-            return mesh;
-        }
-
-        // sleek coaster/steamer hull: main body + flared bow wedge + stern counter
-        put(new THREE.BoxGeometry(3.4, 1.8, 12.0), hullMat, 0, 0.9, 1.2);
-        put(new THREE.BoxGeometry(3.48, 0.45, 12.1), bootMat, 0, 0.15, 1.2);
-        var bow = new THREE.ConeGeometry(2.4, 5.2, 4);
-        bow.rotateY(Math.PI / 4);
-        bow.rotateX(-Math.PI / 2);
-        bow.scale(1.0, 0.55, 1.0);
-        put(bow, hullMat, 0, 0.95, -7.2);
-        put(new THREE.BoxGeometry(3.1, 0.25, 11.4), deckMat, 0, 1.85, 1.2);
-
-        // raised forecastle at the bow
-        put(new THREE.BoxGeometry(3.2, 0.75, 3.4), hullMat, 0, 2.1, -3.6);
-
-        // aft/midships white bridge superstructure (two tiers)
-        put(new THREE.BoxGeometry(2.6, 1.35, 4.8), cabinMat, 0, 2.5, 2.8);
-        put(new THREE.BoxGeometry(2.2, 1.15, 2.6), cabinMat, 0, 3.7, 2.1);
-        put(new THREE.BoxGeometry(2.4, 0.18, 2.9), darkMat, 0, 4.32, 2.1);
-
-        // raked smokestack behind the bridge
-        var stack = put(new THREE.CylinderGeometry(0.42, 0.48, 2.2, 10), stackMat, 0, 4.2, 3.9);
-        stack.rotation.x = 0.14;
-        var stackTop = put(new THREE.CylinderGeometry(0.44, 0.44, 0.42, 10), darkMat, 0, 5.1, 4.02);
-        stackTop.rotation.x = 0.14;
-
-        // forward and aft signal masts with warm masthead lanterns
-        put(new THREE.CylinderGeometry(0.07, 0.11, 5.2, 6), darkMat, 0, 4.4, -2.8);
-        put(new THREE.CylinderGeometry(0.06, 0.09, 3.8, 6), darkMat, 0, 5.6, 2.1);
-        lamps.Add(put(new THREE.SphereGeometry(0.32, 8, 6), glowMat, 0, 7.05, -2.8));
-        lamps.Add(put(new THREE.SphereGeometry(0.30, 8, 6), glowMat, 0, 7.55, 2.1));
-        lamps.Add(put(new THREE.SphereGeometry(0.24, 8, 6), glowMat, 0, 2.35, 7.25));
-
-        // port (red) and starboard (green) bridge wing navigation lights
-        put(new THREE.SphereGeometry(0.20, 6, 5), navRedMat, -1.25, 3.85, 1.2);
-        put(new THREE.SphereGeometry(0.20, 6, 5), navGreenMat, 1.25, 3.85, 1.2);
-
-        // warm glowing bridge windows and cabin portholes along both sides so the ship reads clearly on the night horizon
-        put(new THREE.BoxGeometry(1.7, 0.42, 0.08), glowMat, 0, 3.85, 0.78);
-        foreach (var side in new[] { -1, 1 })
-        {
-            put(new THREE.BoxGeometry(0.08, 0.42, 1.6), glowMat, side * 1.12, 3.85, 2.0);
-            for (int k = 0; k < 4; k++)
-            {
-                put(new THREE.BoxGeometry(0.08, 0.36, 0.58), glowMat, side * 1.32, 2.55, 1.0 + k * 1.1);
-            }
-            for (int k = 0; k < 3; k++)
-            {
-                put(new THREE.BoxGeometry(0.08, 0.28, 0.48), glowMat, side * 1.72, 1.25, -2.2 + k * 2.1);
-            }
-        }
-
-        // faint wake and a warm reflection on the water when the lighthouse beam sweeps across the distant vessel
-        var wakeMat = new THREE.MeshBasicMaterial { color = 0xdbeeff, transparent = true, opacity = 0.26, depthWrite = false, fog = false, side = THREE.Side.DoubleSide };
-        var wake = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 24), wakeMat);
-        wake.rotation.x = -Math.PI / 2;
-        wake.position.set(0, 0.06, 9.5);
-        wake.renderOrder = 3;
-        vessel.add(wake);
-
-        var patchMat = new THREE.MeshBasicMaterial { color = 0xffe8a8, transparent = true, opacity = 0, blending = THREE.Blending.AdditiveBlending, depthWrite = false, fog = false, side = THREE.Side.DoubleSide };
-        var patch = new THREE.Mesh(new THREE.CircleGeometry(14, 20), patchMat);
-        patch.rotation.x = -Math.PI / 2;
-        patch.position.set(0, 0.08, 0);
-        patch.renderOrder = 4;
-        vessel.add(patch);
-
+        var built = ModernShips.build(kind, vessel);
         root.add(vessel);
         shipsGroup.add(root);
         return new HorizonShip
         {
             root = root, vessel = vessel,
-            solidMats = new List<THREE.MeshStandardMaterial> { hullMat, bootMat, deckMat, cabinMat, stackMat, darkMat },
-            hullMat = hullMat, cabinMat = cabinMat,
-            glowMat = glowMat, navRedMat = navRedMat, navGreenMat = navGreenMat,
-            patchMat = patchMat, wakeMat = wakeMat, lamps = lamps,
+            solidMats = new List<THREE.MeshStandardMaterial> { built.hullMat, built.cabinMat },
+            hullMat = built.hullMat, cabinMat = built.cabinMat,
+            glowMat = built.glowMat, navRedMat = built.navRedMat, navGreenMat = built.navGreenMat,
+            patchMat = built.patchMat, wakeMat = built.wakeMat, lamps = built.lamps,
             startX = startX, startZ = startZ, endX = endX, endZ = endZ,
             duration = duration, pause = pause, offset = offset, baseScale = baseScale,
         };
     }
+
 
     private void buildShips()
     {
         ships.Clear();
         // Distant ships right on the far horizon line (z = 795..855, ~485-545m from the lighthouse and ~400m past the playable boat limit SEA.z = 420).
         // Each ship appears smoothly as it starts moving, travels across the horizon edge, and fades out at the end of its run.
-        ships.Add(makeHorizonShip(cx - 260, 795, cx + 280, 815, 52, 8, 7.0, 1.25));
-        ships.Add(makeHorizonShip(cx + 310, 845, cx - 240, 825, 58, 9, 25.0, 1.30));
-        ships.Add(makeHorizonShip(-90, 820, 380, 835, 60, 10, 16.0, 1.25));
-        ships.Add(makeHorizonShip(cx - 110, 855, cx - 440, 740, 54, 11, 35.0, 1.20));
+        // Four different modern vessels so no two look alike: the cruise liner is first on stage in the intro, being the easiest to
+        // pick out in the beam (a white, window-lit ship), then a tanker, a container ship and a bulk carrier with its cranes.
+        ships.Add(makeHorizonShip(ModernShips.CRUISE, cx - 260, 795, cx + 280, 815, 52, 8, 7.0, 1.1));
+        ships.Add(makeHorizonShip(ModernShips.CONTAINER, cx + 310, 845, cx - 240, 825, 58, 9, 25.0, 1.15));
+        ships.Add(makeHorizonShip(ModernShips.TANKER, -90, 820, 380, 835, 60, 10, 16.0, 1.1));
+        ships.Add(makeHorizonShip(ModernShips.BULK, cx - 110, 855, cx - 440, 740, 54, 11, 35.0, 1.15));
         shipsGroup.visible = false;
+    }
+
+    private int smokeIdx = -1;
+    private double smokeX, smokeZ, smokeHeading, smokeLit;
+
+    /// <summary>For the -autoshot-ships test: holds ship `index` still at this spot, turned this way, lit this much (0..1); -1 lets them sail again.</summary>
+    internal void smokeHoldShip(int index, double x, double z, double heading, double lit)
+    {
+        smokeIdx = index;
+        smokeX = x;
+        smokeZ = z;
+        smokeHeading = heading;
+        smokeLit = lit;
     }
 
     private void updateShips(double t, double dt, double night, double surfaceY)
@@ -734,6 +666,21 @@ public class Lighthouse
         }
         shipsGroup.visible = true;
         shipTime += dt;
+
+        // the -autoshot-ships test holds one ship still near the camera, lit as if the beam were on it, and hides the rest
+        if (smokeIdx >= 0)
+        {
+            for (int k = 0; k < ships.Count; k++) ships[k].root.visible = k == smokeIdx;
+            var h = ships[smokeIdx];
+            h.root.position.set(smokeX, surfaceY, smokeZ);
+            h.root.rotation.set(0, smokeHeading, 0, "YXZ");
+            h.vessel.scale.setScalar(h.baseScale);
+            h.hullMat.emissiveIntensity = 0.06 + 0.26 * smokeLit;
+            h.cabinMat.emissiveIntensity = 0.14 + 0.75 * smokeLit;
+            h.patchMat.opacity = 0.28 * smokeLit;
+            h.wakeMat.opacity = 0.18 + 0.18 * smokeLit;
+            return;
+        }
 
         for (int i = 0; i < ships.Count; i++)
         {
@@ -774,7 +721,7 @@ public class Lighthouse
             double beamHit = cleaned ? nightVis * Math.Pow(Math.Max(0, (c - 0.82) / 0.18), 1.4) : 0;
             s.lit = Math.Max(beamHit, s.lit - dt * 0.85);
 
-            s.hullMat.emissiveIntensity = (0.06 + 0.45 * s.lit) * alpha;
+            s.hullMat.emissiveIntensity = (0.06 + 0.26 * s.lit) * alpha;
             s.cabinMat.emissiveIntensity = (0.14 + 0.75 * s.lit) * alpha;
             s.patchMat.opacity = 0.28 * s.lit * alpha;
             s.wakeMat.opacity = (0.18 + 0.18 * s.lit) * alpha;

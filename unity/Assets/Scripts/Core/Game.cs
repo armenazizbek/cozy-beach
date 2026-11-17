@@ -975,6 +975,54 @@ public class Game
         return $"boat at {x:0.0}, {z:0.0}: depth {ocean.surfaceY - beach.heightAt(x, z):0.00}, landing {(l.island ? "island" : "beach")} at {l.x:0.0}, {l.z:0.0}, near {nearShore()}";
     }
 
+    /// <summary>
+    /// For the -autoshot-gullshadow test. "hold" makes a gull hover high over the beach in the morning sun; "look" stands the player
+    /// a few steps from where the sun's ray through it meets the sand, looking at that spot; "up" looks at the bird instead.
+    /// </summary>
+    internal string smokeTestGull(string what)
+    {
+        if (what == "hold")
+        {
+            state.setLighting("cycle");
+            dayTime = 0.3;
+            sky.setTime(dayTime);
+            player.x = 0;
+            player.z = -20;
+            birds.smokeHold(8, -14, 16);
+            return "gull held";
+        }
+        var bird = birds.smokeHold(8, -14, 16);
+        var toSun = sky.sun.position.clone().sub(sky.sun.target.position).normalize();
+        double ground = beach.heightAt(bird.x, bird.z), along = (bird.y - ground) / toSun.y;
+        double gx = bird.x - toSun.x * along, gz = bird.z - toSun.z * along;
+        player.x = bird.x - 9;
+        player.z = bird.z + 4;
+        double dx = (what == "up" ? bird.x : gx) - player.x, dz = (what == "up" ? bird.z : gz) - player.z;
+        player.yaw = Math.Atan2(-dx, -dz);
+        player.pitch = what == "up" ? Math.Atan2(bird.y - 1.7, Math.Sqrt(dx * dx + dz * dz)) : -Math.Atan2(1.7, Math.Sqrt(dx * dx + dz * dz));
+        eyeY = 0;
+        return $"bird at {bird.x:0.0}, {bird.y:0.0}, {bird.z:0.0}; its shadow should fall at {gx:0.0}, {gz:0.0}";
+    }
+
+    /// <summary>
+    /// For the -autoshot-ships test: night at sea, and horizon ship `idx` held still `dist` ahead of the boat, turned `turn` from
+    /// the boat's heading (so we see her broadside or three-quarters), lit `lit` (0..1) as if the lighthouse beam were on her.
+    /// </summary>
+    internal string smokeTestShips(int idx, double dist, double turn, double lit)
+    {
+        var lh = islands[2].lighthouse;
+        state.data.lighthouseCleaned = true;
+        lh.setClean(true);
+        state.setLighting("night");
+        dayTime = 0.78;
+        sky.setTime(dayTime);
+        smokeTestBoatAt(100, 120, Math.PI);
+        double h = boat.heading;
+        lh.smokeHoldShip(idx, boat.x - Math.Sin(h) * dist, boat.z - Math.Cos(h) * dist, h + turn, lit);
+        player.pitch = 0.03;
+        return $"ship {idx} held at {boat.x - Math.Sin(h) * dist:0.0}, {boat.z - Math.Cos(h) * dist:0.0}, ships visible: {lh.shipsGroup.visible}";
+    }
+
     /// <summary>For the -autoshot-opening test: 1 looks down on the Marigold's deck, 2 looks along her waterline, 0 is the shot as made.</summary>
     internal void smokeTestOpeningView(int v)
     {

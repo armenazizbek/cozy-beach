@@ -112,8 +112,9 @@ public class Birds
         THREE.Group wing()
         {
             var w = new THREE.Group { syncStatic = true };
-            var m = new THREE.Mesh(wingGeo, grey);
-            var tip = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.018, 0.1), dark);
+            // the wings cast into the sun's shadow map too, so a gull's shadow has its wings (beating as they beat), not just its body
+            var m = new THREE.Mesh(wingGeo, grey) { castShadow = true };
+            var tip = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.018, 0.1), dark) { castShadow = true };
             tip.position.set(1.2, 0.005, -0.06);
             w.add(m, tip);
             return w;
@@ -171,6 +172,20 @@ public class Birds
         var g = blank("ground");
         landSpot(g);
         gulls.Add(g);
+    }
+
+    private Gull held;
+
+    /// <summary>For the -autoshot-gullshadow test: keeps one circling gull hovering at this spot and height; returns where it is.</summary>
+    internal THREE.Vector3 smokeHold(double x, double z, double alt)
+    {
+        held = gulls.First(g => g.mode == "fly");
+        held.cx = x;
+        held.cz = z;
+        held.r = 0.01;
+        held.alt = alt;
+        held.omega = 0.0001;
+        return held.root.position.clone();
     }
 
     /// <summary>Hit spheres of every gull that is currently around.</summary>
