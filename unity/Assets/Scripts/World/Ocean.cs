@@ -295,6 +295,10 @@ public class Ocean
         ((THREE.MeshStandardMaterial)water.material).emissiveIntensity = 0.55 * (1 - 0.85 * n);
     }
 
+    private const int SEA_SLICE = 1700; // grid points whose sea-bed depth is measured per frame (the grid has 6,561)
+    private bool seaAll;
+    private int seaNext = int.MaxValue; // where the running refresh is; past the end when none is running
+
     public void update(double t, double camX = 0, double camZ = 0)
     {
         // slow tidal breathing; the waves and ripples themselves are drawn by the shader
@@ -307,11 +311,21 @@ public class Ocean
         {
             water.position.x = camX;
             water.position.z = camZ;
-            if (Math.Abs(camX - seaAtX) > 0.5 || Math.Abs(camZ - seaAtZ) > 0.5)
+            // a refresh asks the beach for the height of every grid point (~1 ms on a fast PC, several on a Deck), so it is done
+            // in slices over the next few frames, from the position it started at, instead of as one spike
+            if (seaNext >= seaDepth.Length && (Math.Abs(camX - seaAtX) > 0.5 || Math.Abs(camZ - seaAtZ) > 0.5))
             {
+                // after a jump (first frame, a teleport, the boat sailing off) the whole grid is done at once: a stale sea bed would show
+                seaAll = !(Math.Abs(camX - seaAtX) < 12 && Math.Abs(camZ - seaAtZ) < 12);
                 seaAtX = camX;
                 seaAtZ = camZ;
-                for (int i = 0; i < seaDepth.Length; i++) seaDepth[i] = (float)(WATER_LEVEL - beach.heightAt(seaLocalX[i] + camX, seaLocalZ[i] + camZ));
+                seaNext = 0;
+            }
+            if (seaNext < seaDepth.Length)
+            {
+                int end = seaAll ? seaDepth.Length : Math.Min(seaDepth.Length, seaNext + SEA_SLICE);
+                for (int i = seaNext; i < end; i++) seaDepth[i] = (float)(WATER_LEVEL - beach.heightAt(seaLocalX[i] + seaAtX, seaLocalZ[i] + seaAtZ));
+                seaNext = end;
                 seaDepthAttr.needsUpdate = true;
             }
         }
