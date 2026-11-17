@@ -68,6 +68,7 @@ public class OldHouse
         buildPorch(postFoot);
         buildChimney(postFoot);
         buildClutter();
+        buildWater();
         // the pictures first: their frames go in with the wood, which is welded together next
         var pictures = buildPictures();
 
@@ -103,6 +104,187 @@ public class OldHouse
         // the table and chair under the left window inside
         walls.Add((-2.35, D / 2 - 0.55, -1.25, D / 2 - 0.55));
         walls.Add((-1.68, 1.02, -1.68, 1.02));
+    }
+
+    // ---------------------------------------------------------------- rain coming in
+
+    /// <summary>
+    /// The rain that comes in through the hole in the roof. It is apart from <see cref="group"/> (which never changes, and is copied
+    /// to the scene once), standing in the same place and turned the same way, so it uses the house's own frame.
+    /// </summary>
+    public readonly THREE.Group water = new THREE.Group { name = "old house rain" };
+
+    /// <summary>where the rain falls through the roof, on the floor, in the house's frame: the back half, away from the door and the dog's corner</summary>
+    private const double LEAK_X = -1.4, LEAK_Z = -1.4;
+    private const int DRIPS = 26;
+    private THREE.Mesh puddle, damp;
+    private THREE.Mesh[] rings;
+    private double[] ringPhase;
+    private THREE.LineSegments dripLines;
+    private float[] dripPos;
+    private double[] dripSeed;
+    private THREE.LineBasicMaterial dripMat;
+    private THREE.MeshStandardMaterial puddleMat, dampMat;
+    private THREE.MeshBasicMaterial[] ringMats;
+    private double[] ringOx, ringOz;
+    /// <summary>how much water is on the floor, 0..1: it gathers while it rains and dries out slowly after</summary>
+    private double wet;
+    private readonly Func<double> waterRand = Stones.rng(731);
+
+    /// <summary>For the -autoshot-dograin test: as much water on the floor as after a long rain (0..1).</summary>
+    internal void smokeWet(double v) => wet = v;
+
+    /// <summary>A flat, irregular blob on the floor, of radius 1 at most: a puddle's edge is never a circle.</summary>
+    private static THREE.BufferGeometry blob(double s1, double s2)
+    {
+        const int N = 36;
+        var pos = new List<double> { 0, 0, 0 };
+        var idx = new List<int>();
+        for (int i = 0; i < N; i++)
+        {
+            double a = i * Math.PI * 2 / N;
+            double rad = (0.86 + 0.12 * Math.Sin(3 * a + s1) + 0.07 * Math.Sin(5 * a + s2)) / 1.05;
+            pos.AddRange(new[] { Math.Cos(a) * rad, 0, Math.Sin(a) * rad });
+            idx.AddRange(new[] { 0, 1 + (i + 1) % N, 1 + i });
+        }
+        var g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        g.setIndex(idx);
+        g.computeVertexNormals();
+        return g;
+    }
+
+    private void buildWater()
+    {
+        water.position.copy(group.position);
+        water.rotation.y = group.rotation.y;
+        // dark wet wood spreading round the standing water, then the water itself, a little above the boards
+        dampMat = new THREE.MeshStandardMaterial { color = 0x1c140d, roughness = 1, transparent = true, opacity = 0.4, depthWrite = false, polygonOffset = true, polygonOffsetFactor = -1, polygonOffsetUnits = -1 };
+        puddleMat = new THREE.MeshStandardMaterial
+        {
+            color = 0x3f5a6b, emissive = 0x1a2a38, emissiveIntensity = 0.7, roughness = 0.05, metalness = 0, transparent = true, opacity = 0.72, depthWrite = false,
+            polygonOffset = true, polygonOffsetFactor = -2, polygonOffsetUnits = -2,
+        };
+        damp = new THREE.Mesh(blob(0.7, 2.1), dampMat) { visible = false, renderOrder = 1 };
+        puddle = new THREE.Mesh(blob(2.4, 0.4), puddleMat) { visible = false, renderOrder = 2 };
+        water.add(damp, puddle);
+        // rings spreading from where the drops land, each with its own material so each can fade on its own
+        var ringGeo = new THREE.RingGeometry(0.86, 1.0, 28);
+        ringGeo.rotateX(-Math.PI / 2);
+        rings = new THREE.Mesh[3];
+        ringMats = new THREE.MeshBasicMaterial[3];
+        ringPhase = new double[3];
+        ringOx = new double[3];
+        ringOz = new double[3];
+        for (int i = 0; i < rings.Length; i++)
+        {
+            ringMats[i] = new THREE.MeshBasicMaterial { color = 0xe4f0f8, transparent = true, opacity = 0, depthWrite = false, side = THREE.Side.DoubleSide, polygonOffset = true, polygonOffsetFactor = -3, polygonOffsetUnits = -3 };
+            rings[i] = new THREE.Mesh(ringGeo, ringMats[i]) { visible = false, renderOrder = 3 };
+            ringPhase[i] = i / 3.0;
+            water.add(rings[i]);
+        }
+        // the drops: short streaks falling through the hole to the floor
+        dripPos = new float[DRIPS * 6];
+        dripSeed = new double[DRIPS * 3];
+        for (int i = 0; i < DRIPS; i++)
+        {
+            dripSeed[i * 3] = LEAK_X + (waterRand() - 0.5) * 0.9;
+            dripSeed[i * 3 + 1] = waterRand();
+            dripSeed[i * 3 + 2] = LEAK_Z + (waterRand() - 0.5) * 0.45;
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(dripPos, 3));
+        dripMat = new THREE.LineBasicMaterial { color = 0xd5e6f2, transparent = true, opacity = 0, depthWrite = false, fog = false };
+        dripLines = new THREE.LineSegments(geo, dripMat) { frustumCulled = false, visible = false };
+        water.add(dripLines);
+        water.visible = false;
+    }
+
+    /// <summary>
+    /// While it rains, water comes in through the hole in the roof: drops fall to the floor and ripple where they land, and a puddle
+    /// gathers and spreads, with the boards dark and damp round it. After the rain it dries away slowly. `dogX`, `dogZ` is where
+    /// the dog is (in the world): it lies in the far corner, but the puddle is held back from it all the same, so the water
+    /// can never reach it.
+    /// </summary>
+    public void updateWater(double dt, double t, double rain, double dogX, double dogZ)
+    {
+        bool falling = rain > 0.08;
+        if (falling) wet = Math.Min(1, wet + dt * rain / 90);
+        else wet = Math.Max(0, wet - dt / 150);
+        water.visible = falling || wet > 0.004;
+        if (!water.visible) return;
+
+        double floor = floorY;
+        // the puddle: it starts as a wet patch where the drops land, and spreads with the square root of the water
+        double k = Math.Sqrt(wet);
+        double r = wet > 0.003 ? 0.14 + 0.82 * k : 0;
+        // held back from the dog, and from anything else standing near: the blob (with its damp ring) never gets within a
+        // metre of it, however long it rains
+        if (contains(dogX, dogZ))
+        {
+            var (dx, dz) = toLocal(dogX, dogZ);
+            double dist = JS.Hypot(dx - LEAK_X, dz - LEAK_Z);
+            r = Math.Min(r, Math.Max(0, (dist - 1.0) / 1.6));
+        }
+        puddle.visible = r > 0.02;
+        damp.visible = r > 0.02;
+        if (puddle.visible)
+        {
+            double breathe = 1 + Math.Sin(t * 1.3) * 0.012;
+            puddle.position.set(LEAK_X, floor + 0.014, LEAK_Z);
+            puddle.scale.set(r * 1.18 * breathe, 1, r * 0.88 * breathe);
+            puddle.rotation.y = 0.35;
+            damp.position.set(LEAK_X, floor + 0.009, LEAK_Z);
+            damp.scale.set(r * 1.6, 1, r * 1.2);
+            damp.rotation.y = 0.35;
+            puddleMat.opacity = 0.35 + 0.4 * Math.Min(1, wet * 3);
+            dampMat.opacity = 0.42 * Math.Min(1, wet * 4);
+        }
+
+        // the drops
+        dripLines.visible = falling;
+        if (falling)
+        {
+            double top = floor + 3.1, fall = 7.0;
+            dripMat.opacity = Math.Min(1, rain) * 0.85;
+            for (int i = 0; i < DRIPS; i++)
+            {
+                // each drop falls at its own pace and starts again from the hole when it lands
+                double ph = (dripSeed[i * 3 + 1] + t * (fall / (top - floor)) * (0.85 + 0.3 * ((i * 7) % 5) / 4.0)) % 1.0;
+                // (ph runs 0 to 1 as the drop falls: from the hole at the top down to the floor)
+                double y = top - ph * (top - floor - 0.03);
+                double wx = dripSeed[i * 3] + Math.Sin(i * 3.1) * 0.02, wz = dripSeed[i * 3 + 2];
+                dripPos[i * 6] = (float)wx;
+                dripPos[i * 6 + 1] = (float)y;
+                dripPos[i * 6 + 2] = (float)wz;
+                dripPos[i * 6 + 3] = (float)(wx + 0.01);
+                dripPos[i * 6 + 4] = (float)(y + 0.24);
+                dripPos[i * 6 + 5] = (float)wz;
+            }
+            dripLines.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // ripples: three rings in turn, each starting small at a fresh spot where a drop has landed and spreading out as it fades
+        for (int i = 0; i < rings.Length; i++)
+        {
+            double old = ringPhase[i];
+            ringPhase[i] = (ringPhase[i] + dt * 1.4) % 1.0;
+            if (ringPhase[i] < old)
+            {
+                ringOx[i] = (waterRand() - 0.5) * 2;
+                ringOz[i] = (waterRand() - 0.5) * 2;
+            }
+            bool on = falling && r > 0.05;
+            rings[i].visible = on;
+            if (!on) continue;
+            double p = ringPhase[i];
+            double reach = Math.Max(0.1, r * 0.75);
+            rings[i].position.set(LEAK_X + ringOx[i] * reach * 0.6, floor + 0.02, LEAK_Z + ringOz[i] * reach * 0.45);
+            double s = 0.04 + p * 0.3;
+            rings[i].scale.set(s, 1, s * 0.8);
+            // bright as it starts, gone as it reaches its full size
+            ringMats[i].opacity = (1 - p) * (1 - p) * 0.6 * Math.Min(1, wet * 6 + 0.3);
+        }
     }
 
     // ---------------------------------------------------------------- walking in and out
@@ -491,6 +673,30 @@ public class OldHouse
         double backZ = -D / 2 + 0.075;
         hang(pics, OldPictures.CAPTAIN, 0.6, 0.78, 0.085, 0xa07a34, -1.35, floorY + 1.55, backZ, 0, 0.03);
         hang(pics, OldPictures.SHIP, 1.15, 0.775, 0.085, 0x6e4a26, 0.75, floorY + 1.5, backZ, 0, -0.02);
+        // the chart on the table, flat on the parchment sheet buildTable makes: the table's and the sheet's own placing, composed
+        {
+            const double th = 0.74;
+            place.position.set(-1.8, floorY, D / 2 - 0.52);
+            place.rotation.set(0, 0.04, 0);
+            place.scale.set(1, 1, 1);
+            place.updateMatrix();
+            var tableM = place.matrix.clone();
+            place.position.set(-0.12, th + 0.0085, -0.02);
+            place.rotation.set(0, -0.14, 0);
+            place.updateMatrix();
+            var sheetM = new THREE.Matrix4().multiplyMatrices(tableM, place.matrix);
+            var chart = new THREE.PlaneGeometry(0.45, 0.31);
+            chart.rotateX(-Math.PI / 2);
+            // its top edge toward the window, away from whoever sits in the chair
+            chart.rotateY(Math.PI);
+            var cuv = chart.attributes.uv;
+            var c = OldPictures.CHART;
+            double cu0 = (double)c.x / OldPictures.SIZE, cu1 = (double)(c.x + c.w) / OldPictures.SIZE;
+            double cv1 = 1 - (double)c.y / OldPictures.SIZE, cv0 = 1 - (double)(c.y + c.h) / OldPictures.SIZE;
+            for (int i = 0; i < cuv.count; i++) cuv.setXY(i, cu0 + cuv.getX(i) * (cu1 - cu0), cv0 + cuv.getY(i) * (cv1 - cv0));
+            chart.applyMatrix4(sheetM);
+            pics.Add(chart);
+        }
         var mat = new THREE.MeshStandardMaterial { map = OldPictures.make(), roughness = 0.75, metalness = 0 };
         var m = new THREE.Mesh(THREE.BufferGeometryUtils.mergeGeometries(pics), mat) { receiveShadow = true };
         return m;
@@ -596,19 +802,14 @@ public class OldHouse
             box(tw, 0.042, 0.162, 0, th - 0.021, -0.255 + i * 0.17, 0, 0, 0, BOARDS[i % BOARDS.Length], tbl);
 
         double top = th;
-        // the chart of the cove: parchment unrolled across the boards, curled into a scroll at either end
+        // an old sea chart unrolled across the boards, curled into a scroll at either end. The sheet is only a thin edge of aged
+        // paper here: the chart itself is drawn on a plane laid over it (see buildPictures, OldPictures.chart), a chart of no place in particular
         var map = new List<THREE.BufferGeometry>();
-        box(0.46, 0.008, 0.32, 0, 0.004, 0, 0, 0, 0, 0xdccaa2, map);
-        cyl(0.024, 0.024, 0.33, 10, -0.22, 0.024, 0, Math.PI / 2, 0, 0, 0xceb98e, map);
+        box(0.46, 0.008, 0.32, 0, 0.004, 0, 0, 0, 0, 0xb59a68, map);
+        cyl(0.024, 0.024, 0.33, 10, -0.22, 0.024, 0, Math.PI / 2, 0, 0, 0xc2a874, map);
         cyl(0.015, 0.015, 0.334, 8, -0.22, 0.024, 0, Math.PI / 2, 0, 0, 0x5a4a32, map);
-        cyl(0.014, 0.014, 0.325, 10, 0.22, 0.014, 0, Math.PI / 2, 0, 0, 0xceb98e, map);
-        // the sea along its edge, the curve of the beach, a compass cross, and a red X where the hatch was buried
-        box(0.38, 0.004, 0.095, 0, 0.008, -0.09, 0, 0, 0, 0x7ea199, map);
-        box(0.38, 0.004, 0.016, 0, 0.009, -0.04, 0, 0.03, 0, 0x5c4732, map);
-        box(0.055, 0.004, 0.007, -0.12, 0.009, 0.07, 0, 0, 0, 0x3d2e20, map);
-        box(0.007, 0.004, 0.055, -0.12, 0.009, 0.07, 0, 0, 0, 0x3d2e20, map);
-        box(0.048, 0.005, 0.010, 0.04, 0.009, 0.04, 0, 0.78, 0, 0xa82820, map);
-        box(0.048, 0.005, 0.010, 0.04, 0.009, 0.04, 0, -0.78, 0, 0xa82820, map);
+        cyl(0.014, 0.014, 0.325, 10, 0.22, 0.014, 0, Math.PI / 2, 0, 0, 0xc2a874, map);
+        // a blob of red sealing wax holding down its corner
         cyl(0.022, 0.025, 0.008, 10, 0.13, 0.009, 0.09, 0, 0, 0, 0x9e201b, map);
         var mapGeo = THREE.BufferGeometryUtils.mergeGeometries(map);
         place.position.set(-0.12, top, -0.02);

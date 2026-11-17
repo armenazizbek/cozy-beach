@@ -914,6 +914,10 @@ public class AutoShot : MonoBehaviour
             game.smokeTestStandAt(hx - 0.1, hz + 0.3, Math.Atan2(-1.88, -1.5), -0.32);
             yield return Wait(1);
             yield return Shot("32-house-table.png");
+            // and the chart itself, from close above the table
+            game.smokeTestStandAt(hx + 1.0, hz + 1.5, Math.Atan2(-0.76, -0.42), -0.77);
+            yield return Wait(0.8f);
+            yield return Shot("32-house-chart.png");
             // the house on the minimap and the big map, seen from up the beach so the player's arrow is clear of it
             game.smokeTestStandAt(hx + 22, hz, Math.PI / 2, -0.05);
             yield return Wait(1.5f);
@@ -965,6 +969,19 @@ public class AutoShot : MonoBehaviour
             game.smokeTestDogRain("watch");
             yield return Wait(1.5f);
             yield return Shot("33-dog-sheltered.png");
+            // water through the hole in the roof: at the start of a rain, and after a long one; the dog's corner must stay dry
+            game.smokeTestDogRain("leak");
+            yield return Wait(1.0f);
+            yield return Shot("33-house-leak-start.png");
+            game.smokeTestDogRain("wet");
+            yield return Wait(1.0f);
+            yield return Shot("33-house-leak-wet.png");
+            // a moment later: every drop must be lower than it was
+            yield return Wait(0.06f);
+            yield return Shot("33-house-leak-wet-later.png");
+            game.smokeTestDogRain("watch");
+            yield return Wait(1.0f);
+            yield return Shot("33-house-wet-dog.png");
             game.smokeTestDogRain("dry");
             for (int i = 0; i < 16; i++)
             {

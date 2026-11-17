@@ -446,6 +446,7 @@ public class Game
         scene.add(pier.group, fishing.group);
         // the old house past the nets on the left of the beach
         scene.add(oldHouse.group);
+        scene.add(oldHouse.water);
         // the chimney stands in everyone's way; the house itself only in the cart's (people walk in, see updateCamera)
         camp.obstacles.AddRange(oldHouse.solids);
         state.subscribe(refreshAquarium);
@@ -1336,6 +1337,20 @@ public class Game
         {
             state.data.bones = Math.Max(1, state.data.bones);
             giveBone();
+        }
+        else if (what == "wet")
+        {
+            // the floor as it is after a long rain
+            oldHouse.smokeWet(1);
+        }
+        else if (what == "leak")
+        {
+            // inside, by the dog's side of the room, looking across at where the rain comes in through the roof
+            player.x = OldHouse.X + 0.8;
+            player.z = OldHouse.Z - 1.0;
+            player.yaw = Math.Atan2(2.2, -2.4);
+            player.pitch = -0.12;
+            eyeY = 0;
         }
         else if (what == "watch")
         {
@@ -3086,6 +3101,8 @@ public class Game
         rain.update(dt, raining ? 1 : 0, camera.position);
         // under the old house's roof the rain falls outside, not around the player
         rain.group.visible = !oldHouse.contains(camera.position.x, camera.position.z);
+        // ...but it comes in through the hole in the roof, and gathers on the floor away from the dog
+        oldHouse.updateWater(dt, time, rain.amount, dog.x, dog.z);
         if (raining != wasRaining)
         {
             wasRaining = raining;
