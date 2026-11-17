@@ -54,6 +54,8 @@ public static class Settings
     private static GameSettings Defaults()
     {
         var s = new GameSettings();
+        // the first run picks a graphics preset to suit the computer (Settings can change it)
+        s.quality = Platform.AutoQuality();
         if (Platform.IsSteamDeck)
         {
             s.quality = "handheld";

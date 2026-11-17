@@ -43,6 +43,37 @@ public static class Platform
         }
     }
 
+    /// <summary>
+    /// The graphics preset a computer should start on, from what the graphics chip reports: the Deck and chips that share the
+    /// computer's memory (laptop and office graphics) get 'handheld', a graphics card with little memory 'low' or 'medium',
+    /// a proper card 'high'. It only picks the first-run default; the player can change it in Settings at any time.
+    /// </summary>
+    public static string AutoQuality()
+    {
+        string q;
+        try
+        {
+            if (IsSteamDeck) return "handheld";
+            string gpu = (SystemInfo.graphicsDeviceName ?? "").ToLowerInvariant();
+            int vram = SystemInfo.graphicsMemorySize; // MB (for chips that share memory this is a share of the computer's)
+            int cores = SystemInfo.processorCount;
+            bool integrated = gpu.Contains("uhd") || gpu.Contains("iris") || gpu.Contains("intel(r) hd") || gpu.Contains("hd graphics")
+                              || gpu.Contains("radeon(tm) graphics") || gpu.Contains("radeon graphics") || gpu.Contains("vega 3")
+                              || gpu.Contains("vega 6") || gpu.Contains("vega 7") || gpu.Contains("vega 8") || gpu.Contains("vega 10")
+                              || gpu.Contains("vega 11") || gpu.Contains("microsoft basic") || gpu.Contains("llvmpipe");
+            if (integrated) q = "handheld";
+            else if (vram < 2048 || cores < 4) q = "low";
+            else if (vram < 5000) q = "medium";
+            else q = "high";
+            Debug.Log($"[Platform] auto graphics: {q} (gpu '{SystemInfo.graphicsDeviceName}', {vram} MB, {cores} cores)");
+        }
+        catch
+        {
+            q = "high";
+        }
+        return q;
+    }
+
     /// <summary>One line describing the machine and the graphics setup, for the smoke test's log.</summary>
     public static string Describe()
     {
