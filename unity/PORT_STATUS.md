@@ -170,3 +170,8 @@ Autosave and rain: the dug beach is saved as one packed text (`Snapshot.dugPacke
 pairs, and the autosave logs `[Autosave] main thread N ms`; with no holes it costs 2.4 ms on the main thread (the disk write was
 already on a worker). Rain is a fixed pattern of streaks that slides and leans under a camera-following group, so nothing is rewritten
 per frame: mesh rebuilds in the rain scene 2.06 -> 1.06 per frame, main thread 2.56 -> 2.51 ms on the dev PC (the gain is for weaker CPUs).
+
+Speed pass 3: the grass is culled by its real bounds (it was always drawn), renderer bounds follow a rebuilt mesh (they went stale when the
+same Unity mesh was refilled), the detector's line is redrawn at 30 Hz with a point every 4 px. Camp by day main thread 2.33 -> 1.99 ms,
+beach walking 2.65 -> 2.18 ms (dev PC, Mono, `-force-deck`). Not done: warm-up and load time (3.10) need profiling of the 3.6 s world
+build first.

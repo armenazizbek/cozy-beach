@@ -356,7 +356,9 @@ namespace THREE.Bridge
             if (unculled == n.unculled && mesh == n.lastMesh) return;
             n.unculled = unculled;
             if (unculled) r.localBounds = Huge;
-            else if (mesh != null) r.localBounds = mesh.bounds;
+            // back to the mesh's own bounds, which follow the mesh when it is rebuilt (a copy of them taken here went stale
+            // when the same Unity mesh was filled with a new shape)
+            else r.ResetLocalBounds();
         }
 
         private static void SyncMesh(THREE.Mesh m, Node n)

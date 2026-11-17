@@ -157,7 +157,7 @@ public class Grass
         }
         im.castShadow = false;
         im.receiveShadow = true;
-        im.frustumCulled = false;
+        // culled by its real bounds (the strip of beach it covers): it is not drawn at all while the player looks out to sea
         mesh = im;
         tufts = list.Select(t => new Tuft { x = t.x, z = t.z, alive = true }).ToList();
         group.add(im);

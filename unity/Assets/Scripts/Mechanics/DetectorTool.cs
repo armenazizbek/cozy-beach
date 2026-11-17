@@ -206,6 +206,8 @@ public class DetectorTool
     private UnityEngine.Color waveColor;
     private float waveW = 1, waveH = 1;
     private string labelText;
+    private string waveColorText;
+    private double lastWaveT = double.NegativeInfinity;
 
     public void drawWaveform(CanvasRenderingContext2D ctx, double w, double h, double t, int tier)
     {
@@ -235,9 +237,20 @@ public class DetectorTool
         double mid = h / 2;
         double amp = kind != null ? 0.12 + strength * 0.85 : 0.04;
         string color = kind == "trash" ? "#ff9a3c" : kind == "coin" ? "#a8ee7a" : kind == "deep" ? "#c79bff" : kind == "generic" ? "#b8d4c0" : "#4a7a5e";
-        UnityEngine.ColorUtility.TryParseHtmlString(color, out waveColor);
-        wavePts.Clear();
-        for (double x = 0; x <= w; x += 2)
+        if (color != waveColorText)
+        {
+            waveColorText = color;
+            UnityEngine.ColorUtility.TryParseHtmlString(color, out waveColor);
+        }
+        // the line is redrawn about 30 times a second with a point every 4 px: the eye cannot tell it from every frame and
+        // every 2 px, and the strokes (three of them, round-joined) are the expensive part
+        bool redraw = wavePts.Count == 0 || t - lastWaveT >= 1.0 / 30 || t < lastWaveT;
+        if (redraw)
+        {
+            lastWaveT = t;
+            wavePts.Clear();
+        }
+        for (double x = 0; redraw && x <= w; x += 4)
         {
             double a = x / w * Math.PI * 6 + t * 7;
             double v;
@@ -251,7 +264,7 @@ public class DetectorTool
             }
             wavePts.Add(new UnityEngine.Vector2((float)x, (float)(mid - v * amp * (h / 2 - 4))));
         }
-        waveLine?.MarkDirtyRepaint();
+        if (redraw) waveLine?.MarkDirtyRepaint();
 
         string label = tier < 2 && kind != null ? "SIGNAL" : kind == "trash" ? "TRASH" : kind == "coin" ? "COIN / METAL" : kind == "deep" ? "DEEP ANTIQUE" : "NO SIGNAL";
         // the label only changes with the signal: the canvas (screen, grid and label) is redrawn only then, so it is
