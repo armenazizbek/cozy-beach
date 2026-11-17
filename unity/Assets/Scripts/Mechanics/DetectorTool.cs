@@ -262,7 +262,7 @@ public class DetectorTool
             ctx.clearRect(0, 0, w, h);
             ctx.drawImage(waveBg, 0, 0);
             ctx.fillStyle = "rgba(160,255,200,0.7)";
-            ctx.font = "10px monospace";
+            ctx.font = "12px monospace";
             ctx.fillText(label, 6, 12);
         }
     }

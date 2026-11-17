@@ -715,6 +715,12 @@ public class UIManager
         toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
         toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
         rows.append(el("h3", "caps", "Display"));
+        choice("Text and menu size", new[]
+        {
+            new[] { "1", "Normal" },
+            new[] { "1.15", "Large" },
+            new[] { "1.3", "Larger (Steam Deck)" },
+        }, () => JS.Str(settings.uiScale), v => settings.uiScale = double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s) ? s : 1);
         choice("Screen mode", new[]
         {
             new[] { "fullscreen", "Fullscreen" },
@@ -800,12 +806,15 @@ public class UIManager
             body.scrollTop = 0;
             foreach (var blk in HELP_TOPICS[i].blocks)
             {
+                // only the controls the player is using: the keyboard's list, or the controller's
+                if (blk.h == "Keyboard and mouse" && PadText.pad.on) continue;
+                if (blk.h == "Controller" && !PadText.pad.on) continue;
                 if (!string.IsNullOrEmpty(blk.h)) body.append(el("h3", "", blk.h));
-                if (!string.IsNullOrEmpty(blk.p)) body.append(el("p", "help-p", blk.p));
+                if (!string.IsNullOrEmpty(blk.p)) body.append(el("p", "help-p", padText(blk.p)));
                 if (blk.list != null)
                 {
                     var ul = el("ul", "help-list");
-                    foreach (var item in blk.list) ul.append(el("li", "", item));
+                    foreach (var item in blk.list) ul.append(el("li", "", padText(item)));
                     body.append(ul);
                 }
                 if (blk.keys != null)

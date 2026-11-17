@@ -63,6 +63,16 @@ public class GameHost : MonoBehaviour
         THREE.WebGLRenderer.Main?.Tick();
     }
 
+    private void OnApplicationFocus(bool focus)
+    {
+        if (!focus) game?.onFocusLost();
+    }
+
+    private void OnApplicationQuit()
+    {
+        game?.onQuit();
+    }
+
     private void OnDestroy()
     {
         if (Instance == this) Instance = null;

@@ -297,6 +297,9 @@ public static class DomHost
     /// <summary>The page the UI is laid out on. The screen shows at least this much, more along its longer side.</summary>
     public const double PAGE_WIDTH = 1920, PAGE_HEIGHT = 1080;
 
+    /// <summary>How much larger than the page's own size the UI is drawn (the "UI size" setting): 1, 1.15 or 1.3. Picked up by the next Tick.</summary>
+    public static double UiScale = 1;
+
     private static void RefreshMetricsInternal(out float scale)
     {
         float dpi = Screen.dpi;
@@ -309,7 +312,9 @@ public static class DomHost
         // A game's menus and HUD take up the same share of the screen at every resolution. The browser page was a fixed size
         // in pixels instead, so on a 1440p or 4K screen everything shrank to a corner. The page is 1920 x 1080 and is scaled
         // to fit: a wider or taller screen sees more page, never less.
-        double dpr = Math.Min(sw / PAGE_WIDTH, sh / PAGE_HEIGHT);
+        // The "UI size" setting (1 to 1.3) makes the page that much smaller, so everything on it is that much larger. The 3D
+        // picture's resolution is unaffected: it is divided by this same ratio again (WebGLRenderer.setPixelRatio).
+        double dpr = Math.Min(sw / PAGE_WIDTH, sh / PAGE_HEIGHT) * UiScale;
         if (dpr < 0.3) dpr = 0.3;
         scale = (float)dpr;
 

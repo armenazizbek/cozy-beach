@@ -359,7 +359,7 @@ public class MapView
             ctx.closePath();
             ctx.fill();
         }
-        ctx.font = "700 13px Georgia, serif";
+        ctx.font = "700 14px Georgia, serif";
         ctx.textAlign = "center";
         ctx.fillText("N", 0, -28);
         ctx.restore();
@@ -728,7 +728,7 @@ public class MapView
         ctx.fillStyle = "#ffffff";
         ctx.fillText("Sea", size / 2, size - 14);
         ctx.fillStyle = "#6b3a1c";
-        ctx.font = "italic 600 13px \"Trebuchet MS\", sans-serif";
+        ctx.font = "italic 600 14px \"Trebuchet MS\", sans-serif";
         ctx.fillText("Treasure cove", ((0 - cx + half) / (2 * half)) * size, ((CoveNets.BOTTOM_Z - 6 - cz + half) / (2 * half)) * size);
         ctx.font = "600 14px \"Trebuchet MS\", sans-serif";
         ctx.fillStyle = "#ffffff";

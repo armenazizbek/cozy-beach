@@ -108,7 +108,7 @@
 }
 
 .t-small {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .t-ul {
@@ -277,7 +277,7 @@
 
 .kc.pad-stick {
   padding: 0;
-  font-size: 12px;
+  font-size: 13px;
   color: #fbf2de;
   background-image: resource("UI/Skin/pad-stick");
 }
@@ -615,7 +615,7 @@
 }
 
 .scope-title {
-  font-size: 11px;
+  font-size: 14px;
   -unity-font-style: bold;
   color: #8fe0a8;
   letter-spacing: 3px;
@@ -836,7 +836,7 @@
   position: absolute;
   right: 5px;
   bottom: 2px;
-  font-size: 12px;
+  font-size: 13px;
   -unity-font-style: bold;
   color: #ffd76a;
 }
@@ -845,7 +845,7 @@
   position: absolute;
   left: 5px;
   top: 1px;
-  font-size: 12px;
+  font-size: 13px;
   -unity-font-style: normal;
   color: #ffd76a;
 }
@@ -1664,7 +1664,7 @@
   margin-top: 3px;
   /* font: italic 10px/1.15 Georgia, serif; */
   -unity-font-style: italic;
-  font-size: 11px;
+  font-size: 14px;
   color: #4a3020;
   -unity-text-align: middle-center;
 }
@@ -1742,7 +1742,7 @@
 
 .photo-missing {
   height: 150px;
-  font-size: 12px;
+  font-size: 14px;
   color: #8a6f55;
   -unity-text-align: middle-center;
   background-color: #efe4cc;
@@ -2600,7 +2600,7 @@
   flex-direction: row;
   align-items: center;
   /* gap: 10px; */
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 1.5px;
   /* text-transform: uppercase; */
   opacity: 0.75;
@@ -2615,7 +2615,7 @@
   color: #ffffff;
   padding: 1px 8px;
   border-radius: 99px;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 1px;
   opacity: 1;
 }
@@ -2626,7 +2626,7 @@
   left: 0;
   right: 0;
   -unity-text-align: middle-center;
-  font-size: 13px;
+  font-size: 14px;
   opacity: 0.55;
 }
 
@@ -2660,7 +2660,7 @@
   border-color: rgba(59, 42, 30, 0.45);
   padding: 0 7px;
   border-radius: 99px;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 1px;
   opacity: 0.8;
 }

@@ -700,38 +700,78 @@ internal class SynthHost : MonoBehaviour
 
     internal void Enqueue(Voice v) => incoming.Enqueue(v);
 
-    private void Awake()
+    private AudioSource synthSource;
+
+    /// <summary>The noise the synth is made of, and its filters, for the current output sample rate (read from the sound device).</summary>
+    private void BuildBuffers()
     {
-        sampleRate = AudioSettings.outputSampleRate > 0 ? AudioSettings.outputSampleRate : 48000;
+        int rate = AudioSettings.outputSampleRate > 0 ? AudioSettings.outputSampleRate : 48000;
         // one shared 2s white noise buffer for all the noise-based sounds
-        noiseBuf = new float[sampleRate * 2];
-        for (int i = 0; i < noiseBuf.Length; i++) noiseBuf[i] = (float)(rng.NextDouble() * 2 - 1);
+        var noise = new float[rate * 2];
+        for (int i = 0; i < noise.Length; i++) noise[i] = (float)(rng.NextDouble() * 2 - 1);
         // 4 second looping brown-noise surf
-        int len = sampleRate * 4;
-        oceanBuf = new float[len];
+        int len = rate * 4;
+        var ocean = new float[len];
         double last = 0;
         for (int i = 0; i < len; i++)
         {
             last = (last + 0.02 * (rng.NextDouble() * 2 - 1)) / 1.02;
-            oceanBuf[i] = (float)(last * 3.5);
+            ocean[i] = (float)(last * 3.5);
         }
         // crossfade the loop seam
-        int fade = (int)Math.Floor(sampleRate * 0.1);
+        int fade = (int)Math.Floor(rate * 0.1);
         for (int i = 0; i < fade; i++)
         {
             float k = (float)i / fade;
-            oceanBuf[i] = oceanBuf[i] * k + oceanBuf[len - fade + i] * (1 - k);
+            ocean[i] = ocean[i] * k + ocean[len - fade + i] * (1 - k);
         }
-        rainHp.Set(AudioManager.Filter.Highpass, 1100, 1, sampleRate);
-        rainLp.Set(AudioManager.Filter.Lowpass, 7000, 1, sampleRate);
-        engLp.Set(AudioManager.Filter.Lowpass, 900, 1, sampleRate);
-        engBp.Set(AudioManager.Filter.Bandpass, 600, 1, sampleRate);
-        var src = gameObject.AddComponent<AudioSource>();
-        src.clip = AudioClip.Create("synth", sampleRate, 2, sampleRate, false);
-        src.loop = true;
-        src.spatialBlend = 0;
-        src.volume = 1;
-        src.Play();
+        rainHp.Set(AudioManager.Filter.Highpass, 1100, 1, rate);
+        rainLp.Set(AudioManager.Filter.Lowpass, 7000, 1, rate);
+        engLp.Set(AudioManager.Filter.Lowpass, 900, 1, rate);
+        engBp.Set(AudioManager.Filter.Bandpass, 600, 1, rate);
+        noiseBuf = noise;
+        oceanBuf = ocean;
+        oceanPos = 0;
+        rainPos = 0;
+        enginePos = 0;
+        sampleRate = rate;
+    }
+
+    private void StartSynth()
+    {
+        synthSource.Stop();
+        synthSource.clip = AudioClip.Create("synth", sampleRate, 2, sampleRate, false);
+        synthSource.loop = true;
+        synthSource.spatialBlend = 0;
+        synthSource.volume = 1;
+        synthSource.Play();
+    }
+
+    private void Awake()
+    {
+        BuildBuffers();
+        synthSource = gameObject.AddComponent<AudioSource>();
+        StartSynth();
+        AudioSettings.OnAudioConfigurationChanged += OnAudioConfigChanged;
+    }
+
+    private void OnDestroy()
+    {
+        AudioSettings.OnAudioConfigurationChanged -= OnAudioConfigChanged;
+    }
+
+    /// <summary>
+    /// The sound device changed or came back (the Steam Deck waking from sleep, headphones plugged in, docking): Unity resets the
+    /// audio system and stops what was playing. The synth is built again for the new device's rate and started, and the radio
+    /// tracks that were playing are started again, or the sea, rain, engine and effects would stay silent.
+    /// </summary>
+    private void OnAudioConfigChanged(bool deviceChanged)
+    {
+        Debug.Log($"Audio configuration changed (device {deviceChanged}), now {AudioSettings.outputSampleRate} Hz");
+        BuildBuffers();
+        StartSynth();
+        foreach (var s in slots)
+            if (s.src != null && s.src.clip != null && !s.src.isPlaying && s.gain.value > 0.001) s.src.Play();
     }
 
     private void Update()

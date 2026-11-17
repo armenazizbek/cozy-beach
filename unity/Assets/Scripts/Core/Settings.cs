@@ -31,6 +31,8 @@ public class GameSettings
     public bool vsync = true;
     /// <summary>most pictures a second when VSync is off; 0 for no limit</summary>
     public int fpsLimit = 0;
+    /// <summary>how large the menus, HUD and text are drawn: 1, 1.15 or 1.3 (the Steam Deck's small screen starts at 1.3)</summary>
+    public double uiScale = 1;
     /// <summary>how the game window is shown: 'fullscreen' | 'windowed' | 'borderless'</summary>
     public string displayMode = "fullscreen";
     /// <summary>window size in windowed mode, "widthxheight"</summary>
@@ -55,6 +57,7 @@ public static class Settings
         if (Platform.IsSteamDeck)
         {
             s.quality = "handheld";
+            s.uiScale = 1.3;
             s.displayMode = "borderless";
             s.windowSize = "1280x800";
             s.vsync = true;

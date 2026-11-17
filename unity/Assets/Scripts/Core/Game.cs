@@ -463,6 +463,8 @@ public class Game
         ui.setMode("EXPLORE");
         applySettings();
         applyDisplay(true);
+        // a controller already connected (always so on a Steam Deck): the menus show its buttons from the first screen, not the keyboard's
+        if (!AutoShot.Active && (Platform.IsSteamDeck || UnityEngine.InputSystem.Gamepad.current != null)) setUsingPad(true);
         if (PENDING != null)
         {
             ui.skipIntro();
@@ -3136,8 +3138,17 @@ public class Game
         usingPad = on;
         document.body.classList.toggle("usingpad", on);
         ui.setPadMode(on);
-        if (on) document.exitPointerLock();
-        else mapCursorEl?.remove();
+        if (on)
+        {
+            document.exitPointerLock();
+            // no mouse cursor floating over the picture while a controller is in hand (it comes back with the next key or click)
+            UnityEngine.Cursor.visible = false;
+        }
+        else
+        {
+            mapCursorEl?.remove();
+            if (!locked) UnityEngine.Cursor.visible = true;
+        }
     }
 
     /// <summary>Holds a virtual key for the controller, without disturbing a key the keyboard is already holding.</summary>
@@ -3722,6 +3733,7 @@ public class Game
     private void applySettings()
     {
         var st = settings;
+        DomHost.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
         audio.setVolumes(st.master, st.music, st.ambience);
         THREE.Bridge.UrpSettings.SetQuality(st.quality);
         FramePacing.Apply(st.vsync, st.fpsLimit);
@@ -4119,6 +4131,33 @@ public class Game
         claimGameId(state.data);
         // the snapshot is turned into text here; the disk is written on another thread, so play does not stop for it
         writeSaveInBackground(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
+    }
+
+    /// <summary>
+    /// The window lost the focus: the Steam Deck going to sleep, the Steam overlay opening, another window coming up. Play stops
+    /// (whatever the player was using, controller included) and the game is saved quietly, in case it is not coming back.
+    /// </summary>
+    public void onFocusLost()
+    {
+        if (AutoShot.Active) return;
+        if (started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null
+            && islands[2].lighthouse?.introActive != true) setPaused(true);
+        autoSave();
+    }
+
+    /// <summary>The game is closing (Exit Game, the Steam overlay's Stop, shutdown): saves at once, on this thread, so the write is finished before the process ends.</summary>
+    public void onQuit()
+    {
+        if (AutoShot.Active || !started || gameState == "MENU" || hammock != null) return;
+        try
+        {
+            claimGameId(state.data);
+            writeSave(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
+        }
+        catch (Exception e)
+        {
+            UnityEngine.Debug.LogWarning("Could not save on quit: " + e.Message);
+        }
     }
 
     /// <summary>Writes the whole world as a new save, or over an existing one.</summary>
