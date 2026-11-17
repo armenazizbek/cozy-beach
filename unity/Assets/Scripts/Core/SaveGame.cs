@@ -69,6 +69,8 @@ public class Snapshot
     public List<SavedItem> items = new List<SavedItem>();
     /// <summary>sparse list of [vertex index, dug depth] for every changed sand vertex</summary>
     public List<double[]> dug = new List<double[]>();
+    /// <summary>the holes packed into one text (<see cref="Beach.exportDugPacked"/>); saves from older versions have the list above instead</summary>
+    public string dugPacked;
 }
 
 /// <summary>The small summary shown in the save list; the heavy snapshot lives under its own key.</summary>

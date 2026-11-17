@@ -165,3 +165,8 @@ their centre is the default, `padText` cached):
 Speed pass 2 (clouds and grass tufts marked static for the scene copy, small things cast no shadow on `low`/`handheld`, ocean depth
 refresh in slices, smoke test says when garbage is not recorded): camp by day 407 fps, sync 0.84 ms, 1429 objects (was 1518);
 lighthouse at night 677 fps; diving 737 fps; underground 1455 fps (dev PC, Mono, `-force-deck`, 1280x800).
+
+Autosave and rain: the dug beach is saved as one packed text (`Snapshot.dugPacked`, old list still read) instead of a list of number
+pairs, and the autosave logs `[Autosave] main thread N ms`; with no holes it costs 2.4 ms on the main thread (the disk write was
+already on a worker). Rain is a fixed pattern of streaks that slides and leans under a camera-following group, so nothing is rewritten
+per frame: mesh rebuilds in the rain scene 2.06 -> 1.06 per frame, main thread 2.56 -> 2.51 ms on the dev PC (the gain is for weaker CPUs).

@@ -4073,7 +4073,8 @@ public class Game
             boat = new VehicleSave { x = boat.x, z = boat.z, heading = boat.heading },
             chests = treasure.takenFlags(),
             items = spawner.exportItems(),
-            dug = beach.exportDug(),
+            dug = new List<double[]>(),
+            dugPacked = beach.exportDugPacked(),
         };
     }
 
@@ -4136,7 +4137,13 @@ public class Game
         lastAuto = now;
         claimGameId(state.data);
         // the snapshot is turned into text here; the disk is written on another thread, so play does not stop for it
-        writeSaveInBackground(snapshot(), "Autosave", nextAutosaveId(state.data.gameId), true);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var id = nextAutosaveId(state.data.gameId);
+        double idMs = sw.Elapsed.TotalMilliseconds;
+        var snap = snapshot();
+        double snapMs = sw.Elapsed.TotalMilliseconds - idMs;
+        writeSaveInBackground(snap, "Autosave", id, true);
+        Debug.Log($"[Autosave] main thread {sw.Elapsed.TotalMilliseconds:0.0} ms (slot {idMs:0.0}, snapshot {snapMs:0.0}, {(snap.dugPacked?.Length ?? 0) / 8} dug points)");
     }
 
     /// <summary>
@@ -4207,7 +4214,7 @@ public class Game
         if (sameMap)
         {
             spawner.importItems(s.items);
-            beach.importDug(s.dug);
+            beach.importDug(!string.IsNullOrEmpty(s.dugPacked) ? Beach.unpackDug(s.dugPacked) : s.dug ?? new List<double[]>());
             holes = s.holes ?? new List<double[]>();
             setWaypoint(s.waypoint != null ? new Waypoint { x = s.waypoint.x, z = s.waypoint.z } : null);
             if (s.cart != null)

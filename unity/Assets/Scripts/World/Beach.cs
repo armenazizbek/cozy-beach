@@ -925,6 +925,43 @@ public class Beach
         return o;
     }
 
+    /// <summary>
+    /// The same holes as <see cref="exportDug"/>, packed into one text (per dug point: its index as 4 bytes and its depth in
+    /// millimetres as 2, in base 64). A dug beach has tens of thousands of points: as a list of number pairs the autosave
+    /// spent most of its time on them, as one string it costs next to nothing.
+    /// </summary>
+    public string exportDugPacked()
+    {
+        int count = 0;
+        for (int i = 0; i < dug.Length; i++) if (Math.Abs(dug[i]) > 0.002) count++;
+        if (count == 0) return "";
+        var bytes = new byte[count * 6];
+        int o = 0;
+        for (int i = 0; i < dug.Length; i++)
+        {
+            if (Math.Abs(dug[i]) <= 0.002) continue;
+            int mm = (int)Math.Max(-32000, Math.Min(32000, Math.Round(dug[i] * 1000)));
+            bytes[o++] = (byte)i; bytes[o++] = (byte)(i >> 8); bytes[o++] = (byte)(i >> 16); bytes[o++] = (byte)(i >> 24);
+            bytes[o++] = (byte)mm; bytes[o++] = (byte)(mm >> 8);
+        }
+        return Convert.ToBase64String(bytes);
+    }
+
+    /// <summary>Reads what <see cref="exportDugPacked"/> wrote.</summary>
+    public static List<double[]> unpackDug(string packed)
+    {
+        var list = new List<double[]>();
+        if (string.IsNullOrEmpty(packed)) return list;
+        var bytes = Convert.FromBase64String(packed);
+        for (int o = 0; o + 6 <= bytes.Length; o += 6)
+        {
+            int i = bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24);
+            short mm = (short)(bytes[o + 4] | (bytes[o + 5] << 8));
+            list.Add(new double[] { i, mm / 1000.0 });
+        }
+        return list;
+    }
+
     /// <summary>Puts saved holes back and rebuilds the sand mesh around them.</summary>
     public void importDug(List<double[]> list)
     {
