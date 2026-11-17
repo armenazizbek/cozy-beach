@@ -632,12 +632,17 @@
   position: absolute;
   /* kept clear of the detector's screen (bottom left) and the tool badge (bottom right), so a long hint wraps
      onto more rows instead of running under them on a small screen */
-  left: 290px;
-  right: 250px;
+  left: 210px;
+  right: 210px;
   bottom: 30px;
   display: flex;
   flex-direction: row;
   justify-content: center;
+}
+
+/* the detector's screen is only there with the detector in hand: only then does the left side need more room */
+.scope-on .hint-row {
+  left: 270px;
 }
 
 .hint {

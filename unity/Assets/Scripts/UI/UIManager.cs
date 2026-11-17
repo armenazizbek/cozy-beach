@@ -389,6 +389,7 @@ public class UIManager
             this.badgeName.textContent = n == 7 ? $"Flags x{this.state.data.flags}" : inf[1];
         }
         this.scope.classList.toggle("hidden", n != 1);
+        document.body.classList.toggle("scope-on", n == 1);
     }
 
     /// <summary>Tools that share the d-pad's left slot: the camera, flags (while any are left), the bucket, the bow and the gun.</summary>
@@ -448,7 +449,11 @@ public class UIManager
     {
         this.hud.classList.toggle("hidden", mode == "INSPECT" || mode == "MENU");
         this.scope.classList.toggle("dim", mode == "CAMP");
-        if (mode == "INSPECT" || mode == "MENU") this.scope.classList.add("hidden");
+        if (mode == "INSPECT" || mode == "MENU")
+        {
+            this.scope.classList.add("hidden");
+            document.body.classList.remove("scope-on");
+        }
         document.body.dataset["mode"] = mode;
     }
 
