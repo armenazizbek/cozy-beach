@@ -630,8 +630,10 @@
 /* what the keys do right now, bottom centre */
 .hint-row {
   position: absolute;
-  left: 0;
-  right: 0;
+  /* kept clear of the detector's screen (bottom left) and the tool badge (bottom right), so a long hint wraps
+     onto more rows instead of running under them on a small screen */
+  left: 290px;
+  right: 250px;
   bottom: 30px;
   display: flex;
   flex-direction: row;
@@ -639,6 +641,7 @@
 }
 
 .hint {
+  flex-shrink: 1;
   display: flex;
   flex-direction: row;
   /* a long line (swimming has eight keys) wraps onto a second row before it reaches the tool in the bottom right corner
