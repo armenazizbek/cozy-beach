@@ -3,98 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "description": "A cozy first-person treasure hunting game on a procedural beach (Unity project in unity/).",
+  "author": "Armen Azizbekyan",
+  "license": "UNLICENSED",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "electron:dev": "ELECTRON_DEV_URL=http://localhost:5173 electron .",
-    "electron:start": "npm run build && electron .",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac",
-    "dist:linux": "npm run build && electron-builder --linux",
-    "dist:steam": "npm run build && electron-builder --win dir",
     "dist:unity": "node scripts/dist-unity.mjs",
     "dist:unity:quick": "node scripts/dist-unity.mjs --quick"
-  },
-  "dependencies": {
-    "three": "^0.170.0"
-  },
-  "devDependencies": {
-    "@types/three": "^0.170.0",
-    "electron": "^45.1.0",
-    "electron-builder": "^26.18.0",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.10"
-  },
-  "description": "A cozy first-person treasure hunting game on a procedural beach.",
-  "author": "Armen Azizbekyan",
-  "main": "electron/main.cjs",
-  "build": {
-    "appId": "com.armenazizbekyan.cozytreasurehunter",
-    "productName": "Cozy Treasure Hunter",
-    "directories": {
-      "output": "release"
-    },
-    "electronLanguages": [
-      "en-US"
-    ],
-    "files": [
-      "dist/**",
-      "electron/**",
-      "package.json"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png"
-    },
-    "mac": {
-      "target": [
-        "dmg"
-      ],
-      "category": "public.app-category.games"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Game"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Cozy Treasure Hunter",
-      "uninstallDisplayName": "Cozy Treasure Hunter",
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false,
-      "artifactName": "Cozy-Treasure-Hunter-Setup-${version}.${ext}"
-    },
-    "copyright": "Copyright © 2026 Armen Azizbekyan",
-    "asarUnpack": [
-      "node_modules/steamworks.js/**"
-    ],
-    "portable": {
-      "artifactName": "Cozy-Treasure-Hunter-${version}-portable.${ext}"
-    }
-  },
-  "optionalDependencies": {
-    "steamworks.js": "^0.4.0"
-  },
-  "license": "UNLICENSED"
+  }
 }

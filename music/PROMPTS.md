@@ -2,7 +2,7 @@
 
 Six tracks, one prompt each. Paste a prompt into your music tool (Suno, Udio, Stable Audio or similar), make 6 to 10 versions, and keep the best one.
 
-Put the finished files in `public/music/` with exactly these names (MP3 or OGG, under 5 MB each):
+Put the finished files in `unity/Assets/Resources/Music/` with exactly these names (MP3 or OGG, under 5 MB each):
 
 | File | Where it plays |
 |---|---|

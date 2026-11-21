@@ -45,7 +45,7 @@ GPU work, each change measured) -> 5 (Deck sign-off).**
 ## Ground rules for the implementer
 
 - Work on `main` (check the branch and `git pull` first). Commit per task with a clear message; push only when asked.
-- Change C# in `unity/Assets/Scripts` only. `src/` (TypeScript) is the old web game, reference only.
+- Change C# in `unity/Assets/Scripts` only. The old TypeScript web game (`src/`) has been removed; it is in the git history.
 - Build without the editor open and without the game running (a running game locks the exe):
   - quick test build: `Start-Process "C:\Users\Armen\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe" -ArgumentList "-batchmode","-quit","-projectPath","<repo>\unity","-executeMethod","BuildScript.BuildWindowsMono","-logFile","<log>" -Wait`
     (use `Start-Process -Wait`; a bare `& Unity.exe` returns at once). Check the log for `error CS` and `Build Finished, Result: Success`.

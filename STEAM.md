@@ -5,8 +5,7 @@ What the game already does for Steam, and what is left to do on Steam's side.
 ## What is built in
 
 - **Achievements.** 37 achievements, listed at the bottom. The game keeps its own list (the Achievements button on the main and pause menus). The Unity build uses Steamworks.NET (`Core/SteamService.cs`): when Steam is running, every achievement already earned is unlocked on Steam at start and new ones as they happen. It also pauses the game when the Steam overlay opens, opens Steam's on-screen keyboard for the save name on a controller, and adds saved photos to the Steam screenshot library. Outside Steam it works the same, without any Steam features.
-- **Cloud saves.** In the desktop app every save, the autosave and the achievement list are plain `.json` files in a `saves` folder inside the game's user-data folder, which Steam can copy to the cloud (see step 4). Saves an earlier version kept in the browser's storage are copied across the first time they are read.
-- **Installer.** `npm run dist:win` makes an installer (`Cozy-Treasure-Hunter-Setup-<version>.exe`, with a desktop shortcut, a Start-menu entry, a choice of folder and an uninstaller) and a portable exe. Steam itself does not use the installer: it installs the game from the files you upload (step 5).
+- **Cloud saves.** Every save, the autosave and the achievement list are plain `.json` files in a `saves` folder inside the game's user-data folder, which Steam can copy to the cloud (see step 4).
 
 ## Steps on Steam's side
 
@@ -19,16 +18,15 @@ What the game already does for Steam, and what is left to do on Steam's side.
    - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves`, pattern `*.json` (saves and achievements)
    - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves/photos`, pattern `*.jpg` (photos, about 100 KB each, up to 60 per game)
    - A quota of about 200 MB and 1,000 files leaves room for several games full of photos.
-   (The Electron build kept its saves under `%APPDATA%\cozy-treasure-hunter\saves`; the Unity build copies them across on its first run.)
-5. **Uploading a build:** close the Unity editor and run `npm run dist:unity`. It builds the Unity game (the release build, IL2CPP) and makes the unpacked game folder at `release/unity-win-unpacked`, without the debug symbols that must not ship. Play it from there first, then upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `CozyTreasureHunter.exe`. (`npm run dist:steam` still makes the old Electron build at `release/win-unpacked`.)
+   (Saves from the old Electron test builds, under `%APPDATA%\cozy-treasure-hunter\saves`, are copied across on the first run.)
+5. **Uploading a build:** close the Unity editor and run `npm run dist:unity`. It builds the Unity game (the release build, IL2CPP) and makes the unpacked game folder at `release/unity-win-unpacked`, without the debug symbols that must not ship. Play it from there first, then upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `CozyTreasureHunter.exe`.
 6. Fill in the store page (capsule art, screenshots, trailer, description) and the price, then submit for review.
 
 ## Notes
 
 - Steam is optional: if it is not running, or `steam_api64.dll` is missing, the game just carries on without it. For testing outside Steam, put a `steam_appid.txt` containing 480 next to the exe (never upload it). Once the real App ID exists, call `SteamAPI.RestartAppIfNecessary(appId)` in `SteamService.Init`.
 - Steam Input: set the default configuration to "Gamepad" so the Deck's trackpads are not a mouse by default (the game shows Xbox button glyphs).
-- The game is not code-signed, so Windows SmartScreen may warn on the first run of the installer. Steam installs do not show that warning.
-- Keep the licence notices that the build bundles (`LICENSE.electron.txt` and `LICENSES.chromium.html`).
+- The game is not code-signed. Steam installs do not show a SmartScreen warning.
 
 ## Achievements
 

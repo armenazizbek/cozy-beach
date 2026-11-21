@@ -35,7 +35,7 @@ The 8 screenshots, in the order I would show them: golden-hour camp, camp at nig
 - [ ] A trailer (optional but strongly recommended): 30 to 60 seconds. A good plan: dig and clean, the camp at night, the boat to the island, diving with the turtle and octopus, the underground door, and the title. You can record gameplay with OBS; I can also set up a free-roaming camera mode to make a smooth fly-through if you want.
 - [ ] The App ID (when your Steamworks account is approved) and the achievements created on Steam.
 - [ ] Steam Auto-Cloud turned on (see `../STEAM.md`, step 4).
-- [ ] The depot build uploaded with `npm run dist:steam` (see `../STEAM.md`, step 5).
+- [ ] The depot build uploaded with `npm run dist:unity` (see `../STEAM.md`, step 5).
 - [ ] The store page and the build submitted for review.
 - [ ] A "Coming soon" page live at least two weeks before release.
 

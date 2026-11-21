@@ -1,7 +1,7 @@
 # Cozy Treasure Hunter: Unity port
 
-This folder is a Unity 6.3 LTS project (`6000.3.28f1`, Universal Render Pipeline) that is a straight port of the Three.js game in
-`../src`. The aim is the same game, the same look and the same numbers, running under Unity, so it can later go to consoles.
+This folder is a Unity 6.3 LTS project (`6000.3.28f1`, Universal Render Pipeline) that began as a straight port of the earlier Three.js game
+(once in `../src`, now removed; it is in the git history before the Electron cleanup). The aim is the same game, the same look and the same numbers, running under Unity, so it can later go to consoles.
 
 ## How to open it
 

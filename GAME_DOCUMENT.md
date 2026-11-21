@@ -14,10 +14,10 @@ Made by **Armen Azizbekyan**, solo developer and creator.
 | **Pace** | Slow, calm, no fail state, no timer pressure |
 | **Goal** | Find every item on the Lost & Found list and return it. The game then ends with a thank-you card |
 | **Length (target)** | Several hours; the economy is tuned so upgrades come over hours, not minutes (see section 8) |
-| **Platforms** | Windows, macOS and Linux desktop app (Electron); also runs in a browser |
+| **Platforms** | Windows (Steam), with Steam Deck as the next target |
 | **Input** | Keyboard and mouse, or a game controller |
 | **Art and sound** | 100% procedural: every model, texture and sound is generated in code. No external asset files |
-| **Tech** | Vite, TypeScript (strict), Three.js, Web Audio API |
+| **Tech** | Unity 6.3 LTS (URP), C# |
 
 ---
 
@@ -326,37 +326,33 @@ Unlimited named save slots stored on the player's machine (in the desktop app th
 
 ## 17. Technical overview
 
-- **Engine**: Three.js scene with a custom heightfield terrain (520 segments) and shader tweaks for damp sand, instanced decals for footprints, paw prints, tyre tracks and whitecaps, a CPU particle system, and instanced swaying grass.
-- **Audio**: all Web Audio synthesis, including ocean, wind, rain, detector, footsteps, fire, engines, the dog's bark and the six radio stations.
-- **State**: a reactive state manager drives the interface; saves are JSON snapshots.
-- **Desktop**: Electron wrapper (Windows, macOS, Linux) with fullscreen, windowed and borderless support, a real Exit button, and the remembered display mode.
+- **Engine**: Unity 6.3 LTS (`6000.3.28f1`, Universal Render Pipeline). The game was first written in Three.js and ported file by file to C#; a small C# copy of Three.js (`Assets/Scripts/Three`) sits on top of Unity, with a custom heightfield terrain, instanced decals for footprints, paw prints, tyre tracks and whitecaps, a CPU particle system, and instanced swaying grass.
+- **Audio**: sound effects are synthesised in code (`Core/AudioManager.cs`): ocean, wind, rain, detector, footsteps, fire, engines, the dog's bark and the radio. Music and the opening narration are recordings.
+- **State**: a reactive state manager drives the interface (UI Toolkit); saves are JSON files.
+- **Steam**: Steamworks.NET for achievements, overlay pause, the on-screen keyboard and screenshots (see `STEAM.md`).
 
-### Project layout (src/)
-- `core/`: Game (the hub), state, save, settings, audio, input, gamepad, journal text, item and quest data
-- `world/`: beach, sky, ocean, camp, scenery, stones, grass, wildlife, vehicles, dog, rain, tracks, flags, loot spawner
-- `mechanics/`: detector, trowel, bullets, arrows, first-person view model, cleaning station
-- `ui/`: HUD, menus, camp modal, maps, controller wording helper
+### Project layout (unity/Assets/Scripts/)
+- `Core/`: Game (the hub), state, save, settings, audio, input, gamepad, journal text, item and quest data, Steam
+- `World/`: beach, sky, ocean, camp, scenery, stones, grass, wildlife, vehicles, dog, rain, tracks, flags, loot spawner
+- `Mechanics/`: detector, trowel, bullets, arrows, first-person view model, cleaning station
+- `UI/`: HUD, menus, camp modal, maps, controller wording helper
+- `Three/`, `Dom/`: the C# copy of Three.js and the helpers that stand in for the browser
 
-### Commands
+### Building
+Open `unity/` in Unity Hub with `6000.3.28f1`, or, with the editor closed:
 ```
-npm install          install dependencies
-npm run dev          develop in a browser (http://localhost:5173)
-npm run build        type-check and build the web version
-npm run electron:start   build and run the desktop app
-npm run dist:win     Windows installer and portable exe
-npm run dist:mac     macOS dmg
-npm run dist:linux   Linux AppImage and deb
+npm run dist:unity        release build (IL2CPP) into release/unity-win-unpacked
+npm run dist:unity:quick  quick Mono build for testing
 ```
-A GitHub Actions workflow builds all three platforms.
+More in `unity/MIGRATION.md`.
 
-### Estimated requirements (not benchmarked)
-- **Minimum**: Windows 10 / macOS 11 / recent 64-bit Linux, dual-core 2.5 GHz, 4 GB RAM, integrated graphics with WebGL2, about 400 MB free. Turn shadows and sharp picture off.
-- **Recommended**: quad-core 3 GHz, 8 GB RAM, a GTX 1050 / RX 560 class card or Apple M1, about 400 MB free.
+### Requirements
+See `steam/STORE_PAGE.md` (System requirements).
 
 ---
 
 ## 18. Known limits and ideas
 
 - Pacing and prices are tuned on paper; real playtesting will refine them.
-- Mac and Linux builds are not yet tested on those systems; the exe is unsigned.
+- Windows only for now; the exe is unsigned.
 - Ideas under consideration: fishing, tides, camp decoration, visitors, photo mode, achievements and Steam integration, more dog tricks, rainy-day events, a collection book of all creatures and finds.
