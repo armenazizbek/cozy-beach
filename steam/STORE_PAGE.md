@@ -85,13 +85,25 @@ Recommended:
 
 ## Languages
 
-Interface and text: English. No voice acting. (Russian can be added later.)
+Interface and text: English. The opening story is narrated in English; the rest of the game has no voice. On Steam, tick English for Interface and Subtitles, and leave Full Audio unticked. (Russian can be added later.)
 
 ## Content survey
 
 - Violence: cartoon-style only. You can shoot crabs, gulls and sharks with a toy pistol or a bow, and they vanish in a puff of feathers or foam, with no blood. Say this plainly in the survey so it is not a surprise.
 - Nudity, sex, gambling, in-app purchases, online play, user-generated content: none.
 - Expected age rating: everyone.
+
+### AI-generated content (Steam's content survey, "AI Generated Content Disclosure")
+
+Tick **pre-generated** content (made with AI tools during development). Do **not** tick live-generated: nothing is made by AI while the game runs. Code written with AI assistance does not need disclosing.
+
+Suggested text for the survey (Steam shows it on the store page):
+
+> The music on the in-game radio and in the menus, the narrator's voice in the opening story, and the two framed paintings in the old house were created with AI tools during development from prompts and story text written by the developer. Everything else—the world, 3D models, sound effects, code and writing—was made by the developer.
+
+Before submitting:
+- [x] Music and old-house paintings (`captain.png`, `ship.png`) generated on a paid Google Gemini account.
+- [x] Narration (opening story) generated on a paid ElevenLabs plan (recorded again 2026-11-21; source in `unity/Tools/VoiceSource`).
 
 ## Price
 
