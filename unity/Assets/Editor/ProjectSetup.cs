@@ -24,6 +24,30 @@ public static class ProjectSetup
         EditorApplication.delayCall += EnsureSetup;
     }
 
+    private const string ICON_PATH = "Assets/Icons/Tidefinder.png";
+
+    /// <summary>Makes the game's icon the default icon for every platform; without one the exe shows Unity's.</summary>
+    private static bool EnsureIcon()
+    {
+        if (!File.Exists(ICON_PATH)) return false;
+        // imported at full quality: the exe's icon is made from it at every size Windows asks for
+        if (AssetImporter.GetAtPath(ICON_PATH) is TextureImporter imp &&
+            (imp.textureCompression != TextureImporterCompression.Uncompressed || imp.mipmapEnabled || !imp.alphaIsTransparency))
+        {
+            imp.textureCompression = TextureImporterCompression.Uncompressed;
+            imp.mipmapEnabled = false;
+            imp.alphaIsTransparency = true;
+            imp.SaveAndReimport();
+        }
+        var icon = AssetDatabase.LoadAssetAtPath<Texture2D>(ICON_PATH);
+        if (icon == null) return false;
+        var target = UnityEditor.Build.NamedBuildTarget.Unknown;
+        var current = PlayerSettings.GetIcons(target, IconKind.Any);
+        if (current.Length == 1 && current[0] == icon) return false;
+        PlayerSettings.SetIcons(target, new[] { icon }, IconKind.Any);
+        return true;
+    }
+
     [MenuItem("Tidefinder/Apply Project Setup")]
     public static void Apply()
     {
@@ -57,6 +81,8 @@ public static class ProjectSetup
             PlayerSettings.enableFrameTimingStats = true;
             changed = true;
         }
+        // the game's icon (drawn by unity/Tools/Icon/make_icon.py): on the exe, the window and the taskbar
+        if (EnsureIcon()) changed = true;
 
         // 2. URP pipeline asset
         if (EnsureUrpAsset()) changed = true;
