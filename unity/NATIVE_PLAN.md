@@ -1,7 +1,7 @@
 # Tidefinder as a native Unity game: plan
 
-Status: plan only (2026-11-23). Nothing in the game has been converted yet. This file and `Tools/Native/inventory.py`
-are the only changes on the branch.
+Status: plan accepted on 2026-11-23, with the recommended choice for every open decision (section 7). Nothing in the
+game has been converted yet. S0 is next.
 
 **Goal.** Remove the two emulation layers the port was built on, and have the game use Unity directly:
 
@@ -61,18 +61,16 @@ decor, since decorating is what the camp upgrades sell.
 5. **UI as a second track** (S26 to S33), screen by screen, ending with S33 deleting `Dom`.
 6. **Finish** (S34): an IL2CPP perf pass against the baseline, then Steam Deck sign-off.
 
-### Open decisions for you (section 7)
+### Decisions (accepted 2026-11-23, section 7)
 
-1. **Handedness.** Keep the game's right-handed numbers under one mirrored world root (recommended), or convert every
-   coordinate to Unity's left-handed axes.
-2. **Text and textures drawn in code.** Keep the CPU painter for exact parity (recommended), or move signs to
-   TextMeshPro and other drawings to the GPU (sharper, but it looks different).
-3. **UI authoring.** UXML for fixed screen layouts plus C# for lists (recommended), or C# only.
-4. **Two parallel tracks.** May a second session run the UI track at the same time? Recommended, from S8 on.
-5. **Who signs off visible differences.** You, at each phase boundary, from the comparison report (recommended); or the
-   agent, recording each one in the log.
-6. **The baseline if `main` changes.** Rebuild the reference from `main` plus the harness commit (recommended), or put
-   the test-only harness flags on `main` itself.
+1. **Handedness:** the game's right-handed numbers under one mirrored world root (option A), unless the S1 spike
+   rules it out.
+2. **Text and textures drawn in code:** keep the CPU painter, for exact parity.
+3. **UI authoring:** UXML for fixed screen layouts, C# for lists.
+4. **Two parallel tracks:** yes. A second session runs the UI track from S8 on.
+5. **Visible differences:** the owner signs them off at each phase boundary, from the comparison report.
+6. **If `main` changes:** the reference is rebuilt from `main` plus the harness commits. The harness stays off `main`.
+7. **Branch name:** stays `claude/native-unity-d8a3b9`.
 
 ---
 
@@ -956,19 +954,16 @@ and the shared kit make merges costly, so it is not recommended before the S9 ca
 
 ---
 
-## 7. Open decisions for you
+## 7. Decisions
 
-1. **Handedness (2.1).** A, a mirrored world root that keeps the game's numbers (recommended, pending the S1 spike); B,
-   converting at every write; or C, native left-handed numbers everywhere.
-2. **Text and textures drawn in code (2.6).** Keep the CPU painter for exact parity (recommended), or TextMeshPro for
-   signs and GPU drawing for the rest (sharper, but looks different).
-3. **UI authoring (2.7).** UXML for fixed layouts with C# for lists (recommended), or C# only.
-4. **Two tracks (6.4).** May a second session run the UI track at the same time, with the file ownership in section 3?
-   Recommended from S8 on.
-5. **Sign-off on visible differences (4.4).** You approve REVIEW items at each phase boundary from the comparison
-   report (recommended), or the agent decides and records each one.
-6. **The baseline if `main` changes (4.1).** Rebuild the reference from new `main` plus the harness commits
-   (recommended), or also put the test-only harness flags (`-autoshot-seed`, `-autoshot-fixedstep`,
-   `-autoshot-scenedump`) on `main`. They do nothing without `-autoshot`.
-7. **Branch name (optional).** Keep `claude/native-unity-d8a3b9`, or rename it to something like `native` before work
-   starts.
+The owner accepted the recommended choice for every open decision on 2026-11-23.
+
+| # | Decision | Chosen | Not chosen |
+|---|---|---|---|
+| 1 | Handedness (2.1) | **A: a mirrored world root** that keeps the game's numbers, meshes and saves as they are. S1 must confirm it; if the spike fails, fall back to B and note that here. | B, converting at every write; C, native left-handed numbers everywhere |
+| 2 | Text and textures drawn in code (2.6) | **Keep the CPU painter** (`TexturePainter`) for world textures and signs, for exact parity. UI drawings move to `Painter2D`. | TextMeshPro for signs and GPU drawing for the rest (may be revisited after the rewrite) |
+| 3 | UI authoring (2.7) | **UXML for fixed layouts, C# for lists**, same class names as `Style.uss` | C# only |
+| 4 | Two tracks (6.4) | **Yes.** A second session runs the UI track (S26 to S33) from S8 on, with the file ownership in section 3. | A single track |
+| 5 | Sign-off on visible differences (4.4) | **The owner** approves REVIEW items at each phase boundary, from the comparison report. The agent records each one in `NATIVE_LOG.md` meanwhile. | The agent decides alone |
+| 6 | The baseline if `main` changes (4.1) | **Rebuild the reference** from new `main` plus the harness commits, cherry-picked in a separate worktree. The harness stays off `main`. | Harness flags on `main` too |
+| 7 | Branch name | **Stays `claude/native-unity-d8a3b9`** | A rename |
