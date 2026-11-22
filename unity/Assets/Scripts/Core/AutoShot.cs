@@ -1065,6 +1065,10 @@ public class AutoShot : MonoBehaviour
             }
         }
 
+        // -autoshot-layout: where the finds land, over many fresh layouts of the beach (lost things spread over the cove)
+        if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-layout") >= 0)
+            Debug.Log("[AutoShot] layout: " + game.smokeTestLayout(200));
+
         // -autoshot-ui: every menu and the HUD, as they look with the keyboard and then with a controller
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-ui") >= 0)
         {

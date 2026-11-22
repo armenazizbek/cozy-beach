@@ -16,7 +16,7 @@ public class ItemDef
     public string signature;
     public double[] depth;
     public double weight;
-    /// <summary>'wet' | 'dry' | 'any'</summary>
+    /// <summary>'wet' (the lower half of the cove, toward the water) | 'dry' (the upper half, toward the dunes) | 'any'</summary>
     public string zone;
     public string shardSet;
     public int? shardIndex;
@@ -101,7 +101,7 @@ public static class Items
         D("denarius", "Roman Denarius", "coin", 60, "coin", "An emperor’s face, worn soft by two thousand years.", 0.35, 0.6, 0.6, "any"),
         D("sovereign", "Gold Sovereign", "coin", 75, "coin", "It still shines as if it were minted this morning.", 0.35, 0.6, 0.4, "any"),
         D("pocket_watch", "Silver Pocket Watch", "quest", 130, "deep", "It stopped ticking a long time ago, but the engraving is still readable.", 0.45, 0.8, 0, "wet"),
-        D("pearl_necklace", "Pearl Necklace", "quest", 170, "deep", "Every pearl is still on its string. Someone will be overjoyed.", 0.45, 0.8, 0, "any"),
+        D("pearl_necklace", "Pearl Necklace", "quest", 170, "deep", "Every pearl is still on its string. Someone will be overjoyed.", 0.45, 0.8, 0, "wet"),
         D("sunglasses", "Vintage Sunglasses", "quest", 80, "deep", "Round, dark, and impossibly stylish.", 0.45, 0.8, 0, "dry"),
         D("harmonica", "Silver Harmonica", "quest", 100, "deep", "It still plays one wheezy, lovely note.", 0.45, 0.8, 0, "any"),
         D("wedding_band", "Wedding Band", "quest", 160, "deep", "A small diamond and a very big reason to look for it.", 0.45, 0.8, 0, "wet"),
@@ -163,15 +163,15 @@ public static class Items
 
     public static readonly QuestDef[] QUEST_DEFS =
     {
-        Q("q_compass", "Marta", "Lost my grandfather’s silver compass near the wet shoreline.", 85, "compass", 1),
+        Q("q_compass", "Marta", "Lost my grandfather’s silver compass somewhere down the beach, toward the water.", 85, "compass", 1),
         Q("q_key", "Old Pim", "Dropped the captain’s brass key while walking the dunes. Please look!", 125, "brass_key", 1),
         Q("q_ruby", "Juno", "My ruby band slipped off while I was clamming. I’d be so grateful.", 70, "ruby_band", 1),
         Q("q_quarters", "The Collector", "Seeking two shiny silver quarters for my jar. Not picky, just shiny.", 65, "quarter", 2),
-        Q("q_watch", "Grandma Ines", "My silver pocket watch fell out near the wet shoreline. It belonged to my father.", 85, "pocket_watch", 1),
+        Q("q_watch", "Grandma Ines", "My silver pocket watch fell out on my walk down toward the sea. It belonged to my father.", 85, "pocket_watch", 1),
         Q("q_pearls", "Celeste", "I lost my pearl necklace while paddling. Every pearl was a birthday present.", 110, "pearl_necklace", 1),
         Q("q_glasses", "Rico", "My lucky sunglasses blew off somewhere up near the dunes. I cannot see without them. Okay, I can, but I look worse.", 65, "sunglasses", 1),
         Q("q_harmonica", "Busker Bo", "I dropped my harmonica on the way to the pier. The music has gone out of my day.", 75, "harmonica", 1),
-        Q("q_wedding", "Dana", "I took my wedding band off to swim and… well. Please look near the water.", 105, "wedding_band", 1),
+        Q("q_wedding", "Dana", "I took my wedding band off to swim and… well. Please look down toward the water.", 105, "wedding_band", 1),
         Q("q_boat", "Little Mo", "My wooden sailboat drifted away from me. It has a red sail and a very brave captain.", 55, "toy_boat", 1),
         Q("q_pennies", "The Jar Lady", "I am filling a jar with old copper pennies. Bring me three and I will pay well.", 40, "penny", 3),
         Q("q_doubloon", "Captain Brine", "A real pirate doubloon! If you find one I will take it off your hands for a fair price.", 100, "doubloon", 1),

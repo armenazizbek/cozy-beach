@@ -198,7 +198,7 @@ public static class Help
                 new HelpBlock
                 {
                     h = "Good habits",
-                    list = new string[] { "Check the journal now and then. Its pages are a gentle guide to what you have not tried.", "Walk the shore. Many finds are washed up near the water.", "Not enough coins? Sell what you can and go back to the sand. There is always more to find.", "Look at the achievements list (main menu or pause menu) for ideas of things to try.", "Turn Shadows off in Settings if the game runs slowly on your computer." },
+                    list = new string[] { "Check the journal now and then. Its pages are a gentle guide to what you have not tried.", "Walk the whole cove. Finds lie everywhere, from the camp right down to the water.", "Not enough coins? Sell what you can and go back to the sand. There is always more to find.", "Look at the achievements list (main menu or pause menu) for ideas of things to try.", "Turn Shadows off in Settings if the game runs slowly on your computer." },
                 },
                 new HelpBlock { p = "Take your time. The beach is not going anywhere." },
             },

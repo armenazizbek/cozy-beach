@@ -23,6 +23,19 @@ public class LootSpawner
 {
     private static double rand(double a, double b) => a + JS.Random() * (b - a);
 
+    /// <summary>halfway between the top of the cove (by the camp) and the water</summary>
+    private const double MID_Z = (DIG_MIN_Z + SHORE_Z) / 2;
+
+    /// <summary>
+    /// How far up and down the cove a find of each zone may lie: 'wet' the lower half, down toward the water; 'dry' the upper
+    /// half, up toward the dunes and the camp; 'any' all of it.
+    /// </summary>
+    private static (double min, double max) zRange(string zone) =>
+        zone == "wet" ? (MID_Z, SHORE_Z - 3) : zone == "dry" ? (DIG_MIN_Z + 1.5, MID_Z) : (DIG_MIN_Z + 1, SHORE_Z - 3);
+
+    /// <summary>the lost belongings are spread over this many patches across the cove, in its upper and its lower half</summary>
+    private const int LOST_COLUMNS = 4;
+
     private class KeepOut
     {
         public double x, z, r;
@@ -85,21 +98,98 @@ public class LootSpawner
         foreach (var id in new[] { "doubloon", "doubloon", "sovereign", "denarius", "silver_dollar", "ruby_band", "signet" }) picks.Add(Items.DEF_BY_ID[id]);
 
         var placed = items.Select(i => (i.x, i.z)).ToList();
-        foreach (var def in picks)
+        void bury(ItemDef def, double x, double z)
         {
+            placed.Add((x, z));
+            items.Add(new BuriedItem { id = nextId++, def = def, x = x, z = z, targetDepth = rand(def.depth[0], def.depth[1]), revealed = false, collected = false, popT = 0 });
+        }
+
+        // The lost belongings go first, one to a patch of the cove: four patches across, in the upper and in the lower half,
+        // dealt out at random. Left to chance they bunched up (three were always kept to the strip of wet sand at the water,
+        // the rest mostly ended up by the camp); this way they lie all over, among the trash and the coins. A note that says
+        // where to look (down toward the water, up by the dunes) still gets a patch in that half.
+        var cells = new List<(int col, bool lower)>();
+        for (int c = 0; c < LOST_COLUMNS; c++)
+        {
+            cells.Add((c, false));
+            cells.Add((c, true));
+        }
+        for (int i = cells.Count - 1; i > 0; i--)
+        {
+            int j = (int)Math.Floor(JS.Random() * (i + 1));
+            (cells[i], cells[j]) = (cells[j], cells[i]);
+        }
+        double colW = 2 * (HALF - 4) / LOST_COLUMNS;
+        var unplaced = new List<ItemDef>();
+        foreach (var def in picks.Where(d => d.category == "quest").OrderBy(d => d.zone == "any" ? 1 : 0))
+        {
+            int ci = cells.FindIndex(c => def.zone == "any" || c.lower == (def.zone == "wet"));
+            if (ci < 0)
+            {
+                unplaced.Add(def);
+                continue;
+            }
+            var cell = cells[ci];
+            cells.RemoveAt(ci);
+            double x0 = -(HALF - 4) + cell.col * colW;
+            var (zMin, zMax) = zRange(cell.lower ? "wet" : "dry");
+            // a little way in from the edges of the patch, so two lost things never lie side by side across a border
+            bury(def, rand(x0 + 3, x0 + colW - 3), rand(zMin + 2, zMax - 2));
+        }
+
+        // everything else (and any lost thing left without a patch) anywhere in its zone, a little apart from the rest
+        foreach (var def in picks.Where(d => d.category != "quest").Concat(unplaced))
+        {
+            var (zMin, zMax) = zRange(def.zone);
             double x = 0, z = 0;
             for (int tries = 0; tries < 30; tries++)
             {
                 x = rand(-(HALF - 4), HALF - 4);
-                if (def.zone == "wet") z = rand(WET_Z + 0.5, SHORE_Z - 3);
-                else if (def.zone == "dry") z = rand(DIG_MIN_Z + 1.5, 6);
-                else z = rand(DIG_MIN_Z + 1, SHORE_Z - 3);
+                z = rand(zMin, zMax);
                 double cx = x, cz = z;
                 if (placed.All(p => JS.Hypot(p.x - cx, p.z - cz) > 2.2)) break;
             }
-            placed.Add((x, z));
-            items.Add(new BuriedItem { id = nextId++, def = def, x = x, z = z, targetDepth = rand(def.depth[0], def.depth[1]), revealed = false, collected = false, popT = 0 });
+            bury(def, x, z);
         }
+    }
+
+    /// <summary>
+    /// For the -autoshot-layout test: lays the beach out `runs` times and says where each kind of find lands, front to back,
+    /// and how the lost belongings are shared between the upper and the lower half. The real layout is put back afterwards.
+    /// </summary>
+    internal string smokeSpread(int runs)
+    {
+        var keep = items;
+        var bands = new[] { (-46.0, -17.0, "camp end"), (-17.0, 11.0, "middle"), (11.0, 31.0, "lower beach"), (31.0, 41.0, "wet strip") };
+        var counts = new SortedDictionary<string, int[]>();
+        int lostUpper = 0, lostLower = 0, worstHalf = 99;
+        double closest = double.PositiveInfinity;
+        for (int r = 0; r < runs; r++)
+        {
+            populate();
+            foreach (var it in items)
+            {
+                if (!counts.TryGetValue(it.def.category, out var c)) counts[it.def.category] = c = new int[bands.Length];
+                for (int b = 0; b < bands.Length; b++)
+                    if (it.z >= bands[b].Item1 && it.z < bands[b].Item2) c[b]++;
+            }
+            var lost = items.Where(i => i.def.category == "quest").ToList();
+            int lower = lost.Count(i => i.z >= MID_Z);
+            lostLower += lower;
+            lostUpper += lost.Count - lower;
+            worstHalf = Math.Min(worstHalf, Math.Min(lower, lost.Count - lower));
+            for (int a = 0; a < lost.Count; a++)
+                for (int b = a + 1; b < lost.Count; b++)
+                    closest = Math.Min(closest, JS.Hypot(lost[a].x - lost[b].x, lost[a].z - lost[b].z));
+        }
+        items = keep;
+        var lines = counts.Select(kv =>
+        {
+            double n = Math.Max(1, kv.Value.Sum());
+            return $"{kv.Key} {kv.Value.Sum()}: " + string.Join(", ", bands.Select((b, i) => $"{b.Item3} {100 * kv.Value[i] / n:0}%"));
+        });
+        return $"{runs} layouts. " + string.Join(" | ", lines) +
+            $" || lost things: {lostUpper} in the upper half, {lostLower} in the lower half, never fewer than {worstHalf} in either half; the closest two were {closest:0.0} m apart";
     }
 
     /// <summary>Buries a find at a chosen spot.</summary>
@@ -133,8 +223,7 @@ public class LootSpawner
         disposeMesh(it);
         it.revealed = false;
         it.popT = 0;
-        double zMin = it.def.zone == "wet" ? WET_Z + 0.5 : DIG_MIN_Z + 1;
-        double zMax = it.def.zone == "dry" ? 6 : SHORE_Z - 3;
+        var (zMin, zMax) = zRange(it.def.zone);
         bool free(double x, double z, double gap) =>
             Math.Abs(x) < HALF - 4 && z > zMin && z < zMax && !inKeepOut(x, z, it) &&
             items.All(o => o == it || o.collected || JS.Hypot(o.x - x, o.z - z) > gap);

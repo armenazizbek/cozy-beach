@@ -401,6 +401,7 @@ public class Game
             onContinue = () => exitInspect(),
             onMute = () => audio.toggleMute(),
         });
+        ui.toolAllowed = toolAllowed;
         campModal = new CampModal(uiRoot, state, audio, new CampHooks
         {
             onSip = () => drinkCoffee(),
@@ -1389,6 +1390,8 @@ public class Game
         return $"rain {rain.amount:0.00}, dog {dog.state} at {dog.x:0.0}, {dog.z:0.0} (feet {dog.group.position.y:0.00}), in the house {oldHouse.contains(dog.x, dog.z)}, bones {state.data.bones}";
     }
 
+    internal string smokeTestLayout(int runs) => spawner.smokeSpread(runs);
+
     internal void smokeTestLook(double yaw, double pitch)
     {
         player.yaw = yaw;
@@ -1808,10 +1811,16 @@ public class Game
     /// <summary>The d-pad's left slot: flags, bow and gun share it, and each press moves to the next one the player has.</summary>
     private void padOtherTool()
     {
+        // underwater and under the dunes the left slot is the camera
+        if (alt)
+        {
+            selectSlot(3);
+            return;
+        }
         var others = ui.padOtherTools();
         if (others.Count == 0)
         {
-            ui.toast("No other tools yet. The camper shop sells flags, a bow and a toy pistol.");
+            ui.toast(lookOnly ? "Only the binoculars and the camera here." : "No other tools yet. The camper shop sells flags, a bow and a toy pistol.");
             return;
         }
         int i = others.IndexOf(tool);
@@ -1826,8 +1835,40 @@ public class Game
         if (state.data.ownsBucket) order.Add(8);
         if (state.data.ownsBow) order.Add(6);
         if (state.data.ownsGun) order.Add(4);
-        if (vehicle == "boat") order.RemoveRange(0, 2);
+        order.RemoveAll(t => !toolAllowed(t));
         return order;
+    }
+
+    /// <summary>
+    /// Out on the boat, and on foot anywhere outside the treasure cove (the islands, the old house, the pier, the far sand and
+    /// the water), only the binoculars and the camera come along.
+    /// </summary>
+    private bool lookOnly => vehicle == "boat" || (started && vehicle == null && !alt && !CoveNets.inCove(player.x, player.z));
+
+    private bool toolAllowed(int n) => !lookOnly || n == 3 || n == 5;
+
+    private bool wasLookOnly = false;
+
+    /// <summary>Puts away a tool that is not allowed where the player now is, and takes up the binoculars instead.</summary>
+    private void keepToolAllowed()
+    {
+        // sitting with the rod (on the pier) the rod is in hand; the swap waits until the player stands up
+        if (tool == 0 || seated) return;
+        // walking in or out through the nets changes which d-pad slots are lit, even with the same tool in hand
+        bool look = lookOnly;
+        if (look != wasLookOnly)
+        {
+            wasLookOnly = look;
+            if (toolAllowed(tool)) ui.setTool(tool);
+        }
+        if (toolAllowed(tool)) return;
+        if (drawing) cancelDraw();
+        tool = 5;
+        setBinocView(false);
+        view.setTool(tool);
+        ui.setTool(tool);
+        detector.setActive(false);
+        dig.setActive(false);
     }
 
     /// <summary>scroll swaps between the detector and the trowel</summary>
@@ -2104,6 +2145,8 @@ public class Game
     private void setAltTool(int n)
     {
         if (!alt || transitioning || gameState != "EXPLORE" || n == altTool) return;
+        // under the dunes the camera is all there is, and it is not put away
+        if (underground && n != 3) return;
         if (n == 11 && !diving) return;
         if (n == 11 && !state.data.ownsNet)
         {
@@ -2312,9 +2355,11 @@ public class Game
             ui.toast("You do not own a gun yet. The camper shop sells a toy pistol.");
             return;
         }
-        if (vehicle == "boat" && (n == 1 || n == 2 || n == 7 || n == 8))
+        if (!toolAllowed(n))
         {
-            ui.toast("Out on the boat you can only use the binoculars, the camera or a weapon.");
+            ui.toast(vehicle == "boat" ? "Out on the boat you only have the binoculars and the camera."
+                : onIsland ? "On the islands you only have the binoculars and the camera."
+                : "Outside the nets you only have the binoculars and the camera. The other tools work inside the treasure cove.");
             return;
         }
         if (gameState == "INSPECT" || transitioning) return;
@@ -4353,6 +4398,7 @@ public class Game
             updateDriving(dt);
             return;
         }
+        if (started && !transitioning) keepToolAllowed();
         if (vehicle == "boat")
         {
             updateDeck(dt);
@@ -4578,7 +4624,8 @@ public class Game
         {
             diveReturn = new PlayerPose { x = player.x, z = player.z, yaw = player.yaw, pitch = player.pitch };
             underground = true;
-            altTool = 0;
+            // the camera is the only tool under the dunes, so it comes out at once and stays in hand
+            altTool = 3;
             hideLand(true);
             spawner.group.visible = false;
             cellar.setActive(true);
@@ -4590,8 +4637,9 @@ public class Game
             eyeY = UG.y + 1.65;
             ladderY = 0;
             walkTo = null;
-            view.setTool(0);
+            view.setTool(3);
             ui.setTool(0);
+            ui.setBadgeText("📷", "Camera");
             detector.setActive(false);
             dig.setActive(false);
             ui.setUnderground(true);
@@ -5020,6 +5068,7 @@ public class Game
         audio.setEngine(false);
         player.yaw = heading + lookOffset;
         view.proxy.visible = true;
+        if (!toolAllowed(tool)) tool = 5;
         view.setTool(tool);
         ui.setTool(tool);
         detector.setActive(tool == 1);
@@ -5191,7 +5240,7 @@ public class Game
     private void leaveHelm()
     {
         driving = false;
-        if (tool == 1 || tool == 2 || tool == 7 || tool == 8) tool = 5;
+        if (!toolAllowed(tool)) tool = 5;
         deck = new DeckPos { x = 0, z = 0.5 };
         player.yaw = boat.heading + lookOffset;
         view.proxy.visible = true;

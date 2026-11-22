@@ -131,7 +131,7 @@ About **360 finds** are placed on the beach at the start of each game and never 
 - **Lost & Found items** (8 guaranteed buried, plus matching coins and rings): grandfather's compass, captain's brass key, pocket watch, pearl necklace, vintage sunglasses, silver harmonica, wedding band, wooden toy sailboat.
 - **Antique shards**: two sets of three (Ancient Astrolabe, Pirate Medallion).
 
-Items sit at set depths, in dry, wet or any sand, so some are only near the dunes and some only near the water.
+Items sit at set depths. The 8 Lost & Found belongings are spread over the cove, one to each of eight patches (four across, in the upper and the lower half), so they lie among the trash and coins instead of bunching up; a note that says where to look (toward the water, toward the dunes) gets a patch in that half. Everything else is scattered over the whole cove.
 
 ### Cleaning
 Picking a find opens a close-up view. Scrub the crust away with the mouse (or the right stick and RT). Better cleaning gear gives a wider brush; the top tier adds an Instant Clean button.
@@ -145,15 +145,15 @@ Picking a find opens a close-up view. Scrub the crust away with the mouse (or th
 ### The Lost & Found board (13 notes)
 | Owner | Wants | Reward |
 |---|---|---|
-| Marta | Silver compass (wet shoreline) | 85g |
-| Old Pim | Brass key (dunes) | 125g |
+| Marta | Silver compass (toward the water) | 85g |
+| Old Pim | Brass key (toward the dunes) | 125g |
 | Juno | Ruby band | 70g |
 | The Collector | 2 silver quarters | 65g |
-| Grandma Ines | Silver pocket watch (wet shoreline) | 85g |
-| Celeste | Pearl necklace | 110g |
-| Rico | Vintage sunglasses (dunes) | 65g |
+| Grandma Ines | Silver pocket watch (toward the water) | 85g |
+| Celeste | Pearl necklace (toward the water) | 110g |
+| Rico | Vintage sunglasses (toward the dunes) | 65g |
 | Busker Bo | Silver harmonica | 75g |
-| Dana | Wedding band (near the water) | 105g |
+| Dana | Wedding band (toward the water) | 105g |
 | Little Mo | Wooden toy sailboat | 55g |
 | The Jar Lady | 3 old pennies | 40g |
 | Captain Brine | Gold doubloon | 100g |
@@ -223,7 +223,7 @@ Teal cart with a roof flag and headlights that switch on at night. Needs the key
 
 ### Boat
 Motorboat with a helm, wake and bow spray; it bobs on the waves. Needs the key.
-- Leave the wheel with F to stand on deck and use weapons or binoculars.
+- Leave the wheel with F to stand on deck and use the binoculars or the camera. On the boat, on the islands and anywhere outside the treasure cove's nets those two are the only tools; the detector, digging tools, flags, bucket and weapons work only inside the cove.
 - You can only step off (E) when parked close to the beach, so you can always climb back aboard.
 - The sea is the way to the three treasure chests.
 

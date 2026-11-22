@@ -405,8 +405,12 @@ public class UIManager
         if (d.ownsBucket) list.Add(8);
         if (d.ownsBow) list.Add(6);
         if (d.ownsGun) list.Add(4);
+        list.RemoveAll(t => !this.toolAllowed(t));
         return list;
     }
+
+    /// <summary>Set by the game: whether a tool can be used where the player is (on the boat and the islands only the camera and binoculars).</summary>
+    public Func<int, bool> toolAllowed = _ => true;
 
     /// <summary>Draws the d-pad: a tool on each side, the one in hand lit up.</summary>
     private void updatePadTools()
@@ -429,8 +433,8 @@ public class UIManager
         int leftTool = others.Contains(this.curTool) ? this.curTool : (others.Count > 0 ? others[0] : 0);
         var slotTool = new Dictionary<string, int>
         {
-            ["up"] = 1,
-            ["right"] = 2,
+            ["up"] = this.toolAllowed(1) ? 1 : 0,
+            ["right"] = this.toolAllowed(2) ? 2 : 0,
             ["down"] = 5,
             ["left"] = leftTool,
         };
