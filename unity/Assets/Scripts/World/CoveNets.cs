@@ -28,10 +28,9 @@ public class CoveNets
 
     private const double POST_GAP = 3.2, NET_H = 1.15;
 
-    public CoveNets(IList<Scenery.Trunk> trunks)
-    {
-        // each run of net is a line, with the gaps along it to walk through (as distances along the line)
-        var runs = new List<(double x0, double z0, double x1, double z1, (double from, double to)[] gaps)>
+    /// <summary>each run of net is a line, with the gaps along it to walk through (as distances along the line)</summary>
+    private static readonly List<(double x0, double z0, double x1, double z1, (double from, double to)[] gaps)> runs =
+        new List<(double x0, double z0, double x1, double z1, (double from, double to)[] gaps)>
         {
             // across the top, behind the camp: a wide gap straight up from it, and one toward each side
             (-SIDE_X, TOP_Z, SIDE_X, TOP_Z, new[] { (SIDE_X - 8, SIDE_X + 8), (13.0, 19.0), (2 * SIDE_X - 19, 2 * SIDE_X - 13) }),
@@ -39,6 +38,43 @@ public class CoveNets
             (-SIDE_X, TOP_Z, -SIDE_X, BOTTOM_Z, new[] { (22.0, 28.0), (56.0, 62.0), (88.0, 94.0) }),
             (SIDE_X, TOP_Z, SIDE_X, BOTTOM_Z, new[] { (16.0, 22.0), (50.0, 56.0), (82.0, 88.0) }),
         };
+
+    /// <summary>how far in front of and behind a gap the way is kept clear of palms, and how far past its posts at each side</summary>
+    private const double ENTRANCE_DEPTH = 7, ENTRANCE_MARGIN = 2.5;
+
+    /// <summary>
+    /// Where (x, z) stands in the way of a gap in the nets (a palm right in front of or behind an entrance), it is moved along
+    /// the net to just past the gap's nearer side; anywhere else it comes back as it was.
+    /// </summary>
+    public static (double x, double z) clearOfEntrances(double x, double z)
+    {
+        foreach (var r in runs)
+        {
+            double len = JS.Hypot(r.x1 - r.x0, r.z1 - r.z0), ux = (r.x1 - r.x0) / len, uz = (r.z1 - r.z0) / len;
+            double dx = x - r.x0, dz = z - r.z0;
+            double along = dx * ux + dz * uz, across = -dx * uz + dz * ux;
+            if (Math.Abs(across) > ENTRANCE_DEPTH) continue;
+            foreach (var g in r.gaps)
+            {
+                double mid = (g.from + g.to) / 2, half = (g.to - g.from) / 2 + ENTRANCE_MARGIN;
+                if (Math.Abs(along - mid) >= half) continue;
+                double s = along < mid ? mid - half : mid + half;
+                return (r.x0 + ux * s - uz * across, r.z0 + uz * s + ux * across);
+            }
+        }
+        return (x, z);
+    }
+
+    /// <summary>True where a palm would stand in the way of a gap in the nets.</summary>
+    public static bool inEntrance(double x, double z)
+    {
+        var (cx, cz) = clearOfEntrances(x, z);
+        return cx != x || cz != z;
+    }
+
+    public CoveNets(IList<Scenery.Trunk> trunks)
+    {
+        if (AutoShot.Active) UnityEngine.Debug.Log($"[AutoShot] palms in the way of a gap in the cove's nets: {trunks.Count(t => inEntrance(t.x, t.z))} of {trunks.Count}");
         foreach (var run in runs) buildRun(run.x0, run.z0, run.x1, run.z1, run.gaps, trunks);
 
         var netTex = netTexture();

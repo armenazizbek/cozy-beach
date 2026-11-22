@@ -194,7 +194,7 @@ public class Scenery
         var more = new List<(double x, double z)>();
         bool free(double x, double z) =>
             !(Math.Abs(x) < 76 && z > -78) && z < 33 && onLand(x, z, 5) && baseHeight(x, z) > WATER_LEVEL + 0.4 &&
-            JS.Hypot(x - OldHouse.X, z - OldHouse.Z) > 9 &&
+            JS.Hypot(x - OldHouse.X, z - OldHouse.Z) > 9 && !CoveNets.inEntrance(x, z) &&
             spots.All(p => JS.Hypot(p.x - x, p.z - z) > 3.5) && more.All(p => JS.Hypot(p.x - x, p.z - z) > 3.5);
         for (int g = 0, tries = 0; g < 40 && tries < 4000; tries++)
         {
@@ -218,21 +218,23 @@ public class Scenery
         spots.AddRange(more);
         int index = -1;
 
-        foreach (var (spotX, z) in spots)
+        foreach (var (spotX, spotZ) in spots)
         {
             index++;
             if (index >= innerCount)
             {
                 // out across the land, a palm is two meshes, not a dozen: the frame rate stays where it was with a hundred more
-                buildOuterPalm(spotX, z, rand, frondGeo, frondCols, frondMat, trunkMat);
+                buildOuterPalm(spotX, spotZ, rand, frondGeo, frondCols, frondMat, trunkMat);
                 continue;
             }
-            if (JS.Hypot(spotX, z - CAMP_Z) < 15) continue; // keep the camp clear
+            if (JS.Hypot(spotX, spotZ - CAMP_Z) < 15) continue; // keep the camp clear
             // keep the pier and the walk down to it clear: a palm there is moved aside, not dropped, so every other palm
             // keeps the shape it always had
-            double x = spotX;
+            double x = spotX, z = spotZ;
             if (z > Pier.Z0 - PIER_CLEAR_RUN && Math.Abs(x - Pier.X) < PIER_CLEAR_HALF)
                 x = Pier.X + (x < Pier.X ? -PIER_CLEAR_HALF : PIER_CLEAR_HALF);
+            // and the ways in through the cove's nets: a palm in front of a gap is moved along the net past its post
+            (x, z) = CoveNets.clearOfEntrances(x, z);
             var g = new THREE.Group();
             double h = 5.5 + rand() * 3;
             double lean = (rand() - 0.5) * 2.2;
