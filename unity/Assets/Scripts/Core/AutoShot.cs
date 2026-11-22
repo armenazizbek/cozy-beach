@@ -1037,6 +1037,16 @@ public class AutoShot : MonoBehaviour
             game.smokeTestDogRain("watch");
             yield return Wait(1.0f);
             yield return Shot("33-house-wet-dog.png");
+            // from indoors the rain still falls outside the door, and none inside the room
+            game.smokeTestDogRain("lookout");
+            yield return Wait(1.0f);
+            yield return Shot("33-house-lookout.png");
+            // the d-pad picker with four tools behind its left slot
+            game.smokeTestPad(true);
+            game.smokeTestDogRain("tools");
+            yield return Wait(1.0f);
+            yield return Shot("33-pad-tools.png");
+            game.smokeTestPad(false);
             game.smokeTestDogRain("dry");
             for (int i = 0; i < 16; i++)
             {

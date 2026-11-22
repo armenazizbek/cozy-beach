@@ -201,13 +201,13 @@ Digging uses Warmth (6 per dig at the start, down to 2 with upgrades); wet sand 
 | Toy pistol | 150g | For fun, small bounties |
 | Hunting bow | 220g | Unlimited arrows |
 | Marker flags | 15g for 5 | Buy as often as you like |
-| Dog bone | 8g | Only 8 in the shop for the whole game |
+| Dog bone | 8g | Only 16 in the shop for the whole game |
 
 ---
 
 ## 8. Economy and pacing
 
-- You start with **0 coins**.
+- You start with **250 coins**.
 - Finds sell for about 55% of list prices (for example a penny 8g, a ruby band 66g). All sellable finds together are worth roughly 3,200g; with Lost & Found rewards, shard antiques and sea chests the whole game offers roughly 5,300g.
 - Buying every upgrade, key and weapon costs about the same, so affording everything means clearing most of the beach.
 - Designed so the first upgrade comes after roughly 20 to 30 minutes of digging and the top tiers after several hours. Prices and the value multiplier are easy constants to tune (`VALUE_SCALE` in `items.ts`, costs in `StateManager.ts`).
@@ -247,7 +247,7 @@ A **golden retriever** lives at the camp.
 
 - **At rest** it lies by the fire. When you come within about 5 m it sits up, turns to face you and watches. When you leave it lies down again.
 - **Petting:** press E (X on a controller) beside it. It shakes its head, wags its tail, opens its mouth, yips, and little hearts float up. A friendly line appears each time.
-- **Bones:** buy bones at the camper shop (8g each, 8 for the whole game). Press F (A) beside the dog to give one.
+- **Bones:** buy bones at the camper shop (8g each, 16 for the whole game). Press F (A) beside the dog to give one.
 - **A trip:** with a bone the dog runs off, sniffing its way along a winding path with its nose down, stopping to sniff the ground now and then, and leaving paw prints in the sand. It goes to a still-buried coin or piece of trash, stands about a metre short of it facing it, digs and **barks** (louder the closer you are). A paw print marks its position on the minimap and island map.
 - **Finding it:** dig where the dog is. Once you collect the item, the dog yips and trots home. If you take more than five minutes it gives up and goes home.
 - **Rarely** (about 6% of trips) the dog's nose finds a wanted Lost & Found item instead, and the game says it has caught "a very special scent".

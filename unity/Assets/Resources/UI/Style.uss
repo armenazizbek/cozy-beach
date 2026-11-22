@@ -849,15 +849,6 @@
   color: #ffd76a;
 }
 
-.pt .t-em {
-  position: absolute;
-  left: 5px;
-  top: 1px;
-  font-size: 13px;
-  -unity-font-style: normal;
-  color: #ffd76a;
-}
-
 .pt-center {
   position: absolute;
   left: 61px;
@@ -882,6 +873,72 @@
   font-size: 17px;
   color: #fff6e4;
   text-shadow: 0 2px 0 rgba(20, 12, 8, 0.75);
+}
+
+/* the tools behind the left slot, one above the other beside it, and what the next press of left brings */
+.pt-stack {
+  position: absolute;
+  right: 172px;
+  top: 0;
+  bottom: 30px;
+  width: 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.pt-stack.hidden,
+.pt-next.hidden {
+  display: none;
+}
+
+.ps {
+  width: 32px;
+  height: 32px;
+  margin: 2px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -unity-text-align: middle-center;
+  font-size: 17px;
+  color: #fbf2de;
+  background-image: resource("UI/Skin/plate");
+  -unity-slice-left: 32;
+  -unity-slice-top: 32;
+  -unity-slice-right: 32;
+  -unity-slice-bottom: 32;
+  -unity-slice-scale: 0.35px;
+  opacity: 0.75;
+}
+
+.ps.on {
+  opacity: 1;
+  background-image: resource("UI/Skin/plate-gold");
+}
+
+.pt-next {
+  position: absolute;
+  right: 214px;
+  top: 64px;
+  height: 36px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 2px 12px 2px 6px;
+  background-color: rgba(20, 12, 8, 0.45);
+  border-radius: 18px;
+}
+
+.pt-next .kc {
+  margin: 0 6px 0 0;
+}
+
+.pn-name {
+  font-size: 16px;
+  -unity-font-style: bold;
+  white-space: nowrap;
+  color: #fff6e4;
 }
 
 /* the d-pad picker is taller than the badge, so the mini-map moves up above it */

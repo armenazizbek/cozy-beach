@@ -43,7 +43,8 @@ public class GameData
     public string gameId;
     /// <summary>Game 1, Game 2..., as the save list names it</summary>
     public int gameNo;
-    public double coins = 0;
+    /// <summary>a new game starts with a little gold, so the first upgrades are within reach early on</summary>
+    public double coins = 250;
     public double warmth = 100;
     public List<InventoryItem> inventory = new List<InventoryItem>();
     public Dictionary<string, List<int>> shards = new Dictionary<string, List<int>>();
@@ -169,7 +170,7 @@ public class StateManager
 
     public static readonly string[] SIGN_TEXTS = { "Cozy Camp", "Gone Treasure Hunting", "Treasure Hunter HQ", "Sandy Toes Welcome", "Dig Here (Maybe)", "Home Sweet Dune" };
     /// <summary>how many bones the shop will ever sell in one game, so the dog cannot be spammed</summary>
-    public const int BONE_STOCK = 8;
+    public const int BONE_STOCK = 16;
     public const double FLAG_PACK_COST = 15;
     public const int FLAG_PACK_SIZE = 5;
     public static readonly double[] DETECTOR_RADIUS = { 2.0, 3.8, 5.5 };

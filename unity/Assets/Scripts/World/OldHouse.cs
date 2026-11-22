@@ -295,6 +295,13 @@ public class OldHouse
     private static (double lx, double lz) toLocal(double x, double z) => (Z - z, x - X);
 
     /// <summary>True on the floor or the porch.</summary>
+    /// <summary>Whether (x, z) is under the roof or the porch, or within <paramref name="margin"/> of them.</summary>
+    public bool covers(double x, double z, double margin)
+    {
+        var (lx, lz) = toLocal(x, z);
+        return Math.Abs(lx) < W / 2 + margin && lz > -D / 2 - margin && lz < D / 2 + PORCH + margin;
+    }
+
     public bool contains(double x, double z)
     {
         var (lx, lz) = toLocal(x, z);

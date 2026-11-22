@@ -162,6 +162,10 @@ public class UIManager
         ["left"] = el("div", "pt left"),
     };
     private HTMLElement padCaption = el("div", "pt-caption");
+    /// <summary>every tool that shares the d-pad's left slot, in the order the presses go round them, the one in hand lit</summary>
+    private HTMLElement padStack = el("div", "pt-stack hidden");
+    /// <summary>"(d-pad left) Bow": what the next press of left gives, so it is plain that pressing again moves on</summary>
+    private HTMLElement padNext = el("div", "pt-next hidden");
     private int curTool = 1;
     private bool badgeOverride = false;
     private HTMLElement hint = el("div", "hint");
@@ -301,7 +305,7 @@ public class UIManager
         this.badge.append(this.badgeIcon, this.badgeName);
         this.miniCanvas.width = this.miniCanvas.height = MINI_PX;
         var center = el("div", "pt-center");
-        this.padTools.append(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption);
+        this.padTools.append(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption, this.padStack, this.padNext);
         this.hud.append(left, right, this.miniCanvas, el("div", "minimap-ring"), this.badge, this.padTools);
 
         this.scope.append(el("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
@@ -436,9 +440,29 @@ public class UIManager
             var slot = this.padSlots[k];
             showIcon(slot, t != 0 && icons.ContainsKey(t) ? icons[t][0] : "·");
             if (t == 7) slot.append(el("small", "", $"x{this.state.data.flags}"));
-            if (k == "left" && others.Count > 1) slot.append(el("em", "", "⟳"));
             slot.classList.toggle("on", t != 0 && t == this.curTool);
             slot.classList.toggle("empty", t == 0);
+        }
+        // more than one tool behind the left slot: show them all, and what the next press brings
+        bool cycle = others.Count > 1;
+        this.padStack.classList.toggle("hidden", !cycle);
+        this.padNext.classList.toggle("hidden", !cycle);
+        if (cycle)
+        {
+            this.padStack.replaceChildren();
+            foreach (var t in others)
+            {
+                var ps = el("div", "ps");
+                showIcon(ps, icons.TryGetValue(t, out var inf) ? inf[0] : "·");
+                ps.classList.toggle("on", t == this.curTool);
+                this.padStack.append(ps);
+            }
+            // in hand: the press moves on to the one after; otherwise it picks up the one shown in the slot
+            int nextTool = others.Contains(this.curTool) ? others[(others.IndexOf(this.curTool) + 1) % others.Count] : leftTool;
+            this.padNext.replaceChildren();
+            var name = el("span", "pn-name");
+            name.textContent = "next: " + (nextTool == 7 ? $"Flags x{this.state.data.flags}" : icons.TryGetValue(nextTool, out var ni) ? ni[1] : "");
+            this.padNext.append(Glyphs.make("D-pad left", true), name);
         }
         this.padCaption.textContent = icons.TryGetValue(this.curTool, out var curInf) && !string.IsNullOrEmpty(curInf[1])
             ? (this.curTool == 7 ? $"Flags x{this.state.data.flags}" : curInf[1])

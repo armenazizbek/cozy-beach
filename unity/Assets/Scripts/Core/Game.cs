@@ -186,6 +186,8 @@ public class Game
     private bool padRun = false;
     private bool padL3Was = false;
     private bool padCalling = false;
+    /// <summary>mouse movement gathered while the controller is in use; it fades, so only a deliberate push counts</summary>
+    private double mouseShove = 0;
     private MapCursor mapCursor = new MapCursor { u = 0.5, v = 0.5 };
     private HTMLElement mapCursorEl = null;
     private bool wasRaining = false;
@@ -323,6 +325,7 @@ public class Game
             arrows.group,
             flags.group,
             rain.group,
+            rain.buildShelter(OldHouse.X, OldHouse.Z, (x, z) => oldHouse.covers(x, z, 1.1)),
             stones.group,
             coveNets.group,
             grass.group,
@@ -1354,6 +1357,23 @@ public class Game
             player.pitch = -0.12;
             eyeY = 0;
         }
+        else if (what == "lookout")
+        {
+            // inside, looking out of the door at the rain on the beach
+            player.x = OldHouse.X + 0.3;
+            player.z = OldHouse.Z;
+            player.yaw = -Math.PI / 2;
+            player.pitch = 0.05;
+            eyeY = 0;
+        }
+        else if (what == "tools")
+        {
+            // several tools behind the d-pad's left slot, the bow in hand
+            state.data.flags = Math.Max(3, state.data.flags);
+            state.data.ownsBow = true;
+            state.data.ownsBucket = true;
+            selectSlot(6);
+        }
         else if (what == "watch")
         {
             // standing in the doorway, looking into the room
@@ -1697,8 +1717,14 @@ public class Game
             if (padBrush && Math.Abs(dx) + Math.Abs(dy) > 6) setUsingPad(false);
             return;
         }
-        // mouse look: with the pointer locked, or right-drag while the cursor is free
-        if (Math.Abs(dx) + Math.Abs(dy) > 1) setUsingPad(false);
+        // mouse look: with the pointer locked, or right-drag while the cursor is free.
+        // Only a real push of the mouse takes over from the controller: a desk bump or sensor drift adds up to little
+        if (usingPad)
+        {
+            mouseShove += Math.Abs(dx) + Math.Abs(dy);
+            if (mouseShove > 24 || buttons != 0) setUsingPad(false);
+            else return;
+        }
         if (locked || (buttons & 2) != 0) applyLook(dx, dy, false);
     }
 
@@ -3101,9 +3127,11 @@ public class Game
             rain.amount = 0;
             wasRaining = false;
         }
-        rain.update(dt, raining ? 1 : 0, camera.position);
-        // under the old house's roof the rain falls outside, not around the player
-        rain.group.visible = !oldHouse.contains(camera.position.x, camera.position.z);
+        // under the sea and in the cellar there is no rain to see; under the old house's roof it falls outside, past
+        // the door and the windows, and not around the player
+        string rainWhere = diving || underground || camera.position.y < -0.15 ? "none"
+            : oldHouse.contains(camera.position.x, camera.position.z) ? "shelter" : "open";
+        rain.update(dt, raining ? 1 : 0, camera.position, rainWhere);
         // ...but it comes in through the hole in the roof, and gathers on the floor away from the dog
         oldHouse.updateWater(dt, time, rain.amount, dog.x, dog.z);
         if (raining != wasRaining)
@@ -3137,6 +3165,7 @@ public class Game
     {
         if (on == usingPad) return;
         usingPad = on;
+        mouseShove = 0;
         document.body.classList.toggle("usingpad", on);
         ui.setPadMode(on);
         if (on)
@@ -6018,8 +6047,9 @@ public class Game
                 : new Interaction { label = "Take the wheel", run = () => takeHelm() };
             // you can only get off where the water is shallow enough to wade to the beach
             if (nearShore()) interaction2 = new Interaction { label = landingSpot().island ? "Step off the boat onto the island" : "Step off the boat onto the beach", run = () => exitVehicle() };
-            ui.setPrompt(interaction.label);
-            ui.setPrompt2(interaction2?.label);
+            // at the wheel the hint along the bottom already names both keys, so nothing is said twice in mid-view
+            ui.setPrompt(driving ? null : interaction.label);
+            ui.setPrompt2(driving ? null : interaction2?.label);
             return;
         }
         if (driving)
@@ -6614,6 +6644,9 @@ public class Game
         wasLocked = locked;
 
         double rawDt = clock.getDelta();
+        // menus and the map let go of the mouse and show the cursor; while a controller is in hand it stays hidden
+        if (usingPad && UnityEngine.Cursor.visible) UnityEngine.Cursor.visible = false;
+        mouseShove = Math.Max(0, mouseShove - rawDt * 40);
         pad.poll(Math.Min(rawDt, 0.05));
         padUpdate(Math.Min(rawDt, 0.05));
         menuTick();

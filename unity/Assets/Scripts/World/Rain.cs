@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 
 // Port of src/world/Rain.ts
@@ -39,6 +40,11 @@ public class Rain
     /// <summary>0 for ordinary rain; 1 for a storm, when it comes down harder and is blown almost sideways</summary>
     public double gale = 0;
     private readonly THREE.LineSegments lines;
+    /// <summary>rain around a shelter (the old house), fixed in the world with a hole where the roof is, so a player
+    /// indoors sees it come down past the door and the windows and not inside the room</summary>
+    private THREE.LineSegments shelterLines;
+    private readonly THREE.Group shelterGroup = new THREE.Group();
+    private double shelterX, shelterZ;
     private readonly THREE.LineBasicMaterial mat = new THREE.LineBasicMaterial { color = 0xcfe0ee, transparent = true, opacity = 0, depthWrite = false, fog = false };
 
     // The drops are built once and never rewritten: a fixed pattern of streaks, twice, one above the other (each one
@@ -67,13 +73,47 @@ public class Rain
         group.add(lines);
     }
 
+    /// <summary>
+    /// Builds the rain seen from under a roof: drops all round (x, z) out to the edge of the rain box, but none where
+    /// <paramref name="covered"/> says the roof is. Add <see cref="shelter"/> to the scene beside <see cref="group"/>.
+    /// </summary>
+    public THREE.Group buildShelter(double x, double z, Func<double, double, bool> covered)
+    {
+        const double STREAK = 0.75;
+        shelterX = x;
+        shelterZ = z;
+        var pts = new List<float>(DROPS * 12);
+        int made = 0;
+        for (int tries = 0; made < DROPS && tries < DROPS * 8; tries++)
+        {
+            double dx = (JS.Random() * 2 - 1) * BOX, dz = (JS.Random() * 2 - 1) * BOX;
+            if (covered(x + dx, z + dz)) continue;
+            double y = JS.Random() * HEIGHT;
+            for (int copy = 0; copy < 2; copy++)
+            {
+                pts.Add((float)dx); pts.Add((float)(y + copy * HEIGHT)); pts.Add((float)dz);
+                pts.Add((float)dx); pts.Add((float)(y + copy * HEIGHT + STREAK)); pts.Add((float)dz);
+            }
+            made++;
+        }
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(pts.ToArray(), 3));
+        shelterLines = new THREE.LineSegments(geo, mat) { frustumCulled = false, visible = false };
+        shelterGroup.add(shelterLines);
+        return shelterGroup;
+    }
+
     /// <summary>Eases toward `target` and moves the rain. `cam` is where the rain should fall around.</summary>
-    public void update(double dt, double target, THREE.Vector3 cam)
+    /// <param name="where">"open": falls round the camera; "shelter": the camera is under the roof built by
+    /// <see cref="buildShelter"/>, so it falls round that instead; "none": not seen at all (under the sea, in the cellar)</param>
+    public void update(double dt, double target, THREE.Vector3 cam, string where = "open")
     {
         amount += (target - amount) * Math.Min(1, dt * 0.35);
         if (Math.Abs(amount - target) < 0.002) amount = target;
         bool on = amount > 0.01;
-        lines.visible = on;
+        bool sheltered = where == "shelter" && shelterLines != null;
+        lines.visible = on && where == "open";
+        if (shelterLines != null) shelterLines.visible = on && sheltered;
         if (!on) return;
         mat.opacity = amount * (0.5 + gale * 0.25);
         double fall = 22 + gale * 10, slant = 3 + gale * 15;
@@ -82,5 +122,12 @@ public class Rain
         phase = (phase + Math.Sqrt(fall * fall + slant * slant) * dt) % HEIGHT;
         lines.position.y = -phase;
         group.position.set(cam.x, cam.y - 4, cam.z);
+        if (sheltered)
+        {
+            // hardly any lean here: a drop blown far sideways would end up inside the room
+            shelterGroup.rotation.z = group.rotation.z * 0.25;
+            shelterLines.position.y = -phase;
+            shelterGroup.position.set(shelterX, cam.y - 4, shelterZ);
+        }
     }
 }
