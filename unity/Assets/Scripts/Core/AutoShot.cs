@@ -521,6 +521,14 @@ public class AutoShot : MonoBehaviour
             Debug.Log("[AutoShot] " + game.smokeTestBoatAt(Beach.EMBER.x + 40, Beach.EMBER.z - 70, Math.Atan2(40, -70)));
             yield return Wait(3);
             yield return Shot("25-lighthouse-night-sea.png");
+            // switched off: no light and no ships at night, until it is switched back on
+            game.smokeTestTower("lampoff");
+            yield return Wait(3);
+            Debug.Log("[AutoShot] lamp switched off: " + game.smokeTestTower("status"));
+            yield return Shot("25-lighthouse-night-sea-off.png");
+            game.smokeTestTower("lampon");
+            yield return Wait(1);
+            Debug.Log("[AutoShot] lamp switched on: " + game.smokeTestTower("status"));
             game.smokeTestTower("day");
             yield return Wait(3);
         }

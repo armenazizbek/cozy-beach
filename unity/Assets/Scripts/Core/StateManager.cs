@@ -107,6 +107,8 @@ public class GameData
     public int fishCaught = 0;
     /// <summary>the lighthouse on the ember rock has been brushed clean, so its lamp shines at night and ships sail the horizon</summary>
     public bool lighthouseCleaned = false;
+    /// <summary>the player has switched the cleaned lamp off at the top: no beam and no ships on the horizon until it is switched on again</summary>
+    public bool lighthouseDark = false;
     /// <summary>the telescope on Lagoon Cay has been brushed clean once on the workbench, so it can be looked through</summary>
     public bool telescopeCleaned = false;
     /// <summary>the constellations found through the telescope on Lagoon Cay, by id (Constellations.ALL)</summary>

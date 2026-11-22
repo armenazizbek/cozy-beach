@@ -429,6 +429,7 @@ public class Game
         if (state.data.doorOpen) cellar.openDoor(true);
         cellar.cave.setTaken(state.data.hoardTaken);
         islands[2].lighthouse?.setClean(state.data.lighthouseCleaned);
+        islands[2].lighthouse?.setLamp(!state.data.lighthouseDark);
         islands[1].telescope?.setClean(state.data.telescopeCleaned);
         applyLuxury();
         void showDecor()
@@ -1139,6 +1140,8 @@ public class Game
                 startLighthouseIntro();
             }
         }
+        else if (what == "lampoff") switchLighthouseLamp(false);
+        else if (what == "lampon") switchLighthouseLamp(true);
         else if (what == "night") { state.setLighting("night"); dayTime = 0.78; sky.setTime(dayTime); }
         else if (what == "day") { state.setLighting("cycle"); dayTime = 0.25; sky.setTime(dayTime); }
         return $"{lh.describe(player.x, player.z)}, cleaned={lh.cleaned}, beams={lh.beams.visible}, ships={lh.shipsGroup.visible}, intro={lh.introActive} ({lh.introTime:0.0}s), dayTime={dayTime:0.00}";
@@ -6189,6 +6192,15 @@ public class Game
                     run = () => enterCleanLighthouse(),
                 };
             }
+            else if (tower.nearSwitch(player.x, player.z) && 0.3 < best)
+            {
+                best = 0.3;
+                interaction = new Interaction
+                {
+                    label = tower.lampOn ? "Switch the lighthouse lamp off" : "Switch the lighthouse lamp on",
+                    run = () => switchLighthouseLamp(!tower.lampOn),
+                };
+            }
         }
         var glass = islands[1].telescope;
         if (glass != null && !driving && vehicle == null && glass.near(player.x, player.z) && 0.3 < best)
@@ -6441,6 +6453,19 @@ public class Game
         var hit = rayCaster.intersectObjects(things, true).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
         if (hit != null && hit.distance < best) best = hit.distance;
         rangeText = best < 900 ? $"{Math.Round(best)} m" : "—";
+    }
+
+    /// <summary>The switch at the top of the lighthouse: off, the lamp stays dark and no ships pass in the night until it is switched on again.</summary>
+    private void switchLighthouseLamp(bool on)
+    {
+        var lh = islands[2].lighthouse;
+        if (lh == null || !lh.cleaned) return;
+        lh.setLamp(on);
+        state.data.lighthouseDark = !on;
+        state.emit();
+        audio.thud();
+        ui.toast(on ? "The lamp shines again. Ships will sail the horizon at night."
+            : "The lamp goes dark. No ships will pass in the night until you switch it back on.");
     }
 
     private void updateHint()

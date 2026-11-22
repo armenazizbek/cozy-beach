@@ -54,6 +54,8 @@ public class Lighthouse
 
     /// <summary>false while the lamp is still caked in sand and salt; true once the player has climbed up and brushed it clean</summary>
     public bool cleaned { get; private set; } = false;
+    /// <summary>the player's switch at the top: off leaves the cleaned lamp dark, with no beam and no ships, until switched on again</summary>
+    public bool lampOn { get; private set; } = true;
     /// <summary>the sand crust canvas used when brushing the lighthouse lamp on the workbench</summary>
     public HTMLCanvasElement crustCanvas;
 
@@ -596,11 +598,24 @@ public class Lighthouse
         {
             lensMat.color.setHex(on ? 0xfff1c8 : 0x6e604b);
             lensMat.roughness = on ? 0.1 : 0.9;
-            lensMat.emissiveIntensity = on ? 0.5 + lastNight * 2.2 : 0;
         }
-        if (beams != null) beams.visible = on && lastNight > 0.001;
-        foreach (var m in beamMats) m.opacity = on ? 0.22 * lastNight : 0;
-        shipsGroup.visible = on && lastNight > 0.15;
+        applyLamp();
+    }
+
+    /// <summary>Switches the cleaned lamp on or off (the player's switch at the top). Off: no light, no beam, no ships.</summary>
+    public void setLamp(bool on)
+    {
+        lampOn = on;
+        applyLamp();
+    }
+
+    private void applyLamp()
+    {
+        bool shining = cleaned && lampOn;
+        if (lensMat != null) lensMat.emissiveIntensity = shining ? 0.5 + lastNight * 2.2 : 0;
+        if (beams != null) beams.visible = shining && lastNight > 0.001;
+        foreach (var m in beamMats) m.opacity = shining ? 0.22 * lastNight : 0;
+        shipsGroup.visible = shining && lastNight > 0.15;
     }
 
     // ---------------------------------------------------------------- distant horizon ships (night only, unreachable)
@@ -838,6 +853,9 @@ public class Lighthouse
     /// <summary>True when the player has climbed up to the top deck beside the lantern and the lamp still needs cleaning.</summary>
     public bool nearClean(double x, double z) => !cleaned && atTop;
 
+    /// <summary>up on the deck beside the cleaned lamp, where its switch is</summary>
+    public bool nearSwitch(double x, double z) => cleaned && atTop;
+
     public void toggleDoor() => doorOpen = !doorOpen;
 
     // ---------------------------------------------------------------- walking
@@ -1040,7 +1058,8 @@ public class Lighthouse
         doorSwing += (want - doorSwing) * Math.Min(1, dt * 4);
         doorPivot.rotation.y = doorClosedYaw - doorSwing * 1.75;
         if (lensMat == null) return;
-        if (!cleaned)
+        // still caked in sand, or switched off by the player: dark, and no ships come
+        if (!cleaned || (!lampOn && !introActive))
         {
             lensMat.emissiveIntensity = 0;
             beams.visible = false;
