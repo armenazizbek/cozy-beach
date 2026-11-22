@@ -40,6 +40,10 @@ namespace THREE.Bridge
         /// <summary>the materials drawn under that static group, kept up to date while the group itself is skipped</summary>
         public readonly List<(THREE.Material, MaterialCache.Kind)> staticMats = new List<(THREE.Material, MaterialCache.Kind)>();
         public Transform[] bones;
+        /// <summary>SPIKE -spike-mirror: a sun or spot light lifted out of the mirrored root (see Mirror)</summary>
+        public bool lifted;
+        /// <summary>SPIKE -spike-mirror: where a camera's Unity camera sits, outside the mirrored root</summary>
+        public Transform eye;
     }
 
     /// <summary>
@@ -48,6 +52,7 @@ namespace THREE.Bridge
     internal static class SceneSync
     {
         private static readonly List<Node> detached = new List<Node>();
+        private static readonly List<Node> lifted = new List<Node>();
         private static readonly Dictionary<THREE.Scene, GameObject> roots = new Dictionary<THREE.Scene, GameObject>();
         private static GameObject limbo;
         private static int frame;
@@ -62,7 +67,7 @@ namespace THREE.Bridge
         public static readonly int _CozyFogColor = Shader.PropertyToID("_CozyFogColor"), _CozyFogParams = Shader.PropertyToID("_CozyFogParams"),
             _CozyTone = Shader.PropertyToID("_CozyTone"), _CozyHemiSky = Shader.PropertyToID("_CozyHemiSky"), _CozyHemiGround = Shader.PropertyToID("_CozyHemiGround"),
             _CozyHemiUp = Shader.PropertyToID("_CozyHemiUp"), _CozyAmbient = Shader.PropertyToID("_CozyAmbient"), _CozyEnv = Shader.PropertyToID("_CozyEnv"),
-            _CozyScreen = Shader.PropertyToID("_CozyScreen");
+            _CozyScreen = Shader.PropertyToID("_CozyScreen"), _CozyThreeZ = Shader.PropertyToID("_CozyThreeZ");
 
         /// <summary>The environment light standing in for Three's RoomEnvironment: average radiance, how much brighter above, intensity.</summary>
         public static U.Vector4 EnvironmentTuning = new U.Vector4(1.8f, 0.45f, 1f, 0f);
@@ -72,6 +77,7 @@ namespace THREE.Bridge
         {
             generation++;
             detached.Clear();
+            lifted.Clear();
             roots.Clear();
             lights.Clear();
             if (limbo != null) Object.Destroy(limbo);
@@ -98,6 +104,7 @@ namespace THREE.Bridge
             if (!roots.TryGetValue(s, out var go) || go == null)
             {
                 go = new GameObject(string.IsNullOrEmpty(s.name) ? "Scene" : s.name);
+                if (Mirror.On) go.transform.localScale = new U.Vector3(1, 1, -1);
                 roots[s] = go;
             }
             return go;
@@ -133,6 +140,8 @@ namespace THREE.Bridge
                 }
             }
             lights.Clear();
+            // SPIKE: lifted lights are switched on again below only if they were reached this frame
+            for (int i = lifted.Count - 1; i >= 0; i--) { if (lifted[i].go == null) lifted.RemoveAt(i); else if (lifted[i].go.activeSelf) lifted[i].go.SetActive(false); }
             hemiSky = hemiGround = ambient = U.Vector4.zero;
             hemiUp = U.Vector3.up;
             var root = RootFor(scene);
@@ -142,6 +151,12 @@ namespace THREE.Bridge
             }
             int layer = scene.unityLayer;
             PushTransform(scene, scene.node);
+            // SPIKE -spike-mirror: the root keeps its mirror whatever the scene's own scale says
+            if (Mirror.On && scene.node.tf.localScale.z > 0)
+            {
+                var ls = scene.node.tf.localScale;
+                scene.node.tf.localScale = new U.Vector3(ls.x, ls.y, -ls.z);
+            }
             using (BridgeStats.Time("sync.objects"))
             {
                 for (int i = 0; i < scene.children.Count; i++)
@@ -177,12 +192,12 @@ namespace THREE.Bridge
             if (px != n.px || py != n.py || pz != n.pz)
             {
                 n.px = px; n.py = py; n.pz = pz;
-                n.tf.localPosition = new U.Vector3((float)px, (float)py, (float)-pz);
+                n.tf.localPosition = new U.Vector3((float)px, (float)py, Mirror.Z * (float)pz);
             }
             if (qx != n.qx || qy != n.qy || qz != n.qz || qw != n.qw)
             {
                 n.qx = qx; n.qy = qy; n.qz = qz; n.qw = qw;
-                var uq = new U.Quaternion((float)-qx, (float)-qy, (float)qz, (float)qw);
+                var uq = Mirror.On ? new U.Quaternion((float)qx, (float)qy, (float)qz, (float)qw) : new U.Quaternion((float)-qx, (float)-qy, (float)qz, (float)qw);
                 float len = Mathf.Sqrt(uq.x * uq.x + uq.y * uq.y + uq.z * uq.z + uq.w * uq.w);
                 if (len > 1e-6f) { uq.x /= len; uq.y /= len; uq.z /= len; uq.w /= len; }
                 else uq = U.Quaternion.identity;
@@ -202,7 +217,7 @@ namespace THREE.Bridge
             BridgeStats.objects++;
             if (o is THREE.Mesh || o is Points || o is Line || o is Sprite) BridgeStats.drawables++;
             if (n.detachedFrame >= 0) n.detachedFrame = -1;
-            if (!ReferenceEquals(n.parentTf, parentTf))
+            if (!n.lifted && !ReferenceEquals(n.parentTf, parentTf))
             {
                 n.tf.SetParent(parentTf, false);
                 n.parentTf = parentTf;
@@ -464,7 +479,7 @@ namespace THREE.Bridge
                     {
                         // Unity wants bone-from-mesh in mesh space: boneInverse * bindMatrix, conjugated into Unity's axes
                         var bind = sk.skeleton.boneInverses[i].clone().multiply(sk.bindMatrix);
-                        binds[i] = bind.ToUnity();
+                        binds[i] = Mirror.On ? bind.ToUnityRaw() : bind.ToUnity();
                     }
                     mesh.bindposes = binds;
                     n.smr.bones = bones;
@@ -571,6 +586,7 @@ namespace THREE.Bridge
                     case DirectionalLight d:
                     {
                         var ul = EnsureLight(n, LightType.Directional);
+                        Lift(n, d);
                         d.getWorldPosition(_a);
                         d.target.updateWorldMatrix(true, false);
                         d.target.getWorldPosition(_b);
@@ -585,6 +601,7 @@ namespace THREE.Bridge
                     case SpotLight s:
                     {
                         var ul = EnsureLight(n, LightType.Spot);
+                        Lift(n, s);
                         s.getWorldPosition(_a);
                         s.target.updateWorldMatrix(true, false);
                         s.target.getWorldPosition(_b);
@@ -609,6 +626,26 @@ namespace THREE.Bridge
                 }
             }
             RenderSettings.sun = sun;
+        }
+
+        /// <summary>
+        /// SPIKE -spike-mirror: a light whose direction matters leaves the mirrored root and is placed in Unity's axes, as the
+        /// plan's option A says for the sun and spot lights.
+        /// </summary>
+        private static void Lift(Node n, THREE.Light l)
+        {
+            if (!Mirror.On) return;
+            if (!n.lifted)
+            {
+                n.lifted = true;
+                n.tf.SetParent(null, false);
+                n.parentTf = null;
+                n.tf.localScale = U.Vector3.one;
+                lifted.Add(n);
+            }
+            if (!n.go.activeSelf) n.go.SetActive(true);
+            l.getWorldPosition(_a);
+            n.tf.position = _a.ToUnity();
         }
 
         private static U.Light EnsureLight(Node n, LightType type)
@@ -640,6 +677,8 @@ namespace THREE.Bridge
 
         private static void ApplyGlobals(THREE.Scene scene, WebGLRenderer renderer)
         {
+            // how the shaders read object-space z (CozyCore.hlsl): Three's axes mirrored by the bridge, or unconverted under -spike-mirror
+            Shader.SetGlobalFloat(_CozyThreeZ, Mirror.On ? 1f : -1f);
             Shader.SetGlobalVector(_CozyHemiSky, hemiSky);
             Shader.SetGlobalVector(_CozyHemiGround, hemiGround);
             Shader.SetGlobalVector(_CozyHemiUp, hemiUp);

@@ -39,8 +39,8 @@ Shader "Cozy/FishSchool"
         { \
             float ph = input.extra0.z; \
             float size = input.extra0.w; \
-            float3 p = float3(positionOS.x, positionOS.y, -positionOS.z); \
-            float3 n = float3(normalOS.x, normalOS.y, -normalOS.z); \
+            float3 p = float3(positionOS.x, positionOS.y, _CozyThreeZ * positionOS.z); \
+            float3 n = float3(normalOS.x, normalOS.y, _CozyThreeZ * normalOS.z); \
             if (input.extra1.x > 0.5) \
             { \
                 float ta = sin(uTime * 14.0 + ph) * 0.7; \
@@ -55,8 +55,8 @@ Shader "Cozy/FishSchool"
             p = float3(p.x * cw + p.z * sw, p.y, -p.x * sw + p.z * cw); \
             n = float3(n.x * cw + n.z * sw, n.y, -n.x * sw + n.z * cw); \
             p += float3(input.extra0.x + sin(uTime * 1.3 + ph) * 0.35, 0.02 + sin(uTime * 5.0 + ph) * 0.02, input.extra0.y + cos(uTime * 1.1 + ph) * 0.35); \
-            positionOS = float3(p.x, p.y, -p.z); \
-            normalOS = float3(n.x, n.y, -n.z); \
+            positionOS = float3(p.x, p.y, _CozyThreeZ * p.z); \
+            normalOS = float3(n.x, n.y, _CozyThreeZ * n.z); \
         }
     #define COZY_VERTEX_HOOK COZY_FISH_SWIM
     #define COZY_SHADOW_VERTEX_HOOK COZY_FISH_SWIM

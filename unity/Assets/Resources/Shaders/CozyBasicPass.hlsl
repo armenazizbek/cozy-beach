@@ -64,7 +64,7 @@ Varyings vert(Attributes input)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
     float3 positionOS = input.positionOS.xyz;
     float3 normalOS = input.normalOS;
-    o.objectPos = float3(positionOS.x, positionOS.y, -positionOS.z);
+    o.objectPos = float3(positionOS.x, positionOS.y, _CozyThreeZ * positionOS.z);
 #ifdef COZY_VERTEX_HOOK
     COZY_VERTEX_HOOK
 #endif

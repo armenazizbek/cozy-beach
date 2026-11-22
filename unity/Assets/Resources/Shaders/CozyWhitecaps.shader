@@ -75,10 +75,10 @@ Shader "Cozy/Whitecaps"
                 float z = v.patch.y + 0.12 * age;
                 float grow = 0.75 + 0.35 * u;
                 float sx = v.patch.w * grow, sz = v.patch.w * grow * 0.34;
-                float lx = v.positionOS.x * sx, lz = -v.positionOS.z * sz;
+                float lx = v.positionOS.x * sx, lz = _CozyThreeZ * v.positionOS.z * sz;
                 float cy = cos(v.patch.z), sy = sin(v.patch.z);
                 float3 three = float3(x + lx * cy + lz * sy, uLevel + CozySwell(x, z) + 0.07, z - lx * sy + lz * cy);
-                float3 ws = TransformObjectToWorld(float3(three.x, three.y, -three.z));
+                float3 ws = TransformObjectToWorld(float3(three.x, three.y, _CozyThreeZ * three.z));
                 float3 vs = TransformWorldToView(ws);
                 o.depth = -vs.z;
                 o.positionCS = TransformWViewToHClip(vs);

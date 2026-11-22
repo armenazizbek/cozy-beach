@@ -146,14 +146,14 @@ namespace THREE.Bridge
             if (moved)
             {
                 v3.Clear();
-                for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], -pos.array[i * 3 + 2]));
+                for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], Mirror.Z * pos.array[i * 3 + 2]));
                 mesh.SetVertices(v3);
             }
             var nor = g.attributes.normal;
             if (nor != null && nor.count == n && Stale(nor, ref e.norRef, ref e.norVer))
             {
                 v3.Clear();
-                for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(nor.array[i * 3], nor.array[i * 3 + 1], -nor.array[i * 3 + 2]));
+                for (int i = 0; i < n; i++) v3.Add(new UnityEngine.Vector3(nor.array[i * 3], nor.array[i * 3 + 1], Mirror.Z * nor.array[i * 3 + 2]));
                 mesh.SetNormals(v3);
             }
             var uv = g.attributes.uv;
@@ -250,7 +250,7 @@ namespace THREE.Bridge
                 else { a = i; b = i + 1; c = i + 2; }
                 if (a >= n || b >= n || c >= n) continue;
                 // reversed winding for the mirrored space
-                tris.Add(a); tris.Add(c); tris.Add(b);
+                if (Mirror.On) { tris.Add(a); tris.Add(b); tris.Add(c); } else { tris.Add(a); tris.Add(c); tris.Add(b); }
             }
         }
 
@@ -313,18 +313,18 @@ namespace THREE.Bridge
                     if (s > 2) ic = instAttr.array[k * s + 2];
                     if (s > 3) id = instAttr.array[k * s + 3];
                 }
-                var origin = new UnityEngine.Vector4((float)m.elements[12], (float)m.elements[13], (float)-m.elements[14], k);
+                var origin = new UnityEngine.Vector4((float)m.elements[12], (float)m.elements[13], Mirror.Z * (float)m.elements[14], k);
                 // the instance's x and z axes, in Three's space, so a shader can move a vertex in the instance's own frame
                 var col0 = new UnityEngine.Vector4((float)m.elements[0], (float)m.elements[1], (float)m.elements[2], 0);
                 var col2 = new UnityEngine.Vector4((float)m.elements[8], (float)m.elements[9], (float)m.elements[10], 0);
                 for (int i = 0; i < n; i++)
                 {
                     p.set(pos.array[i * 3], pos.array[i * 3 + 1], pos.array[i * 3 + 2]).applyMatrix4(m);
-                    v3.Add(new UnityEngine.Vector3((float)p.x, (float)p.y, (float)-p.z));
+                    v3.Add(new UnityEngine.Vector3((float)p.x, (float)p.y, Mirror.Z * (float)p.z));
                     if (nor != null)
                     {
                         p.set(nor.array[i * 3], nor.array[i * 3 + 1], nor.array[i * 3 + 2]).applyNormalMatrix(nm);
-                        bn.Add(new UnityEngine.Vector3((float)p.x, (float)p.y, (float)-p.z));
+                        bn.Add(new UnityEngine.Vector3((float)p.x, (float)p.y, Mirror.Z * (float)p.z));
                     }
                     if (uv != null) v2.Add(new UnityEngine.Vector2(uv.array[i * 2], uv.array[i * 2 + 1]));
                     if (col != null)
@@ -346,7 +346,7 @@ namespace THREE.Bridge
                     int a, b, c;
                     if (g.index != null) { a = (int)g.index.array[t]; b = (int)g.index.array[t + 1]; c = (int)g.index.array[t + 2]; }
                     else { a = t; b = t + 1; c = t + 2; }
-                    tris.Add(baseV + a); tris.Add(baseV + c); tris.Add(baseV + b);
+                    if (Mirror.On) { tris.Add(baseV + a); tris.Add(baseV + b); tris.Add(baseV + c); } else { tris.Add(baseV + a); tris.Add(baseV + c); tris.Add(baseV + b); }
                 }
             }
             mesh.SetVertices(v3);
@@ -394,7 +394,7 @@ namespace THREE.Bridge
             var col = g.attributes.color;
             for (int i = start; i < end; i++)
             {
-                var p = new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], -pos.array[i * 3 + 2]);
+                var p = new UnityEngine.Vector3(pos.array[i * 3], pos.array[i * 3 + 1], Mirror.Z * pos.array[i * 3 + 2]);
                 v3.Add(p); v3.Add(p); v3.Add(p); v3.Add(p);
                 if (structural)
                 {

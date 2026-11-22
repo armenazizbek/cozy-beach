@@ -7,6 +7,9 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
+// how object-space z reads in Three's axes: -1 when the bridge mirrored the meshes, +1 when they hang unconverted under a
+// mirrored root (option A, unity/NATIVE_PLAN.md 2.1). Shaders that do maths in Three's object axes multiply by it.
+float _CozyThreeZ;
 float4 _CozyFogColor;   // sRGB
 float4 _CozyFogParams;  // x near, y far, z density, w mode (0 none, 1 linear, 2 exp2)
 float4 _CozyTone;       // x 1 = ACES filmic, y exposure

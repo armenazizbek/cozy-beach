@@ -41,6 +41,7 @@ public class GameHost : MonoBehaviour
     {
         Instance = this;
         AutoShot.Trace("host start");
+        if (THREE.Bridge.Mirror.On) Debug.Log("[Spike] -spike-mirror: every scene under a root scaled (1, 1, -1), Three numbers unconverted");
         THREE.Scene.ResetLayers();
         // Steam first: Deck detection and achievements already earned need it before the game is built
         SteamService.Init();

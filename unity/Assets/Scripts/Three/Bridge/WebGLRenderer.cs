@@ -278,24 +278,31 @@ namespace THREE
                 node = new Bridge.Node { go = go, tf = go.transform, owner = camera };
                 camera.node = node;
             }
-            if (camera.parent == null)
+            // SPIKE -spike-mirror: the Unity camera sits on an eye of its own outside the mirrored root, placed in Unity's axes;
+            // the camera's node stays in the scene for what hangs from it (the tools in hand)
+            if (Bridge.Mirror.On && node.eye == null)
+            {
+                node.eye = new GameObject("Camera eye (" + (scene.name ?? "") + ")").transform;
+            }
+            if (camera.parent == null || Bridge.Mirror.On)
             {
                 camera.updateMatrixWorld();
                 var p = new Vector3();
                 var q = new Quaternion();
                 var s = new Vector3();
                 camera.matrixWorld.decompose(p, q, s);
-                node.tf.position = p.ToUnity();
-                node.tf.rotation = q.ToUnity();
+                var at = Bridge.Mirror.On ? node.eye : node.tf;
+                at.position = p.ToUnity();
+                at.rotation = q.ToUnity();
             }
             if (node.cam == null)
             {
-                node.cam = node.go.AddComponent<U.Camera>();
+                node.cam = (Bridge.Mirror.On ? node.eye.gameObject : node.go).AddComponent<U.Camera>();
                 node.cam.allowHDR = false;
                 node.cam.allowMSAA = true;
                 node.cam.useOcclusionCulling = false;
                 Bridge.UrpSettings.SetupCamera(node.cam);
-                if (!offscreen && Main == this && U.Object.FindAnyObjectByType<AudioListener>() == null) node.go.AddComponent<AudioListener>();
+                if (!offscreen && Main == this && U.Object.FindAnyObjectByType<AudioListener>() == null) node.cam.gameObject.AddComponent<AudioListener>();
                 known.Add(node.cam);
             }
             return node.cam;

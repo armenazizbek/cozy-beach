@@ -63,3 +63,65 @@ the comparison results, and any differences accepted. Newest last.
 - Tools (`compare.py`, run scripts): about 1 h.
 - Builds, runs and finding the nondeterminism (loading frames, then real mouse input): about 1.5 h, mostly waiting on
   runs.
+
+## S1: spikes (2026-11-23)
+
+**Question 1: does option A (a mirrored world root with Three's numbers unconverted) draw the same picture?
+Yes.**
+
+The spike is `-spike-mirror` in the bridge (`Three/Bridge/Mirror.cs`). In this mode:
+
+- every scene root is scaled (1, 1, −1);
+- local transforms and mesh positions and normals go to Unity unconverted, with the original triangle winding;
+- baked instance origins and bind poses (`Matrix4.ToUnityRaw`) are unconverted too;
+- the camera renders from an "eye" outside the root, placed in Unity's axes;
+- the sun and spot lights are lifted out of the root and placed in Unity's axes;
+- point lights stay under the root.
+
+So the whole game ran the way the native code will, and was compared with `ref-mono` over all 36 runs:
+
+- **First pass:** placement was exact (every renderer's world bounds and world-vertex hash matched), but shading
+  differed wherever a shader did maths in Three's object axes. That was the palms first, then whitecaps, grass, the
+  shark, fish schools and ocean foam.
+- **The shader audit (plan 2.4), done:** every hand-written object-space z flip now reads one global, `_CozyThreeZ`,
+  in `CozyCore.hlsl`. The bridge sets it to −1 (meshes mirrored, as before) or +1 (unconverted under a mirrored root).
+  - Shared passes: `objectPos` in `CozyStandardPass`, `CozyBasicPass` and `CozyShadowPass` (x2).
+  - `CozyPalmSway` (sway), `CozyFishSchool` (swim), `CozyOceanFoam`, `CozySharkBody` (bend and its normal).
+  - `CozyWhitecaps` (patch shape and placement), `CozyGrass` (instance phase and sway).
+  - World-space flips (`CozyBeach` duv, `CozyOcean` sea position and normal) are correct in both modes and stay as
+    they are.
+- **Mirror mode after the audit:** 398 PASS and 40 REVIEW of 438 shots. The 40 are the 35 loading shots and 5 shots
+  within noise (mean 0.00, SSIM 0.977 to 0.990). Facts all match. The scene dumps match except that the lifted lights
+  now sit at the top level under another path, which is expected.
+  - This covers shadows (including `-autoshot-shadow` and `-autoshot-gullshadow`), the skinned dog, sprites, points
+    and particles, baked instances (grass, tracks, whitecaps, the cave hoard), the lifted sun and the golf cart's spot
+    light, the camp's point lights, the tools in hand, the workbench scene and the item photos.
+- **Normal mode after the audit** (regression check of the shader edits): 401 PASS and 37 REVIEW. The 37 are the 35
+  loading shots and 2 within noise. All 438 scene dumps are identical, so today's game is unchanged.
+
+**Question 2: what does placing the world cost on the main thread?** Dev PC, Mono, three repeats, throwaway probe
+removed afterwards:
+
+- 3,000 GameObjects, each with a MeshFilter, MeshRenderer and shared material, under a mirrored root: 6.9 to 7.4 ms,
+  about 2.3 µs each. The whole world (about 3,600 objects) is about 8.5 ms.
+- 300 meshes of 600 vertices through `Mesh.AllocateWritableMeshData`: filling takes 8.9 ms, which a worker can do;
+  applying on the main thread takes 0.3 to 0.5 ms (about 1 µs each).
+- A 1024x1024 RGBA texture upload with mipmaps takes 1.6 ms; a 256x256 one takes 0.08 ms.
+
+Conclusion: the loader's default budget of 4 ms per frame (plan 2.11) places the whole world in 3 or 4 frames. Placing
+on the main thread is not a risk to the loading screen. On a Deck, at about 3 times slower, it is still only about 10
+frames.
+
+**Question 3: `Graphics.RenderMeshInstanced` with mirrored matrices.** Not needed on the parity path, because instanced
+meshes stay baked (plan 2.2). Deferred to S34, where track and whitecap instancing would be tried.
+
+**Decisions from the spike:**
+
+- **Option A is confirmed** (decision 1 holds).
+- **A simpler path than the plan's mounts.** In S2 the bridge switches to mirror mode for good (the reference shots
+  are unchanged, as shown above). Native objects can then hang **directly** under bridge objects in game numbers, so
+  the `(1, 1, −1)` junctions of `NativeMount`/`ThreeMount` (plan 2.12, S5) are no longer needed. A native subtree is
+  simply parented to its Three parent's GameObject, and a Three subtree to a native Transform. S5 shrinks to the
+  `Proto`/`Realizer` loader.
+
+**Hours:** about 2.5 h, most of it waiting on three pairs of full passes (about 13 minutes each).

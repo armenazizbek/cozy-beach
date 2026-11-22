@@ -31,9 +31,9 @@ Shader "Cozy/OceanFoam"
     #define COZY_EXTRA_PROPERTIES float4 uFoam;
     #define COZY_VERTEX_HOOK \
         { \
-            float3 p3 = float3(positionOS.x, positionOS.y, -positionOS.z); \
+            float3 p3 = float3(positionOS.x, positionOS.y, _CozyThreeZ * positionOS.z); \
             float foamZ = p3.z + input.extra0.x * uFoam.y + sin(p3.x * 0.6 + uFoam.x * 1.4) * 0.18 + p3.y * uFoam.z; \
-            positionOS = float3(p3.x, uFoam.w, -foamZ); \
+            positionOS = float3(p3.x, uFoam.w, _CozyThreeZ * foamZ); \
         }
     ENDHLSL
 

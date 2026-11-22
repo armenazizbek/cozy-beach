@@ -36,7 +36,7 @@ Shader "Cozy/SharkBody"
     HLSLINCLUDE
     #define COZY_EXTRA_PROPERTIES float uWave; float uAmp; float uLen;
     // the normal is sheared by the same bend: n.z (Unity axes) gains the slope of the bend times n.x
-    #define COZY_SHARK_BEND         {             float zt = -positionOS.z;             float k = (zt + uLen * 0.5) / uLen;             float ph = uWave - k * 3.4;             positionOS.x += sin(ph) * uAmp * k * k;             float slope = (cos(ph) * -3.4 * k * k + sin(ph) * 2.0 * k) * uAmp / uLen;             normalOS = float3(normalOS.x, normalOS.y, normalOS.z + slope * normalOS.x);         }
+    #define COZY_SHARK_BEND         {             float zt = _CozyThreeZ * positionOS.z;             float k = (zt + uLen * 0.5) / uLen;             float ph = uWave - k * 3.4;             positionOS.x += sin(ph) * uAmp * k * k;             float slope = (cos(ph) * -3.4 * k * k + sin(ph) * 2.0 * k) * uAmp / uLen;             normalOS = float3(normalOS.x, normalOS.y, normalOS.z - _CozyThreeZ * slope * normalOS.x);         }
     #define COZY_VERTEX_HOOK COZY_SHARK_BEND
     #define COZY_SHADOW_VERTEX_HOOK COZY_SHARK_BEND
     ENDHLSL

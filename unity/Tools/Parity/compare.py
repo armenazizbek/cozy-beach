@@ -202,7 +202,12 @@ def compare_dump(ref, br, tol=2e-3):
 
 def compare(ref, br, thresholds, report, calibrate):
     rows, worst = [], 'PASS'
-    shots = find(ref, '.png')
+    # only the runs (top-level folders) the branch actually made are compared
+    ran = {d for d in os.listdir(br) if os.path.isdir(os.path.join(br, d)) and d != '_report'}
+
+    def in_run(rel):
+        return '/' not in rel or rel.split('/')[0] in ran
+    shots = [r for r in find(ref, '.png') if in_run(r)]
     branch_shots = set(find(br, '.png'))
     rep_dir = os.path.join(br, '_report')
     os.makedirs(rep_dir, exist_ok=True)
@@ -232,7 +237,7 @@ def compare(ref, br, thresholds, report, calibrate):
 
     # logs: errors and facts, run by run
     log_rows = []
-    for rel in find(ref, 'Player.log'):
+    for rel in [r for r in find(ref, 'Player.log') if in_run(r)]:
         la, lb = read_log(os.path.join(ref, rel)), read_log(os.path.join(br, rel))
         if lb is None:
             log_rows.append((rel, 'FAIL', ['no log in branch']))
@@ -244,7 +249,7 @@ def compare(ref, br, thresholds, report, calibrate):
         log_rows.append((rel, status, [f'new error: {e}' for e in new_err[:10]] + diff[:40]))
 
     dump_rows = []
-    for rel in find(ref, '.scene.json'):
+    for rel in [r for r in find(ref, '.scene.json') if in_run(r)]:
         pb = os.path.join(br, rel)
         if not os.path.exists(pb):
             dump_rows.append((rel, 'REVIEW', ['no scene dump in branch'], 0, 0))

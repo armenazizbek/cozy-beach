@@ -16,7 +16,9 @@ param(
     [switch]$Deck,
     [switch]$NoDump,
     [int]$TimeoutMinutes = 8,
-    [string[]]$Only
+    [string[]]$Only,
+    # extra flags for every run, e.g. -Extra "-spike-mirror" (space-separated)
+    [string]$Extra = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -53,6 +55,7 @@ foreach ($name in $runs.Keys) {
     if (-not $NoDump) { $argv += "-autoshot-scenedump" }
     if ($Deck) { $argv += "-force-deck" }
     $argv += $runs[$name]
+    if ($Extra) { $argv += $Extra.Split(" ", [System.StringSplitOptions]::RemoveEmptyEntries) }
     $quoted = $argv | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }
     $t0 = Get-Date
     Write-Host ("[{0}] {1} {2}" -f $t0.ToString("HH:mm:ss"), $name, ($runs[$name] -join " "))

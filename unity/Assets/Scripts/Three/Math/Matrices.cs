@@ -361,6 +361,15 @@ namespace THREE
 
         public Matrix4 fromArray(double[] a, int o = 0) { Array.Copy(a, o, elements, 0, 16); return this; }
 
+        /// <summary>SPIKE -spike-mirror: the same numbers in a Unity matrix, with no mirroring.</summary>
+        public UnityEngine.Matrix4x4 ToUnityRaw()
+        {
+            var m = new UnityEngine.Matrix4x4();
+            for (int c = 0; c < 4; c++)
+            for (int r = 0; r < 4; r++) m[r, c] = (float)elements[c * 4 + r];
+            return m;
+        }
+
         /// <summary>The matrix as Unity sees it (z mirrored on both sides: M * this * M).</summary>
         public UnityEngine.Matrix4x4 ToUnity()
         {

@@ -35,12 +35,12 @@ Shader "Cozy/Grass"
     #define COZY_EXTRA_PROPERTIES float uTime;
     #define COZY_VERTEX_HOOK \
         { \
-            float ph = input.extra1.x * 0.37 + (-input.extra1.z) * 0.29; \
+            float ph = input.extra1.x * 0.37 + (_CozyThreeZ * input.extra1.z) * 0.29; \
             float ly = input.extra2.y; \
             float dx = sin(uTime * 1.7 + ph) * 0.05 * ly; \
             float dz = cos(uTime * 1.3 + ph * 1.3) * 0.035 * ly; \
             float3 d3 = input.extra3.xyz * dx + input.extra4.xyz * dz; \
-            positionOS += float3(d3.x, d3.y, -d3.z); \
+            positionOS += float3(d3.x, d3.y, _CozyThreeZ * d3.z); \
         }
     ENDHLSL
 
