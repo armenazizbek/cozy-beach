@@ -1,0 +1,2199 @@
+{
+ "default": {
+  "changed": 0.3,
+  "mean": 0.75,
+  "ssim": 0.99
+ },
+ "shots": {
+  "base/0-loading.png": {
+   "changed": 4.673,
+   "mean": 2.598,
+   "ssim": 0.70368
+  },
+  "base/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "base/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "base/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "base/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.93813
+  },
+  "birds/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/10-dive-hint-pad.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/10-dive-hint.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "birds/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98422
+  },
+  "cove/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.91028
+  },
+  "cove/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-along.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-camp-in.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-corner.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-side-in.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-side-out.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-top-from-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-top-gap.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/27-cove-walked-out.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "cove/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98614
+  },
+  "crust/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-brass_key.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-doubloon-brushed.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-doubloon.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-flip_flop.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-glass_bottle.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-pocket_watch.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/14-crust-signet.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "crust/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.94271
+  },
+  "dive/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-deep.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-edge.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-entry.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-mid.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-reef.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-shallows.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-up.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-wreck-near.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/22-dive-wreck.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dive/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.97758
+  },
+  "dograin/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.87389
+  },
+  "dograin/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-dog-sheltered.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-house-leak-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-house-leak-wet-later.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-house-leak-wet.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-house-lookout.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-house-wet-dog.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dograin/33-pad-tools.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.95246
+  },
+  "dolphins/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-4.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-arriving.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-gone.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/21-dolphins-journal.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "dolphins/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-aquarium-full.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-aquarium-page.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-aquarium-some.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-fish-1-seated.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-fish-2-waiting.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-fish-3-reeling.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-fish-4-bucket.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-net-in-hand.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-pier-end.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-pier-from-beach.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.97831
+  },
+  "fish/7-pier-walk.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "fish/7-shop.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98793
+  },
+  "gear/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/28-gear-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/28-gear-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gear/28-gear-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98197
+  },
+  "gear/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9798
+  },
+  "gullshadow/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/32-gull-shadow.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "gullshadow/32-gull-up.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/9-cart-on-hole.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/9-hole-z33.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/9-hole-z38.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "holes/9-hole-z5.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-beach.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-chart.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-door-out.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-frames.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-inside.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-minimap.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-pictures.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-porch.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-room.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-steps.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "house/32-house-table.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.92266
+  },
+  "island/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/15-island-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/15-island-near.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/15-island-shore.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/15-island-slope.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/15-island-west.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "island/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/0-loading.png": {
+   "changed": 6.429,
+   "mean": 3.591,
+   "ssim": 0.6927
+  },
+  "islands/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-ashore.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-camp-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-from-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-gap.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-inside.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/17-lagoon-shore.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-ashore.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-cairn.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-columns.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-cone.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-from-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/18-ember-lighthouse.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/19-horizon-east.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/19-horizon-west.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/19-islands-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/20-far-finds.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/20-sea-corner.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "islands/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98488
+  },
+  "land/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.93047
+  },
+  "land/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-east-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-east-end.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-east-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-inland-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-inland-end.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-inland-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-north-east-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-north-east-end.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-north-east-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-west-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-west-end.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/26-land-west-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "land/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "layout/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.87373
+  },
+  "layout/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "layout/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "layout/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "layout/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98716
+  },
+  "leap/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.85587
+  },
+  "leap/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-4.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/28-leap-5.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "leap/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9542
+  },
+  "lighthouse/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-cleaning.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-deck.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-dirty-night.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-door-open.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-door.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-inside.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-intro-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-intro-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-lamp-night.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-lamp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-night-sea-off.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-night-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-stair.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-top.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-window-high.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/25-lighthouse-window-low.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "lighthouse/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "newgame/0-loading.png": {
+   "changed": 6.918,
+   "mean": 3.809,
+   "ssim": 0.73379
+  },
+  "newgame/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "newgame/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "newgame/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "newgame/30-newgame-opening.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-card.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-dawn.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-deck.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-reef-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-reef.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-storm-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-storm.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/24-opening-waterline.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "opening/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9899
+  },
+  "pad/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9765
+  },
+  "pad/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pad/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pad/1p-pad.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pad/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pad/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9594
+  },
+  "photo-alt/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-back-on-the-beach.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-dive-1-arrived.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-dive-2-camera-in-hand.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-dive-3-viewfinder.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-dive-4-put-away.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-underground-1-arrived.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-underground-2-camera-in-hand.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-underground-3-viewfinder.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo-alt/5-underground-4-put-away.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.83375
+  },
+  "photo/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4-viewfinder.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4a-dog-close-pose.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4a-dog-far-pose.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4a-dog-far.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4a-prompt-back.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4a-prompt-hidden.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98953
+  },
+  "photo/4b-board.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4c-album.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "photo/4d-board-loaded.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.85789
+  },
+  "pier/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/11-pier-from-14m.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/11-pier-from-4m.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "pier/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.96093
+  },
+  "rain/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/12-rain-20s.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/12-rain-45s.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/12-rain-70s.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/12-rain-start.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "rain/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.97404
+  },
+  "sealife/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/8-fish-close.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/8-sea-wide.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sealife/8-shark-close.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.91252
+  },
+  "settings/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/6-fov-40.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/6-fov-50.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/6-fov-70.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "settings/6-settings.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.89931
+  },
+  "shadow/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-4.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-rock-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-rock-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/16-shadow-rock-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shadow/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.96264
+  },
+  "ships/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-bulk-far.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-bulk-quarter-lit.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-bulk-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-container-far.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-container-quarter-lit.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-container-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-cruise-far.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-cruise-quarter-lit.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-cruise-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-tanker-far.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-tanker-quarter-lit.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ships/31-ship-tanker-side.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.96061
+  },
+  "shop/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-luxury-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-luxury.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-upgrades-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-upgrades-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-upgrades-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-upgrades-4.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/28-shop-upgrades.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "shop/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-drive-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-drive-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-drive-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-drive-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-0.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-1.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-2.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-3.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-4.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/29-smash-5.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "smash/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.96189
+  },
+  "sweep/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.9886
+  },
+  "sweep/31-sweep-ahead.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/31-sweep-run-down.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "sweep/31-sweep-run.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.97647
+  },
+  "telescope/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-after.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-aim.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-all.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-cleaned.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-cleaning.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-day-refused.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-dirty.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-eyepiece.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-focused.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-focusing.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-found.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-hint.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-lit.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-prop.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/27-telescope-wide.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "telescope/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.96896
+  },
+  "tour/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.97188
+  },
+  "tour/tour-book.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-camp-board.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-camp-rest.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-camp-sell.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-camp-upgrades.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-credits.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-help.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "tour/tour-mail.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/0-loading.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.95086
+  },
+  "ui/1-title.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/1b-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/2-camp.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/3-sea.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-camp-sell.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-camp-upgrades.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-help.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-inspect.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-intro.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-pause.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-result.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-saves.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-settings.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-kb-toast.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-achievements.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-camp-sell.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-camp-upgrades.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-help.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-inspect.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-intro.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-map.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-pause.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-result.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-saves.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-settings.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.99
+  },
+  "ui/ui-pad-toast.png": {
+   "changed": 0.3,
+   "mean": 0.75,
+   "ssim": 0.98811
+  }
+ }
+}

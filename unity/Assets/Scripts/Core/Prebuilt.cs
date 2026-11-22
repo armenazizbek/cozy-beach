@@ -48,6 +48,7 @@ internal static class Prebuilt
             {
                 try
                 {
+                    SeedFor(i);
                     var piece = PIECES[i].build();
                     lock (made) made[PIECES[i].type] = piece;
                 }
@@ -58,14 +59,35 @@ internal static class Prebuilt
                 }
                 Interlocked.Increment(ref done);
             }
+            JS.SeedThread(null);
         });
-        while (!work.IsCompleted) yield return null;
+        // -autoshot-fixedstep: the frames spent waiting here are not counted (see TestClock.Held)
+        TestClock.Held = TestClock.Fixed;
+        try
+        {
+            while (!work.IsCompleted) yield return null;
+        }
+        finally
+        {
+            TestClock.Held = false;
+        }
         foreach (int i in failed)
         {
+            SeedFor(i);
             var piece = PIECES[i].build();
+            JS.SeedThread(null);
             lock (made) made[PIECES[i].type] = piece;
             yield return null;
         }
+    }
+
+    /// <summary>
+    /// Under -autoshot-seed each piece draws from a sequence of its own, so it gets the same numbers whichever thread makes it
+    /// and whatever the main thread draws meanwhile. Without the flag nothing changes.
+    /// </summary>
+    private static void SeedFor(int piece)
+    {
+        if (JS.TestSeed is int s) JS.SeedThread(s * 1000 + piece);
     }
 
     private static T Peek<T>()

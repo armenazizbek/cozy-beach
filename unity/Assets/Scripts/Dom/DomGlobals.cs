@@ -270,7 +270,7 @@ public static class window
     private static readonly Dictionary<string, List<Action<Event>>> _listeners =
         new Dictionary<string, List<Action<Event>>>(StringComparer.OrdinalIgnoreCase);
 
-    private static double NowMs() => Time.realtimeSinceStartupAsDouble * 1000.0;
+    private static double NowMs() => TestClock.Ms;
 
     public static int setTimeout(Action fn, double ms = 0)
     {

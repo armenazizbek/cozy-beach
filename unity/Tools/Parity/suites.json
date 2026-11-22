@@ -1,0 +1,54 @@
+{
+  "_doc": "Named sets of smoke-test runs (unity/NATIVE_PLAN.md 4.2). Each run is one launch of the game with these flags on top of the harness flags that run_suites.ps1 adds. A run named in several suites is run once.",
+  "suites": {
+    "core": {
+      "base": [],
+      "newgame": ["-autoshot-newgame"],
+      "islands": ["-autoshot-islands"],
+      "ui": ["-autoshot-ui"]
+    },
+    "world": {
+      "island": ["-autoshot-island"],
+      "pier": ["-autoshot-pier"],
+      "shadow": ["-autoshot-shadow"],
+      "holes": ["-autoshot-holes"],
+      "rain": ["-autoshot-rain"],
+      "birds": ["-autoshot-birds"],
+      "gullshadow": ["-autoshot-gullshadow"],
+      "dolphins": ["-autoshot-dolphins"],
+      "ships": ["-autoshot-ships"],
+      "lighthouse": ["-autoshot-lighthouse"],
+      "house": ["-autoshot-house"],
+      "dograin": ["-autoshot-dograin"],
+      "cove": ["-autoshot-cove"],
+      "land": ["-autoshot-land"],
+      "leap": ["-autoshot-leap"],
+      "telescope": ["-autoshot-telescope"],
+      "opening": ["-autoshot-opening"]
+    },
+    "under": {
+      "dive": ["-autoshot-dive"],
+      "sealife": ["-autoshot-sealife"],
+      "fish": ["-autoshot-fish"]
+    },
+    "items": {
+      "crust": ["-autoshot-crust"],
+      "gear": ["-autoshot-gear"],
+      "photo": ["-autoshot-photo"],
+      "photo-alt": ["-autoshot-photo-alt"],
+      "smash": ["-autoshot-smash"],
+      "sweep": ["-autoshot-sweep"],
+      "shop": ["-autoshot-shop"]
+    },
+    "ui": {
+      "ui": ["-autoshot-ui"],
+      "tour": ["-autoshot-tour"],
+      "pad": ["-autoshot-pad"],
+      "settings": ["-autoshot-settings"],
+      "layout": ["-autoshot-layout"]
+    },
+    "saves": {
+      "saves": ["-autoshot-saves"]
+    }
+  }
+}

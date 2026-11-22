@@ -251,7 +251,7 @@ public static class CssAnimations
 
     private static double NowMs()
     {
-        return Time.realtimeSinceStartupAsDouble * 1000.0;
+        return TestClock.Ms;
     }
 
     private static void StartAnimation(VisualElement ve, AnimKind kind, double delayMs)

@@ -88,7 +88,7 @@ public class InputManager
             }
             if (block) keys.Clear();
         }
-        if (!Application.isFocused) keys.Clear();
+        if (!Application.isFocused && !TestClock.Fixed) keys.Clear();
         foreach (var h in held) keys.Add(h);
 
         var m = Mouse.current;

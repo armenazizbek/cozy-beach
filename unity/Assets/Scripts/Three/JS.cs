@@ -8,11 +8,30 @@ public static class JS
 {
     private static Random rng = new Random();
 
+    /// <summary>A sequence of this thread's own, set only by the seeded smoke test (see <see cref="SeedThread"/>).</summary>
+    [ThreadStatic] private static Random threadRng;
+
+    /// <summary>The seed given with -autoshot-seed, or null: the game itself is never seeded, like the browser.</summary>
+    public static int? TestSeed { get; private set; }
+
     /// <summary>Math.random(): a number in [0, 1).</summary>
-    public static double Random() => rng.NextDouble();
+    public static double Random() => (threadRng ?? rng).NextDouble();
 
     /// <summary>Restarts the random sequence (handy for tests). The game itself never seeds it, like the browser.</summary>
     public static void Seed(int seed) => rng = new Random(seed);
+
+    /// <summary>-autoshot-seed: the shared sequence starts from `seed`, and threads may be given sequences of their own.</summary>
+    internal static void UseTestSeed(int seed)
+    {
+        TestSeed = seed;
+        Seed(seed);
+    }
+
+    /// <summary>
+    /// Gives the calling thread its own sequence (null: back to the shared one). Used only with -autoshot-seed, so that the
+    /// world built on a worker thread draws the same numbers however its work and the main thread's interleave.
+    /// </summary>
+    internal static void SeedThread(int? seed) => threadRng = seed.HasValue ? new Random(seed.Value) : null;
 
     /// <summary>Math.round(): halves round up (toward +infinity), unlike Math.Round's banker's rounding.</summary>
     public static double Round(double x) => Math.Floor(x + 0.5);
@@ -88,7 +107,7 @@ public static class JS
     public static double Or(double a, double b) => a == 0 || double.IsNaN(a) ? b : a;
 
     /// <summary>performance.now(), in milliseconds since the game started.</summary>
-    public static double Now() => UnityEngine.Time.realtimeSinceStartupAsDouble * 1000.0;
+    public static double Now() => TestClock.Ms;
 
     /// <summary>Date.now(), in milliseconds since 1970.</summary>
     public static double DateNow() => (DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalMilliseconds;

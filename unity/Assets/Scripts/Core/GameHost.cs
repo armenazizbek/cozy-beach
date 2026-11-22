@@ -64,6 +64,8 @@ public class GameHost : MonoBehaviour
             yield return pieces.Current;
         }
         AutoShot.Trace("big pieces made");
+        // -autoshot-seed: the rest of the world starts from a known point of the sequence, however many frames loading took
+        if (JS.TestSeed is int seed) JS.Seed(seed + 1);
         var built = new Game(canvas, ui);
         yield return StartCoroutine(Stepped(built.build(), 0.4, 0.7, 8));
         game = built;
@@ -99,7 +101,8 @@ public class GameHost : MonoBehaviour
 
     private void OnApplicationFocus(bool focus)
     {
-        if (!focus) game?.onFocusLost();
+        // a repeatable smoke run (-autoshot-fixedstep) must not pause because the window lost focus
+        if (!focus && !TestClock.Fixed) game?.onFocusLost();
     }
 
     private void OnApplicationQuit()

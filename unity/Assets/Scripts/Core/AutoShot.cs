@@ -14,6 +14,12 @@ public class AutoShot : MonoBehaviour
 {
     private string dir;
 
+    /// <summary>-autoshot-scenedump: every screenshot also gets a `.scene.json` of what was drawn (Core/SceneDump.cs).</summary>
+    private static bool dumpScenes;
+
+    /// <summary>The clock the test's waits and timings follow: real time, or frames x 1/60 s with -autoshot-fixedstep.</summary>
+    private static float Now => (float)TestClock.Seconds;
+
     /// <summary>True while the smoke test runs; start-up checkpoints are only logged then.</summary>
     internal static bool Active { get; private set; }
 
@@ -36,6 +42,13 @@ public class AutoShot : MonoBehaviour
         Storage.UseFolder(Path.Combine(dir, "saves"));
         Photos.exportRoot = Path.Combine(dir, "pictures");
 
+        // the parity harness (unity/NATIVE_PLAN.md section 4): runs that can be compared picture by picture and object by object
+        int si = Array.IndexOf(args, "-autoshot-seed");
+        if (si >= 0 && si + 1 < args.Length && int.TryParse(args[si + 1], out int seed)) JS.UseTestSeed(seed);
+        if (Array.IndexOf(args, "-autoshot-fixedstep") >= 0) TestClock.UseFixedStep();
+        dumpScenes = Array.IndexOf(args, "-autoshot-scenedump") >= 0;
+        Debug.Log($"[AutoShot] harness: seed {(JS.TestSeed?.ToString() ?? "none")}, clock {(TestClock.Fixed ? "fixed 1/60 s per frame" : "real time")}, scene dumps {(dumpScenes ? "on" : "off")}");
+
         var go = new GameObject("AutoShot");
         DontDestroyOnLoad(go);
         go.AddComponent<AutoShot>().dir = dir;
@@ -47,16 +60,21 @@ public class AutoShot : MonoBehaviour
         float t0 = Time.realtimeSinceStartup;
         // the loading screen is photographed part way through, and its frames are counted: the sea should keep moving
         bool loadingShot = false;
-        int loadingFrames = 0;
+        int loadingFrames = 0, loadingSlow = 0;
         float longestFrame = 0;
+        // real frame times, measured here: with -autoshot-fixedstep Unity's own delta time is the fixed step
+        float lastFrame = Time.realtimeSinceStartup;
         while ((GameHost.Instance == null || GameHost.Instance.game == null || !GameHost.Instance.game.loaded)
                && Time.realtimeSinceStartup - t0 < 180)
         {
+            float frameNow = Time.realtimeSinceStartup, frameDt = frameNow - lastFrame;
+            lastFrame = frameNow;
             if (GameHost.Instance != null)
             {
                 loadingFrames++;
-                longestFrame = Math.Max(longestFrame, Time.unscaledDeltaTime);
-                if (Time.unscaledDeltaTime > 0.1f) Debug.Log($"[AutoShot] {Time.realtimeSinceStartup:0.00}s slow loading frame: {Time.unscaledDeltaTime * 1000:0} ms");
+                longestFrame = Math.Max(longestFrame, frameDt);
+                if (frameDt > 1f / 30) loadingSlow++;
+                if (frameDt > 0.1f) Debug.Log($"[AutoShot] {Time.realtimeSinceStartup:0.00}s slow loading frame: {frameDt * 1000:0} ms");
             }
             if (!loadingShot && GameHost.Instance != null && GameHost.Instance.game == null && Time.realtimeSinceStartup - t0 > 1.2f)
             {
@@ -67,6 +85,7 @@ public class AutoShot : MonoBehaviour
             yield return null;
         }
         Debug.Log($"[AutoShot] loading screen: {loadingFrames} frames, longest {longestFrame * 1000:0} ms");
+        Debug.Log($"[AutoShot] loading pacing: worst frame {longestFrame * 1000:0} ms, {loadingSlow} of {loadingFrames} frames over 33 ms, ready after {Time.realtimeSinceStartup:0.00} s");
         var game = GameHost.Instance != null ? GameHost.Instance.game : null;
         if (game == null || !game.loaded)
         {
@@ -145,9 +164,9 @@ public class AutoShot : MonoBehaviour
         if (Array.IndexOf(args, "-autoshot-opening") >= 0)
         {
             Debug.Log("[AutoShot] " + game.smokeTestOpening(true));
-            float began = Time.realtimeSinceStartup;
+            float began = Now;
             // the deck from above, and her waterline from the side, before the shot goes on as made
-            while (Time.realtimeSinceStartup - began < 1.5f) yield return null;
+            while (Now - began < 1.5f) yield return null;
             game.smokeTestOpeningView(1);
             yield return Wait(0.6f);
             yield return Shot("24-opening-deck.png");
@@ -157,7 +176,7 @@ public class AutoShot : MonoBehaviour
             game.smokeTestOpeningView(0);
             foreach (var (at, name) in new[] { (4.0f, "storm"), (11.0f, "storm-2"), (16.5f, "reef"), (20.5f, "reef-2"), (26.0f, "dawn"), (37.0f, "camp"), (47.5f, "card") })
             {
-                while (Time.realtimeSinceStartup - began < at) yield return null;
+                while (Now - began < at) yield return null;
                 Debug.Log("[AutoShot] " + game.smokeTestOpening(false));
                 // in the storm the line above calls lightning, so the picture is taken in the first flash of it
                 if (name.StartsWith("storm") || name.StartsWith("reef")) yield return Wait(0.04f);
@@ -379,11 +398,11 @@ public class AutoShot : MonoBehaviour
         {
             game.smokeTestStandAt(-12, 58, Math.PI, -0.02);
             game.sea.smokeShark(-12, 92, Math.PI / 2, true);
-            float began = Time.realtimeSinceStartup;
+            float began = Now;
             double lastY = double.NaN, lastP = 0, worstY = 0, worstP = 0, top = double.NegativeInfinity, bottom = double.PositiveInfinity;
             int shot = 0;
             var shots = new[] { 0.6f, 1.7f, 2.6f, 3.3f, 4.0f, 5.0f };
-            while (Time.realtimeSinceStartup - began < 5.6f)
+            while (Now - began < 5.6f)
             {
                 var pose = game.sea.smokeSharkPose();
                 if (!double.IsNaN(lastY))
@@ -395,7 +414,7 @@ public class AutoShot : MonoBehaviour
                 lastP = pose.pitch;
                 top = Math.Max(top, pose.y);
                 bottom = Math.Min(bottom, pose.y);
-                if (shot < shots.Length && Time.realtimeSinceStartup - began >= shots[shot])
+                if (shot < shots.Length && Now - began >= shots[shot])
                 {
                     yield return Shot($"28-leap-{shot}.png");
                     shot++;
@@ -407,8 +426,8 @@ public class AutoShot : MonoBehaviour
             var isl = Beach.ISLAND;
             game.sea.smokeShark(isl.x, isl.z - isl.R * 1.25 - 40, Math.PI, false);
             double closest = double.PositiveInfinity;
-            began = Time.realtimeSinceStartup;
-            while (Time.realtimeSinceStartup - began < 25)
+            began = Now;
+            while (Now - began < 25)
             {
                 var pose = game.sea.smokeSharkPose();
                 closest = Math.Min(closest, JS.Hypot(pose.x - isl.x, pose.z - isl.z));
@@ -501,20 +520,20 @@ public class AutoShot : MonoBehaviour
             yield return Wait(1.5f);
             yield return Shot("25-lighthouse-door-open.png");
             game.input.held.Add("KeyW");
-            float began = Time.realtimeSinceStartup;
+            float began = Now;
             string last = "", stage = "outside";
             float topSince = -1, logT = 0;
-            while (Time.realtimeSinceStartup - began < 60)
+            while (Now - began < 60)
             {
                 string s = game.smokeTestTower("steer");
-                if (Time.realtimeSinceStartup - logT > 2) { logT = Time.realtimeSinceStartup; Debug.Log("[AutoShot] tower: " + s); }
+                if (Now - logT > 2) { logT = Now; Debug.Log("[AutoShot] tower: " + s); }
                 if (stage == "outside" && s.StartsWith("inside")) { stage = "in"; yield return Shot("25-lighthouse-inside.png"); }
                 if (stage == "in" && s.Contains("feet 4.")) { stage = "low"; game.smokeTestTower("out"); yield return null; yield return null; yield return Shot("25-lighthouse-window-low.png"); }
                 if (stage == "low" && s.Contains("feet 6")) { stage = "mid"; yield return Shot("25-lighthouse-stair.png"); }
                 if (stage == "mid" && s.Contains("feet 10")) { stage = "high"; game.smokeTestTower("out"); yield return null; yield return null; yield return Shot("25-lighthouse-window-high.png"); }
-                if ((stage == "mid" || stage == "high") && s.StartsWith("on the deck")) { stage = "top"; topSince = Time.realtimeSinceStartup; yield return Shot("25-lighthouse-top.png"); }
-                if (stage == "top" && Time.realtimeSinceStartup - topSince > 5) { stage = "round"; yield return Shot("25-lighthouse-deck.png"); }
-                if (stage == "round" && Time.realtimeSinceStartup - topSince > 12) break;
+                if ((stage == "mid" || stage == "high") && s.StartsWith("on the deck")) { stage = "top"; topSince = Now; yield return Shot("25-lighthouse-top.png"); }
+                if (stage == "top" && Now - topSince > 5) { stage = "round"; yield return Shot("25-lighthouse-deck.png"); }
+                if (stage == "round" && Now - topSince > 12) break;
                 last = s;
                 yield return null;
             }
@@ -894,10 +913,10 @@ public class AutoShot : MonoBehaviour
             yield return Wait(2.5f);
             yield return Shot("29-smash-0.png");
             Debug.Log("[AutoShot] " + game.smokeTestSmash("burst", -8, 8));
-            float began = Time.realtimeSinceStartup;
+            float began = Now;
             foreach (var (at, name) in new[] { (0.12f, "1"), (0.35f, "2"), (0.7f, "3"), (1.3f, "4"), (2.6f, "5") })
             {
-                while (Time.realtimeSinceStartup - began < at) yield return null;
+                while (Now - began < at) yield return null;
                 yield return Shot($"29-smash-{name}.png");
             }
             Debug.Log("[AutoShot] " + game.smokeTestSmash("drive", -20, 0));
@@ -953,8 +972,8 @@ public class AutoShot : MonoBehaviour
                 double[] prev = null;
                 double jumpAhead = 0, jumpSide = 0;
                 int frames = 0, none = 0;
-                float until = Time.realtimeSinceStartup + 2;
-                while (Time.realtimeSinceStartup < until)
+                float until = Now + 2;
+                while (Now < until)
                 {
                     yield return null;
                     var a = game.smokeTestAim();
@@ -1202,10 +1221,10 @@ public class AutoShot : MonoBehaviour
             yield return Wait(1.5f);
             yield return Shot("7-fish-1-seated.png");
             // fish as a player would until two are in the bucket, or a minute has gone by
-            float fishT0 = Time.realtimeSinceStartup;
+            float fishT0 = Now;
             string last = "";
             bool shotWait = false, shotReel = false;
-            while (Time.realtimeSinceStartup - fishT0 < 70)
+            while (Now - fishT0 < 70)
             {
                 string now = game.smokeTestFish();
                 if (now.Substring(0, 4) != (last.Length >= 4 ? last.Substring(0, 4) : "")) Debug.Log("[AutoShot] fishing: " + now);
@@ -1343,14 +1362,14 @@ public class AutoShot : MonoBehaviour
 
     private static IEnumerator Wait(float seconds)
     {
-        float end = Time.realtimeSinceStartup + seconds;
-        while (Time.realtimeSinceStartup < end) yield return null;
+        float end = Now + seconds;
+        while (Now < end) yield return null;
     }
 
     private static IEnumerator Measure(string label)
     {
         int frames = 0, timed = 0;
-        float start = Time.realtimeSinceStartup, worst = 0;
+        float start = Now, worst = 0;
         double mainMs = 0, renderMs = 0, gpuMs = 0;
         var ft = new FrameTiming[1];
         THREE.Bridge.BridgeStats.Reset();
@@ -1362,7 +1381,7 @@ public class AutoShot : MonoBehaviour
         int gc0 = GC.CollectionCount(0);
         var times = new System.Collections.Generic.List<float>();
         double refreshMs = 1000.0 / Math.Max(30, Screen.currentResolution.refreshRateRatio.value);
-        while (Time.realtimeSinceStartup - start < 3)
+        while (Now - start < 3)
         {
             yield return null;
             frames++;
@@ -1380,7 +1399,7 @@ public class AutoShot : MonoBehaviour
                 gpuMs += ft[0].gpuFrameTime;
             }
         }
-        float secs = Time.realtimeSinceStartup - start;
+        float secs = Now - start;
         int n = Math.Max(1, timed);
         Debug.Log($"[AutoShot] {label}: {frames / secs:0.0} fps average, slowest frame {worst * 1000:0} ms; " +
                   $"Unity main thread {mainMs / n:0.00} ms, render thread {renderMs / n:0.00} ms, GPU {gpuMs / n:0.00} ms; " +
@@ -1402,6 +1421,11 @@ public class AutoShot : MonoBehaviour
         yield return new WaitForEndOfFrame();
         var path = Path.Combine(dir, name);
         ScreenCapture.CaptureScreenshot(path);
+        if (dumpScenes)
+        {
+            try { SceneDump.Write(Path.ChangeExtension(path, ".scene.json")); }
+            catch (Exception e) { Debug.LogWarning($"[AutoShot] scene dump for {name} failed: {e.Message}"); }
+        }
         yield return null;
         yield return null;
         Debug.Log($"[AutoShot] saved {path}");

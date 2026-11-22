@@ -715,8 +715,14 @@ for running):
     and 99th-percentile frame, frames over 1.5 refreshes, and time to ready. It reports medians over the rounds and the
     change against the reference.
 
-**The reference.** Tag the S0 commit `native-baseline`; it is `main` plus the harness. Build it with IL2CPP and keep the
-build outside the repository:
+**The reference.** Tag the S0 commit `native-baseline`; it is `main` plus the harness. Keep two builds of it outside the
+repository:
+
+- `C:\TidefinderParity\ref-mono`, a quick Mono build. It is the reference for pictures, facts and scene dumps, because
+  the per-step checks use quick Mono builds too.
+- `C:\TidefinderParity\ref-il2cpp`, the release build. It is the reference for performance (`run_perf.ps1 -Ref`).
+
+What S0 actually did is in `NATIVE_LOG.md`. The commands as first planned:
 
 ```powershell
 git tag native-baseline
