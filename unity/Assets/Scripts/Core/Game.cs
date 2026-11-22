@@ -262,6 +262,8 @@ public class Game
 
     public Game(HTMLElement canvas, HTMLElement uiRoot)
     {
+        // the world's root, which native objects hang under (Native/World.cs): bound before anything is built
+        World.Bind(scene);
         this.canvas = canvas;
         this.uiRootForBuild = uiRoot;
     }

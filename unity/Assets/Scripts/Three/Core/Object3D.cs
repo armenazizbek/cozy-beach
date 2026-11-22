@@ -47,6 +47,11 @@ namespace THREE
 
         /// <summary>The Unity side of this object, made the first time it is synced.</summary>
         internal Bridge.Node node;
+        /// <summary>
+        /// The native GameObject this description was realized into (Native/Realizer.cs); from then on the bridge leaves it and
+        /// everything under it alone, apart from hanging it under its parent's GameObject.
+        /// </summary>
+        public UnityEngine.Transform native;
 
         /// <summary>
         /// (Not in Three.js.) Marks a group whose insides do not change by themselves: once copied into Unity, the scene copy

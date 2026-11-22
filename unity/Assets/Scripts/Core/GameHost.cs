@@ -41,7 +41,7 @@ public class GameHost : MonoBehaviour
     {
         Instance = this;
         AutoShot.Trace("host start");
-        if (THREE.Bridge.Mirror.On) Debug.Log("[Spike] -spike-mirror: every scene under a root scaled (1, 1, -1), Three numbers unconverted");
+        if (!THREE.Bridge.Mirror.On) Debug.Log("-bridge-legacy: the bridge mirrors every transform and mesh (the old way)");
         THREE.Scene.ResetLayers();
         // Steam first: Deck detection and achievements already earned need it before the game is built
         SteamService.Init();
@@ -98,6 +98,8 @@ public class GameHost : MonoBehaviour
         game?.input?.poll();
         DomHost.Tick();
         THREE.WebGLRenderer.Main?.Tick();
+        // native renderers follow a change of quality preset (Native/Draw.cs)
+        ShadowPolicy.Tick();
     }
 
     private void OnApplicationFocus(bool focus)

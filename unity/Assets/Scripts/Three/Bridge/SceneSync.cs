@@ -40,9 +40,11 @@ namespace THREE.Bridge
         /// <summary>the materials drawn under that static group, kept up to date while the group itself is skipped</summary>
         public readonly List<(THREE.Material, MaterialCache.Kind)> staticMats = new List<(THREE.Material, MaterialCache.Kind)>();
         public Transform[] bones;
-        /// <summary>SPIKE -spike-mirror: a sun or spot light lifted out of the mirrored root (see Mirror)</summary>
+        /// <summary>a sun or spot light lifted out of the mirrored root (see Mirror)</summary>
         public bool lifted;
-        /// <summary>SPIKE -spike-mirror: where a camera's Unity camera sits, outside the mirrored root</summary>
+        /// <summary>the scene a lifted light belongs to: only that scene's sync switches it off and on</summary>
+        public THREE.Scene liftedScene;
+        /// <summary>where a camera's Unity camera sits, outside the mirrored root</summary>
         public Transform eye;
     }
 
@@ -99,6 +101,9 @@ namespace THREE.Bridge
             o.node.parentTf = limbo.transform;
         }
 
+        /// <summary>The GameObject made for an Object3D, or null (not synced yet, or from before a reload).</summary>
+        public static Transform TransformOf(Object3D o) => o?.node != null && o.node.gen == generation && o.node.go != null ? o.node.tf : null;
+
         public static GameObject RootFor(THREE.Scene s)
         {
             if (!roots.TryGetValue(s, out var go) || go == null)
@@ -140,8 +145,8 @@ namespace THREE.Bridge
                 }
             }
             lights.Clear();
-            // SPIKE: lifted lights are switched on again below only if they were reached this frame
-            for (int i = lifted.Count - 1; i >= 0; i--) { if (lifted[i].go == null) lifted.RemoveAt(i); else if (lifted[i].go.activeSelf) lifted[i].go.SetActive(false); }
+            // lights lifted out of the root (Lift) are switched on again below only if this scene's sync reached them
+            for (int i = lifted.Count - 1; i >= 0; i--) { if (lifted[i].go == null) lifted.RemoveAt(i); else if (ReferenceEquals(lifted[i].liftedScene, scene) && lifted[i].go.activeSelf) lifted[i].go.SetActive(false); }
             hemiSky = hemiGround = ambient = U.Vector4.zero;
             hemiUp = U.Vector3.up;
             var root = RootFor(scene);
@@ -151,7 +156,7 @@ namespace THREE.Bridge
             }
             int layer = scene.unityLayer;
             PushTransform(scene, scene.node);
-            // SPIKE -spike-mirror: the root keeps its mirror whatever the scene's own scale says
+            // the root keeps its mirror (Mirror) whatever the scene's own scale says
             if (Mirror.On && scene.node.tf.localScale.z > 0)
             {
                 var ls = scene.node.tf.localScale;
@@ -212,6 +217,12 @@ namespace THREE.Bridge
 
         private static void SyncNode(Object3D o, Transform parentTf, int layer, THREE.Scene scene)
         {
+            // realized natively (Native/Realizer.cs): the game draws and moves it itself; it only hangs under its parent here
+            if (o.native != null)
+            {
+                if (!ReferenceEquals(o.native.parent, parentTf)) o.native.SetParent(parentTf, false);
+                return;
+            }
             // an object kept from before a reload still points at its destroyed GameObject: give it a new one
             var n = o.node != null && o.node.gen == generation ? o.node : Create(o, parentTf);
             BridgeStats.objects++;
@@ -586,7 +597,7 @@ namespace THREE.Bridge
                     case DirectionalLight d:
                     {
                         var ul = EnsureLight(n, LightType.Directional);
-                        Lift(n, d);
+                        Lift(n, d, scene);
                         d.getWorldPosition(_a);
                         d.target.updateWorldMatrix(true, false);
                         d.target.getWorldPosition(_b);
@@ -601,7 +612,7 @@ namespace THREE.Bridge
                     case SpotLight s:
                     {
                         var ul = EnsureLight(n, LightType.Spot);
-                        Lift(n, s);
+                        Lift(n, s, scene);
                         s.getWorldPosition(_a);
                         s.target.updateWorldMatrix(true, false);
                         s.target.getWorldPosition(_b);
@@ -625,19 +636,21 @@ namespace THREE.Bridge
                     }
                 }
             }
-            RenderSettings.sun = sun;
+            // a native sun (Atmosphere) when the scene's Three lights have none
+            RenderSettings.sun = sun != null ? sun : Atmosphere.Of(scene).sun;
         }
 
         /// <summary>
-        /// SPIKE -spike-mirror: a light whose direction matters leaves the mirrored root and is placed in Unity's axes, as the
+        /// A light whose direction matters leaves the mirrored root and is placed in Unity's axes, as the
         /// plan's option A says for the sun and spot lights.
         /// </summary>
-        private static void Lift(Node n, THREE.Light l)
+        private static void Lift(Node n, THREE.Light l, THREE.Scene scene)
         {
             if (!Mirror.On) return;
             if (!n.lifted)
             {
                 n.lifted = true;
+                n.liftedScene = scene;
                 n.tf.SetParent(null, false);
                 n.parentTf = null;
                 n.tf.localScale = U.Vector3.one;
@@ -679,10 +692,12 @@ namespace THREE.Bridge
         {
             // how the shaders read object-space z (CozyCore.hlsl): Three's axes mirrored by the bridge, or unconverted under -spike-mirror
             Shader.SetGlobalFloat(_CozyThreeZ, Mirror.On ? 1f : -1f);
-            Shader.SetGlobalVector(_CozyHemiSky, hemiSky);
-            Shader.SetGlobalVector(_CozyHemiGround, hemiGround);
-            Shader.SetGlobalVector(_CozyHemiUp, hemiUp);
-            Shader.SetGlobalVector(_CozyAmbient, ambient);
+            // native light (Atmosphere) adds to what the Three lights gave
+            var at = Atmosphere.Of(scene);
+            Shader.SetGlobalVector(_CozyHemiSky, hemiSky + (U.Vector4)at.hemiSky);
+            Shader.SetGlobalVector(_CozyHemiGround, hemiGround + (U.Vector4)at.hemiGround);
+            Shader.SetGlobalVector(_CozyHemiUp, at.hemiUp.HasValue ? GameSpace.ToUnity(at.hemiUp.Value) : hemiUp);
+            Shader.SetGlobalVector(_CozyAmbient, ambient + (U.Vector4)at.ambient);
             var env = EnvironmentTuning;
             env.z = scene.environment != null ? (float)scene.environmentIntensity : 0f;
             Shader.SetGlobalVector(_CozyEnv, env);

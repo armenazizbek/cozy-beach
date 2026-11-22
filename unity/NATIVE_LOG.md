@@ -125,3 +125,65 @@ meshes stay baked (plan 2.2). Deferred to S34, where track and whitecap instanci
   `Proto`/`Realizer` loader.
 
 **Hours:** about 2.5 h, most of it waiting on three pairs of full passes (about 13 minutes each).
+
+## S2 to S5: native kit beside Three (2026-11-23)
+
+**What changed.** Everything lives in `Assets/Scripts/Native/` unless noted.
+
+- **S2:**
+  - The bridge draws the option A way **for good** (`Three/Bridge/Mirror.cs`; `-bridge-legacy` brings back the old
+    conversion for comparison).
+  - `World` (the main scene's root, scaled (1, 1, −1); `World.Of(object3D)` gives the bridge's GameObject to hang
+    native children from).
+  - `GameSpace`: `ToUnity` and `FromUnity` for points and rotations, `Euler(x, y, z, order)` in Three's orders,
+    `LookAt` and `LookAtAsCamera`, `WorldPos`, `ToLocal`, `Walk`.
+  - `ColorUtil` (hex to linear exactly as Three, and `ToSRGB`), `GameClock` (Three's Clock).
+  - `JS.cs` moved from `Three/` to `Core/`.
+  - `SelfCheck` (`-autoshot-selfcheck`, suite `kit`) checks the kit against the Three code it replaces.
+  - Bridge fix along the way: lights lifted out of the root are switched off only by their own scene's sync (the item
+    photos' sun had gone dark).
+- **S3, `MeshKit`. Scope changed from the plan.** The generators (box, cylinder, lathe, tube, extrude, merge, ...) are
+  plain C# maths and stay where they are; they move under the kit by a rename in S25. `MeshKit` turns their geometry
+  into Unity meshes with the bridge's exact layout:
+  - `ToMesh` (with groups), `ToLines`, `Refill`, `BakeInstances`/`Bake`, `PointQuads`/`RefillPoints`;
+  - `Write`, which fills a `Mesh.MeshData` and is safe on a worker thread.
+
+  This saves porting about 2,800 lines and makes "the same vertices" true by construction.
+- **S4.**
+  - `MaterialKit`: the same shortcut. The material description classes are plain data and serve as the specs; `Get`
+    and `Push` return the Unity material through the bridge's exact rules and share it with bridge objects.
+  - `Draw`: native GameObjects made as the bridge made them, with the same names and renderer settings.
+  - `ShadowPolicy`: the small-caster rule, re-decided when the preset changes (`GameHost` ticks it).
+  - `Atmosphere`: the hemisphere, ambient and environment globals are owned per scene; native shares are summed with the
+    bridge's Three lights in `SceneSync.ApplyGlobals`, and a native sun is used when the scene's Three lights have none.
+  - `Lights`: `Make`, `Set`, `Shadows`, `Aim`, `Cone`, with the bridge's light settings.
+- **S5.**
+  - `Realizer`: the built description tree (Three objects, plain C#, which `Prebuilt` can still make off-thread) is the
+    plan's "Proto". `Realize` and `RealizeSliced` turn it into native GameObjects (budget 4 ms per frame) and return
+    the map from description to Transform.
+  - `Object3D.native`: marks a realized description, so `SceneSync` leaves it and everything under it alone, apart from
+    hanging it under its parent's GameObject.
+  - **The plan's junction mounts are not needed** (see S1). Native objects hang under bridge GameObjects directly, and
+    bridge objects under native ones, in the same numbers.
+
+**Checks** (`-autoshot-selfcheck`, 11 of 11 ok):
+
+- `GameSpace.Euler` against `Quaternion.setFromEuler` (all 6 orders, 1,200 random angles).
+- `LookAt` and `LookAtAsCamera` against `Object3D.lookAt`.
+- `ColorUtil.Linear` against `Color(hex)` (2,000 colours).
+- The world root keeps game numbers.
+- `MeshKit` against the bridge's meshes, array for array: 21 generator cases, groups, colours and extra attributes, draw
+  range, lines and strips, baked instances, point quads, and the off-thread `Write`.
+- **The whole live world realized as a hidden twin: 6,982 objects, and all 2,648 drawn renderers match the bridge's**
+  (mesh, materials, shadows, draw order, layer, world bounds).
+
+**Two bridge quirks the twin found (the native world keeps the look):**
+
+- The warm-up (`Game.sendEverythingToGpu`) switches culling off on everything and back on, but the bridge never
+  re-reads the inside of a static group. **About 1,570 static objects stay unculled for the whole game**, always drawn
+  and shadow-cast even off-screen. The pictures are the same, but it costs time; realized natively they are culled
+  again. Expect this to show as a perf gain, and watch for it on the Deck.
+- Skinned meshes (the dog) always received shadows: the bridge never overwrote Unity's default. The native dog keeps
+  receiving them.
+
+**Hours:** about 3 h of code plus build and run waits.

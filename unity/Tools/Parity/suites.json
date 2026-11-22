@@ -49,6 +49,9 @@
     },
     "saves": {
       "saves": ["-autoshot-saves"]
+    },
+    "kit": {
+      "selfcheck": ["-autoshot-selfcheck"]
     }
   }
 }

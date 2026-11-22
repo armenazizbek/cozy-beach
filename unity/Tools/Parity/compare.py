@@ -168,6 +168,22 @@ def compare_dump(ref, br, tol=2e-3):
     issues = []
     missing = sorted(set(ra) - set(rb))
     extra = sorted(set(rb) - set(ra))
+    # objects whose path changed (the native world moves things between parents) are paired by what they are: the same
+    # world-space vertices (vhash) and vertex count
+    if missing and extra:
+        by_content = {}
+        for p in extra:
+            by_content.setdefault((rb[p].get('vhash'), rb[p].get('verts')), []).append(p)
+        still = []
+        for p in missing:
+            cands = by_content.get((ra[p].get('vhash'), ra[p].get('verts')))
+            if cands and ra[p].get('vhash'):
+                q = cands.pop(0)
+                rb[p] = rb.pop(q)
+                extra.remove(q)
+            else:
+                still.append(p)
+        missing = still
     for p in missing[:20]:
         issues.append(f'missing renderer {p}')
     for p in extra[:20]:
@@ -184,8 +200,11 @@ def compare_dump(ref, br, tol=2e-3):
                 issues.append(f'{p}: ' + ', '.join(f'{k} {json.dumps(x.get(k))} -> {json.dumps(y.get(k))}'[:200] for k in keys[:4]))
     if changed > 30:
         issues.append(f'... {changed} renderers differ in all')
-    la = {l['path'] + '|' + l['type']: l for l in a['lights']}
-    lb = {l['path'] + '|' + l['type']: l for l in b['lights']}
+    # lights by kind and place, not path: the native world moves the sun and spot lights out of the world root (plan 2.1)
+    def lkey(l):
+        return l['type'] + '@' + ','.join(f'{v:.1f}' for v in l['pos'])
+    la = {lkey(l): dict(l, path=None) for l in a['lights']}
+    lb = {lkey(l): dict(l, path=None) for l in b['lights']}
     for k in sorted(set(la) ^ set(lb)):
         issues.append(('missing' if k in la else 'extra') + f' light {k}')
     for k in sorted(set(la) & set(lb)):

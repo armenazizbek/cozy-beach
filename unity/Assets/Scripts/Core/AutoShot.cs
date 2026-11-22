@@ -96,6 +96,13 @@ public class AutoShot : MonoBehaviour
         }
         Debug.Log($"[AutoShot] loaded after {Time.realtimeSinceStartup - t0:0.0} s");
         Debug.Log("[AutoShot] context: " + Context());
+        // -autoshot-selfcheck: the native building blocks checked against the Three code they replace (Native/SelfCheck.cs)
+        if (SelfCheck.Requested)
+        {
+            yield return Wait(1);
+            Quit(SelfCheck.Run() == 0 ? 0 : 2);
+            yield break;
+        }
         // -autoshot-novsync: measure with VSync off and no frame limit, whatever the player's settings say
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-autoshot-novsync") >= 0) FramePacing.Apply(false, 0);
 

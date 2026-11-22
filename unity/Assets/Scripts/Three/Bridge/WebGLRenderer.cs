@@ -81,6 +81,7 @@ namespace THREE
             Bridge.MeshCache.Clear();
             Bridge.MaterialCache.Clear();
             Bridge.TextureCache.Clear();
+            Atmosphere.Clear();
         }
 
         public WebGLRenderer(WebGLRendererParameters p = null)
@@ -278,7 +279,7 @@ namespace THREE
                 node = new Bridge.Node { go = go, tf = go.transform, owner = camera };
                 camera.node = node;
             }
-            // SPIKE -spike-mirror: the Unity camera sits on an eye of its own outside the mirrored root, placed in Unity's axes;
+            // the Unity camera sits (Mirror) on an eye of its own outside the mirrored root, placed in Unity's axes;
             // the camera's node stays in the scene for what hangs from it (the tools in hand)
             if (Bridge.Mirror.On && node.eye == null)
             {
