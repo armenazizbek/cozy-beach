@@ -100,7 +100,7 @@ public class AudioManager
         new Station { name = "Camp Night", file = 2 },
         new Station { name = "Under the Water", file = 3 },
         new Station { name = "Under the Dunes", file = 4 },
-        new Station { name = "Cozy Treasure Hunter", file = 0 },
+        new Station { name = "Tidefinder", file = 0 },
     };
 
     private static readonly string[] RADIO_FILES = { "01-main-theme", "02-beach-day", "03-camp-night", "04-underwater", "05-underground", "06-ending" };

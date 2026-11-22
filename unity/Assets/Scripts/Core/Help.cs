@@ -27,7 +27,7 @@ public static class Help
             {
                 new HelpBlock
                 {
-                    p = "Cozy Treasure Hunter is a quiet first-person game about a long beach, a metal detector and a very good dog. There is no timer, no way to lose and nobody telling you what to do next. Walk, sweep, dig, clean what you find, and slowly make the camp yours.",
+                    p = "Tidefinder is a quiet first-person game about a long beach, a metal detector and a very good dog. There is no timer, no way to lose and nobody telling you what to do next. Walk, sweep, dig, clean what you find, and slowly make the camp yours.",
                 },
                 new HelpBlock
                 {

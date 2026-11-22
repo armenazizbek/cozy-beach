@@ -159,9 +159,12 @@
 
 #boot .t-p {
   margin: 0 0 26px 0;
-  font-size: 22px;
-  -unity-font-style: italic;
-  opacity: 0.9;
+  font-size: 24px;
+  white-space: nowrap;
+  -unity-font-style: normal;
+  text-shadow: 0 3px 0 #2a1c14;
+  -unity-text-outline-width: 0.6px;
+  -unity-text-outline-color: #2a1c14;
   -unity-text-align: middle-center;
 }
 
@@ -2001,9 +2004,8 @@
 
 .mm-kicker {
   margin: 0 0 4px 6px;
-  font-size: 17px;
-  -unity-font-style: bold;
-  letter-spacing: 6px;
+  font-size: 25px;
+  -unity-font-style: normal;
   color: #ffd76a;
   text-shadow: 0 2px 0 rgba(20, 12, 8, 0.7);
 }
@@ -2020,8 +2022,8 @@
 
 .mm-tag {
   margin: 14px 0 30px 6px;
-  font-size: 21px;
-  -unity-font-style: italic;
+  font-size: 24px;
+  -unity-font-style: normal;
   opacity: 0.95;
   text-shadow: 0 2px 0 rgba(20, 12, 8, 0.6);
 }
@@ -2044,7 +2046,7 @@
   border-width: 0;
   background-color: rgba(0, 0, 0, 0);
   font-size: 31px;
-  -unity-font-style: bold;
+  -unity-font-style: normal;
   color: #fff6e4;
   text-shadow: 0 3px 0 rgba(20, 12, 8, 0.8);
   transition-property: translate;
@@ -2090,7 +2092,7 @@
   position: absolute;
   left: 116px;
   bottom: 34px;
-  font-size: 15px;
+  font-size: 19px;
   color: #fff6e4;
   opacity: 0.7;
   text-shadow: 0 1px 0 rgba(20, 12, 8, 0.7);
@@ -2903,6 +2905,11 @@
 .t-html .camp-head .t-h2 .unity-label,
 .t-html .intro-card > .t-h1 .unity-label,
 .t-html .krow .t-b .unity-label {
+  white-space: nowrap;
+}
+
+/* the loading line stays on one line in the title face, which runs wider than the body font */
+.t-html #boot .t-p .unity-label {
   white-space: nowrap;
 }
 

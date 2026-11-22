@@ -8,7 +8,7 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 /// <summary>
-/// Command-line and menu build entry points. Both write `Builds/Windows/CozyTreasureHunter.exe`.
+/// Command-line and menu build entry points. Both write `Builds/Windows/Tidefinder.exe`.
 ///   BuildScript.BuildWindows      the release build: IL2CPP (C# compiled to native code) when Unity's IL2CPP module is
 ///                                 installed, otherwise Mono with a warning
 ///   BuildScript.BuildWindowsDevelopment  the release build as a development player, for the Unity Profiler
@@ -17,15 +17,15 @@ using UnityEngine;
 public static class BuildScript
 {
     private const string SCENE_PATH = "Assets/Scenes/Main.unity";
-    private const string WINDOWS_OUT = "Builds/Windows/CozyTreasureHunter.exe";
+    private const string WINDOWS_OUT = "Builds/Windows/Tidefinder.exe";
 
-    [MenuItem("Cozy Treasure Hunter/Build Windows (x64)")]
+    [MenuItem("Tidefinder/Build Windows (x64)")]
     public static void BuildWindows() => Build(preferIl2Cpp: true);
 
-    [MenuItem("Cozy Treasure Hunter/Build Windows (x64, quick Mono)")]
+    [MenuItem("Tidefinder/Build Windows (x64, quick Mono)")]
     public static void BuildWindowsMono() => Build(preferIl2Cpp: false);
 
-    [MenuItem("Cozy Treasure Hunter/Build Windows (x64, IL2CPP development, for the Profiler)")]
+    [MenuItem("Tidefinder/Build Windows (x64, IL2CPP development, for the Profiler)")]
     public static void BuildWindowsDevelopment() => Build(preferIl2Cpp: true, development: true);
 
     private static void Build(bool preferIl2Cpp, bool development = false)
@@ -94,7 +94,7 @@ public static class BuildScript
         const string FLUENT = "Tools/Emoji/LICENSE-fluentui-emoji.txt";
         if (!File.Exists(FLUENT)) return;
         File.WriteAllText(Path.Combine(buildDir, "ThirdPartyNotices.txt"),
-            "Cozy Treasure Hunter uses the following third-party material.\n\n" +
+            "Tidefinder uses the following third-party material.\n\n" +
             "Fluent Emoji (https://github.com/microsoft/fluentui-emoji), the colour emoji in the menus and HUD:\n\n" +
             File.ReadAllText(FLUENT));
     }

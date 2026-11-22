@@ -2,7 +2,7 @@
 
 ## Context
 
-Cozy Treasure Hunter ships on Steam as the Unity 6000.3.28f1 (URP, IL2CPP, Windows x64) build in `unity/`. The goal is
+Tidefinder ships on Steam as the Unity 6000.3.28f1 (URP, IL2CPP, Windows x64) build in `unity/`. The goal is
 **Steam Deck Verified** with a **steady 60 fps on the Deck at 1280x800 in the default Deck settings**. The owner has a Deck
 to measure on. Steamworks.NET is in scope (the Unity build has no Steamworks at all today).
 
@@ -53,8 +53,8 @@ GPU work, each change measured) -> 5 (Deck sign-off).**
   - **A Mono build rewrites `unity/ProjectSettings/ProjectSettings.asset` (scriptingBackend -> Mono) and regenerates
     `unity/Assets/Resources/UI/Emoji.asset`. Restore both with `git checkout --` before every commit.** Never commit the
     backend flip.
-- Run the smoke test: `unity/Builds/Windows/CozyTreasureHunter.exe -autoshot <outDir> -screen-width 1280 -screen-height 800 -screen-fullscreen 0 [-autoshot-* flags]`;
-  screenshots land in `<outDir>`, results in `%USERPROFILE%\AppData\LocalLow\Cozy Beach\Cozy Treasure Hunter\Player.log`
+- Run the smoke test: `unity/Builds/Windows/Tidefinder.exe -autoshot <outDir> -screen-width 1280 -screen-height 800 -screen-fullscreen 0 [-autoshot-* flags]`;
+  screenshots land in `<outDir>`, results in `%USERPROFILE%\AppData\LocalLow\Cozy Beach\Tidefinder\Player.log`
   (`[AutoShot] <name>: ... fps`, `... slowest parts`, `... pacing`). Read the PNGs to check visuals.
 - **Every performance change gets a before/after `Measure` line** (same scene, same flags) recorded in
   `unity/PORT_STATUS.md` under a new "Steam Deck" section, like the existing performance history there (lines 105-126).
@@ -88,7 +88,7 @@ count, shadow distance, the quality preset, `Screen.dpi`, `window.osPixelRatio`,
 **0.4 Document the Deck measuring routine** in `unity/MIGRATION.md` (next to the existing `-autoshot` docs):
 1. Build with `BuildScript.BuildWindows` (IL2CPP). Copy `unity/Builds/Windows` to the Deck **without**
    `*_BackUpThisFolder_ButDontShipItWithYourGame` and `*_BurstDebugInformation_DoNotShip` (e.g. to `/home/deck/Games/Cozy`).
-2. Desktop Mode -> Steam -> *Add a Non-Steam Game* -> `CozyTreasureHunter.exe`. Properties -> Compatibility -> force the
+2. Desktop Mode -> Steam -> *Add a Non-Steam Game* -> `Tidefinder.exe`. Properties -> Compatibility -> force the
    current stable Proton (also try Proton Experimental once).
 3. Launch options: `-autoshot Z:\home\deck\perf -autoshot-perf -logFile Z:\home\deck\perf\Player.log`
    (add `-autoshot-novsync` for a headroom run). `Z:` is the Linux root inside Proton, so results land in `/home/deck/perf`.

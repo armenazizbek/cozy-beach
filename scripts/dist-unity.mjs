@@ -16,7 +16,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const unityDir = path.join(root, 'unity')
 const built = path.join(unityDir, 'Builds', 'Windows')
 const out = path.join(root, 'release', 'unity-win-unpacked')
-const exe = 'CozyTreasureHunter.exe'
+const exe = 'Tidefinder.exe'
+/** The game's name before it became Tidefinder: older builds left these pieces behind, and they must not ship next to the new ones. */
+const isOldName = (name) => name.startsWith('CozyTreasureHunter')
 const quick = process.argv.includes('--quick')
 
 function fail(message) {
@@ -56,6 +58,7 @@ const notForShipping = (name) => name.endsWith('_DoNotShip') || name.endsWith('_
 /** What a Unity build puts in its folder, Mono or IL2CPP. Anything else in the output folder is yours and is left alone. */
 const isBuildPiece = (name) =>
   name === exe ||
+  isOldName(name) ||
   name.endsWith('_Data') ||
   ['D3D12', 'MonoBleedingEdge', 'GameAssembly.dll', 'UnityPlayer.dll', 'UnityCrashHandler64.exe', 'baselib.dll', 'ThirdPartyNotices.txt'].includes(name)
 
@@ -88,7 +91,7 @@ try {
     if (isBuildPiece(name)) fs.rmSync(path.join(out, name), { recursive: true, force: true })
   }
   for (const name of fs.readdirSync(built)) {
-    if (notForShipping(name)) continue
+    if (notForShipping(name) || isOldName(name)) continue
     fs.cpSync(path.join(built, name), path.join(out, name), { recursive: true })
   }
 } catch (e) {

@@ -5,7 +5,7 @@ using UnityEngine;
 
 /// <summary>
 /// Smoke test for builds, off unless asked for:
-///   CozyTreasureHunter.exe -autoshot "C:\some\folder" -screen-width 1280 -screen-height 720 -screen-fullscreen 0
+///   Tidefinder.exe -autoshot "C:\some\folder" -screen-width 1280 -screen-height 720 -screen-fullscreen 0
 /// It waits for the loading screen, saves 1-title.png and 1b-achievements.png, starts a game as Begin would, saves 2-camp.png and 3-sea.png,
 /// writes the frame rate to the player log and quits. Saves go to a "saves" folder inside the shot folder, so real saves are
 /// never read or written.
@@ -45,9 +45,28 @@ public class AutoShot : MonoBehaviour
     {
         Debug.Log($"[AutoShot] writing to {dir}");
         float t0 = Time.realtimeSinceStartup;
+        // the loading screen is photographed part way through, and its frames are counted: the sea should keep moving
+        bool loadingShot = false;
+        int loadingFrames = 0;
+        float longestFrame = 0;
         while ((GameHost.Instance == null || GameHost.Instance.game == null || !GameHost.Instance.game.loaded)
                && Time.realtimeSinceStartup - t0 < 180)
+        {
+            if (GameHost.Instance != null)
+            {
+                loadingFrames++;
+                longestFrame = Math.Max(longestFrame, Time.unscaledDeltaTime);
+                if (Time.unscaledDeltaTime > 0.1f) Debug.Log($"[AutoShot] {Time.realtimeSinceStartup:0.00}s slow loading frame: {Time.unscaledDeltaTime * 1000:0} ms");
+            }
+            if (!loadingShot && GameHost.Instance != null && GameHost.Instance.game == null && Time.realtimeSinceStartup - t0 > 1.2f)
+            {
+                loadingShot = true;
+                yield return Shot("0-loading.png");
+                continue;
+            }
             yield return null;
+        }
+        Debug.Log($"[AutoShot] loading screen: {loadingFrames} frames, longest {longestFrame * 1000:0} ms");
         var game = GameHost.Instance != null ? GameHost.Instance.game : null;
         if (game == null || !game.loaded)
         {

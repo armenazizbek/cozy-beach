@@ -1,10 +1,10 @@
-# Cozy Treasure Hunter: Steam store page text
+# Tidefinder: Steam store page text
 
 Everything below is ready to paste into Steamworks (*Store Presence > Edit Store Page*). Texts that Steam limits are within the limits.
 
 ## Name
 
-Cozy Treasure Hunter
+Tidefinder
 
 ## Short description (max 300 characters)
 
@@ -16,7 +16,7 @@ A quiet first-person treasure hunt on a sunny beach. Sweep the sand, dig up forg
 
 ```
 [h2]A treasure hunt with nowhere to be[/h2]
-Cozy Treasure Hunter is a gentle first-person game about a long beach, a metal detector and a very good dog. Sweep the sand until the detector sings, dig carefully, then clean what you find by hand until it shines. Sell it, recycle it, return it to the person who lost it, or keep it for the shelf at your camp.
+Tidefinder is a gentle first-person game about a long beach, a metal detector and a very good dog. Sweep the sand until the detector sings, dig carefully, then clean what you find by hand until it shines. Sell it, recycle it, return it to the person who lost it, or keep it for the shelf at your camp.
 
 [h2]Dig, clean, return[/h2]
 [list]

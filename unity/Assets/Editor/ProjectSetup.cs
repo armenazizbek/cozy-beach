@@ -24,11 +24,11 @@ public static class ProjectSetup
         EditorApplication.delayCall += EnsureSetup;
     }
 
-    [MenuItem("Cozy Treasure Hunter/Apply Project Setup")]
+    [MenuItem("Tidefinder/Apply Project Setup")]
     public static void Apply()
     {
         EnsureSetup();
-        Debug.Log("Cozy Treasure Hunter project setup applied.");
+        Debug.Log("Tidefinder project setup applied.");
     }
 
     private static void EnsureSetup()
@@ -38,10 +38,10 @@ public static class ProjectSetup
         bool changed = false;
 
         // 1. Player settings: product name, linear colour space, Input System = Both (2)
-        if (PlayerSettings.productName != "Cozy Treasure Hunter")
+        if (PlayerSettings.productName != "Tidefinder")
         {
             PlayerSettings.companyName = "Cozy Beach";
-            PlayerSettings.productName = "Cozy Treasure Hunter";
+            PlayerSettings.productName = "Tidefinder";
             PlayerSettings.runInBackground = true;
             changed = true;
         }

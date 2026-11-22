@@ -1,4 +1,4 @@
-# Cozy Treasure Hunter: Game Document
+# Tidefinder: Game Document
 
 A cozy, first-person treasure-hunting game on a procedurally built beach. You sweep the sand with a metal detector, dig, clean what you find, return lost belongings to the people who dropped them, and live at a little camp with a golden retriever and a radio.
 

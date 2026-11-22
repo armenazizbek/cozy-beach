@@ -1,4 +1,4 @@
-# Cozy Treasure Hunter: Unity port
+# Tidefinder: Unity port
 
 This folder is a Unity 6.3 LTS project (`6000.3.28f1`, Universal Render Pipeline) that began as a straight port of the earlier Three.js game
 (once in `../src`, now removed; it is in the git history before the Electron cleanup). The aim is the same game, the same look and the same numbers, running under Unity, so it can later go to consoles.
@@ -11,7 +11,7 @@ This folder is a Unity 6.3 LTS project (`6000.3.28f1`, Universal Render Pipeline
    adds `Assets/Scenes/Main.unity` to the build and sets the player settings. Unity may ask to restart once for the Input System.
 4. Press Play in `Assets/Scenes/Main.unity`.
 
-Builds: `Assets/Editor/BuildScript.cs` (`BuildScript.BuildWindows`) writes `Builds/Windows/CozyTreasureHunter.exe`. From the
+Builds: `Assets/Editor/BuildScript.cs` (`BuildScript.BuildWindows`) writes `Builds/Windows/Tidefinder.exe`. From the
 command line, with the editor closed:
 
 ```
@@ -36,7 +36,7 @@ system's Segoe UI Emoji came out as black outlines or empty boxes. The game ship
 
 - `Tools/Emoji/update_emoji.py` scans `Assets/Scripts` for emoji, downloads any new ones from Fluent into `Tools/Emoji/svg`,
   and draws them all into `Assets/Art/Emoji/EmojiAtlas.png` with Microsoft Edge. **Run it after adding a new emoji to the code.**
-- `Assets/Editor/EmojiSpriteAssetBuilder.cs` (run by every build, or the menu *Cozy Treasure Hunter > Rebuild Emoji Sprite
+- `Assets/Editor/EmojiSpriteAssetBuilder.cs` (run by every build, or the menu *Tidefinder > Rebuild Emoji Sprite
   Asset*) turns the atlas into the sprite asset `Assets/Resources/UI/Emoji.asset`.
 - `Dom/EmojiText.cs` swaps each emoji in on-screen text for a `<sprite>` tag from that asset.
 - The build writes the Fluent licence to `ThirdPartyNotices.txt` next to the exe; keep that file in the shipped game.
@@ -67,11 +67,11 @@ they no longer look like a web page:
 with `-autoshot`:
 
 ```
-Builds\Windows\CozyTreasureHunter.exe -autoshot C:\temp\shots -screen-width 1280 -screen-height 720 -screen-fullscreen 0
+Builds\Windows\Tidefinder.exe -autoshot C:\temp\shots -screen-width 1280 -screen-height 720 -screen-fullscreen 0
 ```
 
 It waits for the loading screen, saves `1-title.png`, starts a game as Begin would, saves `2-camp.png` and `3-sea.png`, writes
-the frame rate to the player log (`%USERPROFILE%\AppData\LocalLow\Cozy Beach\Cozy Treasure Hunter\Player.log`) and quits.
+the frame rate to the player log (`%USERPROFILE%\AppData\LocalLow\Cozy Beach\Tidefinder\Player.log`) and quits.
 Saves go to a `saves` folder inside the shot folder, so real saves are never read or written.
 
 Add `-autoshot-tour` to also photograph the screens with the most text (Lost & Found, Sell, Upgrades, Rest, journal,
@@ -184,7 +184,7 @@ See `PORT_STATUS.md` for the file-by-file list.
 ### Measuring on a Steam Deck
 
 1. Build with `BuildScript.BuildWindows` (IL2CPP). Copy `unity/Builds/Windows` to the Deck without the `*_BackUpThisFolder_ButDontShipItWithYourGame` and `*_BurstDebugInformation_DoNotShip` folders (e.g. `/home/deck/Games/Cozy`).
-2. Desktop Mode: Steam, Add a Non-Steam Game, `CozyTreasureHunter.exe`. Properties, Compatibility: force the current stable Proton (also try Proton Experimental once).
+2. Desktop Mode: Steam, Add a Non-Steam Game, `Tidefinder.exe`. Properties, Compatibility: force the current stable Proton (also try Proton Experimental once).
 3. Launch options: `-autoshot Z:\home\deck\perf -autoshot-perf -logFile Z:\home\deck\perf\Player.log` (add `-autoshot-novsync` for a headroom run). Results land in `/home/deck/perf`.
 4. Run it from Game Mode, plugged in, default TDP and refresh, Steam frame limiter off. Repeat once on battery.
 5. Graphics API A/B: the same run with `-force-d3d11`, then `-force-d3d12`.

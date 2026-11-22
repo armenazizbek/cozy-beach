@@ -131,7 +131,7 @@ public static class Photos
     public static bool lastToSteam;
 
     /// <summary>
-    /// Copies a photo to the player's own Pictures folder (in a "Cozy Treasure Hunter" folder), where it is easy to find and
+    /// Copies a photo to the player's own Pictures folder (in a "Tidefinder" folder), where it is easy to find and
     /// share. Returns the folder it went to, or null when it could not be written.
     /// </summary>
     public static string export(string id)
@@ -141,11 +141,11 @@ public static class Photos
         {
             string pictures = exportRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
             if (string.IsNullOrEmpty(pictures)) pictures = Application.persistentDataPath;
-            string folder = Path.Combine(pictures, "Cozy Treasure Hunter");
+            string folder = Path.Combine(pictures, "Tidefinder");
             Directory.CreateDirectory(folder);
             string name = id.StartsWith("photo-") ? id.Substring(6) : id;
             foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-            string target = Path.Combine(folder, $"Cozy Treasure Hunter {name}.jpg");
+            string target = Path.Combine(folder, $"Tidefinder {name}.jpg");
             string source = FileFor(id);
             if (File.Exists(source)) File.Copy(source, target, true);
             else if (cache.TryGetValue(id, out var tex) && tex != null && tex.isReadable) File.WriteAllBytes(target, tex.EncodeToJPG(90));

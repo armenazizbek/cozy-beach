@@ -42,8 +42,19 @@ public class HTMLElement
     /// <summary>Classes drawn in the heading face (DomHost.DisplayFont), as h1 and h2 are.</summary>
     private static readonly HashSet<string> DisplayFontClasses = new HashSet<string>(StringComparer.Ordinal)
     {
-        "mm-title",
         "display",
+    };
+
+    /// <summary>Classes drawn in the game's title face (DomHost.TitleFont): every line of the main menu and the loading screen.</summary>
+    private static readonly HashSet<string> TitleFontClasses = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "mm-title",
+        "mm-kicker",
+        "mm-tag",
+        "mm-label",
+        "mm-foot",
+        "game-title",
+        "title-face",
     };
 
     private static readonly HashSet<string> PointerNoneSet = new HashSet<string>(
@@ -95,10 +106,10 @@ public class HTMLElement
     private const string PILL = "t-pill";
 
     /// <summary>
-    /// The page's text-transform: uppercase rules (USS has no text-transform): the main menu's small line above the title,
-    /// card categories, settings headings and journal page headings.
+    /// The page's text-transform: uppercase rules (USS has no text-transform): card categories, settings headings and journal
+    /// page headings.
     /// </summary>
-    private const string UPPERCASE = ".mm-kicker, .card .cat, .set-rows .t-h3, .bp-head, .caps";
+    private const string UPPERCASE = ".card .cat, .set-rows .t-h3, .bp-head, .caps";
 
     /// <summary>The text as it is shown: uppercased where the page says so, emoji swapped for the colour sprites.</summary>
     private string DisplayText()
@@ -159,9 +170,19 @@ public class HTMLElement
 
     private void UseDisplayFont()
     {
-        if (_displayFont || ve == null || DomHost.DisplayFont == null) return;
+        if (_displayFont || _titleFont || ve == null || DomHost.DisplayFont == null) return;
         _displayFont = true;
         ve.style.unityFontDefinition = FontDefinition.FromSDFFont(DomHost.DisplayFont);
+    }
+
+    private bool _titleFont;
+
+    /// <summary>Draws the element in the title face; it wins over the heading face an h1 starts with.</summary>
+    private void UseTitleFont()
+    {
+        if (_titleFont || ve == null || DomHost.TitleFont == null) return;
+        _titleFont = true;
+        ve.style.unityFontDefinition = FontDefinition.FromSDFFont(DomHost.TitleFont);
     }
 
     /// <summary>
@@ -457,6 +478,7 @@ public class HTMLElement
         {
             if (ScrollableClasses.Contains(tokens[i])) EnsureScrollView();
             if (DisplayFontClasses.Contains(tokens[i])) UseDisplayFont();
+            if (TitleFontClasses.Contains(tokens[i])) UseTitleFont();
         }
 
         ApplyDisplay();

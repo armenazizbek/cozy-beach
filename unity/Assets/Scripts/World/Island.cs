@@ -491,7 +491,9 @@ public class Island
             double t = (p.getY(i) + 1.7) / 3.4;
             double taper = Math.Sin(Math.PI * Math.Min(1, t * 1.05 + 0.02)) * 0.85 + 0.15;
             p.setX(i, x * taper);
-            p.setZ(i, -t * t * 1.4 + Math.Abs(x) * 0.25);
+            // droop and a slight fold, both towards +z: the frond is tilted up out of the crown by turning +y towards +z,
+            // so +z is downwards there and the tip arches over and hangs, the leaflets falling either side of the midrib
+            p.setZ(i, t * t * 1.7 + Math.Abs(x) * 0.25);
             p.setY(i, p.getY(i) + 1.7);
         }
         geo.computeVertexNormals();
@@ -762,13 +764,22 @@ public class Island
         (ruins.x + lx * Math.Cos(campYaw) + lz * Math.Sin(campYaw), ruins.z - lx * Math.Sin(campYaw) + lz * Math.Cos(campYaw));
 
     /// <summary>
-    /// Somebody lived on the dune for a while: a lean-to of driftwood and palm thatch with a bedroll and a sea chest under it, a ring
-    /// of stones round a dead fire, a log to sit on, a water barrel, and a mast with a red rag on it to be seen from a passing ship.
+    /// Somebody lived on the dune for a while: a lean-to of driftwood thatched with dried palm fronds, a woven mat with a rumpled
+    /// blanket and a pillow under it, a sea chest bound in iron, a ring of stones round a dead fire with a cooking spit over it,
+    /// a driftwood log to sit on, a water barrel, and a mast with a red rag on it to be seen from a passing ship. Everything but
+    /// the rag is merged into a few meshes, one per material, and kept with the island's still things.
     /// </summary>
     private void buildCamp()
     {
         campYaw = Math.Atan2(spec.x - ruins.x, spec.z - ruins.z);
         double bse = baseHeight(ruins.x, ruins.z);
+        // the camp's own random numbers, so its details never shift anything else on the island
+        var cr = rng(5150);
+        // the still parts, and (in their own group) the rag that stirs in the wind
+        var gs = new THREE.Group();
+        gs.position.set(ruins.x, bse, ruins.z);
+        gs.rotation.y = campYaw;
+        group.add(gs);
         var g = new THREE.Group();
         g.position.set(ruins.x, bse, ruins.z);
         g.rotation.y = campYaw;
@@ -779,109 +790,260 @@ public class Island
             var w = campPoint(lx, lz);
             return baseHeight(w.x, w.z) - bse;
         }
-        THREE.Mesh put(THREE.BufferGeometry geo, THREE.Material mat, double x, double y, double z)
-        {
-            var m = new THREE.Mesh(geo, mat);
-            m.position.set(x, y, z);
-            m.castShadow = true;
-            m.receiveShadow = true;
-            g.add(m);
-            return m;
-        }
         void solid(double lx, double lz, double r)
         {
             var w = campPoint(lx, lz);
             colliders.Add(new Spot { x = w.x, z = w.z, r = r });
         }
+        THREE.Vector3 V(double x, double y, double z) => new THREE.Vector3(x, y, z);
+
+        var parts = new Dictionary<THREE.Material, List<THREE.BufferGeometry>>();
+        // a shape, moved into place, goes into its material's pile; the piles become one mesh each at the end
+        void add(THREE.BufferGeometry geo, THREE.Material mat, double x = 0, double y = 0, double z = 0, double rx = 0, double ry = 0, double rz = 0,
+                 double sx = 1, double sy = 1, double sz = 1, string order = "XYZ")
+        {
+            var o = new THREE.Object3D();
+            o.rotation.order = order;
+            o.position.set(x, y, z);
+            o.rotation.set(rx, ry, rz);
+            o.scale.set(sx, sy, sz);
+            o.updateMatrix();
+            geo.applyMatrix4(o.matrix);
+            geo.deleteAttribute("uv");
+            if (geo.index != null) geo = geo.toNonIndexed();
+            if (!parts.TryGetValue(mat, out var list)) parts[mat] = list = new List<THREE.BufferGeometry>();
+            list.Add(geo);
+        }
+        // a length of driftwood from a to b: bent a little, knobbly, its ends worn round
+        void wood(THREE.Vector3 a, THREE.Vector3 b, double r, THREE.Material mat, double bend = 0.12)
+        {
+            var mid = a.clone().lerp(b, 0.5);
+            mid.x += (cr() - 0.5) * bend;
+            mid.y += (cr() - 0.5) * bend * 0.5;
+            mid.z += (cr() - 0.5) * bend;
+            var tube = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 8, r, 7);
+            add(jitter(tube, r * 0.3, cr), mat);
+            add(new THREE.SphereGeometry(r, 7, 5), mat, a.x, a.y, a.z);
+            add(new THREE.SphereGeometry(r * 0.95, 7, 5), mat, b.x, b.y, b.z);
+        }
+        // a rope from a to b, sagging between them
+        void rope(THREE.Vector3 a, THREE.Vector3 b, double sag, THREE.Material mat)
+        {
+            var mid = a.clone().lerp(b, 0.5);
+            mid.y -= sag;
+            add(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 10, 0.012, 4), mat);
+        }
+        // a few turns of rope round a joint
+        void lash(double x, double y, double z, double r, double rx, double ry, THREE.Material mat)
+        {
+            for (int i = 0; i < 3; i++)
+                add(new THREE.TorusGeometry(r, 0.014, 4, 12), mat, x + (i - 1) * 0.028, y, z, rx, ry + Math.PI / 2, 0, order: "YXZ");
+        }
+
         var drift = new THREE.MeshStandardMaterial { color = 0x9a8468, roughness = 1 };
         var driftDark = new THREE.MeshStandardMaterial { color = 0x7a6650, roughness = 1 };
-        var thatch = new[] { 0x9a8f52, 0x857a45, 0xa89c60 }.Select(c => new THREE.MeshStandardMaterial { color = c, roughness = 1, side = THREE.Side.DoubleSide }).ToArray();
+        var cord = new THREE.MeshStandardMaterial { color = 0xb59a6a, roughness = 1 };
+        var thatch = new[] { 0xa39a5a, 0x8f874a, 0xb3a866, 0x9c9150 }
+            .Select(c => new THREE.MeshStandardMaterial { color = c, roughness = 1, side = THREE.Side.DoubleSide }).ToArray();
         var iron = new THREE.MeshStandardMaterial { color = 0x34363a, roughness = 0.6, metalness = 0.6 };
         var stone = new THREE.MeshStandardMaterial { color = 0x9c958a, roughness = 0.95, flatShading = true };
 
-        // the lean-to: two posts, a ridge pole, and a roof sloping down to the sand behind
+        // ---- the lean-to: two forked posts, a ridge pole tied into the forks, rafters down to the sand behind, and fronds over them
         const double ridgeY = 1.9, backZ = -2.3;
         foreach (var sx in new[] { -1.55, 1.55 })
         {
             double gy = ground(sx, 0);
-            put(new THREE.CylinderGeometry(0.06, 0.085, ridgeY - gy + 0.5, 7), drift, sx, (ridgeY + gy - 0.5) / 2, 0).rotation.z = sx * 0.02;
+            wood(V(sx, gy - 0.3, 0), V(sx + sx * 0.015, ridgeY - 0.02, 0), 0.075, drift, 0.06);
+            // the fork the ridge pole rests in
+            wood(V(sx, ridgeY - 0.06, 0), V(sx - 0.05, ridgeY + 0.22, 0.12), 0.04, drift, 0.03);
+            wood(V(sx, ridgeY - 0.06, 0), V(sx + 0.05, ridgeY + 0.2, -0.13), 0.04, drift, 0.03);
+            lash(sx, ridgeY + 0.04, 0, 0.085, 0, 0, cord);
         }
-        put(new THREE.CylinderGeometry(0.055, 0.065, 3.6, 7), driftDark, 0, ridgeY, 0).rotation.z = Math.PI / 2;
+        wood(V(-1.95, ridgeY + 0.06, 0.02), V(1.95, ridgeY + 0.03, -0.02), 0.06, driftDark, 0.1);
         double backY = ground(0, backZ) + 0.05;
-        double run = JS.Hypot(ridgeY - backY, backZ);
-        double tilt = Math.Atan2(ridgeY - backY, -backZ);
         for (int i = 0; i < 5; i++)
         {
-            var rafter = put(new THREE.CylinderGeometry(0.035, 0.04, run + 0.3, 6), drift, -1.4 + i * 0.7, (ridgeY + backY) / 2, backZ / 2);
-            rafter.rotation.x = Math.PI / 2 - tilt;
+            double x = -1.4 + i * 0.7;
+            wood(V(x, ridgeY + 0.12, 0.28), V(x + (cr() - 0.5) * 0.15, backY - 0.08, backZ - 0.2), 0.038, drift, 0.08);
         }
-        for (int i = 0; i < 6; i++)
+        // the roof: dried fronds laid from the ridge down to the sand, side by side and overlapping, their tips hanging over the
+        // front; each frond is a strip arched across its midrib with ragged leaflet edges
+        var front = V(0, ridgeY + 0.16, 0.32);
+        var back = V(0, backY + 0.02, backZ - 0.15);
+        var down = back.clone().sub(front);
+        double len = down.length();
+        down.normalize();
+        var up = V(0, -down.z, down.y).normalize();
+        if (up.y < 0) up.negate();
+        for (int i = 0; i < 11; i++)
         {
-            var leaf = put(new THREE.BoxGeometry(0.66, 0.045, run + 0.25), thatch[i % 3], -1.5 + i * 0.6, (ridgeY + backY) / 2 + 0.07 + (i % 2) * 0.03, backZ / 2);
-            leaf.rotation.order = "YXZ";
-            leaf.rotation.x = -tilt;
-            leaf.rotation.y = (rand() - 0.5) * 0.08;
+            double cx = -1.75 + i * 0.35 + (cr() - 0.5) * 0.06;
+            double width = 0.5 + cr() * 0.12;
+            double lift = 0.03 + (i % 2) * 0.035;
+            double hang = 0.35 + cr() * 0.25;
+            var frond = new THREE.PlaneGeometry(1, 1, 4, 14);
+            var fp = frond.attributes.position;
+            for (int k = 0; k < fp.count; k++)
+            {
+                double u = fp.getX(k);              // -0.5 .. 0.5 across
+                double v = 0.5 - fp.getY(k);        // 0 at the front, 1 at the back
+                double along = -hang + v * (len + hang);
+                double taper = v < 0.85 ? 1 : 1 - (v - 0.85) / 0.15 * 0.6;
+                double edge = Math.Abs(u) > 0.49 ? Math.Sin(v * 70 + i) * 0.07 : 0;
+                var pt = front.clone()
+                    .addScaledVector(down, Math.Max(0, along) + edge)
+                    .addScaledVector(V(1, 0, 0), cx + u * width * taper)
+                    .addScaledVector(up, lift - Math.Abs(u) * 0.09);
+                // in front of the ridge the frond is not held up by anything, so it bends down over it
+                if (along < 0)
+                {
+                    pt.addScaledVector(V(0, 0, 1), -along * 0.55);
+                    pt.y -= along * along * 1.6 + (-along) * 0.35;
+                }
+                fp.setXYZ(k, pt.x, pt.y, pt.z);
+            }
+            frond.computeVertexNormals();
+            add(frond, thatch[i % 4]);
         }
-        // a bedroll and a sea chest under it
+        // ---- a woven mat, a rumpled blanket, a rolled blanket at its foot and a pillow
         double bedY = ground(-0.65, -0.9);
-        put(new THREE.BoxGeometry(0.8, 0.1, 1.9), new THREE.MeshStandardMaterial { color = 0x6f8aa0, roughness = 1 }, -0.65, bedY + 0.05, -0.9);
-        put(new THREE.CylinderGeometry(0.13, 0.13, 0.7, 10), new THREE.MeshStandardMaterial { color = 0xc9bfa4, roughness = 1 }, -0.65, bedY + 0.16, -1.7).rotation.z = Math.PI / 2;
+        add(new THREE.RoundedBoxGeometry(0.85, 0.05, 1.95, 2, 0.02), new THREE.MeshStandardMaterial { color = 0xbca877, roughness = 1 }, -0.65, bedY + 0.03, -0.9);
+        var weave = new THREE.MeshStandardMaterial { color = 0xa08d5c, roughness = 1 };
+        for (int i = 0; i < 9; i++) add(new THREE.BoxGeometry(0.86, 0.012, 0.03), weave, -0.65, bedY + 0.057, -1.75 + i * 0.21);
+        var blanket = new THREE.PlaneGeometry(0.78, 1.15, 8, 12);
+        var bp = blanket.attributes.position;
+        for (int k = 0; k < bp.count; k++)
+        {
+            double u = bp.getX(k), v = bp.getY(k);
+            double lump = 0.035 * Math.Sin(u * 9 + v * 4) + 0.03 * Math.Sin(v * 13 - u * 3) + 0.02;
+            double drape = Math.Abs(u) > 0.36 ? -0.05 : 0;
+            bp.setXYZ(k, u, v, lump + drape);
+        }
+        blanket.computeVertexNormals();
+        var wool = new THREE.MeshStandardMaterial { color = 0x5f7f96, roughness = 1, side = THREE.Side.DoubleSide };
+        add(blanket, wool, -0.65, bedY + 0.08, -0.55, -Math.PI / 2);
+        add(new THREE.CapsuleGeometry(0.09, 0.62, 3, 9), wool, -0.65, bedY + 0.14, 0.12, 0, 0, Math.PI / 2);
+        add(new THREE.SphereGeometry(0.22, 12, 8), new THREE.MeshStandardMaterial { color = 0xd3c8a8, roughness = 1 }, -0.65, bedY + 0.13, -1.6, 0, 0.15, 0, 1.3, 0.42, 0.75);
+        // ---- the sea chest: planks, a rounded lid, iron bands over both, a lock plate and rope handles
         double chestY = ground(0.85, -1.0);
         var chestWood = new THREE.MeshStandardMaterial { color = 0x6b4a2c, roughness = 0.9 };
-        put(new THREE.BoxGeometry(0.85, 0.42, 0.5), chestWood, 0.85, chestY + 0.21, -1.0);
-        var lid = put(new THREE.CylinderGeometry(0.25, 0.25, 0.85, 14, 1, false, 0, Math.PI), chestWood, 0.85, chestY + 0.42, -1.0);
-        lid.rotation.z = Math.PI / 2;
-        foreach (var bx in new[] { -0.28, 0.28 }) put(new THREE.BoxGeometry(0.06, 0.44, 0.52), iron, 0.85 + bx, chestY + 0.22, -1.0);
+        var seam = new THREE.MeshStandardMaterial { color = 0x3e2a18, roughness = 1 };
+        add(new THREE.RoundedBoxGeometry(0.85, 0.42, 0.5, 2, 0.025), chestWood, 0.85, chestY + 0.21, -1.0);
+        foreach (var py in new[] { 0.14, 0.28 }) add(new THREE.BoxGeometry(0.8, 0.012, 0.505), seam, 0.85, chestY + py, -1.0);
+        add(new THREE.CylinderGeometry(0.25, 0.25, 0.85, 16, 1, false, 0, Math.PI), chestWood, 0.85, chestY + 0.42, -1.0, 0, 0, Math.PI / 2);
+        foreach (var bx in new[] { -0.3, 0.3 })
+        {
+            add(new THREE.BoxGeometry(0.06, 0.43, 0.515), iron, 0.85 + bx, chestY + 0.215, -1.0);
+            add(new THREE.TorusGeometry(0.258, 0.022, 4, 16, Math.PI), iron, 0.85 + bx, chestY + 0.42, -1.0, 0, Math.PI / 2, 0);
+            add(new THREE.TorusGeometry(0.07, 0.014, 4, 10, Math.PI), cord, 0.85 + bx * 1.45, chestY + 0.3, -1.0, 0, Math.PI / 2, Math.PI);
+        }
+        add(new THREE.BoxGeometry(0.11, 0.13, 0.02), iron, 0.85, chestY + 0.36, -0.74);
+        add(new THREE.CylinderGeometry(0.014, 0.014, 0.02, 6), seam, 0.85, chestY + 0.35, -0.728, Math.PI / 2);
         solid(-0.8, -1.0, 1.15);
         solid(0.8, -1.0, 1.15);
 
-        // the fire: a ring of stones, ash, and two burnt logs
+        // ---- the fire: a ring of stones round a mound of ash, half-burnt logs fallen in, and a spit over it with a pot
         const double fx = 0.3, fz = 2.3;
         double fireY = ground(fx, fz);
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 9; i++)
         {
-            double a = i / 8.0 * Math.PI * 2 + rand() * 0.3;
-            var st = put(jitter(new THREE.IcosahedronGeometry(0.17 + rand() * 0.06, 1), 0.07, rand), stone, fx + Math.Cos(a) * 0.62, fireY + 0.07, fz + Math.Sin(a) * 0.62);
-            st.scale.y = 0.75;
+            double a = i / 9.0 * Math.PI * 2 + cr() * 0.25;
+            double r = 0.15 + cr() * 0.08;
+            add(jitter(new THREE.IcosahedronGeometry(r, 1), 0.06, cr), stone, fx + Math.Cos(a) * 0.62, fireY + r * 0.45, fz + Math.Sin(a) * 0.62, 0, cr() * 3, 0, 1, 0.7, 1);
         }
-        put(new THREE.CircleGeometry(0.52, 18), new THREE.MeshStandardMaterial { color = 0x4a4640, roughness = 1 }, fx, fireY + 0.03, fz).rotation.x = -Math.PI / 2;
+        add(jitter(new THREE.IcosahedronGeometry(0.45, 2), 0.05, cr), new THREE.MeshStandardMaterial { color = 0x6b665f, roughness = 1 }, fx, fireY + 0.01, fz, 0, 0, 0, 1, 0.16, 1);
         var burnt = new THREE.MeshStandardMaterial { color = 0x2a2420, roughness = 1 };
-        foreach (var ry in new[] { 0.5, 2.1 })
+        var charred = new THREE.MeshStandardMaterial { color = 0x5a4634, roughness = 1 };
+        for (int i = 0; i < 4; i++)
         {
-            var log = put(new THREE.CylinderGeometry(0.06, 0.07, 0.85, 7), burnt, fx, fireY + 0.1, fz);
-            log.rotation.order = "YXZ";
-            log.rotation.y = ry;
-            log.rotation.x = Math.PI / 2 - 0.12;
+            double a = i / 4.0 * Math.PI * 2 + 0.4;
+            var outer = V(fx + Math.Cos(a) * 0.5, fireY + 0.06, fz + Math.Sin(a) * 0.5);
+            var inner = V(fx + Math.Cos(a + 0.3) * 0.08, fireY + 0.16 + (i % 2) * 0.05, fz + Math.Sin(a + 0.3) * 0.08);
+            // the outer end is still wood, the inner end burnt black
+            var midPt = outer.clone().lerp(inner, 0.45);
+            wood(outer, midPt, 0.055, charred, 0.02);
+            wood(midPt, inner, 0.05, burnt, 0.02);
         }
+        foreach (var side in new[] { -1, 1 })
+        {
+            double px = fx + side * 0.78;
+            double py = ground(px, fz);
+            wood(V(px, py - 0.15, fz), V(px, py + 0.72, fz), 0.03, drift, 0.04);
+            wood(V(px, py + 0.62, fz), V(px - side * 0.03, py + 0.8, fz + 0.09), 0.022, drift, 0.02);
+            wood(V(px, py + 0.62, fz), V(px + side * 0.03, py + 0.79, fz - 0.09), 0.022, drift, 0.02);
+        }
+        wood(V(fx - 0.95, fireY + 0.72, fz), V(fx + 0.95, fireY + 0.73, fz), 0.022, driftDark, 0.03);
+        var soot = new THREE.MeshStandardMaterial { color = 0x2b2c2e, roughness = 0.7, metalness = 0.3 };
+        rope(V(fx + 0.1, fireY + 0.72, fz), V(fx + 0.1, fireY + 0.46, fz), 0.0, cord);
+        add(new THREE.CylinderGeometry(0.13, 0.1, 0.17, 12, 1, true), soot, fx + 0.1, fireY + 0.37, fz);
+        add(new THREE.CircleGeometry(0.1, 12), soot, fx + 0.1, fireY + 0.285, fz, Math.PI / 2);
+        add(new THREE.TorusGeometry(0.13, 0.008, 4, 14, Math.PI), soot, fx + 0.1, fireY + 0.455, fz, 0, Math.PI / 2, 0);
         solid(fx, fz, 0.8);
-        // a log to sit on, and a barrel
+
+        // ---- a driftwood log to sit on, with a broken branch, and the water barrel
         double seatY = ground(-1.7, 2.9);
-        var seat = put(new THREE.CylinderGeometry(0.2, 0.23, 1.9, 9), driftDark, -1.7, seatY + 0.18, 2.9);
-        seat.rotation.order = "YXZ";
-        seat.rotation.y = 0.9;
-        seat.rotation.x = Math.PI / 2;
+        {
+            // a sawn log, a little thicker at one end, settled into the sand: bark round it, pale end grain with its rings at the
+            // cut ends, and one short branch stub. Made along y, then laid down along the seat's line
+            var bark = new THREE.MeshStandardMaterial { color = 0x6f573f, roughness = 1 };
+            var grain = new THREE.MeshStandardMaterial { color = 0xc8a878, roughness = 1 };
+            var rings = new THREE.MeshStandardMaterial { color = 0x9c7f55, roughness = 1 };
+            const double HALF = 0.9, R_TOP = 0.17, R_BOTTOM = 0.2;
+            var parts2 = new List<(THREE.BufferGeometry geo, THREE.Material mat)>();
+            parts2.Add((jitter(new THREE.CylinderGeometry(R_TOP, R_BOTTOM, HALF * 2, 14, 5, true), 0.012, cr), bark));
+            foreach (var end in new[] { 1, -1 })
+            {
+                double r = end > 0 ? R_TOP : R_BOTTOM;
+                THREE.BufferGeometry cap(THREE.BufferGeometry geo, double lift)
+                {
+                    geo.rotateX(-end * Math.PI / 2);
+                    return geo.translate(0, end * (HALF + lift), 0);
+                }
+                parts2.Add((cap(new THREE.CircleGeometry(r * 0.98, 14), 0), grain));
+                parts2.Add((cap(new THREE.RingGeometry(r * 0.42, r * 0.47, 14), 0.003), rings));
+                parts2.Add((cap(new THREE.RingGeometry(r * 0.7, r * 0.74, 14), 0.003), rings));
+                parts2.Add((cap(new THREE.RingGeometry(r * 0.86, r * 0.99, 14), 0.003), bark));
+            }
+            // the branch stub: out of the side and a little up, sawn off short
+            THREE.BufferGeometry branch(THREE.BufferGeometry geo)
+            {
+                geo.rotateX(-Math.PI / 2);
+                geo.rotateY(-0.6);
+                return geo.translate(0, 0.32, 0);
+            }
+            parts2.Add((branch(new THREE.CylinderGeometry(0.045, 0.06, 0.24, 8, 1, true).translate(0, 0.27, 0)), bark));
+            parts2.Add((branch(new THREE.CircleGeometry(0.045, 8).rotateX(-Math.PI / 2).translate(0, 0.39, 0)), grain));
+            double seatY0 = seatY + 0.15;
+            foreach (var (geo, mat) in parts2) add(geo, mat, -1.7, seatY0, 2.9, Math.PI / 2, 0.9, 0, order: "YXZ");
+        }
         solid(-1.25, 3.25, 0.45);
         solid(-2.15, 2.55, 0.45);
         double barrelY = ground(2.5, 0.5);
-        var barrel = put(new THREE.CylinderGeometry(0.29, 0.26, 0.8, 14), new THREE.MeshStandardMaterial { color = 0x7b5a36, roughness = 0.9 }, 2.5, barrelY + 0.4, 0.5);
-        foreach (var hy in new[] { 0.15, 0.62 })
+        double staveR(double y) => 0.25 + 0.05 * (1 - (y / 0.4) * (y / 0.4));
+        var profile = new List<THREE.Vector2>();
+        for (int i = 0; i <= 8; i++)
         {
-            var hoop = put(new THREE.TorusGeometry(0.285, 0.018, 6, 18), iron, 2.5, barrelY + hy, 0.5);
-            hoop.rotation.x = Math.PI / 2;
+            double y = -0.4 + i * 0.1;
+            profile.Add(new THREE.Vector2(staveR(y), y));
         }
-        barrel.rotation.y = 0.4;
+        add(new THREE.LatheGeometry(profile, 14), new THREE.MeshStandardMaterial { color = 0x7b5a36, roughness = 0.9, flatShading = true }, 2.5, barrelY + 0.4, 0.5, 0, 0.4, 0);
+        add(new THREE.CircleGeometry(0.245, 14), new THREE.MeshStandardMaterial { color = 0x5e4428, roughness = 1 }, 2.5, barrelY + 0.77, 0.5, -Math.PI / 2);
+        foreach (var hy in new[] { -0.33, -0.2, 0.2, 0.33 })
+            add(new THREE.TorusGeometry(staveR(hy) + 0.006, 0.016, 4, 20), iron, 2.5, barrelY + 0.4 + hy, 0.5, Math.PI / 2);
         solid(2.5, 0.5, 0.5);
 
-        // the signal mast, with a spar and a red rag that stirs in the wind
+        // ---- the signal mast, with a spar tied across it, rope stays pegged into the sand, and a red rag that stirs in the wind
         const double mx = 3.4, mz = -1.0;
         double mastY = ground(mx, mz);
-        put(new THREE.CylinderGeometry(0.055, 0.1, 6.4, 8), drift, mx, mastY + 2.9, mz);
-        put(new THREE.CylinderGeometry(0.035, 0.035, 1.5, 6), driftDark, mx, mastY + 5.6, mz).rotation.z = Math.PI / 2;
+        wood(V(mx, mastY - 0.3, mz), V(mx + 0.04, mastY + 6.1, mz), 0.085, drift, 0.14);
+        wood(V(mx - 0.75, mastY + 5.6, mz + 0.04), V(mx + 0.78, mastY + 5.62, mz - 0.03), 0.035, driftDark, 0.06);
+        lash(mx + 0.02, mastY + 5.6, mz, 0.1, 0, 0, cord);
         foreach (var sx in new[] { -1, 1 })
         {
-            // rope stays down to the sand
-            var stay = put(new THREE.CylinderGeometry(0.012, 0.012, 4.4, 4), driftDark, mx + sx * 0.9, mastY + 2.05, mz);
-            stay.rotation.z = sx * 0.42;
+            double sxw = mx + sx * 1.9;
+            double peg = ground(sxw, mz);
+            rope(V(mx + 0.03, mastY + 4.2, mz), V(sxw, peg + 0.18, mz), 0.12, cord);
+            wood(V(sxw, peg - 0.1, mz), V(sxw - sx * 0.05, peg + 0.25, mz), 0.03, driftDark, 0.01);
         }
         var rag = new THREE.Group();
         rag.position.set(mx, mastY + 5.25, mz);
@@ -901,6 +1063,19 @@ public class Island
         g.add(rag);
         pennant = rag;
         solid(mx, mz, 0.3);
+
+        foreach (var kv in parts)
+        {
+            var merged = THREE.BufferGeometryUtils.mergeGeometries(kv.Value);
+            if (merged == null)
+            {
+                UnityEngine.Debug.LogWarning("Island camp: could not merge one material's parts; drawing them one by one");
+                foreach (var one in kv.Value) gs.add(new THREE.Mesh(one, kv.Key) { castShadow = true, receiveShadow = true });
+                continue;
+            }
+            merged.computeBoundingSphere();
+            gs.add(new THREE.Mesh(merged, kv.Key) { castShadow = true, receiveShadow = true });
+        }
     }
 
     // ---------------------------------------------------------------- the ember rock

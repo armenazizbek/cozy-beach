@@ -128,6 +128,9 @@ public static class DomHost
                        ?? CreateOsFontAsset("Georgia", "Bold")
                        ?? LoadFontAsset("UI/Fonts/Display")
                        ?? boldFont;
+            // The game's name on the loading screen and the main menu: Pacifico (SIL OFL), a relaxed surf-style script.
+            // Always bundled, so the title looks the same on every machine.
+            TitleFont = LoadFontAsset("UI/Fonts/Title") ?? DisplayFont;
             Debug.Log($"[Fonts] bundled faces first: {bundled}");
 
             if (mainFont != null)
@@ -142,7 +145,7 @@ public static class DomHost
                 // the bundled symbol font last: the glyphs the system fonts do not have (it is all there is under Proton)
                 var symbols = LoadFontAsset("UI/Fonts/Symbols");
                 if (symbols != null) fallbacks.Add(symbols);
-                foreach (var f in new[] { mainFont, boldFont, DisplayFont })
+                foreach (var f in new[] { mainFont, boldFont, DisplayFont, TitleFont })
                 {
                     if (f == null) continue;
                     if (f.fallbackFontAssetTable == null) f.fallbackFontAssetTable = new List<FontAsset>();
@@ -190,6 +193,9 @@ public static class DomHost
 
     /// <summary>The heading face (card titles, the game's name). Null until the text settings are built.</summary>
     public static FontAsset DisplayFont { get; private set; }
+
+    /// <summary>The face of the game's name (the loading screen and the main menu). Null until the text settings are built.</summary>
+    public static FontAsset TitleFont { get; private set; }
 
     private static bool HasOsFont(string family)
     {
@@ -291,18 +297,27 @@ public static class DomHost
         }
 
         // <div id="boot">
-        //   <h1>Cozy Treasure Hunter</h1>
+        //   <h1>Tidefinder</h1>
         //   <p>Getting the beach ready…</p>
         //   <div id="boot-track"><div id="boot-bar"></div></div>
         // </div>
         var bootEl = new HTMLDivElement();
         bootEl.id = "boot";
-        var bootH1 = new HTMLHeadingElement("H1") { textContent = "Cozy Treasure Hunter" };
+        var bootH1 = new HTMLHeadingElement("H1") { textContent = "Tidefinder" };
+        bootH1.classList.add("game-title");
         var bootP = new HTMLParagraphElement { textContent = "Getting the beach ready…" };
+        bootP.classList.add("title-face");
         var bootTrack = new HTMLDivElement { id = "boot-track" };
         var bootBar = new HTMLDivElement { id = "boot-bar" };
         bootTrack.appendChild(bootBar);
         bootEl.append(bootH1, bootP, bootTrack);
+        // behind the words and the bar: the live sea (UI/LoadingSea.cs), which answers the pointer and a controller
+        if (bootEl.ve != null)
+        {
+            var sea = new LoadingSea();
+            bootEl.ve.Insert(0, sea);
+            sea.Listen(bootEl.ve);
+        }
 
         bodyEl.append(sceneEl, uiEl, bootEl);
     }

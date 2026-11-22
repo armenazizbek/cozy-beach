@@ -110,8 +110,9 @@ public static class Storage
     }
 
     /// <summary>
-    /// The first time the Unity build runs, it brings across the saves and achievements of the Electron desktop app, so nobody loses
-    /// their beach in the move.
+    /// The first time the game runs with an empty saves folder, it brings across the saves, achievements and photos from where the
+    /// game kept them before: the Unity build's folder from when the game was called Cozy Treasure Hunter, then the Electron desktop
+    /// app's folders. Nobody loses their beach in the move.
     /// </summary>
     private static void ImportDesktopSaves(string target)
     {
@@ -121,6 +122,8 @@ public static class Storage
             var roaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var candidates = new List<string>
             {
+                // same company folder, the old product name: ...\LocalLow\Cozy Beach\Cozy Treasure Hunter\saves
+                Path.Combine(Path.GetDirectoryName(Application.persistentDataPath), "Cozy Treasure Hunter", "saves"),
                 Path.Combine(roaming, "Cozy Treasure Hunter", "saves"),
                 Path.Combine(roaming, "cozy-treasure-hunter", "saves"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library", "Application Support", "Cozy Treasure Hunter", "saves"),
@@ -130,6 +133,13 @@ public static class Storage
             {
                 if (!Directory.Exists(c)) continue;
                 foreach (var f in Directory.GetFiles(c, "*.json")) File.Copy(f, Path.Combine(target, Path.GetFileName(f)), false);
+                var oldPhotos = Path.Combine(c, "photos");
+                if (Directory.Exists(oldPhotos))
+                {
+                    var newPhotos = Path.Combine(target, "photos");
+                    Directory.CreateDirectory(newPhotos);
+                    foreach (var f in Directory.GetFiles(oldPhotos)) File.Copy(f, Path.Combine(newPhotos, Path.GetFileName(f)), false);
+                }
                 Debug.Log($"Brought saves across from {c}");
                 return;
             }

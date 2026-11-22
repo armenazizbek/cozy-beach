@@ -157,7 +157,9 @@ public class Scenery
             double t = (p.getY(i) + 1.7) / 3.4; // 0 at the base, 1 at the tip
             double taper = Math.Sin(Math.PI * Math.Min(1, t * 1.05 + 0.02)) * 0.85 + 0.15;
             p.setX(i, x * taper);
-            p.setZ(i, -t * t * 1.4 + Math.Abs(x) * 0.25); // droop and a slight V-fold
+            // droop and a slight fold, both towards +z: the frond is tilted up out of the crown by turning +y towards +z,
+            // so +z is downwards there and the tip arches over and hangs, the leaflets falling either side of the midrib
+            p.setZ(i, t * t * 1.7 + Math.Abs(x) * 0.25);
             p.setY(i, p.getY(i) + 1.7);
         }
         geo.computeVertexNormals();

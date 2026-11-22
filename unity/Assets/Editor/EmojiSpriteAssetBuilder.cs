@@ -31,7 +31,7 @@ public static class EmojiSpriteAssetBuilder
         public string[] unicodes;
     }
 
-    [MenuItem("Cozy Treasure Hunter/Rebuild Emoji Sprite Asset")]
+    [MenuItem("Tidefinder/Rebuild Emoji Sprite Asset")]
     public static void Rebuild()
     {
         if (!File.Exists(ATLAS) || !File.Exists(LAYOUT))

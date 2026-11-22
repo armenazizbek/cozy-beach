@@ -554,7 +554,7 @@ public class UIManager
         this.hideMainMenu();
         var m = el("div", "mainmenu");
         var panel = el("div", "mm-panel");
-        panel.append(el("div", "mm-kicker", "a quiet little adventure"), el("h1", "mm-title", "Cozy Treasure Hunter"), el("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
+        panel.append(el("div", "mm-kicker", "a quiet little adventure"), el("h1", "mm-title", "Tidefinder"), el("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
         var list = el("div", "mm-buttons");
         HTMLButtonElement mk(string label, Action fn, bool disabled = false)
         {
@@ -920,7 +920,7 @@ public class UIManager
         var card = el("div", "intro-card");
         card.append(
             el("h1", "", "Credits"),
-            el("p", "tag", "Cozy Treasure Hunter"),
+            el("p", "tag", "Tidefinder"),
             el("p", "credit", "Made by Armen Azizbekyan, a solo developer and the creator of this game."),
             el("p", "credit", "Thank you for playing."),
             el("p", "save-note", $"Version {__APP_VERSION__} · {__BUILD_YEAR__}")
@@ -1829,7 +1829,7 @@ public class UIManager
         if (!this.intro.isConnected) this.root.append(this.intro);
         this.intro.innerHTML = $@"
       <div class=""intro-card"">
-        <h1>Cozy Treasure Hunter</h1>
+        <h1>Tidefinder</h1>
         <p class=""tag"">A misty golden morning. A quiet beach. Nothing to rush.</p>
         <div class=""intro-text"">
           <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat.</p>

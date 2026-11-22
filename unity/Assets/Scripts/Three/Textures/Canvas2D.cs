@@ -1383,7 +1383,10 @@ public class CanvasRenderingContext2D
 
     // ------------------------------------------------------------------ text
 
-    public TextMetrics measureText(string text)
+    // text needs Unity's fonts, which only work on the main thread: off it (the world built during loading) it is handed over
+    public TextMetrics measureText(string text) => MainThread.Run(() => MeasureTextHere(text));
+
+    private TextMetrics MeasureTextHere(string text)
     {
         var f = CanvasFonts.Get(st.font);
         f.Prepare(text);
@@ -1399,6 +1402,11 @@ public class CanvasRenderingContext2D
     private void DrawText(string text, double x, double y, object style, bool outline, double maxWidth)
     {
         if (string.IsNullOrEmpty(text)) return;
+        MainThread.Run(() => DrawTextHere(text, x, y, style, outline, maxWidth));
+    }
+
+    private void DrawTextHere(string text, double x, double y, object style, bool outline, double maxWidth)
+    {
         var f = CanvasFonts.Get(st.font);
         f.Prepare(text);
         double total = 0;

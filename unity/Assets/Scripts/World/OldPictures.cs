@@ -24,7 +24,11 @@ public static class OldPictures
         return new THREE.CanvasTexture(c) { colorSpace = THREE.ColorSpace.SRGBColorSpace, anisotropy = 4 };
     }
 
-    private static void paint(CanvasRenderingContext2D g, (int x, int y, int w, int h) r, string resource)
+    // the pictures are loaded from Resources, which only works on the main thread
+    private static void paint(CanvasRenderingContext2D g, (int x, int y, int w, int h) r, string resource) =>
+        MainThread.Run(() => paintHere(g, r, resource));
+
+    private static void paintHere(CanvasRenderingContext2D g, (int x, int y, int w, int h) r, string resource)
     {
         var tex = UnityEngine.Resources.Load<UnityEngine.Texture2D>(resource);
         if (tex == null || !tex.isReadable) return;

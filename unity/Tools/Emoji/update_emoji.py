@@ -9,7 +9,7 @@ Rebuilds the colour emoji atlas the Unity UI uses in place of system emoji (Unit
 3. Renders all of svg/ into unity/Assets/Art/Emoji/EmojiAtlas.png with Microsoft Edge (headless, transparent background), and
    writes EmojiAtlas.json next to it.
 
-Then, in Unity: menu "Cozy Treasure Hunter > Rebuild Emoji Sprite Asset" (also run by every build) turns the atlas into
+Then, in Unity: menu "Tidefinder > Rebuild Emoji Sprite Asset" (also run by every build) turns the atlas into
 Assets/Resources/UI/Emoji.asset.
 """
 import json

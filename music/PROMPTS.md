@@ -1,4 +1,4 @@
-# Music prompts for Cozy Treasure Hunter
+# Music prompts for Tidefinder
 
 Six tracks, one prompt each. Paste a prompt into your music tool (Suno, Udio, Stable Audio or similar), make 6 to 10 versions, and keep the best one.
 

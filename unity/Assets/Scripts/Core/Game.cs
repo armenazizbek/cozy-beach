@@ -75,37 +75,37 @@ public class Game
     private class LandingSpot { public double x, z; public bool island; }
 
     /// <summary>set when the scene was reloaded to load a saved game</summary>
-    private readonly Snapshot PENDING;
+    private Snapshot PENDING;
     /// <summary>set when "New game" was chosen from the pause menu: skip the main menu and start straight away</summary>
-    private readonly bool AUTOSTART;
-    private readonly bool AUTOSTART_SKIP_OPENING;
+    private bool AUTOSTART;
+    private bool AUTOSTART_SKIP_OPENING;
     /// <summary>A new game asked for from the pause menu: the opening plays as soon as the world has loaded (finishStart).</summary>
     private bool openingAfterLoad;
 
-    public readonly THREE.WebGLRenderer renderer;
+    public THREE.WebGLRenderer renderer;
     public readonly THREE.Scene scene = new THREE.Scene { name = "Main" };
     public readonly THREE.PerspectiveCamera camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-    public readonly StateManager state;
+    public StateManager state;
     public readonly AudioManager audio = new AudioManager();
-    public readonly InputManager input;
-    public readonly UIManager ui;
-    public readonly CampModal campModal;
-    public readonly Beach beach = new Beach();
-    public readonly Ocean ocean;
-    public readonly Sky sky;
-    public readonly Camp camp = new Camp();
-    public readonly Scenery scenery = new Scenery();
-    public readonly Birds birds;
-    public readonly SeaLife sea = new SeaLife();
+    public InputManager input;
+    public UIManager ui;
+    public CampModal campModal;
+    public readonly Beach beach = Prebuilt.Take(() => new Beach());
+    public Ocean ocean;
+    public Sky sky;
+    public readonly Camp camp = Prebuilt.Take(() => new Camp());
+    public readonly Scenery scenery = Prebuilt.Take(() => new Scenery());
+    public Birds birds;
+    public readonly SeaLife sea = Prebuilt.Take(() => new SeaLife());
     /// <summary>the pod that comes to swim beside the boat on a long run across open water</summary>
     public readonly Dolphins dolphins = new Dolphins();
     public readonly Whitecaps whitecaps = new Whitecaps();
     public readonly SeaTreasure treasure = new SeaTreasure();
-    public readonly MapView mapView;
+    public MapView mapView;
     private List<double[]> holes = new List<double[]>();
     private bool mapOpen = false;
-    public readonly GolfCart cart;
-    public readonly Boat boat;
+    public GolfCart cart;
+    public Boat boat;
     private string vehicle = null;
     private Tracks tracks;
     private double stepDist = 0;
@@ -122,15 +122,15 @@ public class Game
     private double baseFov => Math.Max(GameSettings.FOV_MIN, Math.Min(GameSettings.FOV_MAX, settings.fov));
     private Waypoint waypoint = null;
     private THREE.Mesh beam;
-    public readonly Ecology ecology;
-    public readonly LootSpawner spawner;
+    public Ecology ecology;
+    public LootSpawner spawner;
     public readonly DetectorTool detector = new DetectorTool();
     public readonly DigTool dig = new DigTool();
     public readonly Bullets bullets = new Bullets();
     public readonly Arrows arrows = new Arrows();
     private bool drawing = false;
     private double charge = 0;
-    public readonly CleaningStation station;
+    public CleaningStation station;
 
     public string gameState = "EXPLORE";
     public GameSettings settings = loadSettings();
@@ -142,21 +142,21 @@ public class Game
     private bool menuCamReady = false;
     public int tool = 1;
     public readonly Flags flags = new Flags();
-    public readonly Dog dog;
-    public readonly Stones stones;
+    public Dog dog;
+    public Stones stones;
     /// <summary>the fishing nets round the treasure cove, with their banners</summary>
     private CoveNets coveNets;
     /// <summary>set once the player has been told that nothing is buried outside the nets</summary>
     private bool coveToldOnce = false;
-    public readonly Grass grass;
-    public readonly Sandcastles castles;
+    public Grass grass;
+    public Sandcastles castles;
     /// <summary>every island in the sea; the first is the green one with the ruins</summary>
-    public readonly Island[] islands = ISLANDS.Select(s => new Island(s)).ToArray();
+    public readonly Island[] islands = Prebuilt.Take(() => ISLANDS.Select(s => new Island(s)).ToArray());
     public Island island => islands[0];
-    public readonly Underwater under = new Underwater();
+    public readonly Underwater under = Prebuilt.Take(() => new Underwater());
     public readonly Achievements achievements = new Achievements();
     private double achT = 0;
-    public readonly Underground cellar = new Underground();
+    public readonly Underground cellar = Prebuilt.Take(() => new Underground());
     /// <summary>in the room under the hatch: the land is hidden and not updated, as when diving</summary>
     private bool underground = false;
     /// <summary>how far up the ladder the player has climbed</summary>
@@ -231,7 +231,7 @@ public class Game
     private bool paused = false;
     private THREE.Clock clock = new THREE.Clock();
     private double time = 0;
-    public readonly ViewModel view = new ViewModel();
+    public readonly ViewModel view = Prebuilt.Take(() => new ViewModel());
     /// <summary>yaw uses three's rotation.y: 0 looks toward -z (the dunes and the camp), PI toward the sea</summary>
     private PlayerPose player = new PlayerPose { x = 0, z = CAMP_Z + 9, yaw = 0, pitch = -0.12 };
     private PlayerPose walkTo = null;
@@ -247,7 +247,7 @@ public class Game
     private double miniT = 0, hoverT = 0;
     /// <summary>the view through the telescope on Lagoon Cay, and whether the player is looking through it</summary>
     private readonly TelescopeView scope = new TelescopeView();
-    private readonly OldHouse oldHouse = new OldHouse();
+    private readonly OldHouse oldHouse = Prebuilt.Take(() => new OldHouse());
     private bool scopeOpen = false;
     private bool scopeSelect = false, scopeHint = false;
     private int scopeFoundNow = 0;
@@ -263,11 +263,24 @@ public class Game
     public Game(HTMLElement canvas, HTMLElement uiRoot)
     {
         this.canvas = canvas;
+        this.uiRootForBuild = uiRoot;
+    }
+
+    private HTMLElement uiRootForBuild;
+
+    /// <summary>
+    /// Builds the world. It pauses between stages so the loading screen keeps moving while the world is made
+    /// (GameHost runs it as a coroutine, straight after the constructor).
+    /// </summary>
+    internal IEnumerator build()
+    {
+        var uiRoot = uiRootForBuild;
+        uiRootForBuild = null;
         PENDING = takePendingLoad();
         AUTOSTART = takeAutostart();
         AUTOSTART_SKIP_OPENING = takeAutostartSkipOpening();
         state = new StateManager(PENDING?.data);
-        mapView = new MapView(scenery.trunks, scenery.mountains);
+        mapView = Prebuilt.Take(() => new MapView(scenery.trunks, scenery.mountains));
         stones = new Stones(beach);
         coveNets = new CoveNets(scenery.trunks);
         grass = new Grass(beach);
@@ -283,6 +296,7 @@ public class Game
         scene.environmentIntensity = 0.3;
 
         sky = new Sky(renderer, scene);
+        yield return null;
         ocean = new Ocean(beach);
         ecology = new Ecology(beach);
         birds = new Birds(beach);
@@ -299,6 +313,7 @@ public class Game
         fishing.sound = name => audio.fishing(name);
         fishing.splash = (at, k) => dig.particles.burst(at, (int)(5 + 12 * k), 0.9 + k, 1.2 + k, 0.5, splashColor);
         station = new CleaningStation(renderer);
+        yield return null;
 
         scene.add(
             sky.group,
@@ -353,6 +368,7 @@ public class Game
         // a new game finds the boat tied up alongside the pier
         boat = new Boat(Pier.MOORING.x, Pier.MOORING.z, Pier.MOORING.heading);
         scene.add(boat.group, boat.wake.points);
+        yield return null;
         beam = new THREE.Mesh(
             new THREE.CylinderGeometry(0.18, 0.18, 60, 10, 1, true),
             new THREE.MeshBasicMaterial
@@ -413,6 +429,7 @@ public class Game
             toast = m => ui.toast(m),
         });
 
+        yield return null;
         station.onProgress = p => ui.setProgress(p);
         station.onComplete = () => onCleaned();
         state.subscribe(() => ecology.setScore(state.data.ecology));
@@ -461,7 +478,9 @@ public class Game
             audio.discover();
             ui.toast($"🏆 Achievement: {a.name}");
         };
+        yield return null;
         spawner.populate();
+        yield return null;
         dayTime = PENDING?.dayTime ?? 0;
         sky.setTime(dayTime);
         selectSlot(1);
@@ -496,6 +515,7 @@ public class Game
             if (lastLoadFailed) ui.toast("That save could not be opened.");
         }
 
+        yield return null;
         scatterStones();
         ensureIslandFinds();
         ensureTreasureCaches();
@@ -503,6 +523,7 @@ public class Game
         placeGrate();
         ensureDiveFinds();
 
+        yield return null;
         dogEnv = new DogEnv
         {
             playerX = 0,
@@ -1416,7 +1437,8 @@ public class Game
         int steps = places.Length + 2;
         void done(int n)
         {
-            if (bar != null) bar.style.width = $"{JS.Str((double)n / steps * 100)}%";
+            // the world was built in the first 70% of the bar (GameHost); getting it ready to draw is the rest
+            if (bar != null) bar.style.width = $"{JS.Str((0.7 + 0.3 * n / steps) * 100)}%";
         }
         for (int i = 0; i < places.Length; i++)
         {

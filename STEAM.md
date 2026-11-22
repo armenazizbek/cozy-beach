@@ -13,13 +13,13 @@ What the game already does for Steam, and what is left to do on Steam's side.
 2. While testing outside Steam, put the App ID in a file called `steam_appid.txt` next to the game's exe (one line, just the number). Do not ship this file to players.
 3. **Achievements:** in Steamworks open *Stats & Achievements* and create one achievement for each row of the table below, using the **API name** exactly as written (for example `FIRST_DIG`). Give each a name, a description and an icon.
 4. **Cloud saves:** open *Application > Cloud* and turn on *Steam Auto-Cloud*. The Unity build keeps its saves in
-   `%USERPROFILE%\AppData\LocalLow\Cozy Beach\Cozy Treasure Hunter\saves`, and the camera's photos in a `photos` folder inside it.
+   `%USERPROFILE%\AppData\LocalLow\Cozy Beach\Tidefinder\saves`, and the camera's photos in a `photos` folder inside it.
    Add two paths:
-   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves`, pattern `*.json` (saves and achievements)
-   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Cozy Treasure Hunter/saves/photos`, pattern `*.jpg` (photos, about 100 KB each, up to 60 per game)
+   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Tidefinder/saves`, pattern `*.json` (saves and achievements)
+   - Root `WinAppDataLocalLow`, subdirectory `Cozy Beach/Tidefinder/saves/photos`, pattern `*.jpg` (photos, about 100 KB each, up to 60 per game)
    - A quota of about 200 MB and 1,000 files leaves room for several games full of photos.
-   (Saves from the old Electron test builds, under `%APPDATA%\cozy-treasure-hunter\saves`, are copied across on the first run.)
-5. **Uploading a build:** close the Unity editor and run `npm run dist:unity`. It builds the Unity game (the release build, IL2CPP) and makes the unpacked game folder at `release/unity-win-unpacked`, without the debug symbols that must not ship. Play it from there first, then upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `CozyTreasureHunter.exe`.
+   (On the first run with no saves, the game copies across the saves and photos from `LocalLow\Cozy Beach\Cozy Treasure Hunter\saves`, its folder before the rename to Tidefinder, or else from the old Electron test builds under `%APPDATA%\cozy-treasure-hunter\saves`.)
+5. **Uploading a build:** close the Unity editor and run `npm run dist:unity`. It builds the Unity game (the release build, IL2CPP) and makes the unpacked game folder at `release/unity-win-unpacked`, without the debug symbols that must not ship. Play it from there first, then upload that folder as a depot with `steamcmd` or the Steamworks `ContentBuilder`, and set the launch option to `Tidefinder.exe`.
 6. Fill in the store page (capsule art, screenshots, trailer, description) and the price, then submit for review.
 
 ## Notes

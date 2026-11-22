@@ -39,7 +39,7 @@ public class UiSkinImporter : AssetPostprocessor
     }
 
     /// <summary>Run by every build: makes sure each picture in the skin folder was imported with the settings above.</summary>
-    [MenuItem("Cozy Treasure Hunter/Reimport UI Skin")]
+    [MenuItem("Tidefinder/Reimport UI Skin")]
     public static void Apply()
     {
         if (!Directory.Exists(FOLDER))
