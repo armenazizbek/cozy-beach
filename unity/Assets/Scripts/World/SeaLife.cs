@@ -592,7 +592,7 @@ public class SeaLife
     {
         group.remove(splashes.points, wakeParticles.points);
         loose.add(splashes.points, wakeParticles.points);
-        scene.add(loose);
+        LiveTree.Place(loose, World.Land);
         live = new LiveTree(group, World.Land);
         NativeFrame.BeforeDraw += () =>
         {

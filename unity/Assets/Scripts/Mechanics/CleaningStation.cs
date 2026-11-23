@@ -75,6 +75,12 @@ public class CleaningStation
         brushMesh.visible = false;
         scene.add(brushMesh);
 
+        // native since unity/NATIVE_PLAN.md S23: what the bench draws is native, on the bench's own layer under its scene's root;
+        // the parts stay in the bench's description, claimed (the bridge hangs their roots and keeps only the bench's lights)
+        var root = World.RootOf(scene);
+        foreach (var part in new THREE.Object3D[] { bench, cloth, pivot, particles.points, sparkles.points, brushMesh })
+            LiveTree.Place(part, root, claim: true, layer: scene.unityLayer);
+
         camera.position.set(0, 3.1, 4.6);
         camera.lookAt(0, -0.2, 0);
 

@@ -61,7 +61,7 @@ public class Camp
         loose.quaternion.copy(group.quaternion);
         loose.scale.copy(group.scale);
         loose.add(embers.points);
-        scene.add(loose);
+        LiveTree.Place(loose, World.Land);
         live = new LiveTree(group, World.Land);
         NativeFrame.BeforeDraw += () =>
         {

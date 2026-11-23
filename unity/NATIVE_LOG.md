@@ -366,3 +366,22 @@ the verification passes (about 14 minutes for all 37 runs).
   plain-C# model of the world. Builders, raycasts and update maths use them, and every frame of drawing is native. S25
   moves them out of `Three` and deletes the bridge. Turning update code into direct Transform writes can follow module
   by module, with no effect on the look.
+
+## S23 and S24: the cleaning bench, particles, the opening (2026-11-24)
+
+- **Particles (S24):** every particle pool is native. `LiveTree` refills point meshes when their geometry changes, so
+  pools and their wrapper groups are simply `LiveTree`s:
+  - the camp's embers, the dolphins', sea life's and treasure's sparkles and splashes, the boat's wake, the dig
+    particles, bullets and hearts under `World.Land`;
+  - the bubbles and motes under the world root.
+- **Also native (S24):** the opening (placed when it starts, removed after its fade with the new `LiveTree.Remove`),
+  the hatch's grate, the lighthouse-climb beam, the smoke test's display items. **The main scene now holds only the
+  camera**, whose tools in hand are drawn natively.
+- **Cleaning bench (S23):** what it draws (bench, cloth, the find on its pivot, particles, sparkles, the brush) are
+  claimed `LiveTree`s on the bench's own layer (`LiveTree` gained a layer option). The bench's three lights stay in its
+  bridge scene for now.
+- **`compare.py`:** renderers in other scenes (the bench, the item photos), extra or missing, are not counted, because
+  only those scenes' cameras draw them. The bridge made them on first use and kept a find's objects after the bench
+  closed; the native bench exists from the start and lets them go.
+- **Full passes (S24, and S23 on top):** every run clean, all logs identical, no FAIL, the largest non-loading picture
+  difference 0.02/255, 428 of 438 dumps identical (the 10 others are paused bench views).

@@ -335,7 +335,8 @@ public class Boat
     public void Place(THREE.Scene scene)
     {
         live = Realizer.Realize(group, World.Land, World.Layer).Follow(group, wheel, motor, prop, nameplate);
-        scene.add(wake.points);
+        // the wake: a particle pool, native since S24
+        LiveTree.Place(wake.points, World.Land);
         live.Apply();
     }
 

@@ -187,7 +187,11 @@ def compare_dump(ref, br, tol=2e-3):
             pairs.append((r['path'], r, rest_b.pop(r['path'])))
         else:
             missing.append(r['path'])
-    extra = sorted(rest_b)
+    # renderers of the other scenes (the cleaning bench, the item photos) are drawn only by those scenes' own cameras; the
+    # bridge made them the first time those were drawn, the native ones exist from the start: an extra one there shows nowhere
+    extra = sorted(p for p in rest_b if p.split('/')[0] == 'Main')
+    # and the bridge kept a find's bench objects after the bench closed, the native bench lets them go: not drawn either
+    missing = [p for p in missing if p.split('/')[0] == 'Main']
     ra = {r['path']: r for r in ra_list}
     rb = {r['path']: r for r in rb_list}
     for p in missing[:20]:

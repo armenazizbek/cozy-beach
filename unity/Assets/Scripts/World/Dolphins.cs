@@ -170,7 +170,7 @@ public class Dolphins
     {
         group.remove(splashes.points);
         loose.add(splashes.points);
-        scene.add(loose);
+        LiveTree.Place(loose, World.Land);
         loose.visible = group.visible && World.Land.gameObject.activeSelf;
         live = Realizer.Realize(group, World.Land, World.Layer);
         live.Follow(group);

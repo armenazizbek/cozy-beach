@@ -93,7 +93,7 @@ public class SeaTreasure
     public void Place(THREE.Scene scene)
     {
         group.remove(sparks.points);
-        scene.add(sparks.points);
+        LiveTree.Place(sparks.points, World.Land);
         live = Realizer.Realize(group, World.Land, World.Layer);
         foreach (var c in chests) live.Follow(c.group, c.group.getObjectByName("flag"));
         live.Apply();

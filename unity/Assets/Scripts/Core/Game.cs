@@ -342,12 +342,11 @@ public class Game
         LiveTree.Place(dig.ringDark, World.Land);
         LiveTree.Place(arrows.group, World.Land);
         LiveTree.Place(view.proxy, World.Land);
-        scene.add(
-            dig.particles.points,
-            bullets.group,
-            hearts.points,
-            camera
-        );
+        // particle pools and bullets, native since S24
+        LiveTree.Place(dig.particles.points, World.Land);
+        LiveTree.Place(bullets.group, World.Land);
+        LiveTree.Place(hearts.points, World.Land);
+        scene.add(camera);
         cellar.Place();
         sea.Place(scene);
         camp.Place(scene);
@@ -382,7 +381,7 @@ public class Game
             }
         );
         beam.visible = false;
-        scene.add(beam);
+        LiveTree.Place(beam, World.Land);
         camera.add(view.group);
         // the tools in hand stay the camera's child in the description; claimed, the bridge keeps their native root hung under
         // the camera's GameObject and leaves the rest to this tree
@@ -1212,7 +1211,7 @@ public class Game
             m.rotation.order = "YXZ";
             m.rotation.y = player.yaw;
             m.rotation.x = 0.75;
-            scene.add(m);
+            LiveTree.Place(m, World.Land);
         }
     }
 
@@ -3981,13 +3980,15 @@ public class Game
 
     /// <summary>the opening while it plays, and the hour it interrupted</summary>
     private Opening opening = null;
+    /// <summary>the opening's native objects (S24)</summary>
+    private LiveTree openingLive;
     private double openingDayTime = 0;
     private double openingArmed = 0;
 
     private void startOpening()
     {
         opening = new Opening { volume = settings.master };
-        scene.add(opening.group);
+        openingLive = LiveTree.Place(opening.group, World.Land);
         openingDayTime = dayTime;
         openingArmed = 0;
         input.keys.Clear();
@@ -3999,13 +4000,15 @@ public class Game
     {
         if (opening == null) return;
         var was = opening;
+        var wasLive = openingLive;
+        openingLive = null;
         opening = null;
         was.dispose();
         rain.gale = 0;
         ui.setCaption(false);
         ui.fade(() =>
         {
-            scene.remove(was.group);
+            wasLive?.Remove();
             dayTime = openingDayTime;
             rain.amount = 0;
             sky.setTime(dayTime);
@@ -5914,7 +5917,7 @@ public class Game
         tidyGrateGround();
         var g = buildGrate();
         g.position.set(gx, beach.heightAt(gx, gz), gz);
-        scene.add(g);
+        LiveTree.Place(g, World.Land);
         camp.obstacles.Add(new Camp.Solid { x = gx, z = gz, r = 1.3 });
         // nothing lies buried under the stone, or close enough to it that digging it out would mean digging under the stone
         spawner.keepClear(gx, gz, GRATE_CLEAR);

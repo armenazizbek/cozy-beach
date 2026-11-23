@@ -769,7 +769,7 @@ public class Underwater
     {
         group.remove(bubbles.points, motes.points);
         loose.add(bubbles.points, motes.points);
-        scene.add(loose);
+        LiveTree.Place(loose, World.Root);
         live = new LiveTree(group, World.Root);
         NativeFrame.BeforeDraw += () =>
         {

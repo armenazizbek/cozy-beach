@@ -22,6 +22,8 @@ public sealed class LiveTree
     public Realized Live => live;
 
     private readonly bool claim;
+    /// <summary>the Unity layer of the scene the tree belongs to (-1: the main world's)</summary>
+    private readonly int layer;
 
     public LiveTree(THREE.Object3D desc, Transform parent) : this(desc, parent, false) { }
 
@@ -30,11 +32,12 @@ public sealed class LiveTree
     /// skips its descriptions and only keeps its root hung under their parent's GameObject. A part that leaves the tree gives
     /// the claim up again.
     /// </summary>
-    public LiveTree(THREE.Object3D desc, Transform parent, bool claim)
+    public LiveTree(THREE.Object3D desc, Transform parent, bool claim, int layer = -1)
     {
         this.desc = desc;
         this.parent = parent;
         this.claim = claim;
+        this.layer = layer;
         Sync();
     }
 
@@ -44,9 +47,9 @@ public sealed class LiveTree
     /// Puts a description into the world natively and keeps it in line at draw time (what a module's Place does, for the loose
     /// pieces Game used to add to the scene itself).
     /// </summary>
-    public static LiveTree Place(THREE.Object3D desc, Transform parent, bool claim = false)
+    public static LiveTree Place(THREE.Object3D desc, Transform parent, bool claim = false, int layer = -1)
     {
-        var t = new LiveTree(desc, parent, claim);
+        var t = new LiveTree(desc, parent, claim, layer);
         NativeFrame.BeforeDraw += t.Sync;
         return t;
     }
@@ -69,7 +72,7 @@ public sealed class LiveTree
             var under = live?.root != null && live.root.parent != null ? live.root.parent : parent;
             if (claim && live != null) foreach (var o in live.map.Keys) o.native = null;
             Destroy();
-            live = Realizer.Realize(desc, under, World.Layer, claim);
+            live = Realizer.Realize(desc, under, layer >= 0 ? layer : World.Layer, claim);
             live.Follow(live.map.Keys);
             mats.Clear();
             var seen = new HashSet<(THREE.Material, MaterialKit.On)>();
@@ -124,6 +127,14 @@ public sealed class LiveTree
         THREE.Line l => l.geometry,
         _ => null,
     };
+
+    /// <summary>Takes a tree from <see cref="Place"/> out of the world: no more syncing, its GameObjects gone.</summary>
+    public void Remove()
+    {
+        NativeFrame.BeforeDraw -= Sync;
+        if (claim && live != null) foreach (var o in live.map.Keys) o.native = null;
+        Destroy();
+    }
 
     /// <summary>Takes the GameObjects away (the tree left the world).</summary>
     public void Destroy()
