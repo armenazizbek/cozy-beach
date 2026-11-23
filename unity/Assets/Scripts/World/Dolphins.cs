@@ -164,11 +164,14 @@ public class Dolphins
     /// Puts the pod into the world as native objects, following each dolphin and its flukes. The splashes stay a particle pool
     /// the scene draws until particles are native (S24).
     /// </summary>
+    private readonly THREE.Group loose = new THREE.Group();
+
     public void Place(THREE.Scene scene)
     {
         group.remove(splashes.points);
-        scene.add(splashes.points);
-        splashes.points.visible = group.visible;
+        loose.add(splashes.points);
+        scene.add(loose);
+        loose.visible = group.visible && World.Land.gameObject.activeSelf;
         live = Realizer.Realize(group, World.Land, World.Layer);
         live.Follow(group);
         foreach (var d in pod) live.Follow(d.root, d.flukes);
@@ -213,8 +216,8 @@ public class Dolphins
         }
         presence = Math.Min(1, Math.Max(0, presence + (escorting ? dt / 4.5 : -dt / 3.5)));
         group.visible = presence > 0;
-        // the splashes left the group for the scene (Place), so they show and hide with it by hand
-        splashes.points.visible = group.visible;
+        // the splashes left the group for the scene (Place): their own group shows and hides with the pod
+        loose.visible = group.visible && World.Land.gameObject.activeSelf;
         splashes.update(dt);
         if (presence <= 0) return false;
 

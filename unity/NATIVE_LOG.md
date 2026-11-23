@@ -308,3 +308,17 @@ the verification passes (about 14 minutes for all 37 runs).
   and the side switching works.
 - **Check** (selfcheck, base, land, house, dograin, photo-alt, which goes into the underground room): every run clean,
   **68 of 68 dumps identical**, pictures pass or are within noise.
+
+## S19: under the sea (2026-11-24)
+
+- **Native:**
+  - **Underwater:** reef, kelp, wreck, fish schools, plus SeaCreatures and UnderwaterDecor inside it (SeaFlora is its
+    coral builder). One `LiveTree` under the world root, synced at draw time. While the tree is hidden (on land) a sync
+    only switches its root off.
+  - **SeaLife:** sharks, schools, the pier's fish; a `LiveTree` under `World.Land`.
+- **Particle pools left in the scene now sit in a wrapper group per module**, and only the wrapper mirrors the module's
+  visibility (and `World.Land` for modules under it). Pools switch themselves off while they have no live particles, and
+  mirroring onto the pools themselves had overridden that. The dolphins' splashes from S10 had the same bug and are
+  fixed too. The underwater wrapper is on the dive's keep list, as the underwater group was.
+- **Check** (selfcheck, base, dive, sealife, fish, photo-alt, cove, islands, dolphins, opening, leap): every run clean,
+  **133 of 133 dumps identical**, pictures pass or within noise (mean difference 0.06 at most).

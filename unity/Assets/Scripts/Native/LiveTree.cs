@@ -31,6 +31,12 @@ public sealed class LiveTree
     /// <summary>Brings the GameObjects in line with the description.</summary>
     public void Sync()
     {
+        // a hidden tree (the world under the sea while on land) costs nothing but switching its root off
+        if (!desc.visible && live != null)
+        {
+            if (live.root.gameObject.activeSelf) live.root.gameObject.SetActive(false);
+            return;
+        }
         long now = Shape(desc);
         if (live == null || now != shape)
         {

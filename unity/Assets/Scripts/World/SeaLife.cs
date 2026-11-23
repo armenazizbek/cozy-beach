@@ -578,6 +578,30 @@ public class SeaLife
     }
 
     /// <summary>`level` is the current surface height; onSplash(distance) lets the sound be placed.</summary>
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S19: the sea's life above the reef (sharks, schools, the fish that bite at the pier) is a
+    /// LiveTree under World.Land, synced at draw time. The splashes and wakes stay particle pools the scene draws until S24.
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>the particle pools' own group in the scene, shown with the sea life (the pools keep their own visibility)</summary>
+    private readonly THREE.Group loose = new THREE.Group();
+
+    /// <summary>Puts the sea life into the world as native objects.</summary>
+    public void Place(THREE.Scene scene)
+    {
+        group.remove(splashes.points, wakeParticles.points);
+        loose.add(splashes.points, wakeParticles.points);
+        scene.add(loose);
+        live = new LiveTree(group, World.Land);
+        NativeFrame.BeforeDraw += () =>
+        {
+            live.Sync();
+            // under World.Land, which the dive switches off: the pools go with it
+            loose.visible = group.visible && World.Land.gameObject.activeSelf;
+        };
+    }
+
     public void update(double dt, double t, double level, double px, double pz, Action<double> onSplash)
     {
         if (smokeHold != null)

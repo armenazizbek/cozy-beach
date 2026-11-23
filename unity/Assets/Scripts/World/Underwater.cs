@@ -751,6 +751,33 @@ public class Underwater
         decor.setDaylight(k);
     }
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S19: the whole world under the sea (reef, kelp, wreck, fish, the creatures and the
+    /// decor) is a LiveTree under the world root (it stays while the land is hidden), synced at draw time and idle while it is
+    /// hidden. The bubbles and motes stay particle pools the scene draws until S24, shown with the group by hand.
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>The particle pools that left the group for the scene (the dive keeps them, as it keeps the group).</summary>
+    public THREE.Object3D[] loosePoints => new THREE.Object3D[] { loose };
+
+    /// <summary>the particle pools' own group in the scene, shown with the world under the sea (the pools keep their own visibility)</summary>
+    private readonly THREE.Group loose = new THREE.Group();
+
+    /// <summary>Puts the world under the sea into the world as native objects.</summary>
+    public void Place(THREE.Scene scene)
+    {
+        group.remove(bubbles.points, motes.points);
+        loose.add(bubbles.points, motes.points);
+        scene.add(loose);
+        live = new LiveTree(group, World.Root);
+        NativeFrame.BeforeDraw += () =>
+        {
+            live.Sync();
+            loose.visible = group.visible;
+        };
+    }
+
     public void update(double dt, double t, THREE.Vector3 cam)
     {
         cooldown = Math.Max(0, cooldown - dt);

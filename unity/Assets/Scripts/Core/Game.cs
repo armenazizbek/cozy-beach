@@ -325,7 +325,6 @@ public class Game
         // of the sequence is the same as before
         beach.Place(createSurround(), createSkirt());
         scene.add(
-            sea.group,
             camp.group,
             spawner.group
         );
@@ -348,12 +347,13 @@ public class Game
             islands[0].group,
             islands[1].group,
             islands[2].group,
-            under.group,
             hearts.points,
             view.proxy,
             camera
         );
         cellar.Place();
+        sea.Place(scene);
+        under.Place(scene);
         tracks = new Tracks(beach);
         tracks.Place();
         cart = new GolfCart(9, CAMP_Z + 9, Math.PI, beach);
@@ -4824,6 +4824,8 @@ public class Game
         if (on)
         {
             var keep = new HashSet<THREE.Object3D> { sky.group, camera, under.group, cellar.group, spawner.group };
+            // the world under the sea's particle pools hang in the scene now (Underwater.Place) and stay with it
+            keep.UnionWith(under.loosePoints);
             hiddenByDive = scene.children.Where(o => o.visible && !keep.Contains(o)).ToList();
             foreach (var o in hiddenByDive) o.visible = false;
             // native land (Native/World.cs) hangs under the world root rather than in the scene: everything there that is not the
