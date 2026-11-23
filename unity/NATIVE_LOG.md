@@ -536,3 +536,21 @@ the verification passes (about 14 minutes for all 37 runs).
   pages, the ending and the sleep veil with its z's.
 - **Full passes (S29 settings, S29 saves, S30):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL,
   non-loading shots within 0.02/255, 428 of 438 dumps identical.
+
+## S31 and S32: the camp, the map and the overlays (2026-11-24)
+
+- **S31, the camp:** `CampModal` builds native elements (tabs with their keys, every page: rest, recycle, sell and
+  the workbench, the Lost & Found board with its tilted polaroids, upgrades and the shop with `ShopArt` drawings,
+  luxury, the shelf, the photo album, the aquarium). Images show their texture as the page's `<img>` did
+  (`UiNode.Image`), the polaroid's `--tilt` became the rotation it set.
+- **Two differences the pass caught, fixed:** the page made a `.btn` straight inside `.camp-body` keep its own width
+  (`align-self: flex-start`, ApplyDirectChildFixups); and the page let go of the highlight when an element lost UI
+  Toolkit's focus (the camp hiding), so the next visit opened on its current tab. Native elements now do both
+  (`FocusIn`/`FocusOut` follow the highlight).
+- **S32:** `UiCanvas` (a TexturePainter shown on an element, uploaded once a frame when it changed, sized to the
+  picture) for the minimap, the detector's waveform, the binocular lenses and readout, the viewfinder and the big map
+  (its click picks a place from the element's box). The minimap's base is a plain painter and `MiniMapGpu` hangs on the
+  native canvas. The HUD's container, the scope, the photo flash, the controller's map cursor and the telescope's view
+  (its labels placed from the same rounded numbers the page parsed) are native. `addLayer` takes native layers.
+- **Full passes (S31 before the fixes, then S31 with S32):** every run clean, 7 of 7 self-checks, all logs identical,
+  no FAIL; after the fixes non-loading shots within 0.02/255, 428 of 438 dumps identical.

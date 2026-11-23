@@ -68,6 +68,10 @@ public class UiNode
         ve.userData = this;
         ve.AddToClassList("t-" + this.tag);
         ve.RegisterCallback<GeometryChangedEvent>(FitPill);
+        // the highlight follows UI Toolkit's focus, as the page's activeElement did: an element hidden or taken away while
+        // chosen lets go of it (the camp closing must not keep its last button chosen for the next visit)
+        ve.RegisterCallback<FocusInEvent>(e => { if (e.target == ve) MenuNav.FocusNative(this); });
+        ve.RegisterCallback<FocusOutEvent>(e => { if (e.target == ve && MenuNav.Current.node == this) MenuNav.ForgetNative(); });
         if (this.tag == "button")
         {
             ve.focusable = true;
@@ -252,6 +256,8 @@ public class UiNode
         n.Parent = this;
         kids.Add(n);
         Container.Add(n.ve);
+        // a button straight inside the camp's page keeps its own width (HTMLElement.ApplyDirectChildFixups)
+        if (Has("camp-body") && n.Has("btn")) n.ve.style.alignSelf = Align.FlexStart;
         n.Restyle();
         n.Attached();
     }
@@ -474,6 +480,29 @@ public class UiNode
         if (!ve.enabledSelf || !ve.focusable || !UiRoot.MouseActive) return;
         if (MenuNav.Current.node == this) return;
         Focus();
+    }
+
+    /// <summary>Lets go of the highlight (as a page element's blur()).</summary>
+    public void Blur()
+    {
+        if (MenuNav.Current.node == this) MenuNav.ForgetNative();
+        ve.Blur();
+    }
+
+    /// <summary>True when `other` is this element or inside it.</summary>
+    public bool Contains(UiNode other)
+    {
+        for (var c = other; c != null; c = c.Parent) if (c == this) return true;
+        return false;
+    }
+
+    /// <summary>Shows a picture as the page's &lt;img&gt; did (the texture as its background).</summary>
+    public UiNode Image(Texture tex)
+    {
+        if (tex == null) ve.style.backgroundImage = StyleKeyword.Null;
+        else if (tex is Texture2D t2d) ve.style.backgroundImage = new StyleBackground(t2d);
+        else if (tex is RenderTexture rt) ve.style.backgroundImage = Background.FromRenderTexture(rt);
+        return this;
     }
 
     /// <summary>Presses it (as a page element's click()).</summary>

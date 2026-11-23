@@ -144,7 +144,7 @@ public class UIManager
         return e;
     }
 
-    public readonly HTMLCanvasElement waveCanvas = el<HTMLCanvasElement>("canvas", "wave");
+    public readonly UiCanvas waveCanvas = new UiCanvas("wave");
     public readonly CanvasRenderingContext2D waveCtx;
     private HTMLElement root;
     // the HUD is native (UI/Native/UiNode.cs): the same elements and classes the page had, so Style.uss draws them alike
@@ -178,8 +178,8 @@ public class UIManager
     private UiNode hint = new UiNode("div", "hint");
     private UiNode toasts = new UiNode("div", "toasts");
     private UiNode fadeEl = new UiNode("div", "fade");
-    private HTMLElement hud = el("div", "hud");
-    private HTMLElement scope = el("div", "scope");
+    private UiNode hud = new UiNode("div", "hud");
+    private UiNode scope = new UiNode("div", "scope");
     private UiNode inspect = new UiNode("div", "inspect hidden");
     private UiNode inspectTitle = new UiNode("div", "inspect-title");
     private UiNode inspectHelp;
@@ -191,22 +191,22 @@ public class UIManager
     private UiNode cross = new UiNode("div", "cross");
     private UiNode drawbar = new UiNode("div", "drawbar hidden");
     private UiNode drawFill = new UiNode("div", "fill");
-    private HTMLCanvasElement binoc = el<HTMLCanvasElement>("canvas", "binoc hidden");
-    private HTMLCanvasElement binocText = el<HTMLCanvasElement>("canvas", "binoc-text hidden");
+    private UiCanvas binoc = new UiCanvas("binoc hidden");
+    private UiCanvas binocText = new UiCanvas("binoc-text hidden");
     private string binocFrameKey = "";
     /// <summary>the camera's viewfinder, drawn like the binocular view (it shares its full-screen class)</summary>
-    private HTMLCanvasElement finder = el<HTMLCanvasElement>("canvas", "binoc hidden");
+    private UiCanvas finder = new UiCanvas("binoc hidden");
     private string finderKey = "";
     /// <summary>the white flash as a photo is taken</summary>
-    private HTMLElement flashEl = el("div", "binoc photo-flash hidden");
+    private UiNode flashEl = new UiNode("div", "binoc photo-flash hidden");
     private double flashAt = -1;
 
     /// <summary>The zoom and distance under the binoculars, on a small canvas of its own (see setBinoculars).</summary>
     private void drawBinocReadout(string zoom, string range, int w, int h)
     {
         const int TW = 640, TH = 40, BASE = 28;
-        if (this.binocText.width != TW) this.binocText.width = TW;
-        if (this.binocText.height != TH) this.binocText.height = TH;
+        if (this.binocText.Width != TW) this.binocText.Width = TW;
+        if (this.binocText.Height != TH) this.binocText.Height = TH;
         var ve = this.binocText.ve;
         if (ve != null)
         {
@@ -225,8 +225,9 @@ public class UIManager
         t.fillText($"{zoom}   ·   {range}", TW / 2.0, BASE);
     }
     private string binocKey = "";
-    public readonly HTMLCanvasElement miniCanvas = el<HTMLCanvasElement>("canvas", "minimap");
-    private HTMLElement mapEl = null;
+    public readonly UiCanvas miniCanvas = new UiCanvas("minimap");
+    private UiNode mapEl = null;
+    private bool mapTabs = false;
     private Action mapToggle = null;
     private Action mapRepaint = null;
     private UiNode clock = new UiNode("div", "chip clock");
@@ -248,8 +249,8 @@ public class UIManager
         this.root = root;
         this.state = state;
         this.hooks = hooks;
-        this.waveCanvas.width = 240;
-        this.waveCanvas.height = 84;
+        this.waveCanvas.Width = 240;
+        this.waveCanvas.Height = 84;
         this.waveCtx = this.waveCanvas.getContext("2d");
         this.buildHud();
         this.buildInspect();
@@ -270,8 +271,7 @@ public class UIManager
         // page elements and native ones, in the page's order
         foreach (var part in new object[] { this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, centred("prompt-row", this.prompt), centred("prompt-row p2", this.prompt2), this.hud, this.scope, centred("hint-row", this.hint), this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar })
         {
-            if (part is UiNode n) n.MountIn(root.ve);
-            else root.append((HTMLElement)part);
+            ((UiNode)part).MountIn(root.ve);
         }
         state.subscribe(() => this.refresh());
         this.refresh();
@@ -311,17 +311,12 @@ public class UIManager
         right.Add(this.clock, packChip, ecoChip, this.boneChip, this.muteBtn);
 
         this.badge.Add(this.badgeIcon, this.badgeName);
-        this.miniCanvas.width = this.miniCanvas.height = MINI_PX;
+        this.miniCanvas.Width = this.miniCanvas.Height = MINI_PX;
         var center = new UiNode("div", "pt-center");
         this.padTools.Add(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption, this.padStack, this.padNext);
-        // the minimap stays a page canvas (S32); the rest of the HUD is native, in the page's order
-        left.MountIn(this.hud.ve);
-        right.MountIn(this.hud.ve);
-        this.hud.append(this.miniCanvas, el("div", "minimap-ring"));
-        this.badge.MountIn(this.hud.ve);
-        this.padTools.MountIn(this.hud.ve);
+        this.hud.Add(left, right, this.miniCanvas, new UiNode("div", "minimap-ring"), this.badge, this.padTools);
 
-        this.scope.append(el("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
+        this.scope.Add(new UiNode("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
     }
 
     private void buildInspect()
@@ -406,7 +401,7 @@ public class UIManager
             showIcon(this.badgeIcon, inf[0]);
             this.badgeName.Text = n == 7 ? $"Flags x{this.state.data.flags}" : inf[1];
         }
-        this.scope.classList.toggle("hidden", n != 1);
+        this.scope.Toggle("hidden", n != 1);
         document.body.classList.toggle("scope-on", n == 1);
     }
 
@@ -489,11 +484,11 @@ public class UIManager
 
     public void setMode(string mode)
     {
-        this.hud.classList.toggle("hidden", mode == "INSPECT" || mode == "MENU");
-        this.scope.classList.toggle("dim", mode == "CAMP");
+        this.hud.Toggle("hidden", mode == "INSPECT" || mode == "MENU");
+        this.scope.Toggle("dim", mode == "CAMP");
         if (mode == "INSPECT" || mode == "MENU")
         {
-            this.scope.classList.add("hidden");
+            this.scope.AddClass("hidden");
             document.body.classList.remove("scope-on");
         }
         document.body.dataset["mode"] = mode;
@@ -1342,34 +1337,34 @@ public class UIManager
     {
         if (!on)
         {
-            this.mapEl?.remove();
+            this.mapEl?.Remove();
             this.mapEl = null;
+            this.mapTabs = false;
             this.mapToggle = null;
             this.mapRepaint = null;
             return;
         }
         if (this.mapEl != null || draw == null) return;
         if (alts == null) alts = new List<MapAlt>();
-        var wrap = el("div", "pause bigmap");
-        var card = el("div", "intro-card map-card");
+        var wrap = new UiNode("div", "pause bigmap");
+        var card = new UiNode("div", "intro-card map-card");
         var names = new List<string> { "Island map" };
         names.AddRange(alts.Select(x => x.name));
         int mode = 0;
-        var title = el("h1", "", names[0]);
-        card.append(title);
-        var tabs = el("div", "map-tabs");
-        var tabBtns = names.Select((n, i) => el<HTMLButtonElement>("button", $"btn tab{(i == 0 ? " on" : "")}", n)).ToList();
+        var title = node("h1", "", names[0]);
+        card.Add(title);
+        var tabs = new UiNode("div", "map-tabs");
+        var tabBtns = names.Select((n, i) => node("button", $"btn tab{(i == 0 ? " on" : "")}", n)).ToList();
         if (alts.Count > 0)
         {
-            foreach (var tb in tabBtns) tabs.append(tb);
-            card.append(tabs);
+            foreach (var tb in tabBtns) tabs.Add(tb);
+            card.Add(tabs);
         }
         int size = (int)Math.Min(600, Math.Floor(Math.Min(window.innerWidth, window.innerHeight) * 0.72));
-        var c = el<HTMLCanvasElement>("canvas", "bigmap-canvas");
-        c.width = c.height = size;
-        c.style.width = c.style.height = $"{size}px";
-        card.append(c, el("p", "save-note", "You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it."));
-        wrap.append(card);
+        var c = new UiCanvas("bigmap-canvas");
+        c.Width = c.Height = size;
+        card.Add(c, node("p", "save-note", "You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it."));
+        wrap.Add(card);
         var ctx2 = c.getContext("2d");
         void paint()
         {
@@ -1380,33 +1375,38 @@ public class UIManager
         void setMode(int i)
         {
             mode = i;
-            title.textContent = names[i];
-            for (int k = 0; k < tabBtns.Count; k++) tabBtns[k].classList.toggle("on", k == i);
+            title.Text = names[i];
+            for (int k = 0; k < tabBtns.Count; k++) tabBtns[k].Toggle("on", k == i);
             paint();
         }
         for (int i = 0; i < tabBtns.Count; i++)
         {
             int idx = i;
-            tabBtns[i].onclick = () => setMode(idx);
+            tabBtns[i].OnClick = () => setMode(idx);
         }
         this.mapToggle = () => setMode((mode + 1) % names.Count);
         this.mapRepaint = () =>
         {
             if (mode > 0) paint();
         };
-        c.style.cursor = "crosshair";
-        c.addEventListener("click", e =>
+        // a click marks the place under it, in the map's own 0..1 across and down
+        c.ve.RegisterCallback<UnityEngine.UIElements.ClickEvent>(e =>
         {
-            var r = c.getBoundingClientRect();
-            onPick?.Invoke((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+            var r = c.ve.worldBound;
+            onPick?.Invoke((e.position.x - r.xMin) / r.width, (e.position.y - r.yMin) / r.height);
             paint();
         });
+        c.ve.pickingMode = UnityEngine.UIElements.PickingMode.Position;
         this.mapEl = wrap;
-        this.root.append(wrap);
+        this.mapTabs = alts.Count > 0;
+        wrap.MountIn(this.root.ve);
     }
 
+    /// <summary>The big map's canvas while the map is open (the controller's cursor moves over it), else null.</summary>
+    public UiCanvas bigMapCanvas => this.mapEl == null ? null : MenuNav.Find(this.mapEl.ve, v => v.ClassListContains("bigmap-canvas")).Select(e => e.node as UiCanvas).FirstOrDefault();
+
     /// <summary>True while the big map has a second map to flip to.</summary>
-    public bool mapHasTabs => this.mapEl != null && this.mapEl.querySelector(".map-tabs .btn") != null;
+    public bool mapHasTabs => this.mapEl != null && this.mapTabs;
 
     /// <summary>Flips between the island map and the treasure map, if the player has one.</summary>
     public void toggleMap()
@@ -1435,7 +1435,7 @@ public class UIManager
         if (this.diveTint == null)
         {
             this.diveTint = new UiNode("div", "dive-tint");
-            this.diveTint.MountIn(this.hud.ve);
+            this.hud.Add(this.diveTint);
         }
         this.diveTint.Toggle("on", on);
     }
@@ -1458,8 +1458,8 @@ public class UIManager
         var key = on ? $"{pad.on}|{zoom}|{range}|{JS.Str(window.innerWidth)}x{JS.Str(window.innerHeight)}" : "off";
         if (key == this.binocKey) return;
         this.binocKey = key;
-        this.binoc.classList.toggle("hidden", !on);
-        this.binocText.classList.toggle("hidden", !on);
+        this.binoc.Toggle("hidden", !on);
+        this.binocText.Toggle("hidden", !on);
         if (!on) return;
         int w = (int)window.innerWidth;
         int h = (int)window.innerHeight;
@@ -1470,8 +1470,8 @@ public class UIManager
         var frameKey = $"{pad.on}|{w}x{h}";
         if (frameKey == this.binocFrameKey) return;
         this.binocFrameKey = frameKey;
-        if (this.binoc.width != w) this.binoc.width = w;
-        if (this.binoc.height != h) this.binoc.height = h;
+        if (this.binoc.Width != w) this.binoc.Width = w;
+        if (this.binoc.Height != h) this.binoc.Height = h;
         var g = this.binoc.getContext("2d");
         g.clearRect(0, 0, w, h);
         var r = Math.Min(w * 0.27, h * 0.46);
@@ -1570,13 +1570,13 @@ public class UIManager
         var key = on ? $"{pad.on}|{count}|{w}x{h}" : "off";
         if (key == this.finderKey) return;
         this.finderKey = key;
-        this.finder.classList.toggle("hidden", !on);
+        this.finder.Toggle("hidden", !on);
         // nothing but the picture while the camera is at the eye: the "F: pet the dog" prompts wait until it is lowered
         // (Style.uss: .viewfinder .prompt.on). The keys themselves still work.
         document.body.classList.toggle("viewfinder", on);
         if (!on) return;
-        if (this.finder.width != w) this.finder.width = w;
-        if (this.finder.height != h) this.finder.height = h;
+        if (this.finder.Width != w) this.finder.Width = w;
+        if (this.finder.Height != h) this.finder.Height = h;
         var g = this.finder.getContext("2d");
         g.clearRect(0, 0, w, h);
         double fw = Math.Min(w, h * 4.0 / 3.0), fh = Math.Min(h, fw * 3.0 / 4.0);
@@ -1662,8 +1662,8 @@ public class UIManager
     public void photoFlash()
     {
         this.flashAt = JS.Now();
-        this.flashEl.style.opacity = "0.85";
-        this.flashEl.classList.remove("hidden");
+        this.flashEl.ve.style.opacity = 0.85f;
+        this.flashEl.RemoveClass("hidden");
     }
 
     /// <summary>Fades the flash out; called every frame.</summary>
@@ -1674,10 +1674,10 @@ public class UIManager
         if (k >= 1)
         {
             this.flashAt = -1;
-            this.flashEl.classList.add("hidden");
+            this.flashEl.AddClass("hidden");
             return;
         }
-        this.flashEl.style.opacity = JS.Str(0.85 * (1 - k) * (1 - k));
+        this.flashEl.ve.style.opacity = (float)(0.85 * (1 - k) * (1 - k));
     }
 
     /// <summary>The strength meter under the crosshair while a bow is drawn. 0 hides it.</summary>
@@ -1752,12 +1752,7 @@ public class UIManager
     }
 
     /// <summary>Puts a full-screen layer (the telescope's eyepiece) over the HUD but under the toasts and the fade.</summary>
-    public void addLayer(HTMLElement e)
-    {
-        // a page element joins the page, then stands just under the (native) toasts, as toasts.before(e) put it
-        this.root.append(e);
-        if (e.ve != null && this.toasts.ve.parent == e.ve.parent) e.ve.PlaceBehind(this.toasts.ve);
-    }
+    public void addLayer(UiNode e) => e.MountBefore(this.toasts.ve);
 
     public void toast(string msg)
     {

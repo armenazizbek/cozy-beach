@@ -66,15 +66,15 @@ public class TelescopeView
     /// <summary>a constellation has just been found; the game pays out and writes it into the journal</summary>
     public Action<ConstellationDef> onFound;
     /// <summary>puts the view's page on the screen (under the toasts and the fade)</summary>
-    public Action<HTMLElement> mount;
+    public Action<UiNode> mount;
     /// <summary>a small sound: "light" a star of a pattern lit, "field" a star on its own, "found", "hint"</summary>
     public Action<string> onSound;
 
     // ---------------------------------------------------------------- the page
 
-    private HTMLElement wrap, countEl, msgEl, card, cardName, cardLore, cardReward;
+    private UiNode wrap, countEl, msgEl, card, cardName, cardLore, cardReward;
     private VisualElement layer;
-    private readonly Dictionary<string, HTMLElement> labels = new Dictionary<string, HTMLElement>();
+    private readonly Dictionary<string, UiNode> labels = new Dictionary<string, UiNode>();
     private static Texture2D softTex, ringTex, cloudTex;
 
     /// <summary>the ring in the middle of the eyepiece that aims: its radius on screen, and how far round it a star still counts</summary>
@@ -198,27 +198,27 @@ public class TelescopeView
         if (wrap != null) return;
         isOpen = true;
         ensureTextures();
-        wrap = document.createElement("div");
-        wrap.className = "glass";
+        wrap = new UiNode("div");
+        wrap.ClassName = "glass";
         layer = new VisualElement { pickingMode = PickingMode.Ignore };
         layer.style.position = Position.Absolute;
         layer.style.left = layer.style.top = layer.style.right = layer.style.bottom = 0;
         layer.generateVisualContent += draw;
         wrap.ve.Add(layer);
-        countEl = document.createElement("div");
-        countEl.className = "glass-count";
-        msgEl = document.createElement("div");
-        msgEl.className = "glass-msg";
-        card = document.createElement("div");
-        card.className = "glass-card hidden";
-        cardName = document.createElement("h2");
-        cardLore = document.createElement("p");
-        cardReward = document.createElement("div");
-        cardReward.className = "glass-reward";
-        card.append(cardName, cardLore, cardReward);
-        wrap.append(countEl, msgEl, card);
+        countEl = new UiNode("div");
+        countEl.ClassName = "glass-count";
+        msgEl = new UiNode("div");
+        msgEl.ClassName = "glass-msg";
+        card = new UiNode("div");
+        card.ClassName = "glass-card hidden";
+        cardName = new UiNode("h2");
+        cardLore = new UiNode("p");
+        cardReward = new UiNode("div");
+        cardReward.ClassName = "glass-reward";
+        card.Add(cardName, cardLore, cardReward);
+        wrap.Add(countEl, msgEl, card);
         if (mount != null) mount(wrap);
-        else document.body.append(wrap);
+        else wrap.MountIn(document.body.ve);
         updateCount();
         message(found.Count == 0
             ? "A sky full of stars, and pictures hidden in it. Their stars glow as the ring comes near: light them one by one, or hold a whole picture in the eyepiece."
@@ -230,7 +230,7 @@ public class TelescopeView
         isOpen = false;
         if (wrap == null) return;
         layer.generateVisualContent -= draw;
-        wrap.remove();
+        wrap.Remove();
         wrap = null;
         layer = null;
         labels.Clear();
@@ -238,14 +238,14 @@ public class TelescopeView
 
     private void updateCount()
     {
-        if (countEl != null) countEl.textContent = $"🔭  Constellations found: {found.Count} of {Constellations.ALL.Length}";
+        if (countEl != null) countEl.Text = $"🔭  Constellations found: {found.Count} of {Constellations.ALL.Length}";
     }
 
     private void message(string text, double seconds)
     {
         if (msgEl == null) return;
-        msgEl.textContent = text;
-        msgEl.classList.remove("hidden");
+        msgEl.Text = text;
+        msgEl.RemoveClass("hidden");
         msgT = seconds;
     }
 
@@ -300,12 +300,12 @@ public class TelescopeView
         if (cardT > 0)
         {
             cardT -= dt;
-            if (cardT <= 0) card.classList.add("hidden");
+            if (cardT <= 0) card.AddClass("hidden");
         }
         if (msgT > 0)
         {
             msgT -= dt;
-            if (msgT <= 0) msgEl.classList.add("hidden");
+            if (msgT <= 0) msgEl.AddClass("hidden");
         }
         placeLabels();
         layer.MarkDirtyRepaint();
@@ -427,17 +427,17 @@ public class TelescopeView
         if (hintId == def.id) hintT = 0;
         onSound?.Invoke("found");
         onFound?.Invoke(def);
-        cardName.textContent = "✨ " + def.name;
-        cardLore.textContent = def.lore;
+        cardName.Text = "✨ " + def.name;
+        cardLore.Text = def.lore;
         bool all = found.Count >= Constellations.ALL.Length;
-        cardReward.textContent = all
+        cardReward.Text = all
             ? $"+{Constellations.REWARD} coins, and {Constellations.ALL_BONUS} more for the whole sky"
             : $"+{Constellations.REWARD} coins  ·  {found.Count} of {Constellations.ALL.Length} found";
-        card.classList.remove("hidden");
+        card.RemoveClass("hidden");
         cardT = 11;
         updateCount();
         if (all) message("Every constellation in the sky is found. ⭐", 8);
-        else msgEl?.classList.add("hidden");
+        else msgEl?.AddClass("hidden");
     }
 
     /// <summary>Holding a pattern framed in the middle of the eyepiece slowly brings it into focus.</summary>
@@ -514,21 +514,22 @@ public class TelescopeView
             var c = Constellations.BY_ID[id];
             if (!labels.TryGetValue(id, out var lab))
             {
-                lab = document.createElement("div");
-                lab.className = "glass-label";
-                lab.textContent = c.name;
-                wrap.append(lab);
+                lab = new UiNode("div");
+                lab.ClassName = "glass-label";
+                lab.Text = c.name;
+                wrap.Add(lab);
                 labels[id] = lab;
             }
             double lowest = c.stars.Min(s => s[1]);
             var p = toScreen(c.az, c.alt + lowest - 2.2);
             double fade = Math.Min(1, (foundAge.TryGetValue(id, out var age) ? age : 99) / 1.8);
             bool show = inEye(p, 40) && fade > 0.05;
-            lab.classList.toggle("hidden", !show);
+            lab.Toggle("hidden", !show);
             if (!show) continue;
-            lab.style.left = $"{p.x - 160:0}px";
-            lab.style.top = $"{p.y:0}px";
-            lab.style.opacity = (fade * 0.9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+            // the page took these as strings rounded to whole pixels and two places; the same numbers, parsed back
+            lab.ve.style.left = float.Parse($"{p.x - 160:0}", System.Globalization.CultureInfo.InvariantCulture);
+            lab.ve.style.top = float.Parse($"{p.y:0}", System.Globalization.CultureInfo.InvariantCulture);
+            lab.ve.style.opacity = float.Parse((fade * 0.9).ToString("0.00", System.Globalization.CultureInfo.InvariantCulture), System.Globalization.CultureInfo.InvariantCulture);
         }
     }
 

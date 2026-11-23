@@ -12,7 +12,7 @@ using UnityEngine.UIElements;
 /// </summary>
 internal class MiniMapGpu
 {
-    private readonly HTMLCanvasElement canvas;
+    private readonly UiCanvas canvas;
     private readonly VisualElement clip, world, holesLayer, icons, ring;
     private readonly double x0, z0, sc;
     private readonly float inset;
@@ -24,7 +24,7 @@ internal class MiniMapGpu
 
     public VisualElement Host => canvas.ve;
 
-    public MiniMapGpu(HTMLCanvasElement canvas, double size, HTMLCanvasElement baseMap, double extX0, double extZ0, double ext)
+    public MiniMapGpu(UiCanvas canvas, double size, TexturePainter baseMap, double extX0, double extZ0, double ext)
     {
         this.canvas = canvas;
         x0 = extX0;
@@ -67,7 +67,7 @@ internal class MiniMapGpu
 
         canvas.ve.Add(clip);
         canvas.ve.Add(ring);
-        canvas.textureTarget = icons;
+        canvas.TextureTarget = icons;
     }
 
     private static VisualElement Layer()
@@ -79,7 +79,7 @@ internal class MiniMapGpu
         return v;
     }
 
-    private static Texture2D ToTexture(HTMLCanvasElement c)
+    private static Texture2D ToTexture(TexturePainter c)
     {
         var tex = new Texture2D(c.width, c.height, TextureFormat.RGBA32, false)
         {

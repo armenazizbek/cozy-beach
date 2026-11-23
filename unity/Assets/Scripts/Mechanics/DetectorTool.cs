@@ -211,7 +211,7 @@ public class DetectorTool
 
     public void drawWaveform(CanvasRenderingContext2D ctx, double w, double h, double t, int tier)
     {
-        var host = HTMLCanvasElement.Of(ctx.canvas)?.ve;
+        var host = UiCanvas.Of(ctx.canvas)?.ve;
         if (waveBg == null || waveBg.width != (int)w || waveBg.height != (int)h || !ReferenceEquals(host, waveHost))
         {
             waveBg = new TexturePainter((int)w, (int)h);

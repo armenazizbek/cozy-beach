@@ -191,7 +191,7 @@ public class Game
     /// <summary>mouse movement gathered while the controller is in use; it fades, so only a deliberate push counts</summary>
     private double mouseShove = 0;
     private MapCursor mapCursor = new MapCursor { u = 0.5, v = 0.5 };
-    private HTMLElement mapCursorEl = null;
+    private UiNode mapCursorEl = null;
     private bool wasRaining = false;
     private int zoomIdx = 0;
     private bool binocView = false;
@@ -3247,7 +3247,7 @@ public class Game
         }
         else
         {
-            mapCursorEl?.remove();
+            mapCursorEl?.Remove();
             if (!locked) UnityEngine.Cursor.visible = true;
         }
     }
@@ -3779,26 +3779,25 @@ public class Game
         }
         if (mapOpen)
         {
-            var c = document.querySelector<HTMLCanvasElement>(".bigmap-canvas");
+            var c = ui.bigMapCanvas;
             if (c != null)
             {
                 mapCursor.u = Math.Min(1, Math.Max(0, mapCursor.u + pad.move.x * dt * 0.7));
                 mapCursor.v = Math.Min(1, Math.Max(0, mapCursor.v + pad.move.y * dt * 0.7));
                 if (mapCursorEl == null)
                 {
-                    mapCursorEl = document.createElement("div");
-                    mapCursorEl.className = "map-cursor";
-                    document.body.append(mapCursorEl);
+                    mapCursorEl = new UiNode("div", "map-cursor");
+                    mapCursorEl.MountIn(document.body.ve);
                 }
-                var r = c.getBoundingClientRect();
-                mapCursorEl.style.left = $"{JS.Str(r.left + mapCursor.u * r.width)}px";
-                mapCursorEl.style.top = $"{JS.Str(r.top + mapCursor.v * r.height)}px";
+                var r = new NavEl(c).Box;
+                mapCursorEl.ve.style.left = (float)(r.xMin + mapCursor.u * r.width);
+                mapCursorEl.ve.style.top = (float)(r.yMin + mapCursor.v * r.height);
             }
             return;
         }
         if (mapCursorEl != null)
         {
-            mapCursorEl.remove();
+            mapCursorEl.Remove();
             mapCursorEl = null;
         }
         if (gameState == "INSPECT")

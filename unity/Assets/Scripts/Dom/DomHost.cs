@@ -55,6 +55,7 @@ public static class DomHost
         HTMLElement.ElementByVe.Clear();
         CssAnimations.Clear();
         HTMLCanvasElement.OnPage.Clear();
+        UiCanvas.Clear();
         _isTyping = false;
 
         UiRoot.Ensure();
@@ -132,6 +133,8 @@ public static class DomHost
         {
             if (canvas.id != "scene") canvas.SyncUITexture();
         }
+        // and the native ones (UI/Native/UiCanvas.cs)
+        UiCanvas.SyncAll();
     }
 
     public static bool IsPointerOverUI()
