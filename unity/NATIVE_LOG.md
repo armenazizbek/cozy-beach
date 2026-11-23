@@ -230,3 +230,18 @@ section 6, mostly because:
 **Re-projection:** the world and mechanics steps (S10 to S24) look like **days rather than weeks**, about 1,500 to
 2,500 lines a day. The UI track keeps its estimate until its first screen is measured. The fixed cost per step is now
 the verification passes (about 14 minutes for all 37 runs).
+
+## S10: small props (2026-11-24)
+
+- **Native:** golf cart (committed with S9), SeaTreasure, Dolphins, CoveNets.
+  - Each realizes its description (`Place`) and names its moving parts: `Realized.Follow(...)`, with `Apply()` once per
+    update. That copies only those parts' pose and visibility: chests and flags; the pod and each dolphin's flukes; the
+    cove's banners.
+  - Particle pools (treasure sparkles, dolphin splashes) stay drawn by the bridge, hung straight in the scene, until
+    S24. Their parent groups never move; the splashes show and hide with the pod by hand.
+- **Not converted:**
+  - `SeaModels` and `ShipKit` are geometry helpers that other modules call; they stay with the generators.
+  - **Moved:** Telescope to S16 (it hangs inside the island, built off-thread), Aquarium to S15 (a clickable camp prop).
+- **Check** (selfcheck, base, dolphins, islands, cove, dive, land): every run clean, 81 PASS and 7 REVIEW (the loading
+  shots), **87 of 87 scene dumps identical**.
+- **Hours:** about 45 minutes.

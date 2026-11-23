@@ -29,6 +29,35 @@ public sealed class Realized
     public Renderer RendererOf(THREE.Object3D o) => this[o]?.GetComponent<Renderer>();
 
     public Light LightOf(THREE.Object3D o) => this[o]?.GetComponent<Light>();
+
+    private readonly List<(THREE.Object3D o, Transform t)> followed = new List<(THREE.Object3D, Transform)>();
+
+    /// <summary>
+    /// Names the parts of a placed module that move or show and hide while it runs: <see cref="Apply"/> copies their pose and
+    /// visibility from the description onto their GameObjects. Only these are touched each frame, never the whole tree.
+    /// </summary>
+    public Realized Follow(params THREE.Object3D[] parts) => Follow((IEnumerable<THREE.Object3D>)parts);
+
+    public Realized Follow(IEnumerable<THREE.Object3D> parts)
+    {
+        foreach (var o in parts)
+        {
+            var t = this[o];
+            if (t != null) followed.Add((o, t));
+        }
+        return this;
+    }
+
+    /// <summary>Copies every followed part's pose and visibility onto its GameObject (once per update of the module).</summary>
+    public void Apply()
+    {
+        foreach (var (o, t) in followed)
+        {
+            if (t == null) continue;
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+    }
 }
 
 public static class Realizer

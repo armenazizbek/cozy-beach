@@ -278,9 +278,20 @@ public class CoveNets
         }
     }
 
+    /// <summary>The nets' GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
+    private Realized live;
+
+    /// <summary>Puts the nets into the world as native objects; only the banners move.</summary>
+    public void Place()
+    {
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        foreach (var (m, _) in banners) live.Follow(m);
+    }
+
     public void update(double t)
     {
         // the banners stir in the breeze
         foreach (var (m, ph) in banners) m.rotation.x = Math.Sin(t * 1.3 + ph) * 0.05;
+        live?.Apply();
     }
 }

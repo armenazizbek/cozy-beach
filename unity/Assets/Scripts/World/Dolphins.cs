@@ -30,7 +30,12 @@ public class Dolphins
         public Dolphin mother;
     }
 
+    /// <summary>The pod as built (a description); <see cref="Place"/> turns it into GameObjects.</summary>
     public readonly THREE.Group group = new THREE.Group();
+    /// <summary>The module's GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
+    private Realized live;
+
+    public UnityEngine.Transform Root => live?.root;
     private readonly List<Dolphin> pod = new List<Dolphin>();
     private readonly ParticleSystem splashes = new ParticleSystem(240, 0.13, 7, false);
     private readonly THREE.Color white = new THREE.Color(0xeaf7ff);
@@ -155,7 +160,30 @@ public class Dolphins
     /// Moves the pod. `sailing` is true while the player is aboard the boat; `ground` gives the height of the sea bed.
     /// Returns true once, at the moment the pod first comes up beside the boat.
     /// </summary>
+    /// <summary>
+    /// Puts the pod into the world as native objects, following each dolphin and its flukes. The splashes stay a particle pool
+    /// the scene draws until particles are native (S24).
+    /// </summary>
+    public void Place(THREE.Scene scene)
+    {
+        group.remove(splashes.points);
+        scene.add(splashes.points);
+        splashes.points.visible = group.visible;
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        live.Follow(group);
+        foreach (var d in pod) live.Follow(d.root, d.flukes);
+        live.Apply();
+    }
+
     public bool update(double dt, double t, bool sailing, double bx, double bz, double heading, double speed, double level,
+        Func<double, double, double> swell, Func<double, double, double> ground, Action<double> splashSound)
+    {
+        bool r = Swim(dt, t, sailing, bx, bz, heading, speed, level, swell, ground, splashSound);
+        live?.Apply();
+        return r;
+    }
+
+    private bool Swim(double dt, double t, bool sailing, double bx, double bz, double heading, double speed, double level,
         Func<double, double, double> swell, Func<double, double, double> ground, Action<double> splashSound)
     {
         // they only come out where the sea is open and deep, to a boat that is going somewhere
@@ -185,6 +213,8 @@ public class Dolphins
         }
         presence = Math.Min(1, Math.Max(0, presence + (escorting ? dt / 4.5 : -dt / 3.5)));
         group.visible = presence > 0;
+        // the splashes left the group for the scene (Place), so they show and hide with it by hand
+        splashes.points.visible = group.visible;
         splashes.update(dt);
         if (presence <= 0) return false;
 

@@ -20,7 +20,12 @@ public class SeaTreasure
     /// <summary>Where the chests drift. All of them are out in open water, a boat ride from the beach.</summary>
     private static readonly double[][] SPOTS = { new double[] { -72, 92 }, new double[] { 58, 128 }, new double[] { 92, 66 } };
 
+    /// <summary>The chests as built (a description); <see cref="Place"/> turns them into GameObjects.</summary>
     public readonly THREE.Group group = new THREE.Group();
+    /// <summary>The module's GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
+    private Realized live;
+
+    public UnityEngine.Transform Root => live?.root;
     public readonly List<Chest> chests = new List<Chest>();
     private readonly ParticleSystem sparks = new ParticleSystem(120, 0.16, -0.3, true);
     private readonly THREE.Color gold = new THREE.Color(0xffd45a);
@@ -81,6 +86,19 @@ public class SeaTreasure
     public int remaining => chests.Count(c => !c.taken);
 
     /// <summary>Marks chests as already found (when loading a save).</summary>
+    /// <summary>
+    /// Puts the chests into the world as native objects, following each chest and its flag as they float. The sparkles stay a
+    /// particle pool the scene draws until particles are native (S24); the group they were in never moves.
+    /// </summary>
+    public void Place(THREE.Scene scene)
+    {
+        group.remove(sparks.points);
+        scene.add(sparks.points);
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        foreach (var c in chests) live.Follow(c.group, c.group.getObjectByName("flag"));
+        live.Apply();
+    }
+
     public void setTaken(List<bool> flags)
     {
         for (int i = 0; i < chests.Count; i++)
@@ -88,6 +106,7 @@ public class SeaTreasure
             chests[i].taken = flags != null && i < flags.Count && flags[i];
             chests[i].group.visible = !chests[i].taken;
         }
+        live?.Apply();
     }
 
     public List<bool> takenFlags() => chests.Select(c => c.taken).ToList();
@@ -97,6 +116,13 @@ public class SeaTreasure
     /// Returns the chest that was just picked up, or null.
     /// </summary>
     public Chest update(double dt, double t, double level, double? boatX, double? boatZ)
+    {
+        var got = Float(dt, t, level, boatX, boatZ);
+        live?.Apply();
+        return got;
+    }
+
+    private Chest Float(double dt, double t, double level, double? boatX, double? boatZ)
     {
         Chest got = null;
         sparkTimer -= dt;

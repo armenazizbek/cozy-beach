@@ -326,14 +326,15 @@ public class Game
             scenery.group,
             birds.group,
             sea.group,
-            dolphins.group,
-            treasure.group,
             ocean.group,
             camp.group,
             ecology.group,
             spawner.group
         );
         whitecaps.Place();
+        dolphins.Place(scene);
+        treasure.Place(scene);
+        coveNets.Place();
         foreach (var ov in detector.overlays) scene.add(ov);
         scene.add(
             dig.ring,
@@ -343,7 +344,6 @@ public class Game
             arrows.group,
             rain.group,
             rain.buildShelter(OldHouse.X, OldHouse.Z, (x, z) => oldHouse.covers(x, z, 1.1)),
-            coveNets.group,
             grass.group,
             castles.group,
             islands[0].group,
