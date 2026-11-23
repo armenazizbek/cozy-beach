@@ -27,6 +27,22 @@ public static class World
         return parent.parent == null ? Layer : parent.gameObject.layer;
     }
 
+    private static Transform land;
+
+    /// <summary>
+    /// Where the native world above the sea floor hangs (under the root): everything the game hides while diving
+    /// (Game.hideLand switches it off as one). Its own children keep their own visibility, so a module that shows itself
+    /// every frame cannot undo the dive.
+    /// </summary>
+    public static Transform Land
+    {
+        get
+        {
+            if (land == null && main != null) land = Draw.Group(Root, "Land");
+            return land;
+        }
+    }
+
     /// <summary>The main world's root; null before the game is built.</summary>
     public static Transform Root => main == null ? null : RootOf(main);
 
@@ -34,7 +50,11 @@ public static class World
     public static Transform RootOf(THREE.Scene scene) => THREE.Bridge.SceneSync.RootFor(scene).transform;
 
     /// <summary>Called once by Game when its scene exists.</summary>
-    internal static void Bind(THREE.Scene scene) => main = scene;
+    internal static void Bind(THREE.Scene scene)
+    {
+        main = scene;
+        land = null;
+    }
 
     /// <summary>
     /// The GameObject the bridge made for a Three object, to hang native children from (null until the object was first

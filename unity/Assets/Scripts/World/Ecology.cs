@@ -135,7 +135,7 @@ public class Ecology
     /// <summary>Puts what exists so far into the world; everything added later goes in as it is made.</summary>
     public void Place()
     {
-        root = Draw.Group(World.Root);
+        root = Draw.Group(World.Land);
         foreach (var t in tufts) Realizer.Realize(t, root, World.Layer);
         foreach (var c in crabs) PlaceCrab(c);
     }

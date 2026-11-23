@@ -94,7 +94,7 @@ public class SeaTreasure
     {
         group.remove(sparks.points);
         scene.add(sparks.points);
-        live = Realizer.Realize(group, World.Root, World.Layer);
+        live = Realizer.Realize(group, World.Land, World.Layer);
         foreach (var c in chests) live.Follow(c.group, c.group.getObjectByName("flag"));
         live.Apply();
     }

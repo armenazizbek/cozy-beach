@@ -38,7 +38,7 @@ public class Birds
     /// <summary>Puts the flock into the world as native objects.</summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Root, World.Layer);
+        live = Realizer.Realize(group, World.Land, World.Layer);
         foreach (var g in gulls) live.Follow(g.root, g.legs, g.folded, g.left, g.right);
         live.Apply();
     }

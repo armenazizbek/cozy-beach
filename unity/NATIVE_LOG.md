@@ -264,3 +264,17 @@ the verification passes (about 14 minutes for all 37 runs).
     the main world, so its crab copies stay frozen, while the native crabs had already been hidden as too far away. The
     main world isn't drawn there; every bench picture passes.
 - **Hours:** about 1.5 h.
+
+## S12: boat and dog (2026-11-24)
+
+- **Native boat:** realized; it follows its hull, wheel, outboard, propeller and nameplate; the marigold colours are
+  pushed when bought. The wake stays a particle pool in the scene until S24.
+- **Native dog:** the whole tree (skinned legs and tail with their bones, head, jaw, tongue, ears) is a `LiveTree`
+  synced at draw time, and re-made when the Golden Bone is added.
+- **`World.Land`:** every native module now hangs under one `Land` group beneath the world root. Diving
+  (`Game.hideLand`) switches it off as one. The dog's `LiveTree` copies its description's visibility (on) every frame,
+  which had undone the dive's hiding: 18 dog renderers showed underwater in the dump. A module's own visibility can no
+  longer override the dive.
+- **Check** (selfcheck, base, newgame, islands, dolphins, dograin, photo, photo-alt, house, leap, fish, dive): every
+  run clean, 132 PASS and 16 REVIEW (loading shots and within noise), **147 of 147 dumps identical**.
+- `ModernShips` and `OldShip` are builders the lighthouse and the opening call; they convert with S17 and S24.

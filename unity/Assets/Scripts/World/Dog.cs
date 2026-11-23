@@ -169,6 +169,20 @@ public class Dog
     };
 
     public readonly THREE.Group group = new THREE.Group();
+
+    /// <summary>
+    /// The dog's GameObjects (native since unity/NATIVE_PLAN.md S12): its whole tree (body, head, jaw, tongue, ears, the skinned
+    /// legs and tail and their bones) is kept in line with the description at draw time, and re-made when a part is added (the
+    /// Golden Bone).
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>Puts the dog into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Land);
+        NativeFrame.BeforeDraw += live.Sync;
+    }
     /// <summary>'rest' | 'run' | 'find' | 'return' | 'shelter' (off to the old house out of the rain) | 'sheltered' (lying
     /// in it) | 'unshelter' (the rain is over: on the way back)</summary>
     public string state = "rest";

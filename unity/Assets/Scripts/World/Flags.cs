@@ -17,7 +17,7 @@ public class Flags
     private Transform root;
 
     /// <summary>The flags' parent under the world root (made on first use: Flags is built before the world is bound).</summary>
-    public Transform Root => root != null ? root : root = Draw.Group(World.Root);
+    public Transform Root => root != null ? root : root = Draw.Group(World.Land);
 
     /// <summary>[x, z] of every planted flag; edited in place so the map can hold on to it</summary>
     public readonly List<double[]> positions = new List<double[]>();

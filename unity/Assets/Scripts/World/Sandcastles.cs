@@ -108,7 +108,7 @@ public class Sandcastles
     /// </summary>
     public void Place()
     {
-        root = Draw.Group(World.Root);
+        root = Draw.Group(World.Land);
         foreach (var c in castles) c.native = new LiveTree(c.group, root);
         NativeFrame.BeforeDraw += () =>
         {

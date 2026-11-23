@@ -284,7 +284,7 @@ public class CoveNets
     /// <summary>Puts the nets into the world as native objects; only the banners move.</summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Root, World.Layer);
+        live = Realizer.Realize(group, World.Land, World.Layer);
         foreach (var (m, _) in banners) live.Follow(m);
     }
 

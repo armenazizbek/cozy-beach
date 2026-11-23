@@ -112,8 +112,8 @@ public class Rain
     /// <summary>Puts the rain into the world as native objects (after <see cref="buildShelter"/>).</summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Root, World.Layer).Follow(group, lines);
-        if (shelterLines != null) shelterLive = Realizer.Realize(shelterGroup, World.Root, World.Layer).Follow(shelterGroup, shelterLines);
+        live = Realizer.Realize(group, World.Land, World.Layer).Follow(group, lines);
+        if (shelterLines != null) shelterLive = Realizer.Realize(shelterGroup, World.Land, World.Layer).Follow(shelterGroup, shelterLines);
     }
 
     public void update(double dt, double target, THREE.Vector3 cam, string where = "open")

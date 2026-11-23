@@ -60,7 +60,7 @@ public class Pier
     public UnityEngine.Transform root;
 
     /// <summary>Puts the pier into the world as native objects.</summary>
-    public void Place() => root = Realizer.Realize(group, World.Root, World.Layer).root;
+    public void Place() => root = Realizer.Realize(group, World.Land, World.Layer).root;
 
     private static THREE.Mesh box(double w, double h, double d, THREE.Material mat, double x, double y, double z)
     {

@@ -172,7 +172,7 @@ public class Grass
         mesh = im;
         tufts = list.Select(t => new Tuft { x = t.x, z = t.z, alive = true }).ToList();
         group.add(im);
-        if (root == null) root = Draw.Group(World.Root);
+        if (root == null) root = Draw.Group(World.Land);
         unityMesh = MeshKit.BakeInstances(geo, im.instanceMatrix.array, Count(), im.instanceColor?.array, Instanced());
         drawn = Draw.Mesh(root, unityMesh, MaterialKit.Get(mat, MaterialKit.On.Instanced), receive: true, type: "InstancedMesh");
         trimDug();

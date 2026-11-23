@@ -359,7 +359,7 @@ public class Game
         cart = new GolfCart(9, CAMP_Z + 9, Math.PI, beach);
         cart.Place();
         dog = new Dog(beach);
-        scene.add(dog.group);
+        dog.Place();
         placeDogHome();
         // out of the rain, the dog goes to the old house
         dog.shelterRoute = oldHouse.shelterRoute();
@@ -367,7 +367,7 @@ public class Game
         dog.floorAt = (x, z) => oldHouse.floorAt(x, z);
         // a new game finds the boat tied up alongside the pier
         boat = new Boat(Pier.MOORING.x, Pier.MOORING.z, Pier.MOORING.heading);
-        scene.add(boat.group, boat.wake.points);
+        boat.Place(scene);
         yield return null;
         beam = new THREE.Mesh(
             new THREE.CylinderGeometry(0.18, 0.18, 60, 10, 1, true),

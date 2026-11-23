@@ -325,6 +325,20 @@ public class Boat
         Merge.mergeStatic(motor, new HashSet<THREE.Object3D> { prop });
     }
 
+    /// <summary>
+    /// The boat's GameObjects (native since unity/NATIVE_PLAN.md S12); it moves its hull, wheel, outboard and propeller itself. The
+    /// wake stays a particle pool the scene draws until S24. The description stays up to date for the binoculars' raycast.
+    /// </summary>
+    private Realized live;
+
+    /// <summary>Puts the boat into the world as native objects; the wake goes to the scene.</summary>
+    public void Place(THREE.Scene scene)
+    {
+        live = Realizer.Realize(group, World.Land, World.Layer).Follow(group, wheel, motor, prop, nameplate);
+        scene.add(wake.points);
+        live.Apply();
+    }
+
     /// <summary>The captain's colours and the name on the stern, from the Luxury shop.</summary>
     public void setMarigold()
     {
@@ -332,6 +346,9 @@ public class Boat
         rail.color.set(0xd9ab45);
         rail.metalness = 0.5;
         nameplate.visible = true;
+        MaterialKit.Push(stripe);
+        MaterialKit.Push(rail);
+        live?.Apply();
     }
 
     /// <summary>World position of the helmsman's eyes.</summary>
@@ -406,5 +423,6 @@ public class Boat
             }
         }
         wake.update(dt);
+        live?.Apply();
     }
 }

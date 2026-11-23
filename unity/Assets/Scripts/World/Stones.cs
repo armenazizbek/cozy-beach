@@ -27,7 +27,7 @@ public class Stones
     };
 
     /// <summary>The boulders' parent, under the world root.</summary>
-    public readonly UnityEngine.Transform root = Draw.Group(World.Root);
+    public readonly UnityEngine.Transform root = Draw.Group(World.Land);
     /// <summary>the bigger stones, which block walking and driving</summary>
     public readonly List<Spot> colliders = new List<Spot>();
     private readonly List<UnityEngine.Mesh> shapes = new List<UnityEngine.Mesh>();

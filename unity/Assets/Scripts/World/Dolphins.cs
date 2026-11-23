@@ -169,7 +169,7 @@ public class Dolphins
         group.remove(splashes.points);
         scene.add(splashes.points);
         splashes.points.visible = group.visible;
-        live = Realizer.Realize(group, World.Root, World.Layer);
+        live = Realizer.Realize(group, World.Land, World.Layer);
         live.Follow(group);
         foreach (var d in pod) live.Follow(d.root, d.flukes);
         live.Apply();
