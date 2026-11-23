@@ -47,6 +47,15 @@ public class UiNode
         return false;
     }
 
+    /// <summary>The page's scroll boxes (HTMLElement.ScrollableClasses): their children go in a ScrollView.</summary>
+    private static readonly HashSet<string> ScrollableClasses = new HashSet<string> { "camp-body", "save-list", "ach-list", "help-body", "set-rows" };
+
+    private ScrollView sv;
+    private double scrollTop;
+
+    /// <summary>Where the children go: the scroll box's content for a scrolling element.</summary>
+    private VisualElement Container => sv != null ? sv.contentContainer : ve;
+
     private static readonly HashSet<string> TitleFontClasses = new HashSet<string> { "mm-title", "mm-kicker", "mm-tag", "mm-label", "mm-foot", "game-title", "title-face" };
     private static readonly HashSet<string> InteractiveContainers = new HashSet<string> { "camp", "intro-card", "card", "inspect", "chip", "intro", "pause", "mainmenu", "set-options" };
     private static readonly HashSet<string> PointerNone = new HashSet<string>(CssAnimations.PointerEventsNone);
@@ -55,17 +64,102 @@ public class UiNode
     {
         this.tag = string.IsNullOrEmpty(tag) ? "div" : tag.ToLowerInvariant();
         ve = new VisualElement();
+        // the element a VisualElement stands for (the menu navigation finds native elements by it, NavEl.Of)
+        ve.userData = this;
         ve.AddToClassList("t-" + this.tag);
         ve.RegisterCallback<GeometryChangedEvent>(FitPill);
         if (this.tag == "button")
         {
             ve.focusable = true;
-            ve.RegisterCallback<ClickEvent>(_ => onClick?.Invoke());
+            // as the page's buttons: a click stops there, pressing one chooses it, and the mouse moving onto one chooses it
+            // (so the mouse, the keyboard and a controller share one highlight)
+            ve.RegisterCallback<ClickEvent>(e =>
+            {
+                if (!ve.enabledSelf) return;
+                e.StopPropagation();
+                onClick?.Invoke();
+            });
+            ve.RegisterCallback<PointerDownEvent>(_ => { if (ve.enabledSelf && ve.focusable) Focus(); });
+            ve.RegisterCallback<PointerMoveEvent>(_ => HoverFocus());
+            ve.RegisterCallback<PointerEnterEvent>(_ => HoverFocus());
         }
         if (!string.IsNullOrEmpty(classes)) foreach (var c in classes.Split(' ', StringSplitOptions.RemoveEmptyEntries)) ve.AddToClassList(c);
         Fonts();
+        Scroll();
         if (!string.IsNullOrEmpty(text)) SetText(text);
         Restyle();
+    }
+
+    /// <summary>A scroll box as the page made one (HTMLElement.EnsureScrollView): up and down only, filling the element.</summary>
+    private void Scroll()
+    {
+        if (sv != null) return;
+        bool want = false;
+        foreach (var c in ve.GetClasses()) if (ScrollableClasses.Contains(c)) want = true;
+        if (!want) return;
+        sv = new ScrollView(ScrollViewMode.Vertical);
+        sv.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+        sv.style.flexGrow = 1;
+        sv.style.flexShrink = 1;
+        sv.style.width = Length.Percent(100);
+        sv.style.height = Length.Percent(100);
+        if (sv.verticalScroller != null) sv.verticalScroller.valueChanged += v => scrollTop = v;
+        sv.contentContainer.RegisterCallback<GeometryChangedEvent>(_ =>
+        {
+            if (scrollTop > 0 && Mathf.Abs(sv.scrollOffset.y - (float)scrollTop) > 0.5f)
+                sv.scrollOffset = new Vector2(sv.scrollOffset.x, (float)scrollTop);
+        });
+        if (label != null && label.parent == ve)
+        {
+            label.RemoveFromHierarchy();
+            sv.contentContainer.Add(label);
+        }
+        foreach (var k in kids)
+        {
+            if (k.ve.parent == ve)
+            {
+                k.ve.RemoveFromHierarchy();
+                sv.contentContainer.Add(k.ve);
+            }
+        }
+        ve.Add(sv);
+    }
+
+    /// <summary>How far the scroll box is scrolled down (the page's scrollTop).</summary>
+    public double ScrollTop
+    {
+        get
+        {
+            if (sv != null)
+            {
+                float wy = sv.contentContainer.worldBound.height;
+                if (!float.IsNaN(wy) && wy > 1f) return sv.scrollOffset.y;
+            }
+            return scrollTop;
+        }
+        set
+        {
+            scrollTop = Math.Max(0.0, value);
+            if (sv != null) sv.scrollOffset = new Vector2(sv.scrollOffset.x, (float)scrollTop);
+        }
+    }
+
+    /// <summary>The height shown (clientHeight).</summary>
+    public double ClientHeight => new NavEl(this).Box.height;
+
+    /// <summary>The height of all it holds (scrollHeight).</summary>
+    public double ScrollHeight
+    {
+        get
+        {
+            if (sv != null)
+            {
+                float ch = sv.contentContainer.worldBound.height;
+                if (!float.IsNaN(ch) && ch > 1f) return ch;
+                return Math.Max(ClientHeight, kids.Count * 40.0);
+            }
+            return ClientHeight;
+        }
     }
 
     // ------------------------------------------------------------------ text
@@ -79,6 +173,19 @@ public class UiNode
             if (kids.Count == 0 && text == (value ?? "") && (label != null || string.IsNullOrEmpty(value))) return;
             Clear();
             SetText(value ?? "");
+        }
+    }
+
+    /// <summary>
+    /// Sets what an innerHTML of text set on the page: plain words (entities decoded) or inline formatting as rich text.
+    /// </summary>
+    public string Markup
+    {
+        set
+        {
+            if (!HtmlParser.TryText(value, out var t)) throw new ArgumentException("native elements take text, not markup: " + value);
+            Clear();
+            SetText(t);
         }
     }
 
@@ -103,7 +210,7 @@ public class UiNode
             label.RegisterCallback<AttachToPanelEvent>(_ => { if (label != null) label.text = Shown(); });
         }
         label.text = Shown();
-        if (label.parent != ve) ve.Insert(0, label);
+        if (label.parent != Container) Container.Insert(0, label);
     }
 
     private string Shown()
@@ -144,7 +251,7 @@ public class UiNode
         n.Parent?.kids.Remove(n);
         n.Parent = this;
         kids.Add(n);
-        ve.Add(n.ve);
+        Container.Add(n.ve);
         n.Restyle();
         n.Attached();
     }
@@ -158,7 +265,7 @@ public class UiNode
         n.Parent = p;
         int i = p.kids.IndexOf(this);
         p.kids.Insert(i, n);
-        p.ve.Insert(p.ve.IndexOf(ve), n.ve);
+        p.Container.Insert(p.Container.IndexOf(ve), n.ve);
         n.Restyle();
         n.Attached();
     }
@@ -170,6 +277,20 @@ public class UiNode
         parent.Add(ve);
         Restyle();
         Attached();
+        // a page parent keeps its children in z-index order, native ones too (the menu bar stays on top)
+        (parent.userData as HTMLElement)?.ReorderChildrenByZIndex();
+    }
+
+    /// <summary>Hangs this element just before `sibling` under the sibling's (non-UiNode) parent.</summary>
+    public void MountBefore(VisualElement sibling)
+    {
+        var parent = sibling?.parent;
+        if (parent == null) return;
+        Remove();
+        parent.Insert(parent.IndexOf(sibling), ve);
+        Restyle();
+        Attached();
+        (parent.userData as HTMLElement)?.ReorderChildrenByZIndex();
     }
 
     /// <summary>The font size the page used to size an inline drawing in this element (HTMLElement.GetEffectiveFontSize).</summary>
@@ -298,6 +419,7 @@ public class UiNode
     private void Changed()
     {
         Fonts();
+        Scroll();
         Restyle();
         UiAnim.OnClassesChanged(ve);
         if (label != null) label.text = Shown();
@@ -324,6 +446,55 @@ public class UiNode
 
     // ------------------------------------------------------------------ look and picking
 
+    /// <summary>Its words and its children's (textContent).</summary>
+    public string FullText
+    {
+        get
+        {
+            if (kids.Count == 0) return text;
+            var sb = new System.Text.StringBuilder(text);
+            foreach (var k in kids) sb.Append(k.FullText);
+            return sb.ToString();
+        }
+    }
+
+    /// <summary>Left and right on it change its value (a setting): -1 or 1.</summary>
+    public Action<int> OnStep;
+
+    /// <summary>Takes the menu highlight (as a page element's focus()).</summary>
+    public void Focus()
+    {
+        if (!ve.enabledSelf) return;
+        MenuNav.FocusNative(this);
+        ve.Focus();
+    }
+
+    private void HoverFocus()
+    {
+        if (!ve.enabledSelf || !ve.focusable || !UiRoot.MouseActive) return;
+        if (MenuNav.Current.node == this) return;
+        Focus();
+    }
+
+    /// <summary>Presses it (as a page element's click()).</summary>
+    public void Click()
+    {
+        if (!ve.enabledSelf) return;
+        onClick?.Invoke();
+    }
+
+    /// <summary>Greyed out and out of the highlight's reach (a page button's disabled).</summary>
+    public bool Disabled
+    {
+        get => !ve.enabledSelf;
+        set
+        {
+            if (Disabled == value) return;
+            ve.SetEnabled(!value);
+            ve.EnableInClassList("disabled", value);
+        }
+    }
+
     /// <summary>The words shown when the pointer rests on it.</summary>
     public string Tooltip
     {
@@ -339,7 +510,12 @@ public class UiNode
         {
             bool had = onClick != null;
             onClick = value;
-            if (tag != "button" && !had && value != null) ve.RegisterCallback<ClickEvent>(_ => onClick?.Invoke());
+            if (tag != "button" && !had && value != null) ve.RegisterCallback<ClickEvent>(e =>
+            {
+                if (!ve.enabledSelf) return;
+                e.StopPropagation();
+                onClick?.Invoke();
+            });
             Restyle();
         }
     }

@@ -914,6 +914,7 @@ public class HTMLElement
     {
         if (_disabled) return;
         document.activeElement = this;
+        MenuNav.ForgetNative();
         ve?.Focus();
     }
 

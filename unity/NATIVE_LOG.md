@@ -503,3 +503,23 @@ the verification passes (about 14 minutes for all 37 runs).
   result (they have buttons the menu navigation drives: with `MenuNav`, S29), the intro, the menu bar.
 - **Full pass:** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading shots within 0.02/255,
   428 of 438 dumps identical.
+
+## S28 (rest) and S29 (first part): MenuNav, the cards, the menus (2026-11-24)
+
+- **`MenuNav` and `NavEl`**: the game's own menu navigation (`padNav`, `menuAccept`, `menuKey`, `menuTick`, the back
+  button, the scrolling lists, the controller's scroll) now walks VisualElements on the panel and a `NavEl` that is a
+  page element or a native one: focus, click, step, box, text, scroll. The highlight is the page's activeElement or a
+  native element, never both. The logic is unchanged: with every menu still on the page the full pass gave identical
+  logs (the controller tests log what is chosen and every reachable button's box).
+- **`UiNode` grew** buttons that behave as the page's (a click stops there, pressing chooses, the moving mouse
+  chooses), `Disabled`, `Focus`, `Click`, `OnStep`, `FullText`, the page's scroll boxes (`.help-body`, `.ach-list`, ...:
+  a ScrollView with the page's settings, `ScrollTop`, `ScrollHeight`), `Markup` (text set as innerHTML set it: entities,
+  collapsed whitespace, inline formatting as rich text, via `HtmlParser.TryText`), `MountBefore`, and mounting under a
+  page element runs that element's z-index order (the menu bar stays on top).
+- **Native now:** inspect (with the Instant Clean button) and the result card, the intro card (built element for
+  element as the page parsed it, the detector drawing sized as the page sized it), the opening's caption, skip note and
+  lightning flash, the menu bar, the pause screen, the main menu, Help, Achievements, Credits and the farewell.
+  `Glyphs.KeyNode` follows the controller as `Glyphs.key` did. AutoShot and Game close native cards through
+  `UIManager.removeFirst` and `skipIntro`.
+- **Full passes (after each part):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading
+  shots within 0.02/255, 428 of 438 dumps identical.

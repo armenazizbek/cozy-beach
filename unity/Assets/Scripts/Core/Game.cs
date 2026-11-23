@@ -1,4 +1,5 @@
 using System;
+using VisualElement = UnityEngine.UIElements.VisualElement;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -1294,7 +1295,7 @@ public class Game
         else if (what == "result" || what == "inspect") ui.hideInspect();
         else if (what == "intro") ui.skipIntro();
         else if (what == "toast") ui.setPrompt(null);
-        else document.querySelector(".pause")?.remove();
+        else UIManager.removeFirst("pause");
     }
 
     /// <summary>For the -autoshot-pad test: the menu a controller would drive and the buttons it can reach, with their boxes.</summary>
@@ -1303,11 +1304,13 @@ public class Game
         var root = overlayRoot();
         if (root == null) return "no menu";
         var items = padFocusables(root);
-        return $"menu '{root.className}', {items.Count} reachable: " + string.Join("; ", items.Take(8).Select(e =>
+        var self = NavEl.Of(root);
+        string cls = self.dom != null ? self.dom.className : self.node?.ClassName ?? "";
+        return $"menu '{cls}', {items.Count} reachable: " + string.Join("; ", items.Take(8).Select(e =>
         {
-            var r = e.getBoundingClientRect();
-            var label = (e.textContent ?? "").Trim();
-            return $"{(label.Length > 14 ? label.Substring(0, 14) : label)} [{r.left:0},{r.top:0} {r.width:0}x{r.height:0}]";
+            var r = e.Box;
+            var label = (e.Text ?? "").Trim();
+            return $"{(label.Length > 14 ? label.Substring(0, 14) : label)} [{(double)r.xMin:0},{(double)r.yMin:0} {(double)r.width:0}x{(double)r.height:0}]";
         }));
     }
 
@@ -3282,10 +3285,30 @@ public class Game
     }
 
     /// <summary>The menu or card the controller should drive right now, if any.</summary>
-    private HTMLElement overlayRoot()
+    private VisualElement overlayRoot()
     {
-        var list = document.querySelectorAll<HTMLElement>(".mainmenu, .pause:not(.bigmap), .camp:not(.hidden), .intro:not(.gone)");
-        return list.Count > 0 ? list[list.Count - 1] : null;
+        // the last open menu on the panel, page or native (UI/Native/MenuNav.cs)
+        VisualElement last = null;
+        void walk(VisualElement v)
+        {
+            foreach (var c in v.Children())
+            {
+                if (c.ClassListContains("mainmenu") || (c.ClassListContains("pause") && !c.ClassListContains("bigmap"))
+                    || (c.ClassListContains("camp") && !c.ClassListContains("hidden")) || (c.ClassListContains("intro") && !c.ClassListContains("gone")))
+                {
+                    if (!NavEl.Of(c).IsNull) last = c;
+                }
+                walk(c);
+            }
+        }
+        if (UiRoot.Root != null) walk(UiRoot.Root);
+        return last;
+    }
+
+    private static NavEl firstWith(VisualElement root, Func<VisualElement, bool> match)
+    {
+        var l = MenuNav.Find(root, match);
+        return l.Count > 0 ? l[0] : default;
     }
 
     /// <summary>A dropdown cannot be opened from code, so a controller gets its choices as a short list of buttons under the row.</summary>
@@ -3331,30 +3354,29 @@ public class Game
         audio.ui();
     }
 
-    private List<HTMLElement> padFocusables(HTMLElement root)
+    private List<NavEl> padFocusables(VisualElement root)
     {
         // while a list of choices is open, only its choices can be reached
-        var scope = root.querySelector<HTMLElement>(".set-options") ?? root;
-        return scope.querySelectorAll<HTMLElement>("button, input, select").Where(e =>
+        var options = firstWith(root, v => v.ClassListContains("set-options"));
+        var scope = options.IsNull ? root : options.ve;
+        return MenuNav.Find(scope, v => v.ClassListContains("t-button") || v.ClassListContains("t-input") || v.ClassListContains("t-select")).Where(e =>
         {
-            if (e is HTMLButtonElement btn && btn.disabled) return false;
-            if (e is HTMLInputElement inp && inp.disabled) return false;
-            if (e is HTMLSelectElement sel && sel.disabled) return false;
+            if (e.Disabled) return false;
             // a slider inside a settings row: the row is what is chosen
-            if (e.classList.contains("nofocus")) return false;
+            if (e.Has("nofocus")) return false;
             // a text box is for the mouse and the keyboard: walked onto, it would swallow every key after
             // (with Steam's on-screen keyboard available, pressing A on it opens that keyboard instead)
-            if (e is HTMLInputElement text && text.type == "text" && !SteamService.Ready) return false;
-            var r = e.getBoundingClientRect();
+            if (e.dom is HTMLInputElement text && text.type == "text" && !SteamService.Ready) return false;
+            var r = e.Box;
             return r.width > 0 && r.height > 0;
         }).ToList();
     }
 
     /// <summary>The part of a menu that scrolls, if it is long enough to need it.</summary>
-    private HTMLElement padScroller(HTMLElement root)
+    private NavEl padScroller(VisualElement root)
     {
-        var all = root.querySelectorAll<HTMLElement>(".camp-body, .help-body, .ach-list, .set-rows, .save-list");
-        return all.FirstOrDefault(e => e.scrollHeight > e.clientHeight + 1);
+        var all = MenuNav.Find(root, v => v.ClassListContains("camp-body") || v.ClassListContains("help-body") || v.ClassListContains("ach-list") || v.ClassListContains("set-rows") || v.ClassListContains("save-list"));
+        return all.FirstOrDefault(e => e.ScrollHeight > e.ClientHeight + 1);
     }
 
     private void padNav(string d)
@@ -3363,27 +3385,28 @@ public class Game
         if (root == null) return;
         var items = padFocusables(root);
         if (items.Count == 0) return;
-        var cur = items.FirstOrDefault(e => e == document.activeElement);
-        if (cur == null)
+        var now = MenuNav.Current;
+        var cur = items.FirstOrDefault(e => e == now);
+        if (cur.IsNull)
         {
-            items[0].focus();
+            items[0].Focus();
             return;
         }
         // from outside a scrolled list, up first rolls the list back before leaving for what is above it
         var scroller = padScroller(root);
-        if (scroller != null && d == "up" && scroller.scrollTop > 0 && !scroller.contains(cur))
+        if (!scroller.IsNull && d == "up" && scroller.ScrollTop > 0 && !scroller.Contains(cur))
         {
-            scroller.scrollTop = Math.Max(0, scroller.scrollTop - 150);
+            scroller.ScrollTop = Math.Max(0, scroller.ScrollTop - 150);
             return;
         }
         // a setting: left and right change it
-        if (cur.onstep != null && (d == "left" || d == "right"))
+        if (cur.OnStep != null && (d == "left" || d == "right"))
         {
-            cur.onstep(d == "left" ? -1 : 1);
+            cur.OnStep(d == "left" ? -1 : 1);
             audio.ui();
             return;
         }
-        if (cur is HTMLInputElement rangeInp && rangeInp.type == "range" && (d == "left" || d == "right"))
+        if (cur.dom is HTMLInputElement rangeInp && rangeInp.type == "range" && (d == "left" || d == "right"))
         {
             double stepVal = double.TryParse(rangeInp.step, NumberStyles.Float, CultureInfo.InvariantCulture, out var st) && st > 0 ? st : 1;
             double minVal = double.TryParse(rangeInp.min, NumberStyles.Float, CultureInfo.InvariantCulture, out var mn) ? mn : 0;
@@ -3394,21 +3417,21 @@ public class Game
             rangeInp.oninput?.Invoke(new Event { type = "input", target = rangeInp });
             return;
         }
-        var c = cur.getBoundingClientRect();
-        double cx = c.left + c.width / 2;
-        double cy = c.top + c.height / 2;
+        var c = cur.Box;
+        double cx = c.xMin + c.width / 2.0;
+        double cy = c.yMin + c.height / 2.0;
         bool vertical = d == "up" || d == "down";
-        var options = new List<(HTMLElement el, double along, double across)>();
+        var options = new List<(NavEl el, double along, double across)>();
         foreach (var it in items)
         {
             if (it == cur) continue;
-            var r = it.getBoundingClientRect();
-            double dx = r.left + r.width / 2 - cx;
-            double dy = r.top + r.height / 2 - cy;
+            var r = it.Box;
+            double dx = r.xMin + r.width / 2.0 - cx;
+            double dy = r.yMin + r.height / 2.0 - cy;
             double along = d == "up" ? -dy : d == "down" ? dy : d == "left" ? -dx : dx;
             if (along > 2) options.Add((it, along, vertical ? Math.Abs(dx) : Math.Abs(dy)));
         }
-        HTMLElement best = null;
+        NavEl best = default;
         double bestScore = double.PositiveInfinity;
         // up and down go to the very next row, whatever is in it: a small checkbox off to one side must not be skipped for a wide slider further on
         double nearest = options.Count > 0 ? options.Min(o => o.along) : 0;
@@ -3422,56 +3445,62 @@ public class Game
                 best = o.el;
             }
         }
-        if (best != null)
+        if (!best.IsNull)
         {
-            best.focus();
-            best.scrollIntoView();
+            best.Focus();
+            best.ScrollIntoView();
             audio.ui();
         }
-        else if (scroller != null && (d == "up" || d == "down"))
+        else if (!scroller.IsNull && (d == "up" || d == "down"))
         {
             // nothing further to move to: a page of plain text, like the notes on the board, just scrolls
-            scroller.scrollTop = Math.Max(0, scroller.scrollTop + (d == "down" ? 150 : -150));
+            scroller.ScrollTop = Math.Max(0, scroller.ScrollTop + (d == "down" ? 150 : -150));
         }
     }
 
     private static readonly Regex BACK_RE = new Regex(@"^\W*(done|back|close|cancel|resume|leave)", RegexOptions.IgnoreCase);
 
     /// <summary>The button that leaves a menu (Back, Done, Close, Cancel, Resume), if it has one.</summary>
-    private HTMLButtonElement backButton(HTMLElement root)
+    private NavEl backButton(VisualElement root)
     {
         // a big photo in the album: B closes the photo, not the whole camp behind it
-        var photoClose = root.querySelector<HTMLButtonElement>(".photo-btns .ghost");
-        if (photoClose != null && !photoClose.disabled) return photoClose;
-        var back = root.querySelectorAll<HTMLButtonElement>("button").FirstOrDefault(b => BACK_RE.IsMatch(b.textContent ?? ""));
-        return back != null && !back.disabled ? back : null;
+        var photoClose = firstWith(root, v => v.ClassListContains("t-button") && v.ClassListContains("ghost") && within(v, "photo-btns", root));
+        if (!photoClose.IsNull && !photoClose.Disabled) return photoClose;
+        var back = MenuNav.Find(root, v => v.ClassListContains("t-button")).FirstOrDefault(b => BACK_RE.IsMatch(b.Text ?? ""));
+        return !back.IsNull && !back.Disabled ? back : default;
     }
 
-    private void padBack(HTMLElement root)
+    /// <summary>True when `v` sits inside an element with class `cls` under `root` (a descendant selector).</summary>
+    private static bool within(VisualElement v, string cls, VisualElement root)
+    {
+        for (var p = v.parent; p != null && p != root.parent; p = p.parent) if (p.ClassListContains(cls)) return true;
+        return false;
+    }
+
+    private void padBack(VisualElement root)
     {
         var back = backButton(root);
-        if (back != null) back.click();
+        if (!back.IsNull) back.Click();
         else padKey("Escape");
     }
 
     /// <summary>Presses the chosen button of a menu (A on a controller, Enter or Space on the keyboard).</summary>
-    private void menuAccept(HTMLElement root)
+    private void menuAccept(VisualElement root)
     {
-        var cur = document.activeElement;
-        if (cur is HTMLSelectElement sel) openPadOptions(sel);
-        else if (cur != null && root.contains(cur) && cur.tagName != "BODY") cur.click();
+        var cur = MenuNav.Current;
+        if (cur.dom is HTMLSelectElement sel) openPadOptions(sel);
+        else if (!cur.IsNull && NavEl.Of(root).Contains(cur) && cur.dom?.tagName != "BODY") cur.Click();
         else
         {
             var f = padFocusables(root);
-            if (f.Count > 0) f[0].focus();
+            if (f.Count > 0) f[0].Focus();
         }
     }
 
     /// <summary>The cards that open over the main menu or the pause screen and close by themselves.</summary>
-    private static bool isDialog(HTMLElement root)
+    private static bool isDialog(VisualElement root)
     {
-        var c = root.classList;
-        return c.contains("saves") || c.contains("helpscreen") || c.contains("achievements") || c.contains("credits") || c.contains("farewell");
+        return root.ClassListContains("saves") || root.ClassListContains("helpscreen") || root.ClassListContains("achievements") || root.ClassListContains("credits") || root.ClassListContains("farewell");
     }
 
     /// <summary>
@@ -3501,7 +3530,7 @@ public class Game
         if (code == "KeyQ" || code == "KeyE")
         {
             int step = code == "KeyE" ? 1 : -1;
-            if (campModal.isOpen && root.classList.contains("camp")) campModal.stepTab(step);
+            if (campModal.isOpen && root.ClassListContains("camp")) campModal.stepTab(step);
             else if (ui.helpStep(step)) audio.ui();
             return true;
         }
@@ -3509,14 +3538,15 @@ public class Game
         {
             // the pause screen, the camp and the journal keep their own Esc (onKey)
             if (started && !isDialog(root)) return false;
-            backButton(root)?.click();
+            var back = backButton(root);
+            if (!back.IsNull) back.Click();
             return true;
         }
         return false;
     }
 
     /// <summary>The button last chosen in each open menu, so that closing a card returns to the button that opened it.</summary>
-    private readonly Dictionary<HTMLElement, HTMLElement> chosenIn = new Dictionary<HTMLElement, HTMLElement>();
+    private readonly Dictionary<VisualElement, NavEl> chosenIn = new Dictionary<VisualElement, NavEl>();
 
     /// <summary>
     /// Every frame: an open menu always has one button chosen, whatever the player holds, and the line along the bottom of
@@ -3554,31 +3584,32 @@ public class Game
             return;
         }
         var items = padFocusables(root);
-        var cur = document.activeElement;
-        if (cur != null && items.Contains(cur)) chosenIn[root] = cur;
+        var cur = MenuNav.Current;
+        if (!cur.IsNull && items.Contains(cur)) chosenIn[root] = cur;
         else if (items.Count > 0 && !DomHost.IsTyping())
         {
             // back from a card that was opened over this menu: the button that opened it is chosen again. Otherwise a menu
             // opens on the button it marks (Resume, Cancel), the camp on its current page, anything else on its first button
-            HTMLElement want = chosenIn.TryGetValue(root, out var last) && items.Contains(last) ? last : null;
-            want ??= root.querySelector<HTMLElement>(".default") ?? root.querySelector<HTMLElement>(".tab.on");
-            if (want == null || !items.Contains(want)) want = items[0];
-            want.focus();
+            NavEl want = chosenIn.TryGetValue(root, out var last) && items.Contains(last) ? last : default;
+            if (want.IsNull) want = firstWith(root, v => v.ClassListContains("default"));
+            if (want.IsNull) want = firstWith(root, v => v.ClassListContains("tab") && v.ClassListContains("on"));
+            if (want.IsNull || !items.Contains(want)) want = items[0];
+            want.Focus();
             cur = want;
             if (chosenIn.Count > 12)
-                foreach (var gone in chosenIn.Keys.Where(k => !k.isConnected).ToList()) chosenIn.Remove(gone);
+                foreach (var gone in chosenIn.Keys.Where(k => k.panel == null).ToList()) chosenIn.Remove(gone);
         }
-        bool camp = root.classList.contains("camp");
+        bool camp = root.ClassListContains("camp");
         var list = new List<Glyphs.Prompt>();
         if (camp) list.Add(new Glyphs.Prompt("Page", new[] { "LB", "RB" }, new[] { "Q", "E" }));
-        else if (root.classList.contains("helpscreen")) list.Add(new Glyphs.Prompt("Topic", new[] { "LB", "RB" }, new[] { "Q", "E" }));
-        else if (bookOpen && root.classList.contains("bookview") && !root.classList.contains("teaser"))
+        else if (root.ClassListContains("helpscreen")) list.Add(new Glyphs.Prompt("Topic", new[] { "LB", "RB" }, new[] { "Q", "E" }));
+        else if (bookOpen && root.ClassListContains("bookview") && !root.ClassListContains("teaser"))
             list.Add(new Glyphs.Prompt("Turn the page", new[] { "LB", "RB" }, new[] { "A", "D" }));
-        if (cur != null && cur.onstep != null) list.Add(new Glyphs.Prompt("Change", new[] { "D-pad left", "D-pad right" }, new[] { "A", "D" }));
-        if (padScroller(root) != null) list.Add(new Glyphs.Prompt("Scroll", new[] { "RS" }, new[] { "Scroll" }));
+        if (!cur.IsNull && cur.OnStep != null) list.Add(new Glyphs.Prompt("Change", new[] { "D-pad left", "D-pad right" }, new[] { "A", "D" }));
+        if (!padScroller(root).IsNull) list.Add(new Glyphs.Prompt("Scroll", new[] { "RS" }, new[] { "Scroll" }));
         if (items.Count > 0) list.Add(new Glyphs.Prompt("Select", new[] { "A" }, new[] { "Enter" }));
         var back = backButton(root);
-        string leave = back != null ? (back.textContent ?? "").Trim() : started ? "Close" : null;
+        string leave = !back.IsNull ? (back.Text ?? "").Trim() : started ? "Close" : null;
         if (leave != null) list.Add(new Glyphs.Prompt(leave.Length <= 10 ? leave : "Back", new[] { "B" }, new[] { "Esc" }));
         ui.setMenuBar(list, camp);
     }
@@ -3612,8 +3643,8 @@ public class Game
             if (b == "a") menuAccept(root);
             else if (b == "b")
             {
-                var open = root.querySelector<HTMLElement>(".set-options");
-                if (open != null) closePadOptions(open);
+                var open = firstWith(root, v => v.ClassListContains("set-options"));
+                if (!open.IsNull && open.dom != null) closePadOptions(open.dom);
                 else padBack(root);
             }
             else if ((b == "lb" || b == "rb") && campModal.isOpen) campModal.stepTab(b == "rb" ? 1 : -1);
@@ -3646,8 +3677,8 @@ public class Game
             else if (b == "b") padKey("Escape");
             else if (b == "y")
             {
-                var btn = document.querySelectorAll<HTMLButtonElement>("button:not(.hidden)").FirstOrDefault(x => x.textContent == "Instant Clean");
-                btn?.click();
+                var btn = MenuNav.Find(UiRoot.Root, v => v.ClassListContains("t-button") && !v.ClassListContains("hidden")).FirstOrDefault(x => x.Text == "Instant Clean");
+                if (!btn.IsNull) btn.Click();
             }
             return;
         }
@@ -3742,7 +3773,7 @@ public class Game
             if (pad.look.y != 0)
             {
                 var sc = padScroller(root);
-                if (sc != null) sc.scrollTop = Math.Max(0, sc.scrollTop + pad.look.y * dt * 700);
+                if (!sc.IsNull) sc.ScrollTop = Math.Max(0, sc.ScrollTop + pad.look.y * dt * 700);
             }
             return;
         }

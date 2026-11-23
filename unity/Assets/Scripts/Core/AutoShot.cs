@@ -152,7 +152,7 @@ public class AutoShot : MonoBehaviour
                 yield return Wait(0.15f);
                 UnityEngine.InputSystem.InputSystem.QueueStateEvent(pad, new UnityEngine.InputSystem.LowLevel.GamepadState());
                 yield return Wait(0.35f);
-                Debug.Log("[AutoShot] pad " + b + " -> focused: " + (document.activeElement?.textContent ?? "(nothing)"));
+                Debug.Log("[AutoShot] pad " + b + " -> focused: " + (MenuNav.Current.IsNull ? "(nothing)" : MenuNav.Current.Text));
                 Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
             }
             Debug.Log("[AutoShot] pad sees " + game.smokeTestPadInfo());
@@ -190,13 +190,13 @@ public class AutoShot : MonoBehaviour
                 yield return Shot($"24-opening-{name}.png");
             }
             game.smokeTestClose("intro");
-            document.querySelector(".intro")?.remove();
+            game.ui.skipIntro();
         }
 
         game.smokeTestAchievements();
         yield return Wait(1);
         yield return Shot("1b-achievements.png");
-        document.querySelector(".achievements")?.remove();
+        UIManager.removeFirst("achievements");
 
         game.smokeTestBegin();
         yield return Wait(4);

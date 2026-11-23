@@ -180,13 +180,14 @@ public class UIManager
     private UiNode fadeEl = new UiNode("div", "fade");
     private HTMLElement hud = el("div", "hud");
     private HTMLElement scope = el("div", "scope");
-    private HTMLElement inspect = el("div", "inspect hidden");
-    private HTMLElement inspectTitle = el("div", "inspect-title");
-    private HTMLElement progFill = el("div", "fill");
-    private HTMLElement progText = el("span", "val");
-    private HTMLButtonElement instantBtn = el<HTMLButtonElement>("button", "btn", "Instant Clean");
-    private HTMLElement result = el("div", "result hidden");
-    private HTMLElement intro = el("div", "intro");
+    private UiNode inspect = new UiNode("div", "inspect hidden");
+    private UiNode inspectTitle = new UiNode("div", "inspect-title");
+    private UiNode inspectHelp;
+    private UiNode progFill = new UiNode("div", "fill");
+    private UiNode progText = new UiNode("span", "val");
+    private UiNode instantBtn = new UiNode("button", "btn", "Instant Clean");
+    private UiNode result = new UiNode("div", "result hidden");
+    private UiNode intro = new UiNode("div", "intro");
     private UiNode cross = new UiNode("div", "cross");
     private UiNode drawbar = new UiNode("div", "drawbar hidden");
     private UiNode drawFill = new UiNode("div", "fill");
@@ -235,7 +236,7 @@ public class UIManager
     private UiNode promptText = new UiNode("span", "txt");
     private UiNode muteBtn = new UiNode("button", "chip mute", "🔊");
     /// <summary>what the keys or the controller's buttons do in the menu that is open, along the bottom of the screen</summary>
-    private HTMLElement padbar = el("div", "padbar hidden");
+    private UiNode padbar = new UiNode("div", "padbar hidden");
     private string padbarKey = "";
     private string hintKey = null;
 
@@ -325,18 +326,19 @@ public class UIManager
 
     private void buildInspect()
     {
-        var prog = el("div", "bar big");
-        prog.append(this.progFill);
-        var row = el("div", "row between");
-        row.append(el("span", "sub", "Cleanliness"), this.progText);
-        var back = el<HTMLButtonElement>("button", "btn ghost", "Back");
-        back.onclick = () => this.hooks.onInspectBack();
-        this.instantBtn.onclick = () => this.hooks.onInstantClean();
-        var btns = el("div", "row gap");
-        btns.append(back, this.instantBtn);
-        this.inspect.append(
+        var prog = new UiNode("div", "bar big");
+        prog.Add(this.progFill);
+        var row = new UiNode("div", "row between");
+        row.Add(new UiNode("span", "sub", "Cleanliness"), this.progText);
+        var back = new UiNode("button", "btn ghost", "Back");
+        back.OnClick = () => this.hooks.onInspectBack();
+        this.instantBtn.OnClick = () => this.hooks.onInstantClean();
+        var btns = new UiNode("div", "row gap");
+        btns.Add(back, this.instantBtn);
+        this.inspectHelp = new UiNode("div", "inspect-help", "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate");
+        this.inspect.Add(
             this.inspectTitle,
-            el("div", "inspect-help", "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate"),
+            this.inspectHelp,
             prog,
             row,
             btns
@@ -357,7 +359,7 @@ public class UIManager
         this.eco.Text = $"{d.ecology}";
         this.bones.Text = $"{d.bones}";
         this.boneChip.Toggle("hidden", d.bones <= 0);
-        this.instantBtn.classList.toggle("hidden", this.state.tier("cleaning") < 3);
+        this.instantBtn.Toggle("hidden", this.state.tier("cleaning") < 3);
         // buying a digging upgrade changes the tool already in hand
         var dig = this.state.tier("digging");
         if (dig != this.shownDigTier)
@@ -501,7 +503,7 @@ public class UIManager
     {
         if (!on)
         {
-            this.pauseEl?.remove();
+            this.pauseEl?.Remove();
             this.pauseEl = null;
             this.closeSaves();
             return;
@@ -509,40 +511,40 @@ public class UIManager
         if (this.pauseEl != null || hooks == null) return;
         // one column of buttons, so a controller, the keyboard and the mouse all walk it the same way; the controls that
         // used to be listed here are in Help
-        var p = el("div", "pause pausemenu");
-        var card = el("div", "intro-card pause-card");
-        var actions = el("div", "pause-actions");
-        var info = el("p", "save-info");
-        card.append(el("h1", "", "Paused"), el("p", "tag", "Take your time. The beach will wait."), actions, info);
-        p.append(card);
+        var p = new UiNode("div", "pause pausemenu");
+        var card = new UiNode("div", "intro-card pause-card");
+        var actions = new UiNode("div", "pause-actions");
+        var info = new UiNode("p", "save-info");
+        card.Add(new UiNode("h1", "", "Paused"), new UiNode("p", "tag", "Take your time. The beach will wait."), actions, info);
+        p.Add(card);
 
         Action mainButtons = null;
         void confirmStep(string question, string yes, Action run)
         {
-            actions.innerHTML = "";
+            actions.Clear();
             // Cancel comes first and is the one chosen, so a second press by mistake does no harm
-            var no = el<HTMLButtonElement>("button", "btn ghost default", "Cancel");
-            no.onclick = () => mainButtons();
-            var ok = el<HTMLButtonElement>("button", "btn", yes);
-            ok.onclick = () => run();
-            actions.append(el("p", "confirm-q", question), no, ok);
+            var no = new UiNode("button", "btn ghost default", "Cancel");
+            no.OnClick = () => mainButtons();
+            var ok = new UiNode("button", "btn", yes);
+            ok.OnClick = () => run();
+            actions.Add(node("p", "confirm-q", question), no, ok);
         }
 
         mainButtons = () =>
         {
             var count = hooks.saves.list().Count;
-            info.textContent = count == 0 ? "No saved games yet" : $"{count} saved game{(count == 1 ? "" : "s")}";
-            actions.innerHTML = "";
-            HTMLButtonElement add(string label, Action fn, string cls = "ghost")
+            info.Text = count == 0 ? "No saved games yet" : $"{count} saved game{(count == 1 ? "" : "s")}";
+            actions.Clear();
+            UiNode add(string label, Action fn, string cls = "ghost")
             {
-                var b = el<HTMLButtonElement>("button", $"btn {cls}", label);
-                b.onclick = fn;
-                actions.append(b);
+                var b = new UiNode("button", $"btn {cls}", label);
+                b.OnClick = fn;
+                actions.Add(b);
                 return b;
             }
             add("Resume", () => hooks.onResume(), "big default");
             add("Save Game", () => this.openSaves("save", hooks.saves, mainButtons));
-            add("Load Game", () => this.openSaves("load", hooks.saves, mainButtons)).disabled = count == 0;
+            add("Load Game", () => this.openSaves("load", hooks.saves, mainButtons)).Disabled = count == 0;
             add("Settings", () => hooks.onSettings());
             add("Help", () => this.showHelp());
             add("Achievements", () => hooks.onAchievements());
@@ -551,51 +553,51 @@ public class UIManager
         };
         mainButtons();
         this.pauseEl = p;
-        this.root.append(p);
+        p.MountIn(this.root.ve);
     }
 
     private HTMLElement sleepEl = null;
     private HTMLElement bookEl = null;
     private Action<int> bookTurnFn = null;
-    private HTMLElement menuEl = null;
+    private UiNode menuEl = null;
     private HTMLElement settingsEl = null;
 
     /// <summary>The main menu: the title and a list of plain words on the left, the living beach behind.</summary>
     public void showMainMenu(MenuHooks h)
     {
         this.hideMainMenu();
-        var m = el("div", "mainmenu");
-        var panel = el("div", "mm-panel");
-        panel.append(el("div", "mm-kicker", "a quiet little adventure"), el("h1", "mm-title", "Tidefinder"), el("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
-        var list = el("div", "mm-buttons");
-        HTMLButtonElement mk(string label, Action fn, bool disabled = false)
+        var m = new UiNode("div", "mainmenu");
+        var panel = new UiNode("div", "mm-panel");
+        panel.Add(new UiNode("div", "mm-kicker", "a quiet little adventure"), new UiNode("h1", "mm-title", "Tidefinder"), new UiNode("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
+        var list = new UiNode("div", "mm-buttons");
+        UiNode mk(string label, Action fn, bool disabled = false)
         {
-            var b = el<HTMLButtonElement>("button", "mm-btn");
-            b.append(el("span", "mm-mark"), el("span", "mm-label", label));
-            b.disabled = disabled;
-            b.onclick = fn;
-            list.append(b);
+            var b = new UiNode("button", "mm-btn");
+            b.Add(new UiNode("span", "mm-mark"), new UiNode("span", "mm-label", label));
+            b.Disabled = disabled;
+            b.OnClick = fn;
+            list.Add(b);
             return b;
         }
         // the menu opens on what the player most likely wants: carrying on, if there is a game to carry on with
-        if (h.hasSaves && h.onContinue != null) mk("Continue", h.onContinue).classList.add("default");
+        if (h.hasSaves && h.onContinue != null) mk("Continue", h.onContinue).AddClass("default");
         var fresh = mk("New Game", h.onNew);
         mk("Load Game", h.onLoad, !h.hasSaves);
-        if (!h.hasSaves) fresh.classList.add("default");
+        if (!h.hasSaves) fresh.AddClass("default");
         mk("Settings", h.onSettings);
         mk("Help", () => this.showHelp());
         mk("Achievements", h.onAchievements);
         mk("Credits", () => this.showCredits());
         mk("Exit Game", h.onExit);
-        panel.append(list);
-        m.append(el("div", "mm-scrim"), panel, el("div", "mm-foot", $"Version {__APP_VERSION__}"));
+        panel.Add(list);
+        m.Add(new UiNode("div", "mm-scrim"), panel, new UiNode("div", "mm-foot", $"Version {__APP_VERSION__}"));
         this.menuEl = m;
-        this.root.append(m);
+        m.MountIn(this.root.ve);
     }
 
     public void hideMainMenu()
     {
-        this.menuEl?.remove();
+        this.menuEl?.Remove();
         this.menuEl = null;
     }
 
@@ -826,101 +828,101 @@ public class UIManager
     /// <summary>How to play: tabs of short topics, from what the game is about to the controls and saving.</summary>
     public void showHelp()
     {
-        var wrap = el("div", "pause helpscreen");
-        var card = el("div", "intro-card help-card");
-        card.append(el("h1", "", "Help"));
-        var tabs = el("div", "help-tabs");
-        var body = el("div", "help-body");
+        var wrap = new UiNode("div", "pause helpscreen");
+        var card = new UiNode("div", "intro-card help-card");
+        card.Add(new UiNode("h1", "", "Help"));
+        var tabs = new UiNode("div", "help-tabs");
+        var body = new UiNode("div", "help-body");
         int cur = 0;
         Action<int> show = null;
-        var tabWrap = el("div", "tabs-wrap");
+        var tabWrap = new UiNode("div", "tabs-wrap");
         var buttons = HELP_TOPICS.Select((t, i) =>
         {
             var idx = i;
-            var b = el<HTMLButtonElement>("button", $"btn tab{(i == 0 ? " on" : "")}", $"{t.icon} {t.title}");
-            b.onclick = () => show(idx);
-            tabWrap.append(b);
+            var b = node("button", $"btn tab{(i == 0 ? " on" : "")}", $"{t.icon} {t.title}");
+            b.OnClick = () => show(idx);
+            tabWrap.Add(b);
             return b;
         }).ToList();
-        tabs.append(Glyphs.key("Q", "LB"), tabWrap, Glyphs.key("E", "RB"));
+        tabs.Add(Glyphs.KeyNode("Q", "LB"), tabWrap, Glyphs.KeyNode("E", "RB"));
         show = (int i) =>
         {
             cur = i;
-            for (int k = 0; k < buttons.Count; k++) buttons[k].classList.toggle("on", k == i);
-            body.replaceChildren();
-            body.scrollTop = 0;
+            for (int k = 0; k < buttons.Count; k++) buttons[k].Toggle("on", k == i);
+            body.Clear();
+            body.ScrollTop = 0;
             foreach (var blk in HELP_TOPICS[i].blocks)
             {
                 // only the controls the player is using: the keyboard's list, or the controller's
                 if (blk.h == "Keyboard and mouse" && PadText.pad.on) continue;
                 if (blk.h == "Controller" && !PadText.pad.on) continue;
-                if (!string.IsNullOrEmpty(blk.h)) body.append(el("h3", "", blk.h));
-                if (!string.IsNullOrEmpty(blk.p)) body.append(el("p", "help-p", padText(blk.p)));
+                if (!string.IsNullOrEmpty(blk.h)) body.Add(node("h3", "", blk.h));
+                if (!string.IsNullOrEmpty(blk.p)) body.Add(node("p", "help-p", padText(blk.p)));
                 if (blk.list != null)
                 {
-                    var ul = el("ul", "help-list");
-                    foreach (var item in blk.list) ul.append(el("li", "", padText(item)));
-                    body.append(ul);
+                    var ul = new UiNode("ul", "help-list");
+                    foreach (var item in blk.list) ul.Add(node("li", "", padText(item)));
+                    body.Add(ul);
                 }
                 if (blk.keys != null)
                 {
-                    var keys = el("div", "keys");
+                    var keys = new UiNode("div", "keys");
                     foreach (var kv in blk.keys)
                     {
-                        var row = el("div", "krow");
-                        row.append(el("b", "", kv[0]), el("span", "", kv[1]));
-                        keys.append(row);
+                        var row = new UiNode("div", "krow");
+                        row.Add(node("b", "", kv[0]), node("span", "", kv[1]));
+                        keys.Add(row);
                     }
-                    body.append(keys);
+                    body.Add(keys);
                 }
             }
         };
         show(0);
         this.helpStepFn = dir =>
         {
-            if (!wrap.isConnected) return false;
+            if (wrap.ve.panel == null) return false;
             show((cur + dir + buttons.Count) % buttons.Count);
-            buttons[cur].focus();
+            buttons[cur].Focus();
             return true;
         };
-        var back = el<HTMLButtonElement>("button", "btn big", "Back");
-        back.onclick = () =>
+        var back = new UiNode("button", "btn big", "Back");
+        back.OnClick = () =>
         {
-            wrap.remove();
+            wrap.Remove();
             this.helpStepFn = null;
         };
-        card.append(tabs, body, back);
-        wrap.append(card);
-        this.root.append(wrap);
+        card.Add(tabs, body, back);
+        wrap.Add(card);
+        wrap.MountIn(this.root.ve);
     }
 
     /// <summary>Every achievement, with the ones already earned lit up.</summary>
     public void showAchievements(IList<AchievementItem> list)
     {
-        var wrap = el("div", "pause achievements");
-        var card = el("div", "intro-card ach-card");
+        var wrap = new UiNode("div", "pause achievements");
+        var card = new UiNode("div", "intro-card ach-card");
         var done = list.Count(a => a.done);
-        var meter = el("div", "bar ach-progress");
-        var meterFill = el("div", "fill teal");
-        meterFill.style.width = $"{JS.Str(list.Count > 0 ? JS.Round(done * 100.0 / list.Count) : 0)}%";
-        meter.append(meterFill);
-        card.append(el("h1", "", "Achievements"), el("p", "tag", $"{done} of {list.Count} earned"), meter);
-        var grid = el("div", "ach-list");
+        var meter = new UiNode("div", "bar ach-progress");
+        var meterFill = new UiNode("div", "fill teal");
+        meterFill.ve.style.width = UnityEngine.UIElements.Length.Percent((float)(list.Count > 0 ? JS.Round(done * 100.0 / list.Count) : 0));
+        meter.Add(meterFill);
+        card.Add(new UiNode("h1", "", "Achievements"), new UiNode("p", "tag", $"{done} of {list.Count} earned"), meter);
+        var grid = new UiNode("div", "ach-list");
         foreach (var a in list)
         {
-            var row = el("div", $"ach-row{(a.done ? " done" : "")}");
+            var row = new UiNode("div", $"ach-row{(a.done ? " done" : "")}");
             var hidden = a.secret && !a.done;
-            row.append(el("span", "ach-icon", hidden ? "❔" : a.icon));
-            var text = el("div", "ach-text");
-            text.append(el("b", "", hidden ? "Secret" : a.name), el("span", "", hidden ? "Keep exploring to find out." : a.desc));
-            row.append(text);
-            grid.append(row);
+            row.Add(node("span", "ach-icon", hidden ? "❔" : a.icon));
+            var text = new UiNode("div", "ach-text");
+            text.Add(node("b", "", hidden ? "Secret" : a.name), node("span", "", hidden ? "Keep exploring to find out." : a.desc));
+            row.Add(text);
+            grid.Add(row);
         }
-        var back = el<HTMLButtonElement>("button", "btn big", "Back");
-        back.onclick = () => wrap.remove();
-        card.append(grid, back);
-        wrap.append(card);
-        this.root.append(wrap);
+        var back = new UiNode("button", "btn big", "Back");
+        back.OnClick = () => wrap.Remove();
+        card.Add(grid, back);
+        wrap.Add(card);
+        wrap.MountIn(this.root.ve);
     }
 
     public void showAchievements(IList<AchView> list) => this.showAchievements(list.Cast<AchievementItem>().ToList());
@@ -928,37 +930,37 @@ public class UIManager
     /// <summary>The credits: who made the game. Opened from the main menu.</summary>
     public void showCredits()
     {
-        var wrap = el("div", "pause credits");
-        var card = el("div", "intro-card");
-        card.append(
-            el("h1", "", "Credits"),
-            el("p", "tag", "Tidefinder"),
-            el("p", "credit", "Made by Armen Azizbekyan, a solo developer and the creator of this game."),
-            el("p", "credit", "Thank you for playing."),
-            el("p", "save-note", $"Version {__APP_VERSION__} · {__BUILD_YEAR__}")
+        var wrap = new UiNode("div", "pause credits");
+        var card = new UiNode("div", "intro-card");
+        card.Add(
+            new UiNode("h1", "", "Credits"),
+            new UiNode("p", "tag", "Tidefinder"),
+            new UiNode("p", "credit", "Made by Armen Azizbekyan, a solo developer and the creator of this game."),
+            new UiNode("p", "credit", "Thank you for playing."),
+            new UiNode("p", "save-note", $"Version {__APP_VERSION__} · {__BUILD_YEAR__}")
         );
-        var back = el<HTMLButtonElement>("button", "btn big", "Back");
-        back.onclick = () => wrap.remove();
-        card.append(back);
-        wrap.append(card);
-        this.root.append(wrap);
+        var back = new UiNode("button", "btn big", "Back");
+        back.OnClick = () => wrap.Remove();
+        card.Add(back);
+        wrap.Add(card);
+        wrap.MountIn(this.root.ve);
     }
 
     /// <summary>What "Exit Game" shows: a web page cannot always close itself, so say goodbye nicely.</summary>
     public void showFarewell(Action onBack)
     {
-        var wrap = el("div", "pause farewell");
-        var card = el("div", "intro-card");
-        card.append(el("h1", "", "See you on the beach"), el("p", "tag", "Thanks for playing. Your saved games are kept for next time."), el("p", "save-note", "You can close this tab now."));
-        var back = el<HTMLButtonElement>("button", "btn big", "Back to the menu");
-        back.onclick = () =>
+        var wrap = new UiNode("div", "pause farewell");
+        var card = new UiNode("div", "intro-card");
+        card.Add(new UiNode("h1", "", "See you on the beach"), new UiNode("p", "tag", "Thanks for playing. Your saved games are kept for next time."), new UiNode("p", "save-note", "You can close this tab now."));
+        var back = new UiNode("button", "btn big", "Back to the menu");
+        back.OnClick = () =>
         {
-            wrap.remove();
+            wrap.Remove();
             onBack();
         };
-        card.append(back);
-        wrap.append(card);
-        this.root.append(wrap);
+        card.Add(back);
+        wrap.Add(card);
+        wrap.MountIn(this.root.ve);
     }
 
     /// <summary>The journal: two pages side by side (one on a narrow screen) with buttons to turn them.</summary>
@@ -1322,7 +1324,7 @@ public class UIManager
     }
 
     private HTMLElement savesEl = null;
-    private HTMLElement pauseEl = null;
+    private UiNode pauseEl = null;
 
     /// <summary>A second prompt, for the E key.</summary>
     public void setPrompt2(string label)
@@ -1721,8 +1723,8 @@ public class UIManager
         Glyphs.refresh(on);
         this.hintKey = null;
         this.padbarKey = "";
-        var help = this.root.querySelector<HTMLElement>(".inspect-help");
-        if (help != null) help.textContent = on ? "Left stick turns the find · hold RT and move the right stick to brush it clean" : "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate";
+        var help = this.inspectHelp;
+        if (help != null) help.Text = on ? "Left stick turns the find · hold RT and move the right stick to brush it clean" : "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate";
         this.binocKey = "";
         this.finderKey = "";
     }
@@ -1748,9 +1750,9 @@ public class UIManager
     {
         if (items == null || items.Count == 0)
         {
-            if (!this.padbar.classList.contains("hidden"))
+            if (!this.padbar.Has("hidden"))
             {
-                this.padbar.classList.add("hidden");
+                this.padbar.AddClass("hidden");
                 document.body.classList.remove("menu-open");
             }
             this.padbarKey = "";
@@ -1759,9 +1761,9 @@ public class UIManager
         var key = (pad.on ? "p" : "k") + (left ? "<" : ">") + string.Join("|", items.Select(i => i.label + ":" + string.Join(",", pad.on ? i.pad : i.kb)));
         if (key == this.padbarKey) return;
         this.padbarKey = key;
-        Glyphs.fillBar(this.padbar, items, pad.on);
-        this.padbar.classList.toggle("left", left);
-        this.padbar.classList.remove("hidden");
+        Glyphs.FillBar(this.padbar, items, pad.on);
+        this.padbar.Toggle("left", left);
+        this.padbar.RemoveClass("hidden");
         document.body.classList.add("menu-open");
     }
 
@@ -1799,82 +1801,111 @@ public class UIManager
 
     public void showInspect(string name, string customTitle = null)
     {
-        this.inspectTitle.textContent = customTitle ?? (name == "" ? "" : "Something encrusted in sand…");
-        this.result.classList.add("hidden");
-        this.inspect.classList.remove("hidden");
+        this.inspectTitle.Text = customTitle ?? (name == "" ? "" : "Something encrusted in sand…");
+        this.result.AddClass("hidden");
+        this.inspect.RemoveClass("hidden");
         this.setProgress(0);
     }
 
     public void hideInspect()
     {
-        this.inspect.classList.add("hidden");
-        this.result.classList.add("hidden");
+        this.inspect.AddClass("hidden");
+        this.result.AddClass("hidden");
     }
 
     public void setProgress(double p)
     {
-        this.progFill.style.width = $"{JS.Round(p * 100)}%";
-        this.progText.textContent = $"{JS.Round(p * 100)}%";
+        this.progFill.ve.style.width = UnityEngine.UIElements.Length.Percent((float)JS.Round(p * 100));
+        this.progText.Text = $"{JS.Round(p * 100)}%";
+    }
+
+    /// <summary>An element whose words are set as the page's innerHTML set them.</summary>
+    private static UiNode node(string tag, string cls, string html)
+    {
+        var n = new UiNode(tag, cls);
+        n.Markup = html;
+        return n;
     }
 
     public void showResult(string name, string lore, string valueText, string category, string button = "Add to Backpack")
     {
-        this.inspectTitle.textContent = name;
-        this.result.innerHTML = "";
-        var card = el("div", "card");
-        card.append(
-            el("div", "cat", category),
-            el("h2", "", name),
-            el("p", "lore", lore),
-            el("div", "worth", valueText)
+        this.inspectTitle.Text = name;
+        this.result.Clear();
+        var card = new UiNode("div", "card");
+        card.Add(
+            node("div", "cat", category),
+            node("h2", "", name),
+            node("p", "lore", lore),
+            node("div", "worth", valueText)
         );
-        var b = el<HTMLButtonElement>("button", "btn big");
-        b.append(Glyphs.key("Space", "A"), el("span", "", button));
-        b.onclick = () => this.hooks.onContinue();
-        card.append(b);
-        this.result.append(card);
-        this.result.classList.remove("hidden");
+        var b = new UiNode("button", "btn big");
+        b.Add(Glyphs.KeyNode("Space", "A"), node("span", "", button));
+        b.OnClick = () => this.hooks.onContinue();
+        card.Add(b);
+        this.result.Add(card);
+        this.result.RemoveClass("hidden");
     }
 
     public bool isResultOpen()
     {
-        return !this.result.classList.contains("hidden");
+        return !this.result.Has("hidden");
     }
+
+    /// <summary>A paragraph as the page parsed one: its words with the whitespace of the source collapsed.</summary>
+    private static UiNode para(string cls, string words) => node("p", cls, words);
 
     public void showIntro(Action onStart, Action onLoad = null)
     {
-        this.intro.classList.remove("gone");
-        if (!this.intro.isConnected) this.root.append(this.intro);
-        this.intro.innerHTML = $@"
-      <div class=""intro-card"">
-        <h1>Tidefinder</h1>
-        <p class=""tag"">A misty golden morning. A quiet beach. Nothing to rush.</p>
-        <div class=""intro-text"">
-          <p>The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat.</p>
-          <p>You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it.</p>
-          <p>The finds wash in to the treasure cove, the sand below the camp inside the old fishing nets. Beyond the nets there is only sand.</p>
-          <p>There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like.</p>
-          <ul class=""intro-first"">
-            <li><span>{DETECTOR_ICON}</span>Sweep the sand with the detector and listen for the beep.</li>
-            <li><span>⛏️</span>Dig where it beeps fastest.</li>
-            <li><span>✨</span>Brush what you find until it shines.</li>
-          </ul>
-          <p class=""intro-hint"">{(pad.on ? "Press Start" : "Press Esc")} at any time for the pause menu. Help there explains every control.</p>
-        </div>
-        <div class=""row gap""><button class=""btn big"" data-act=""begin"">Begin</button>{(onLoad != null ? @"<button class=""btn ghost big"" data-act=""load"">Load saved game</button>" : "")}</div>
-      </div>";
+        this.intro.RemoveClass("gone");
+        if (this.intro.ve.panel == null) this.intro.MountIn(this.root.ve);
+        this.intro.Clear();
+        var card = new UiNode("div", "intro-card");
+        card.Add(new UiNode("h1", null, "Tidefinder"), para("tag", "A misty golden morning. A quiet beach. Nothing to rush."));
+        var text = new UiNode("div", "intro-text");
+        text.Add(
+            para(null, "The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat."),
+            para(null, "You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it."),
+            para(null, "The finds wash in to the treasure cove, the sand below the camp inside the old fishing nets. Beyond the nets there is only sand."),
+            para(null, "There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like."));
+        var first = new UiNode("ul", "intro-first");
+        UiNode item(UiNode icon, string words)
+        {
+            var li = new UiNode("li");
+            var t = new UiNode("#text", null, words);
+            t.ve.style.flexShrink = 1;
+            return li.Add(icon, t);
+        }
+        // the drawing was sized while its span was not yet on the page (16.36 px, as the page's parser sized it)
+        var detector = new UiNode("span");
+        detector.Svg(DETECTOR_ICON);
+        first.Add(
+            item(detector, "Sweep the sand with the detector and listen for the beep."),
+            item(new UiNode("span", null, "⛏️"), "Dig where it beeps fastest."),
+            item(new UiNode("span", null, "✨"), "Brush what you find until it shines."));
+        text.Add(first, para("intro-hint", $"{(pad.on ? "Press Start" : "Press Esc")} at any time for the pause menu. Help there explains every control."));
+        var buttons = new UiNode("div", "row gap");
+        var begin = new UiNode("button", "btn big", "Begin");
+        buttons.Add(begin);
+        UiNode load = null;
+        if (onLoad != null)
+        {
+            load = new UiNode("button", "btn ghost big", "Load saved game");
+            buttons.Add(load);
+        }
+        card.Add(text, buttons);
+        this.intro.Add(card);
         void go()
         {
-            this.intro.classList.add("gone");
-            window.setTimeout(() => this.intro.remove(), 700);
+            this.intro.AddClass("gone");
+            GameTimers.After(700, () => this.intro.Remove());
             onStart();
         }
-        this.intro.querySelector("[data-act=begin]")?.addEventListener("click", _ => go());
-        this.intro.querySelector("[data-act=load]")?.addEventListener("click", _ => onLoad?.Invoke());
+        begin.OnClick = go;
+        if (load != null) load.OnClick = () => onLoad?.Invoke();
     }
 
     /// <summary>Used when a saved game is loaded straight into play.</summary>
-    private HTMLElement cineCaption, cineText, cineSkip, cineFlash;
+    private UiNode cineCaption, cineText, cineSkip, cineFlash;
 
     /// <summary>Lightning in the opening: whitens the whole screen by this much, 0..1.</summary>
     public void setFlash(double amount)
@@ -1882,11 +1913,11 @@ public class UIManager
         if (this.cineFlash == null)
         {
             if (amount <= 0 || this.cineCaption == null) return;
-            this.cineFlash = el("div", "cine-flash");
+            this.cineFlash = new UiNode("div", "cine-flash");
             // under the caption, so the words stay readable through the flash
-            this.root.insertBefore(this.cineFlash, this.cineCaption);
+            this.cineFlash.MountBefore(this.cineCaption.ve);
         }
-        this.cineFlash.style.opacity = JS.Str(Math.Round(Math.Max(0, Math.Min(1, amount)) * 100) / 100);
+        this.cineFlash.ve.style.opacity = (float)(Math.Round(Math.Max(0, Math.Min(1, amount)) * 100) / 100);
     }
     private string cineShown = null;
 
@@ -1898,38 +1929,47 @@ public class UIManager
     {
         if (!on)
         {
-            this.cineCaption?.remove();
-            this.cineSkip?.remove();
-            this.cineFlash?.remove();
+            this.cineCaption?.Remove();
+            this.cineSkip?.Remove();
+            this.cineFlash?.Remove();
             this.cineCaption = this.cineText = this.cineSkip = this.cineFlash = null;
             this.cineShown = null;
             return;
         }
         if (this.cineCaption == null)
         {
-            this.cineCaption = el("div", "cine-caption");
-            this.cineText = el("div", "cine-caption-text", "");
-            this.cineCaption.append(this.cineText);
-            this.cineSkip = el("div", "cine-skip", skipHint ?? "");
-            this.root.append(this.cineCaption, this.cineSkip);
+            this.cineCaption = new UiNode("div", "cine-caption");
+            this.cineText = new UiNode("div", "cine-caption-text");
+            this.cineCaption.Add(this.cineText);
+            this.cineSkip = node("div", "cine-skip", skipHint ?? "");
+            this.cineCaption.MountIn(this.root.ve);
+            this.cineSkip.MountIn(this.root.ve);
         }
         if (text == this.cineShown) return;
         this.cineShown = text;
         if (text == null)
         {
-            this.cineCaption.classList.remove("in");
+            this.cineCaption.RemoveClass("in");
             return;
         }
-        this.cineText.textContent = text;
-        this.cineCaption.classList.add("in");
+        this.cineText.Text = text;
+        this.cineCaption.AddClass("in");
     }
 
     public void skipIntro()
     {
-        this.intro.remove();
+        this.intro.Remove();
     }
 
-    public bool introOpen => this.intro.isConnected && !this.intro.classList.contains("gone");
+    public bool introOpen => this.intro.ve.panel != null && !this.intro.Has("gone");
 
     public HTMLElement container => this.root;
+
+    /// <summary>Takes away the first element with this class, page or native (document.querySelector(".cls")?.remove()).</summary>
+    internal static void removeFirst(string cls)
+    {
+        var e = MenuNav.Find(UiRoot.Root, v => v.ClassListContains(cls)).FirstOrDefault();
+        if (e.dom != null) e.dom.remove();
+        else e.node?.Remove();
+    }
 }

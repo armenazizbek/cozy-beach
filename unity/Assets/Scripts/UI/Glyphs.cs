@@ -28,6 +28,11 @@ public static class Glyphs
     /// <summary>Redraws every key made by <see cref="key"/> after the player picks up or puts down the controller.</summary>
     public static void refresh(bool onPad)
     {
+        for (int i = nativeKeys.Count - 1; i >= 0; i--)
+        {
+            if (!nativeKeys[i].TryGetTarget(out var n)) { nativeKeys.RemoveAt(i); continue; }
+            if (keyNames.TryGetValue(n, out var names)) Set(n, onPad ? names[1] : names[0], onPad);
+        }
         foreach (var e in document.querySelectorAll<HTMLElement>(".kc"))
         {
             var kb = e.dataset["kb"];
@@ -59,6 +64,18 @@ public static class Glyphs
         var (cls, text) = look(name, onPad, e.Has("mid"));
         if (e.ClassName != cls) e.ClassName = cls;
         if (e.Text != text || e.Children.Count > 0) e.Text = text;
+    }
+
+    private static readonly System.Collections.Generic.List<System.WeakReference<UiNode>> nativeKeys = new System.Collections.Generic.List<System.WeakReference<UiNode>>();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiNode, string[]> keyNames = new System.Runtime.CompilerServices.ConditionalWeakTable<UiNode, string[]>();
+
+    /// <summary><see cref="key"/> as a native element: redrawn by <see cref="refresh"/> when the controller is picked up or put down.</summary>
+    public static UiNode KeyNode(string kb, string padName)
+    {
+        var e = Make(pad.on ? padName : kb, pad.on);
+        keyNames.Add(e, new[] { kb, padName });
+        nativeKeys.Add(new System.WeakReference<UiNode>(e));
+        return e;
     }
 
     /// <summary><see cref="fill"/> for a native element.</summary>
@@ -240,6 +257,20 @@ public static class Glyphs
             this.label = label;
             this.pad = pad;
             this.kb = kb;
+        }
+    }
+
+    /// <summary><see cref="fillBar"/> for a native bar.</summary>
+    public static void FillBar(UiNode bar, IList<Prompt> items, bool onPad)
+    {
+        bar.Clear();
+        foreach (var it in items)
+        {
+            if ((onPad ? it.pad : it.kb).Length == 0) continue;
+            var e = new UiNode("div", "pb-item");
+            foreach (var k in onPad ? it.pad : it.kb) e.Add(Make(k, onPad));
+            e.Add(new UiNode("span", "pb-label", it.label));
+            bar.Add(e);
         }
     }
 

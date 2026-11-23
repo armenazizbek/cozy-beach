@@ -45,6 +45,37 @@ internal static class HtmlParser
         PopulateElementFromNodes(target, rootNodes);
     }
 
+    /// <summary>
+    /// The words an element shows when `html` is set as its innerHTML and it comes down to text: plain text, one text node,
+    /// or a run of inline formatting (b, i, u, small, br). False when the fragment makes elements (native screens build those
+    /// themselves).
+    /// </summary>
+    public static bool TryText(string html, out string text)
+    {
+        text = "";
+        if (string.IsNullOrEmpty(html)) return true;
+        if (html.IndexOf('<') < 0)
+        {
+            text = DecodeEntities(html);
+            return true;
+        }
+        var nodes = ParseFragment(html);
+        if (nodes == null || nodes.Count == 0) return true;
+        if (nodes.Count == 1 && nodes[0].isText)
+        {
+            text = DecodeEntities(CollapseWhitespace(nodes[0].text).Trim());
+            return true;
+        }
+        if (CanCollapseToRichText(nodes))
+        {
+            var sb = new StringBuilder();
+            BuildRichText(nodes, sb);
+            text = sb.ToString();
+            return true;
+        }
+        return false;
+    }
+
     private static void PopulateElementFromNodes(HTMLElement target, List<HtmlNode> nodes)
     {
         if (nodes == null || nodes.Count == 0) return;
