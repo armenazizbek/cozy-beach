@@ -43,6 +43,32 @@ public class Camp
     }
 
     public readonly THREE.Group group = new THREE.Group();
+
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S15: the camp (camper, fire, shop, boards, lanterns, the aquarium and every prop placed in
+    /// it) is a LiveTree under World.Land, kept in line with the description at draw time: lantern light and flicker, the radio,
+    /// windows, boards redrawn, props added. The descriptions stay up to date for the clickables' raycasts. The fire's embers
+    /// stay a particle pool the scene draws until S24, in a group standing where the camp stands (they are emitted in its frame).
+    /// </summary>
+    private LiveTree live;
+    private readonly THREE.Group loose = new THREE.Group();
+
+    /// <summary>Puts the camp into the world as native objects.</summary>
+    public void Place(THREE.Scene scene)
+    {
+        group.remove(embers.points);
+        loose.position.copy(group.position);
+        loose.quaternion.copy(group.quaternion);
+        loose.scale.copy(group.scale);
+        loose.add(embers.points);
+        scene.add(loose);
+        live = new LiveTree(group, World.Land);
+        NativeFrame.BeforeDraw += () =>
+        {
+            live.Sync();
+            loose.visible = group.visible && World.Land.gameObject.activeSelf;
+        };
+    }
     public readonly List<THREE.Object3D> clickables = new List<THREE.Object3D>();
     /// <summary>circular footprints in world space, for player collision</summary>
     public readonly List<Solid> obstacles = new List<Solid>();

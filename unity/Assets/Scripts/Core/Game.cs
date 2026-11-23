@@ -325,7 +325,6 @@ public class Game
         // of the sequence is the same as before
         beach.Place(createSurround(), createSkirt());
         scene.add(
-            camp.group,
             spawner.group
         );
         whitecaps.Place();
@@ -353,6 +352,7 @@ public class Game
         );
         cellar.Place();
         sea.Place(scene);
+        camp.Place(scene);
         under.Place(scene);
         tracks = new Tracks(beach);
         tracks.Place();

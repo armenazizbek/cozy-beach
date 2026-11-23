@@ -322,3 +322,13 @@ the verification passes (about 14 minutes for all 37 runs).
   fixed too. The underwater wrapper is on the dive's keep list, as the underwater group was.
 - **Check** (selfcheck, base, dive, sealife, fish, photo-alt, cove, islands, dolphins, opening, leap): every run clean,
   **133 of 133 dumps identical**, pictures pass or within noise (mean difference 0.06 at most).
+
+## S15: camp, with the aquarium (2026-11-24)
+
+- **Native camp:** camper, fire, shop, boards, lanterns, radio, every prop placed in it, and the aquarium (a camp prop).
+  One `LiveTree` under `World.Land`, synced at draw time: lantern light and flicker, windows, redrawn boards, props added
+  later. The descriptions stay current for the clickables' raycasts.
+- The fire's embers stay a particle pool until S24, in a wrapper group standing where the camp stands, because they
+  are emitted in the camp's frame.
+- **Check** (selfcheck, base, newgame, shop, photo, tour, ui, dograin, rain, fish, gear): every run clean, **124 of 124
+  dumps identical**, pictures pass or within noise.
