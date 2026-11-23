@@ -613,41 +613,45 @@ public class HTMLElement
     internal void ReorderChildrenByZIndex()
     {
         var container = ChildContainer;
-        if (container == null || _children.Count <= 1) return;
+        if (container == null || container.childCount <= 1) return;
 
+        // every element in the container, native ones (UI/Native) too: a page element by its z-index, a native one by the
+        // same class and id table; the container's own text first, as the page keeps it
+        var all = new List<(VisualElement v, int z)>(container.childCount);
         bool anyNonZero = false;
-        for (int i = 0; i < _children.Count; i++)
+        foreach (var v in container.Children())
         {
-            if (_children[i].GetEffectiveZIndex() != 0)
+            int z = 0;
+            if (v.userData is HTMLElement el && ReferenceEquals(el.parentElement, this) && el.ve == v)
             {
-                anyNonZero = true;
-                break;
+                if (el is HTMLOptionElement) continue;
+                z = el.GetEffectiveZIndex();
             }
+            else if (!(v.userData is HTMLElement)) z = NativeZIndex(v);
+            if (z != 0) anyNonZero = true;
+            all.Add((v, z));
         }
         if (!anyNonZero) return;
 
-        // Stable sort by (zIndex, domIndex)
-        var ordered = new List<(HTMLElement el, int z, int idx)>(_children.Count);
-        for (int i = 0; i < _children.Count; i++)
-        {
-            var c = _children[i];
-            if (c is HTMLOptionElement) continue;
-            ordered.Add((c, c.GetEffectiveZIndex(), i));
-        }
+        // a stable sort by z: elements with the same z keep the order they have (which is the order they were added in)
+        var ordered = new List<(VisualElement v, int z, int idx)>(all.Count);
+        for (int i = 0; i < all.Count; i++) ordered.Add((all[i].v, all[i].z, i));
         ordered.Sort((a, b) =>
         {
             int cmp = a.z.CompareTo(b.z);
             return cmp != 0 ? cmp : a.idx.CompareTo(b.idx);
         });
+        for (int i = 0; i < ordered.Count; i++) ordered[i].v.BringToFront();
+    }
 
-        for (int i = 0; i < ordered.Count; i++)
-        {
-            var cve = ordered[i].el.ve;
-            if (cve != null && cve.parent == container)
-            {
-                cve.BringToFront();
-            }
-        }
+    /// <summary>The z-index the page gives a native element's classes or id (CssAnimations.ZIndex).</summary>
+    private static int NativeZIndex(VisualElement v)
+    {
+        int best = 0;
+        if (!string.IsNullOrEmpty(v.name) && CssAnimations.ZIndex.TryGetValue(v.name, out int idZ) && idZ > best) best = idZ;
+        foreach (var c in v.GetClasses())
+            if (CssAnimations.ZIndex.TryGetValue(c, out int z) && z > best) best = z;
+        return best;
     }
 
     internal float GetEffectiveFontSize()

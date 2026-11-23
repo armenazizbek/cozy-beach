@@ -122,6 +122,12 @@ public class UIManager
         else target.textContent = icon;
     }
 
+    private static void showIcon(UiNode target, string icon)
+    {
+        if (icon.StartsWith("<")) target.Svg(icon);
+        else target.Text = icon;
+    }
+
     private static HTMLElement el(string tag, string cls = "", string html = "")
     {
         var e = document.createElement(tag);
@@ -141,36 +147,37 @@ public class UIManager
     public readonly HTMLCanvasElement waveCanvas = el<HTMLCanvasElement>("canvas", "wave");
     public readonly CanvasRenderingContext2D waveCtx;
     private HTMLElement root;
-    private HTMLElement coins = el("span", "val");
-    private HTMLElement warmFill = el("div", "fill");
-    private HTMLElement warmText = el("span", "val");
-    private HTMLElement mugName = el("span", "sub");
-    private HTMLElement pack = el("span", "val");
-    private HTMLElement eco = el("span", "val");
-    private HTMLElement bones = el("span", "val");
-    private HTMLElement boneChip = el("div", "chip hidden", "🦴 ");
-    private HTMLElement badge = el("div", "tool-badge");
-    private HTMLElement badgeIcon = el("span", "tb-ico");
-    private HTMLElement badgeName = el("span", "tb-name");
+    // the HUD is native (UI/Native/UiNode.cs): the same elements and classes the page had, so Style.uss draws them alike
+    private UiNode coins = new UiNode("span", "val");
+    private UiNode warmFill = new UiNode("div", "fill");
+    private UiNode warmText = new UiNode("span", "val");
+    private UiNode mugName = new UiNode("span", "sub");
+    private UiNode pack = new UiNode("span", "val");
+    private UiNode eco = new UiNode("span", "val");
+    private UiNode bones = new UiNode("span", "val");
+    private UiNode boneChip = new UiNode("div", "chip hidden", "🦴 ");
+    private UiNode badge = new UiNode("div", "tool-badge");
+    private UiNode badgeIcon = new UiNode("span", "tb-ico");
+    private UiNode badgeName = new UiNode("span", "tb-name");
     /// <summary>the controller's d-pad tool picker, shown instead of the badge while a controller is in use</summary>
-    private HTMLElement padTools = el("div", "padtools hidden");
-    private Dictionary<string, HTMLElement> padSlots = new Dictionary<string, HTMLElement>
+    private UiNode padTools = new UiNode("div", "padtools hidden");
+    private Dictionary<string, UiNode> padSlots = new Dictionary<string, UiNode>
     {
-        ["up"] = el("div", "pt up"),
-        ["right"] = el("div", "pt right"),
-        ["down"] = el("div", "pt down"),
-        ["left"] = el("div", "pt left"),
+        ["up"] = new UiNode("div", "pt up"),
+        ["right"] = new UiNode("div", "pt right"),
+        ["down"] = new UiNode("div", "pt down"),
+        ["left"] = new UiNode("div", "pt left"),
     };
-    private HTMLElement padCaption = el("div", "pt-caption");
+    private UiNode padCaption = new UiNode("div", "pt-caption");
     /// <summary>every tool that shares the d-pad's left slot, in the order the presses go round them, the one in hand lit</summary>
-    private HTMLElement padStack = el("div", "pt-stack hidden");
+    private UiNode padStack = new UiNode("div", "pt-stack hidden");
     /// <summary>"(d-pad left) Bow": what the next press of left gives, so it is plain that pressing again moves on</summary>
-    private HTMLElement padNext = el("div", "pt-next hidden");
+    private UiNode padNext = new UiNode("div", "pt-next hidden");
     private int curTool = 1;
     private bool badgeOverride = false;
-    private HTMLElement hint = el("div", "hint");
-    private HTMLElement toasts = el("div", "toasts");
-    private HTMLElement fadeEl = el("div", "fade");
+    private UiNode hint = new UiNode("div", "hint");
+    private UiNode toasts = new UiNode("div", "toasts");
+    private UiNode fadeEl = new UiNode("div", "fade");
     private HTMLElement hud = el("div", "hud");
     private HTMLElement scope = el("div", "scope");
     private HTMLElement inspect = el("div", "inspect hidden");
@@ -180,9 +187,9 @@ public class UIManager
     private HTMLButtonElement instantBtn = el<HTMLButtonElement>("button", "btn", "Instant Clean");
     private HTMLElement result = el("div", "result hidden");
     private HTMLElement intro = el("div", "intro");
-    private HTMLElement cross = el("div", "cross");
-    private HTMLElement drawbar = el("div", "drawbar hidden");
-    private HTMLElement drawFill = el("div", "fill");
+    private UiNode cross = new UiNode("div", "cross");
+    private UiNode drawbar = new UiNode("div", "drawbar hidden");
+    private UiNode drawFill = new UiNode("div", "fill");
     private HTMLCanvasElement binoc = el<HTMLCanvasElement>("canvas", "binoc hidden");
     private HTMLCanvasElement binocText = el<HTMLCanvasElement>("canvas", "binoc-text hidden");
     private string binocFrameKey = "";
@@ -221,12 +228,12 @@ public class UIManager
     private HTMLElement mapEl = null;
     private Action mapToggle = null;
     private Action mapRepaint = null;
-    private HTMLElement clock = el("div", "chip clock");
-    private HTMLElement prompt = el("div", "prompt");
-    private HTMLElement prompt2 = el("div", "prompt p2");
-    private HTMLElement prompt2Text = el("span", "txt");
-    private HTMLElement promptText = el("span", "txt");
-    private HTMLButtonElement muteBtn = el<HTMLButtonElement>("button", "chip mute", "🔊");
+    private UiNode clock = new UiNode("div", "chip clock");
+    private UiNode prompt = new UiNode("div", "prompt");
+    private UiNode prompt2 = new UiNode("div", "prompt p2");
+    private UiNode prompt2Text = new UiNode("span", "txt");
+    private UiNode promptText = new UiNode("span", "txt");
+    private UiNode muteBtn = new UiNode("button", "chip mute", "🔊");
     /// <summary>what the keys or the controller's buttons do in the menu that is open, along the bottom of the screen</summary>
     private HTMLElement padbar = el("div", "padbar hidden");
     private string padbarKey = "";
@@ -246,25 +253,25 @@ public class UIManager
         this.buildHud();
         this.buildInspect();
         // the key to press is a picture (a key cap, or the controller's button), in a holder that bobs gently
-        this.kbdF = Glyphs.make("F", false);
-        this.kbdE = Glyphs.make("E", false);
-        var holdF = el("span", "kbd");
-        holdF.append(this.kbdF);
-        var holdE = el("span", "kbd");
-        holdE.append(this.kbdE);
-        this.prompt.append(holdF, this.promptText);
-        this.prompt2.append(holdE, this.prompt2Text);
-        this.drawbar.append(this.drawFill);
+        this.kbdF = Glyphs.Make("F", false);
+        this.kbdE = Glyphs.Make("E", false);
+        var holdF = new UiNode("span", "kbd");
+        holdF.Add(this.kbdF);
+        var holdE = new UiNode("span", "kbd");
+        holdE.Add(this.kbdE);
+        this.prompt.Add(holdF, this.promptText);
+        this.prompt2.Add(holdE, this.prompt2Text);
+        this.drawbar.Add(this.drawFill);
         // The prompts and the hint sit in the middle of a row as wide as the screen. They used to be centred with
         // "left: 50%; translate: -50%", but UI Toolkit works that half-width out once and keeps it: when the words changed,
         // the box grew to the right only, and a long hint ran under the tool in the corner.
-        HTMLElement centred(string cls, HTMLElement what)
+        UiNode centred(string cls, UiNode what) => new UiNode("div", cls).Add(what);
+        // page elements and native ones, in the page's order
+        foreach (var part in new object[] { this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, centred("prompt-row", this.prompt), centred("prompt-row p2", this.prompt2), this.hud, this.scope, centred("hint-row", this.hint), this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar })
         {
-            var row = el("div", cls);
-            row.append(what);
-            return row;
+            if (part is UiNode n) n.MountIn(root.ve);
+            else root.append((HTMLElement)part);
         }
-        root.append(this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, centred("prompt-row", this.prompt), centred("prompt-row p2", this.prompt2), this.hud, this.scope, centred("hint-row", this.hint), this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
@@ -272,41 +279,46 @@ public class UIManager
     private void buildHud()
     {
         // top left: coins, and the warmth meter with the mug it comes from
-        var left = el("div", "stats");
-        var coinRow = el("div", "stat coins", "<span class=\"ico\">🪙</span>");
-        coinRow.append(this.coins);
-        var warmRow = el("div", "stat warm", "<span class=\"ico\">☕</span>");
-        var warmCol = el("div", "warm-col");
-        var head = el("div", "warm-head");
-        head.append(this.mugName, this.warmText);
-        var bar = el("div", "bar");
-        bar.append(this.warmFill);
-        warmCol.append(head, bar);
-        warmRow.append(warmCol);
-        left.append(coinRow, warmRow);
+        var left = new UiNode("div", "stats");
+        var coinRow = new UiNode("div", "stat coins").Add(new UiNode("span", "ico", "🪙"));
+        coinRow.Add(this.coins);
+        var warmRow = new UiNode("div", "stat warm").Add(new UiNode("span", "ico", "☕"));
+        var warmCol = new UiNode("div", "warm-col");
+        var head = new UiNode("div", "warm-head");
+        head.Add(this.mugName, this.warmText);
+        var bar = new UiNode("div", "bar");
+        bar.Add(this.warmFill);
+        warmCol.Add(head, bar);
+        warmRow.Add(warmCol);
+        left.Add(coinRow, warmRow);
 
-        var right = el("div", "right-chips");
-        var packChip = el("div", "chip", "🎒 ");
-        packChip.append(this.pack);
-        packChip.title = "Backpack";
-        var ecoChip = el("div", "chip", "🌿 ");
-        ecoChip.append(this.eco);
-        ecoChip.title = "Beach Ecology Score";
-        this.muteBtn.title = "Mute (N)";
-        this.muteBtn.onclick = () =>
+        var right = new UiNode("div", "right-chips");
+        var packChip = new UiNode("div", "chip", "🎒 ");
+        packChip.Add(this.pack);
+        packChip.Tooltip = "Backpack";
+        var ecoChip = new UiNode("div", "chip", "🌿 ");
+        ecoChip.Add(this.eco);
+        ecoChip.Tooltip = "Beach Ecology Score";
+        this.muteBtn.Tooltip = "Mute (N)";
+        this.muteBtn.OnClick = () =>
         {
-            this.muteBtn.textContent = this.hooks.onMute() ? "🔇" : "🔊";
+            this.muteBtn.Text = this.hooks.onMute() ? "🔇" : "🔊";
         };
-        this.clock.title = "Time of day and the day count";
-        this.boneChip.append(this.bones);
-        this.boneChip.title = "Dog bones";
-        right.append(this.clock, packChip, ecoChip, this.boneChip, this.muteBtn);
+        this.clock.Tooltip = "Time of day and the day count";
+        this.boneChip.Add(this.bones);
+        this.boneChip.Tooltip = "Dog bones";
+        right.Add(this.clock, packChip, ecoChip, this.boneChip, this.muteBtn);
 
-        this.badge.append(this.badgeIcon, this.badgeName);
+        this.badge.Add(this.badgeIcon, this.badgeName);
         this.miniCanvas.width = this.miniCanvas.height = MINI_PX;
-        var center = el("div", "pt-center");
-        this.padTools.append(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption, this.padStack, this.padNext);
-        this.hud.append(left, right, this.miniCanvas, el("div", "minimap-ring"), this.badge, this.padTools);
+        var center = new UiNode("div", "pt-center");
+        this.padTools.Add(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption, this.padStack, this.padNext);
+        // the minimap stays a page canvas (S32); the rest of the HUD is native, in the page's order
+        left.MountIn(this.hud.ve);
+        right.MountIn(this.hud.ve);
+        this.hud.append(this.miniCanvas, el("div", "minimap-ring"));
+        this.badge.MountIn(this.hud.ve);
+        this.padTools.MountIn(this.hud.ve);
 
         this.scope.append(el("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
     }
@@ -335,16 +347,16 @@ public class UIManager
     {
         this.updatePadTools();
         var d = this.state.data;
-        this.coins.textContent = $"{d.coins}g";
+        this.coins.Text = $"{d.coins}g";
         var max = this.state.maxWarmth;
-        this.warmFill.style.width = $"{JS.Str((d.warmth / max) * 100)}%";
-        this.warmFill.classList.toggle("low", d.warmth / max < 0.25);
-        this.warmText.textContent = $"{JS.Round(d.warmth)} / {max}";
-        this.mugName.textContent = TIER_INFO["gear"].names[this.state.tier("gear") - 1];
-        this.pack.textContent = $"{d.inventory.Count}";
-        this.eco.textContent = $"{d.ecology}";
-        this.bones.textContent = $"{d.bones}";
-        this.boneChip.classList.toggle("hidden", d.bones <= 0);
+        this.warmFill.ve.style.width = UnityEngine.UIElements.Length.Percent((float)((d.warmth / max) * 100));
+        this.warmFill.Toggle("low", d.warmth / max < 0.25);
+        this.warmText.Text = $"{JS.Round(d.warmth)} / {max}";
+        this.mugName.Text = TIER_INFO["gear"].names[this.state.tier("gear") - 1];
+        this.pack.Text = $"{d.inventory.Count}";
+        this.eco.Text = $"{d.ecology}";
+        this.bones.Text = $"{d.bones}";
+        this.boneChip.Toggle("hidden", d.bones <= 0);
         this.instantBtn.classList.toggle("hidden", this.state.tier("cleaning") < 3);
         // buying a digging upgrade changes the tool already in hand
         var dig = this.state.tier("digging");
@@ -355,7 +367,7 @@ public class UIManager
             {
                 var dt = this.digTool();
                 showIcon(this.badgeIcon, dt[0]);
-                this.badgeName.textContent = dt[1];
+                this.badgeName.Text = dt[1];
                 this.updatePadTools();
             }
         }
@@ -385,12 +397,12 @@ public class UIManager
         };
         this.curTool = n;
         this.badgeOverride = false;
-        this.badge.classList.toggle("hidden", n == 0 || pad.on);
+        this.badge.Toggle("hidden", n == 0 || pad.on);
         this.updatePadTools();
         if (n != 0 && info.TryGetValue(n, out var inf))
         {
             showIcon(this.badgeIcon, inf[0]);
-            this.badgeName.textContent = n == 7 ? $"Flags x{this.state.data.flags}" : inf[1];
+            this.badgeName.Text = n == 7 ? $"Flags x{this.state.data.flags}" : inf[1];
         }
         this.scope.classList.toggle("hidden", n != 1);
         document.body.classList.toggle("scope-on", n == 1);
@@ -416,7 +428,7 @@ public class UIManager
     private void updatePadTools()
     {
         var show = pad.on && this.curTool != 0 && !this.badgeOverride;
-        this.padTools.classList.toggle("hidden", !show);
+        this.padTools.Toggle("hidden", !show);
         if (!show) return;
         var icons = new Dictionary<int, string[]>
         {
@@ -443,32 +455,32 @@ public class UIManager
             var t = slotTool[k];
             var slot = this.padSlots[k];
             showIcon(slot, t != 0 && icons.ContainsKey(t) ? icons[t][0] : "·");
-            if (t == 7) slot.append(el("small", "", $"x{this.state.data.flags}"));
-            slot.classList.toggle("on", t != 0 && t == this.curTool);
-            slot.classList.toggle("empty", t == 0);
+            if (t == 7) slot.Add(new UiNode("small", null, $"x{this.state.data.flags}"));
+            slot.Toggle("on", t != 0 && t == this.curTool);
+            slot.Toggle("empty", t == 0);
         }
         // more than one tool behind the left slot: show them all, and what the next press brings
         bool cycle = others.Count > 1;
-        this.padStack.classList.toggle("hidden", !cycle);
-        this.padNext.classList.toggle("hidden", !cycle);
+        this.padStack.Toggle("hidden", !cycle);
+        this.padNext.Toggle("hidden", !cycle);
         if (cycle)
         {
-            this.padStack.replaceChildren();
+            this.padStack.Clear();
             foreach (var t in others)
             {
-                var ps = el("div", "ps");
+                var ps = new UiNode("div", "ps");
                 showIcon(ps, icons.TryGetValue(t, out var inf) ? inf[0] : "·");
-                ps.classList.toggle("on", t == this.curTool);
-                this.padStack.append(ps);
+                ps.Toggle("on", t == this.curTool);
+                this.padStack.Add(ps);
             }
             // in hand: the press moves on to the one after; otherwise it picks up the one shown in the slot
             int nextTool = others.Contains(this.curTool) ? others[(others.IndexOf(this.curTool) + 1) % others.Count] : leftTool;
-            this.padNext.replaceChildren();
-            var name = el("span", "pn-name");
-            name.textContent = "next: " + (nextTool == 7 ? $"Flags x{this.state.data.flags}" : icons.TryGetValue(nextTool, out var ni) ? ni[1] : "");
-            this.padNext.append(Glyphs.make("D-pad left", true), name);
+            this.padNext.Clear();
+            var name = new UiNode("span", "pn-name");
+            name.Text = "next: " + (nextTool == 7 ? $"Flags x{this.state.data.flags}" : icons.TryGetValue(nextTool, out var ni) ? ni[1] : "");
+            this.padNext.Add(Glyphs.Make("D-pad left", true), name);
         }
-        this.padCaption.textContent = icons.TryGetValue(this.curTool, out var curInf) && !string.IsNullOrEmpty(curInf[1])
+        this.padCaption.Text = icons.TryGetValue(this.curTool, out var curInf) && !string.IsNullOrEmpty(curInf[1])
             ? (this.curTool == 7 ? $"Flags x{this.state.data.flags}" : curInf[1])
             : "";
     }
@@ -1315,15 +1327,15 @@ public class UIManager
     /// <summary>A second prompt, for the E key.</summary>
     public void setPrompt2(string label)
     {
-        if (!string.IsNullOrEmpty(label)) this.prompt2Text.textContent = label;
-        this.prompt2.classList.toggle("on", !string.IsNullOrEmpty(label));
+        if (!string.IsNullOrEmpty(label)) this.prompt2Text.Text = label;
+        this.prompt2.Toggle("on", !string.IsNullOrEmpty(label));
     }
 
     /// <summary>Shows the "press F" prompt for something the player is standing next to.</summary>
     public void setPrompt(string label)
     {
-        if (!string.IsNullOrEmpty(label)) this.promptText.textContent = label;
-        this.prompt.classList.toggle("on", !string.IsNullOrEmpty(label));
+        if (!string.IsNullOrEmpty(label)) this.promptText.Text = label;
+        this.prompt.Toggle("on", !string.IsNullOrEmpty(label));
     }
 
     private string clockIcon;
@@ -1334,7 +1346,7 @@ public class UIManager
         if (icon == this.clockIcon && day == this.clockDay) return;
         this.clockIcon = icon;
         this.clockDay = day;
-        this.clock.textContent = $"{icon} Day {day}";
+        this.clock.Text = $"{icon} Day {day}";
     }
 
     public CanvasRenderingContext2D miniCtx => this.miniCanvas.getContext("2d");
@@ -1428,7 +1440,7 @@ public class UIManager
         document.body.classList.toggle("underground", on);
     }
 
-    private HTMLElement diveTint = null;
+    private UiNode diveTint = null;
 
     /// <summary>Underwater the minimap goes away and a soft blue vignette comes in at the edges.</summary>
     public void setDiving(bool on)
@@ -1436,10 +1448,10 @@ public class UIManager
         document.body.classList.toggle("diving", on);
         if (this.diveTint == null)
         {
-            this.diveTint = el("div", "dive-tint");
-            this.hud.append(this.diveTint);
+            this.diveTint = new UiNode("div", "dive-tint");
+            this.diveTint.MountIn(this.hud.ve);
         }
-        this.diveTint.classList.toggle("on", on);
+        this.diveTint.Toggle("on", on);
     }
 
     /// <summary>Replaces the tool badge text (used while driving).</summary>
@@ -1447,9 +1459,9 @@ public class UIManager
     {
         this.badgeOverride = true;
         this.updatePadTools();
-        this.badge.classList.remove("hidden");
-        this.badgeIcon.textContent = icon;
-        this.badgeName.textContent = name;
+        this.badge.RemoveClass("hidden");
+        this.badgeIcon.Text = icon;
+        this.badgeName.Text = name;
     }
 
     /// <summary>The two-lens binocular view with a range readout. Redraws only when something changed.</summary>
@@ -1685,26 +1697,26 @@ public class UIManager
     /// <summary>The strength meter under the crosshair while a bow is drawn. 0 hides it.</summary>
     public void setDraw(double p)
     {
-        this.drawbar.classList.toggle("hidden", p <= 0.001);
-        this.drawFill.style.width = $"{JS.Round(p * 100)}%";
+        this.drawbar.Toggle("hidden", p <= 0.001);
+        this.drawFill.ve.style.width = UnityEngine.UIElements.Length.Percent((float)JS.Round(p * 100));
     }
 
     public void setCrosshair(bool on)
     {
-        this.cross.classList.toggle("on", on);
+        this.cross.Toggle("on", on);
     }
 
-    private HTMLElement kbdF = null;
-    private HTMLElement kbdE = null;
+    private UiNode kbdF = null;
+    private UiNode kbdE = null;
 
     /// <summary>Switches prompts and hints between keyboard and controller wording.</summary>
     public void setPadMode(bool on)
     {
         pad.on = on;
-        this.badge.classList.toggle("hidden", this.curTool == 0 || (on && !this.badgeOverride));
+        this.badge.Toggle("hidden", this.curTool == 0 || (on && !this.badgeOverride));
         this.updatePadTools();
-        if (this.kbdF != null) Glyphs.set(this.kbdF, on ? "A" : "F", on);
-        if (this.kbdE != null) Glyphs.set(this.kbdE, on ? "X" : "E", on);
+        if (this.kbdF != null) Glyphs.Set(this.kbdF, on ? "A" : "F", on);
+        if (this.kbdE != null) Glyphs.Set(this.kbdE, on ? "X" : "E", on);
         // every other key drawn on screen follows
         Glyphs.refresh(on);
         this.hintKey = null;
@@ -1723,9 +1735,9 @@ public class UIManager
         {
             this.hintKey = key;
             // the keys a hint names are drawn as key caps; an empty hint keeps the old words while it fades out
-            if (t.Length > 0) Glyphs.fill(this.hint, t, pad.on);
+            if (t.Length > 0) Glyphs.Fill(this.hint, t, pad.on);
         }
-        this.hint.classList.toggle("show", t.Length > 0);
+        this.hint.Toggle("show", t.Length > 0);
     }
 
     /// <summary>
@@ -1754,29 +1766,35 @@ public class UIManager
     }
 
     /// <summary>Puts a full-screen layer (the telescope's eyepiece) over the HUD but under the toasts and the fade.</summary>
-    public void addLayer(HTMLElement e) => this.toasts.before(e);
+    public void addLayer(HTMLElement e)
+    {
+        // a page element joins the page, then stands just under the (native) toasts, as toasts.before(e) put it
+        this.root.append(e);
+        if (e.ve != null && this.toasts.ve.parent == e.ve.parent) e.ve.PlaceBehind(this.toasts.ve);
+    }
 
     public void toast(string msg)
     {
-        var t = el("div", "toast", padText(msg));
-        this.toasts.append(t);
-        window.requestAnimationFrame(_ => t.classList.add("in"));
-        window.setTimeout(() =>
+        // the words as the page took them (entities decoded; text with markup never comes here)
+        var t = new UiNode("div", "toast", HtmlParser.DecodeEntities(padText(msg)));
+        this.toasts.Add(t);
+        GameTimers.NextFrame(_ => t.AddClass("in"));
+        GameTimers.After(3200, () =>
         {
-            t.classList.remove("in");
-            window.setTimeout(() => t.remove(), 500);
-        }, 3200);
+            t.RemoveClass("in");
+            GameTimers.After(500, () => t.Remove());
+        });
     }
 
     /// <summary>Cross-fades through black, running `mid` at the darkest point.</summary>
     public void fade(Action mid)
     {
-        this.fadeEl.classList.add("on");
-        window.setTimeout(() =>
+        this.fadeEl.AddClass("on");
+        GameTimers.After(320, () =>
         {
             mid();
-            window.requestAnimationFrame(_ => this.fadeEl.classList.remove("on"));
-        }, 320);
+            GameTimers.NextFrame(_ => this.fadeEl.RemoveClass("on"));
+        });
     }
 
     public void showInspect(string name, string customTitle = null)

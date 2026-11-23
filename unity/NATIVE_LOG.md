@@ -482,3 +482,24 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Not yet:** `UiAnim`, `MenuNav` and the icon baker come with the screens that first need them (S28, S29).
 - **Full passes (S26, S27):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, the loading shots
   within their usual noise (mean at most 0.16/255) and the same picture side by side, 428 of 438 dumps identical.
+
+## S28 (first part): UiNode, UiAnim and the native HUD (2026-11-24)
+
+- **`UiNode`** (`UI/Native`): a native element built exactly as the DOM layer built one, without the page emulation:
+  the tag class (`t-div`, ...), its own words in a label with no margins (emoji sprites, the uppercase rules), the
+  heading and title faces by tag and class, pill corners kept at half the shorter side, `.hidden` over every other
+  display rule, the page's picking rules, tooltips, click, inline SVG drawings sized in em as the page sized them
+  (`Svg`), and `MountIn` to hang under a page element while both kinds coexist.
+- **`UiAnim`**: the page's animations (key bob, card pop, camp slide, menu and sleep fades, the z's) and the helper
+  classes for selectors USS lacks, moved out of `CssAnimations` and matched by the element's classes, so page and
+  native elements animate alike.
+- **Mixed siblings:** the DOM's z-index pass now sorts every VisualElement in a container (a stable sort by z, native
+  ones by the same class and id table), so native siblings keep their place instead of falling behind the page's.
+- **Native now:** the HUD's stats (coins, the warmth bar and mug), the chips (clock, backpack, ecology, bones, mute),
+  the tool badge with its drawings, the controller's d-pad tools (slots, stack, next), the two prompts with their key
+  pictures, the hint with its keys (`Glyphs.Make/Set/Fill`), the toasts, the crosshair, the draw bar, the dive tint and
+  the fade. `addLayer` puts a page layer just under the native toasts, as before.
+- **Still page elements:** the minimap and detector canvases, the binocular and viewfinder canvases (S32), inspect and
+  result (they have buttons the menu navigation drives: with `MenuNav`, S29), the intro, the menu bar.
+- **Full pass:** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading shots within 0.02/255,
+  428 of 438 dumps identical.

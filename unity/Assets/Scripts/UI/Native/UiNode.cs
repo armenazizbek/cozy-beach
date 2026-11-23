@@ -1,0 +1,391 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UIElements;
+
+/// <summary>
+/// A native UI element (unity/NATIVE_PLAN.md 2.7, S28): a VisualElement built exactly as the DOM layer built one for the
+/// same tag and classes, so Style.uss draws it the same, without the page emulation around it (no HTML parsing, selectors,
+/// CSS strings or event objects). What it keeps from the DOM layer is only what shows:
+/// <list type="bullet">
+/// <item>the tag class (`t-div`, `t-span`, ...) and the classes;</item>
+/// <item>its own text in a label with no margins or padding, first among its children, emoji drawn as sprites and
+/// uppercased under the page's uppercase rules;</item>
+/// <item>the heading face for h1, h2 and `.display`, the title face for the main menu's and loading screen's classes;</item>
+/// <item>pill-shaped corners kept at half the shorter side (CSS's clamping of a big radius);</item>
+/// <item>`.hidden` winning over every other display rule;</item>
+/// <item>picking by the page's rules (pointer-events none classes, buttons and clickable elements, interactive
+/// containers);</item>
+/// <item>tooltips, and the page's animations and helper classes (UiAnim).</item>
+/// </list>
+/// </summary>
+public class UiNode
+{
+    public readonly VisualElement ve;
+    public readonly string tag;
+    public UiNode Parent { get; private set; }
+    private readonly List<UiNode> kids = new List<UiNode>();
+    private Label label;
+    private string text = "";
+    private Action onClick;
+
+    /// <summary>The page's uppercase rules (HTMLElement.UPPERCASE): `.card .cat`, `.set-rows .t-h3`, `.bp-head`, `.caps`.</summary>
+    private static bool Uppercase(UiNode n)
+    {
+        for (var c = n; c != null; c = c.Parent)
+        {
+            if (c.Has("bp-head") || c.Has("caps")) return true;
+            if (c.Has("cat") && Ancestor(c, "card")) return true;
+            if (c.tag == "h3" && Ancestor(c, "set-rows")) return true;
+        }
+        return false;
+    }
+
+    private static bool Ancestor(UiNode n, string cls)
+    {
+        for (var c = n.Parent; c != null; c = c.Parent) if (c.Has(cls)) return true;
+        return false;
+    }
+
+    private static readonly HashSet<string> TitleFontClasses = new HashSet<string> { "mm-title", "mm-kicker", "mm-tag", "mm-label", "mm-foot", "game-title", "title-face" };
+    private static readonly HashSet<string> InteractiveContainers = new HashSet<string> { "camp", "intro-card", "card", "inspect", "chip", "intro", "pause", "mainmenu", "set-options" };
+    private static readonly HashSet<string> PointerNone = new HashSet<string>(CssAnimations.PointerEventsNone);
+
+    public UiNode(string tag = "div", string classes = null, string text = null)
+    {
+        this.tag = string.IsNullOrEmpty(tag) ? "div" : tag.ToLowerInvariant();
+        ve = new VisualElement();
+        ve.AddToClassList("t-" + this.tag);
+        ve.RegisterCallback<GeometryChangedEvent>(FitPill);
+        if (this.tag == "button")
+        {
+            ve.focusable = true;
+            ve.RegisterCallback<ClickEvent>(_ => onClick?.Invoke());
+        }
+        if (!string.IsNullOrEmpty(classes)) foreach (var c in classes.Split(' ', StringSplitOptions.RemoveEmptyEntries)) ve.AddToClassList(c);
+        Fonts();
+        if (!string.IsNullOrEmpty(text)) SetText(text);
+        Restyle();
+    }
+
+    // ------------------------------------------------------------------ text
+
+    /// <summary>The element's own words (textContent): setting them takes its children away.</summary>
+    public string Text
+    {
+        get => text;
+        set
+        {
+            if (kids.Count == 0 && text == (value ?? "") && (label != null || string.IsNullOrEmpty(value))) return;
+            Clear();
+            SetText(value ?? "");
+        }
+    }
+
+    private void SetText(string t)
+    {
+        text = t ?? "";
+        if (text.Length == 0)
+        {
+            if (label != null)
+            {
+                label.text = "";
+                label.RemoveFromHierarchy();
+            }
+            return;
+        }
+        if (label == null)
+        {
+            label = new Label { pickingMode = PickingMode.Ignore, enableRichText = true };
+            label.style.marginTop = label.style.marginBottom = label.style.marginLeft = label.style.marginRight = 0;
+            label.style.paddingTop = label.style.paddingBottom = label.style.paddingLeft = label.style.paddingRight = 0;
+            // uppercase can depend on where the element ends up, so the words are worked out again once it is on the panel
+            label.RegisterCallback<AttachToPanelEvent>(_ => { if (label != null) label.text = Shown(); });
+        }
+        label.text = Shown();
+        if (label.parent != ve) ve.Insert(0, label);
+    }
+
+    private string Shown()
+    {
+        string t = text;
+        if (t.Length > 0 && Uppercase(this)) t = t.ToUpperInvariant();
+        return EmojiText.Apply(t);
+    }
+
+    // ------------------------------------------------------------------ tree
+
+    /// <summary>Adds children (strings become text: the element's own if it has none yet, else a #text child).</summary>
+    public UiNode Add(params object[] items)
+    {
+        foreach (var it in items)
+        {
+            switch (it)
+            {
+                case null: break;
+                case UiNode n: Append(n); break;
+                case string s:
+                    if (kids.Count == 0 && string.IsNullOrEmpty(text)) SetText(s);
+                    else
+                    {
+                        var t = new UiNode("#text");
+                        t.ve.style.flexShrink = 1;
+                        t.SetText(s);
+                        Append(t);
+                    }
+                    break;
+            }
+        }
+        return this;
+    }
+
+    private void Append(UiNode n)
+    {
+        n.Parent?.kids.Remove(n);
+        n.Parent = this;
+        kids.Add(n);
+        ve.Add(n.ve);
+        n.Restyle();
+        n.Attached();
+    }
+
+    /// <summary>Puts `n` just before this element in its parent (DOM before()).</summary>
+    public void Before(UiNode n)
+    {
+        if (Parent == null) return;
+        var p = Parent;
+        n.Parent?.kids.Remove(n);
+        n.Parent = p;
+        int i = p.kids.IndexOf(this);
+        p.kids.Insert(i, n);
+        p.ve.Insert(p.ve.IndexOf(ve), n.ve);
+        n.Restyle();
+        n.Attached();
+    }
+
+    /// <summary>Hangs this element under a VisualElement that is not a UiNode (a page element while both kinds coexist).</summary>
+    public void MountIn(VisualElement parent)
+    {
+        Remove();
+        parent.Add(ve);
+        Restyle();
+        Attached();
+    }
+
+    /// <summary>The font size the page used to size an inline drawing in this element (HTMLElement.GetEffectiveFontSize).</summary>
+    public float FontSize()
+    {
+        for (var c = this; c != null; c = c.Parent)
+        {
+            if (c.Has("tb-ico")) return 24f;
+            if (c.Has("pt")) return 22f;
+            if (c.Has("mm-ico")) return 22f;
+            if (c.Has("intro-first")) return 20f;
+            if (c.ve.panel != null)
+            {
+                float fs = c.ve.resolvedStyle.fontSize;
+                if (!float.IsNaN(fs) && fs > 1f) return fs;
+            }
+        }
+        return 16.36f;
+    }
+
+    /// <summary>Shows an inline SVG drawing (sized in em, as the page sized it) in place of the element's content.</summary>
+    public void Svg(string markup)
+    {
+        Clear();
+        var tex = SvgRasterizer.Rasterize(markup, FontSize(), out float w, out float h);
+        var svg = new UiNode("svg");
+        if (tex != null)
+        {
+            svg.ve.style.backgroundImage = new StyleBackground(tex);
+            svg.ve.style.width = w;
+            svg.ve.style.height = h;
+            svg.ve.style.flexShrink = 0;
+            svg.ve.style.alignSelf = Align.Center;
+        }
+        Add(svg);
+    }
+
+    private void Attached()
+    {
+        UiAnim.OnAttached(ve);
+        foreach (var k in kids) k.Attached();
+        if (label != null) label.text = Shown();
+    }
+
+    /// <summary>Takes every child away and the words too (replaceChildren()).</summary>
+    public void Clear()
+    {
+        foreach (var k in kids)
+        {
+            k.Parent = null;
+            k.ve.RemoveFromHierarchy();
+        }
+        kids.Clear();
+        SetText("");
+    }
+
+    /// <summary>Takes the children away and puts these in their place.</summary>
+    public void Replace(params object[] items)
+    {
+        Clear();
+        Add(items);
+    }
+
+    /// <summary>Leaves its parent.</summary>
+    public void Remove()
+    {
+        Parent?.kids.Remove(this);
+        Parent = null;
+        ve.RemoveFromHierarchy();
+    }
+
+    public IReadOnlyList<UiNode> Children => kids;
+
+    // ------------------------------------------------------------------ classes
+
+    public bool Has(string cls) => ve.ClassListContains(cls);
+
+    public UiNode AddClass(string cls)
+    {
+        if (!Has(cls)) { ve.AddToClassList(cls); Changed(); }
+        return this;
+    }
+
+    public UiNode RemoveClass(string cls)
+    {
+        if (Has(cls)) { ve.RemoveFromClassList(cls); Changed(); }
+        return this;
+    }
+
+    /// <summary>classList.toggle(cls, on).</summary>
+    public bool Toggle(string cls, bool on)
+    {
+        if (on) AddClass(cls);
+        else RemoveClass(cls);
+        return on;
+    }
+
+    /// <summary>className: replaces every class but the tag's.</summary>
+    public string ClassName
+    {
+        get
+        {
+            var l = new List<string>();
+            foreach (var c in ve.GetClasses()) if (c != "t-" + tag && c != PILL) l.Add(c);
+            return string.Join(" ", l);
+        }
+        set
+        {
+            if (ClassName == (value ?? "")) return;
+            bool pill = Has(PILL);
+            ve.ClearClassList();
+            ve.AddToClassList("t-" + tag);
+            if (pill) ve.AddToClassList(PILL);
+            if (!string.IsNullOrEmpty(value)) foreach (var c in value.Split(' ', StringSplitOptions.RemoveEmptyEntries)) ve.AddToClassList(c);
+            Changed();
+        }
+    }
+
+    /// <summary>Shown unless `.hidden` (the page's `hidden` class).</summary>
+    public bool Hidden
+    {
+        get => Has("hidden");
+        set => Toggle("hidden", value);
+    }
+
+    private void Changed()
+    {
+        Fonts();
+        Restyle();
+        UiAnim.OnClassesChanged(ve);
+        if (label != null) label.text = Shown();
+    }
+
+    private bool display, title;
+
+    private void Fonts()
+    {
+        foreach (var c in ve.GetClasses())
+        {
+            if (TitleFontClasses.Contains(c) && !title && UiRoot.TitleFont != null)
+            {
+                title = true;
+                ve.style.unityFontDefinition = FontDefinition.FromSDFFont(UiRoot.TitleFont);
+            }
+        }
+        if (!title && !display && (tag == "h1" || tag == "h2" || Has("display")) && UiRoot.DisplayFont != null)
+        {
+            display = true;
+            ve.style.unityFontDefinition = FontDefinition.FromSDFFont(UiRoot.DisplayFont);
+        }
+    }
+
+    // ------------------------------------------------------------------ look and picking
+
+    /// <summary>The words shown when the pointer rests on it.</summary>
+    public string Tooltip
+    {
+        get => ve.tooltip;
+        set => ve.tooltip = value ?? "";
+    }
+
+    /// <summary>What a click does (it also makes the element pickable, as a click listener did on the page).</summary>
+    public Action OnClick
+    {
+        get => onClick;
+        set
+        {
+            bool had = onClick != null;
+            onClick = value;
+            if (tag != "button" && !had && value != null) ve.RegisterCallback<ClickEvent>(_ => onClick?.Invoke());
+            Restyle();
+        }
+    }
+
+    /// <summary>The display rule and picking of this element and everything under it.</summary>
+    private void Restyle()
+    {
+        ve.style.display = Has("hidden") ? DisplayStyle.None : StyleKeyword.Null;
+        ve.pickingMode = Pickable() ? PickingMode.Position : PickingMode.Ignore;
+        foreach (var k in kids) k.Restyle();
+    }
+
+    private bool Pickable()
+    {
+        for (var c = this; c != null; c = c.Parent)
+            if (c.Has("gone") || c.Has("hidden") || c.PointerNoneSelf()) return false;
+        if (tag == "button" || tag == "input" || tag == "select") return true;
+        if (onClick != null) return true;
+        for (var c = this; c != null; c = c.Parent)
+            foreach (var cls in c.ve.GetClasses())
+                if (InteractiveContainers.Contains(cls)) return true;
+        return false;
+    }
+
+    private bool PointerNoneSelf()
+    {
+        if (!string.IsNullOrEmpty(ve.name) && PointerNone.Contains(ve.name)) return true;
+        foreach (var c in ve.GetClasses()) if (PointerNone.Contains(c)) return true;
+        return false;
+    }
+
+    private const string PILL = "t-pill";
+
+    /// <summary>A corner radius over half the box's shorter side becomes exactly that (HTMLElement.FitPillRadius).</summary>
+    private static void FitPill(GeometryChangedEvent e)
+    {
+        var v = (VisualElement)e.currentTarget;
+        float half = Mathf.Min(v.layout.width, v.layout.height) / 2f;
+        if (!(half > 0)) return;
+        if (!v.ClassListContains(PILL))
+        {
+            var rs = v.resolvedStyle;
+            if (rs.borderTopLeftRadius <= half + 0.5f && rs.borderTopRightRadius <= half + 0.5f &&
+                rs.borderBottomLeftRadius <= half + 0.5f && rs.borderBottomRightRadius <= half + 0.5f) return;
+            v.AddToClassList(PILL);
+        }
+        v.style.borderTopLeftRadius = v.style.borderTopRightRadius = v.style.borderBottomLeftRadius = v.style.borderBottomRightRadius = half;
+    }
+}
