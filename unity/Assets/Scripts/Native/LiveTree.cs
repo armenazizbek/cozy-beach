@@ -30,9 +30,9 @@ public sealed class LiveTree
     public LiveTree(THREE.Object3D desc, Transform parent) : this(desc, parent, false) { }
 
     /// <summary>
-    /// With `claim` the tree stays part of a scene the bridge still draws (the tools in hand hang from the camera): the bridge
-    /// skips its descriptions and only keeps its root hung under their parent's GameObject. A part that leaves the tree gives
-    /// the claim up again.
+    /// With `claim` every description in the tree is marked as drawn (Object3D.native), so NativeView does not make a second
+    /// copy of a part hung straight in a small scene (the cleaning bench's parts, the tools in hand). A part that leaves the
+    /// tree gives the claim up again.
     /// </summary>
     public LiveTree(THREE.Object3D desc, Transform parent, bool claim, int layer = -1)
     {
@@ -91,8 +91,8 @@ public sealed class LiveTree
         }
         if (reshape)
         {
-            // unless asked to claim (Object3D.native stays null): a part that leaves this tree for a scene the bridge still draws (a
-            // find carried to the cleaning bench) must not be skipped there
+            // unless asked to claim (Object3D.native stays null): a part that leaves this tree for another scene (a find carried
+            // to the cleaning bench) must still be drawn there
             var under = live?.root != null && live.root.parent != null ? live.root.parent : parent;
             if (claim && live != null) foreach (var o in live.map.Keys) o.native = null;
             Destroy();

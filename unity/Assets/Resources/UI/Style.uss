@@ -1,32 +1,28 @@
 /* ==========================================================================
    The game's UI: menus, cards and the HUD (UI Toolkit, USS)
    ==========================================================================
-
-   The UI began as a port of the browser game's style.css, and the DOM layer in Assets/Scripts/Dom still builds it from
-   HTML-like elements, but the look is the game's own now.
-
-   1. THE PAGE. Everything is laid out on a 1920 x 1080 page that DomHost scales to the screen (a wider or taller screen
+   The UI began as a port of the browser game's style.css. The screens are built natively in C# (Assets/Scripts/UI and
+   UI/Native: UiNode makes each element with the tag class and class names the old page gave it), so this sheet still
+   reads like the page's; unity/UI_PLAN.md moves the screens to UXML and splits it per screen.
+   1. THE PAGE. Everything is laid out on a 1920 x 1080 page that UiRoot scales to the screen (a wider or taller screen
       sees more page). Sizes here are in those page pixels, so the UI takes up the same share of a 720p window and a 4K TV.
-
    2. THE SKIN. Panels, buttons, key caps, controller buttons, meters and frames are pictures in Resources/UI/Skin, drawn by
       unity/Tools/UiSkin/make_skin.py at twice their shown size and stretched as 9-slices. The cut lines
       (-unity-slice-*) are in picture pixels; -unity-slice-scale: 0.5px brings the uncut corners back to page pixels.
       A button's picture keeps a margin of 4 px (3 for small ones) free all round, which the focus ring is drawn in.
-
-   3. ONE HIGHLIGHT. The mouse, the keyboard and a controller all move the same focus (HTMLElement.HoverFocus,
-      Game.padNav), so buttons are styled for :focus and not for :hover.
-
+   3. ONE HIGHLIGHT. The mouse, the keyboard and a controller all move the same focus (UiNode's hover focus, the game's
+      menu navigation), so buttons are styled for :focus and not for :hover.
    4. WHAT USS LACKS, and where it is made up for:
-      - z-index: sibling order, from CssAnimations.ZIndex
+      - z-index: sibling order, from UiNode.ZIndex
            #boot 100, .padbar 50, .map-cursor 20, .achievements 7, .helpscreen 7, .farewell 6, .credits 6, .bookview 6,
            .teaser 6, .pause.saves 5, .sleepveil 3
-      - pointer-events: none: CssAnimations.PointerEventsNone
+      - pointer-events: none (the element itself only): UiNode.PointerNone
            #ui, .gone, .prompt, .hud, .result, .fade, .binoc, .map-cursor, .padtools, .padbar, .sleepveil, .dive-tint
       - overflow-y: auto: a ScrollView, for .camp-body, .save-list, .ach-list, .help-body, .set-rows
       - tag selectors: .t-<tag>; :disabled: .disabled; :checked: .checked
       - .note:nth-child(even): .note.even; .pt-center i:nth-child(n): .t-i.nth-n; ::before / ::after: real elements
-      - text-transform: uppercase: HTMLElement.UPPERCASE
-      - @keyframes: CssAnimations.cs
+      - text-transform: uppercase: UiNode's uppercase rules
+      - @keyframes: UiAnim.cs
    ========================================================================== */
 
 :root {
@@ -66,7 +62,7 @@
   white-space: normal;
 }
 
-/* h1 and h2 are drawn in the heading face (DomHost.DisplayFont), which is already bold */
+/* h1 and h2 are drawn in the heading face (UiRoot.DisplayFont), which is already bold */
 .t-h1 {
   -unity-font-style: normal;
   font-size: 34px;
@@ -392,7 +388,7 @@
   opacity: 0;
 }
 
-/* the key bobs gently (CssAnimations: .kbd) */
+/* the key bobs gently (UiAnim: .kbd) */
 .prompt .kbd {
   margin-right: 12px;
 }
@@ -1133,7 +1129,7 @@
   background-color: rgba(16, 24, 34, 0.34);
 }
 
-/* the card for a cleaned find (it pops in: CssAnimations .card) */
+/* the card for a cleaned find (it pops in: UiAnim .card) */
 .card {
   width: 460px;
   max-width: 90%;
@@ -1675,7 +1671,7 @@
   rotate: -0.6deg;
 }
 
-/* Rewritten from .note:nth-child(even) — class .even added by CssAnimations.OnAttached / DOM layer */
+/* Rewritten from .note:nth-child(even) — class .even added by UiAnim.Structural */
 .note.even,
 .note.nth-even {
   background-color: #ffd0dc;
@@ -1700,7 +1696,7 @@
   padding: 6px 6px 4px 6px;
   background-color: #fdfbf4;
   /* box-shadow: 0 3px 8px rgba(50, 30, 10, 0.35); */
-  /* transform: rotate(var(--tilt)); -> default -3deg, custom --tilt applied in CssAnimations.OnAttached */
+  /* transform: rotate(var(--tilt)); -> default -3deg, the tilt is set by CampModal (style.rotate) */
   rotate: -3deg;
 }
 
@@ -1983,7 +1979,7 @@
   flex-direction: row;
   align-items: center;
   padding-left: 110px;
-  /* fades in: CssAnimations .mainmenu */
+  /* fades in: UiAnim .mainmenu */
 }
 
 /* darkens the left of the picture so the title and the list read against the sky and the sand */
@@ -2820,10 +2816,10 @@
   top: 0;
   right: 0;
   bottom: 0;
-  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  /* pointer-events: none; -> UiNode sets pickingMode = Ignore (UiNode.PointerNone) */
   /* background: radial-gradient(ellipse at center, rgba(10, 14, 30, 0) 35%, rgba(10, 14, 30, 0.55) 100%); */
   background-color: rgba(10, 14, 30, 0.42);
-  /* animation: sleepIn 1.2s ease both; -> driven by CssAnimations.cs */
+  /* animation: sleepIn 1.2s ease both; -> driven by UiAnim.cs */
   /* z-index: 3; */
 }
 
@@ -2847,16 +2843,16 @@
   -unity-font-style: bold;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   opacity: 0;
-  /* animation: zzUp 3.6s ease-in-out infinite; -> driven by CssAnimations.cs */
+  /* animation: zzUp 3.6s ease-in-out infinite; -> driven by UiAnim.cs */
 }
 
 .zz1 {
-  /* animation-delay: 1.2s; -> handled in CssAnimations.cs */
+  /* animation-delay: 1.2s; -> handled in UiAnim.cs */
   margin-left: 24px;
 }
 
 .zz2 {
-  /* animation-delay: 2.4s; -> handled in CssAnimations.cs */
+  /* animation-delay: 2.4s; -> handled in UiAnim.cs */
   margin-left: 48px;
 }
 
@@ -2868,7 +2864,7 @@
   top: 0;
   right: 0;
   bottom: 0;
-  /* pointer-events: none; -> DOM layer sets pickingMode = Ignore */
+  /* pointer-events: none; -> UiNode sets pickingMode = Ignore (UiNode.PointerNone) */
   opacity: 0;
   transition-property: opacity;
   transition-duration: 0.6s;

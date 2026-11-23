@@ -7,8 +7,7 @@ using UnityEngine.UIElements;
 
 /// <summary>
 /// The UI's panel (unity/NATIVE_PLAN.md 2.7, S26): one UIDocument with the game's fonts, Style.uss and the 1920 x 1080 page
-/// scaled to the screen (and the "UI size" setting). The DOM layer's page (DomHost) and the native screens both hang under
-/// its root, so a screen can move over to native on its own and the two keep one look.
+/// scaled to the screen (and the "UI size" setting). Page builds the screens' tree under its root.
 /// </summary>
 public static class UiRoot
 {

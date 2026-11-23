@@ -67,7 +67,7 @@ public static class Draw
 }
 
 /// <summary>
-/// Which renderers cast shadows (SceneSync.SetShadowFlags, native): what the game asked for, except that on the weaker presets
+/// Which renderers cast shadows (as the old bridge decided it): what the game asked for, except that on the weaker presets
 /// small things (smaller than UrpSettings.SmallCasterCutoff across their bounding box, scale included) cast none. Renderers
 /// are looked at again when the preset changes.
 /// </summary>

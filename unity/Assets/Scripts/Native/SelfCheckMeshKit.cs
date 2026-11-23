@@ -4,8 +4,8 @@ using UnityEngine;
 using B = THREE.Render;
 
 /// <summary>
-/// MeshKit against the bridge (S3): for every kind of geometry the game makes, MeshKit's mesh must hold exactly the arrays the
-/// bridge's MeshCache built for the same geometry (the bridge draws with the world-root convention since S2).
+/// MeshKit's self-checks (S3). The checks against the old bridge's MeshCache went with the bridge (S25); what is left checks
+/// that the off-thread path writes the same mesh as ToMesh.
 /// </summary>
 internal static class SelfCheckMeshKit
 {

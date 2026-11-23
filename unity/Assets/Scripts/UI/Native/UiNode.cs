@@ -29,7 +29,7 @@ public class UiNode
     private string text = "";
     private Action onClick;
 
-    /// <summary>The page's uppercase rules (HTMLElement.UPPERCASE): `.card .cat`, `.set-rows .t-h3`, `.bp-head`, `.caps`.</summary>
+    /// <summary>The page's uppercase rules (the old page's HTMLElement.UPPERCASE): `.card .cat`, `.set-rows .t-h3`, `.bp-head`, `.caps`.</summary>
     private static bool Uppercase(UiNode n)
     {
         for (var c = n; c != null; c = c.Parent)
@@ -47,7 +47,7 @@ public class UiNode
         return false;
     }
 
-    /// <summary>The page's scroll boxes (HTMLElement.ScrollableClasses): their children go in a ScrollView.</summary>
+    /// <summary>The page's scroll boxes (the old page's HTMLElement.ScrollableClasses): their children go in a ScrollView.</summary>
     private static readonly HashSet<string> ScrollableClasses = new HashSet<string> { "camp-body", "save-list", "ach-list", "help-body", "set-rows" };
 
     private ScrollView sv;
@@ -133,7 +133,7 @@ public class UiNode
         Restyle();
     }
 
-    /// <summary>A scroll box as the page made one (HTMLElement.EnsureScrollView): up and down only, filling the element.</summary>
+    /// <summary>A scroll box as the page made one (the old page's HTMLElement.EnsureScrollView): up and down only, filling the element.</summary>
     private void Scroll()
     {
         if (sv != null) return;
@@ -295,7 +295,7 @@ public class UiNode
         n.Parent = this;
         kids.Add(n);
         Container.Add(n.ve);
-        // a button straight inside the camp's page keeps its own width (HTMLElement.ApplyDirectChildFixups)
+        // a button straight inside the camp's page keeps its own width (the old page's HTMLElement.ApplyDirectChildFixups)
         if (Has("camp-body") && n.Has("btn")) n.ve.style.alignSelf = Align.FlexStart;
         n.Restyle();
         Reorder();
@@ -347,7 +347,7 @@ public class UiNode
         Attached();
     }
 
-    /// <summary>The font size the page used to size an inline drawing in this element (HTMLElement.GetEffectiveFontSize).</summary>
+    /// <summary>The font size the page used to size an inline drawing in this element (the old page's HTMLElement.GetEffectiveFontSize).</summary>
     public float FontSize()
     {
         for (var c = this; c != null; c = c.Parent)
@@ -612,7 +612,7 @@ public class UiNode
         for (var c = this; c != null; c = c.Parent)
             if (c.Has("gone") || c.Has("hidden")) return false;
         // the page's pointer-events: none classes (#ui, .hud, .prompt, ...) are for the element itself only: the menus and
-        // chips inside #ui and .hud still take the mouse (HTMLElement.ComputeIsPickable)
+        // chips inside #ui and .hud still take the mouse (the old page's HTMLElement.ComputeIsPickable)
         if (PointerNoneSelf()) return false;
         if (tag == "button" || tag == "input" || tag == "select") return true;
         if (onClick != null) return true;
@@ -631,7 +631,7 @@ public class UiNode
 
     private const string PILL = "t-pill";
 
-    /// <summary>A corner radius over half the box's shorter side becomes exactly that (HTMLElement.FitPillRadius).</summary>
+    /// <summary>A corner radius over half the box's shorter side becomes exactly that (the old page's HTMLElement.FitPillRadius).</summary>
     private static void FitPill(GeometryChangedEvent e)
     {
         var v = (VisualElement)e.currentTarget;

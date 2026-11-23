@@ -383,8 +383,8 @@ public class Game
         beam.visible = false;
         LiveTree.Place(beam, World.Land);
         camera.add(view.group);
-        // the tools in hand stay the camera's child in the description; claimed, the bridge keeps their native root hung under
-        // the camera's GameObject and leaves the rest to this tree
+        // the tools in hand stay the camera's child in the description; their native tree hangs from the camera's rig
+        // (NativeView), claimed so the view does not draw them twice
         LiveTree.Place(view.group, World.Root, claim: true);
         camera.rotation.order = "YXZ";
         camera.near = 0.05;

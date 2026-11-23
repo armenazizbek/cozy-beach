@@ -15,8 +15,8 @@ using UnityEngine;
 /// bridge's renderer settings, and hands back the map from each description to its Transform, for the code that moves
 /// things afterwards. <see cref="RealizeSliced"/> spreads the work over frames within a time budget.
 ///
-/// Realized objects are the game's own from then on: the bridge does not copy them any more (SceneSync skips a realized
-/// object and everything under it, apart from hanging its GameObject under its parent's).
+/// Realized objects are the game's own from then on: the module that placed them keeps them in line with their
+/// descriptions (Realized.Follow and Apply, or a LiveTree).
 /// </summary>
 public sealed class Realized
 {
@@ -130,7 +130,7 @@ public static class Realizer
     /// <summary>Realizes a whole tree now. `layer` is the Unity layer of the scene it belongs to.</summary>
     public static Realized Realize(THREE.Object3D root, Transform parent, int layer) => Realize(root, parent, layer, true);
 
-    /// <summary>`claim` false makes a copy the bridge keeps drawing the original of (the self-check's twin).</summary>
+    /// <summary>`claim` false leaves the descriptions unmarked (Object3D.native stays null), for trees whose parts may move to another scene.</summary>
     internal static Realized Realize(THREE.Object3D root, Transform parent, int layer, bool claim)
     {
         var job = new Job(root, parent, layer) { claim = claim };

@@ -2,10 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// The light and air the Cozy shaders read as globals (unity/NATIVE_PLAN.md 2.5, S4): the hemisphere and ambient light (not
-/// Unity lights at all), the stand-in for Three's room environment, fog mixed in sRGB, and tone mapping. Native code adds its
-/// share here; while the Three bridge still draws part of a scene it adds the Three lights it finds and writes the sum
-/// (SceneSync.ApplyGlobals), so both kinds of light count and neither overwrites the other.
-/// Colours are linear and already times intensity, as the bridge summed them. Directions are in game space.
+/// Unity lights at all), the stand-in for Three's room environment, fog mixed in sRGB, and tone mapping. The native modules
+/// (Sky, and NativeView for the bench and the item photos) add their lights here each frame, and NativeView writes the sum
+/// as the shaders' globals. Colours are linear and already times intensity, as the old bridge summed them. Directions are
+/// in game space.
 /// </summary>
 public class Atmosphere
 {
@@ -48,7 +48,7 @@ public class Atmosphere
     }
 }
 
-/// <summary>Native Unity lights with the settings the bridge gave the lights it made (SceneSync.EnsureLight, SetLightCommon).</summary>
+/// <summary>Native Unity lights, with the settings the old bridge gave the lights it made.</summary>
 public static class Lights
 {
     /// <summary>A light on its own GameObject; `parent` null for lights outside the world root (the sun, spot lights).</summary>

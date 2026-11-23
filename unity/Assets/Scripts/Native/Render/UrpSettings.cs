@@ -37,7 +37,7 @@ namespace THREE.Render
             if (a != null && ShadowsOn && !Mathf.Approximately(a.shadowDistance, d)) a.shadowDistance = d;
         }
 
-        /// <summary>Soft (filtered) or hard shadow edges for the lights the scene copy makes (SceneSync.ApplyLights).</summary>
+        /// <summary>Soft (filtered) or hard shadow edges for the game's lights (Lights.Shadows).</summary>
         public static bool SoftShadows = true;
 
         /// <summary>

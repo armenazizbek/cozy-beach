@@ -19,7 +19,7 @@ public static class LoadingScreen
         root.pickingMode = PickingMode.Position;
 
         var h1 = UiX.El("t-h1 game-title");
-        // an h1 is drawn in the heading face, and .game-title puts it in the title face (HTMLElement.UseTitleFont)
+        // an h1 is drawn in the heading face, and .game-title puts it in the title face (the old page's HTMLElement.UseTitleFont)
         var h1Font = UiRoot.TitleFont ?? UiRoot.DisplayFont;
         if (h1Font != null) h1.style.unityFontDefinition = FontDefinition.FromSDFFont(h1Font);
         h1.Add(Line("Tidefinder"));

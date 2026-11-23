@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 /// The page's CSS animations, run on the test clock (unity/NATIVE_PLAN.md 2.7, S28): the key holder's bob (.kbd), cards
 /// popping in (.card), camp screens sliding in (.camp), the main menu and the sleep veil fading in, and the sleeping z's.
 /// Matched by the element's classes, so DOM elements and native ones animate alike. Also the helper classes for the CSS
-/// selectors USS lacks (:nth-child, :has(), ::before). Moved out of the DOM layer's CssAnimations.
+/// selectors USS lacks (:nth-child, :has(), ::before). Moved out of the old DOM layer's CssAnimations (deleted in S33).
 /// </summary>
 public static class UiAnim
 {
@@ -33,7 +33,7 @@ public static class UiAnim
     private static readonly Dictionary<VisualElement, ActiveAnim> _active = new Dictionary<VisualElement, ActiveAnim>();
 
     /// <summary>
-    /// Forgets every running animation (on a reload, see DomHost.Ensure). An element taken off the page never gets its
+    /// Forgets every running animation (on a reload, see Page.Ensure). An element taken off the page never gets its
     /// scheduled step again (UI Toolkit only runs the schedules of elements on a panel), so its entry here stayed for good
     /// and held on to the old page and, through its handlers, the whole old game: each New Game or Load Game kept one more
     /// world in memory.

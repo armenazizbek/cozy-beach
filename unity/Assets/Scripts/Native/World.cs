@@ -2,15 +2,14 @@ using UnityEngine;
 
 /// <summary>
 /// The root everything in the main world hangs under (unity/NATIVE_PLAN.md 2.1): a GameObject scaled (1, 1, -1), so the game's
-/// right-handed numbers are written into local transforms unchanged (see <see cref="GameSpace"/>). While the Three bridge
-/// still draws part of the world it is the same GameObject the bridge hangs the main scene under, so native objects can be
-/// parented to bridge objects and the other way round with no conversion between them.
+/// right-handed numbers are written into local transforms unchanged (see <see cref="GameSpace"/>). Every scene (the world,
+/// the cleaning bench, the item photos) has one (<see cref="RootOf"/>).
 /// </summary>
 public static class World
 {
     private static THREE.Scene main;
 
-    /// <summary>The main world's description (the Three scene the bridge still copies the unconverted part of).</summary>
+    /// <summary>The main world's description (the Three scene the game builds; native objects are made from it).</summary>
     public static THREE.Scene Scene => main;
 
     /// <summary>The Unity layer the main world is drawn on (its camera draws only this layer).</summary>

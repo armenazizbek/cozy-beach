@@ -43,7 +43,7 @@ public class CleaningStation
 
     public CleaningStation(THREE.WebGLRenderer renderer)
     {
-        // the bench is lit by Three's RoomEnvironment too; the shaders stand in for it (see SceneSync.EnvironmentTuning)
+        // the bench is lit by Three's RoomEnvironment too; the shaders stand in for it (see NativeView.EnvironmentTuning)
         scene.environment = new THREE.Texture { name = "RoomEnvironment" };
         scene.environmentIntensity = 0.55;
         scene.background = new THREE.Color(0x2b2118);

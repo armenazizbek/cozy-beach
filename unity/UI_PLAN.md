@@ -1,7 +1,8 @@
 # Tidefinder: finishing the migration (UI rebuild and what else is left)
 
-Status: **proposal, 2026-11-24**. Nothing in it has been built. The decisions in section 9 are open, each with a
-recommendation.
+Status: **accepted 2026-11-24**: the owner chose the recommendation for every decision in section 9 (D1 to D7) and asked
+for it to be built on the branch `claude/ui-rebuild`, without questions. Progress is logged step by step in
+`unity/UI_LOG.md`.
 
 The native rewrite (`unity/NATIVE_PLAN.md`, log in `unity/NATIVE_LOG.md`) is merged into `main` (c6219d2). The Three.js
 bridge and the browser DOM layer are gone. All drawing and all UI are native Unity. But two things are still shaped like
@@ -358,5 +359,5 @@ can see apart from frame time.
 | D6 | Part B | **Do B4 now; B3 during the UI work; B2 and then B1 after the UI** | Stop after the UI and keep the Three-shaped model (it works; the cost is the per-frame sync and the browser-shaped code) |
 | D7 | Test settings | **The scripts swap in fixed settings and restore yours** (works with the frozen reference build) | A `-settings <file>` flag (cleaner, but the reference build would have to be rebuilt to understand it) |
 
-Branch: as for everything since the merge, work happens on `main` (each step committed when its full pass is clean;
-nothing pushed unless asked).
+Branch: `claude/ui-rebuild`, from `main` at 0af08c1. Each step is committed when its full pass is clean; nothing is
+pushed unless asked.
