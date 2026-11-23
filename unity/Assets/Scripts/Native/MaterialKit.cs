@@ -19,6 +19,12 @@ public static class MaterialKit
     /// <summary>The Unity material for a description; made the first time, shared after that.</summary>
     public static Material Get(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on);
 
+    /// <summary>
+    /// The same, at most once a frame: for draw-time syncs (LiveTree), which run after the frame's material stamp moved
+    /// on (NativeFrame.Run), so the first call of the frame sees every change and the rest have nothing left to do.
+    /// </summary>
+    public static Material PushOnce(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on);
+
     /// <summary>Brings the Unity material up to date with its description (call after changing the description's fields).</summary>
     public static Material Push(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on, force: true);
 

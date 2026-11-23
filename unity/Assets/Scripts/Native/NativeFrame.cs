@@ -13,9 +13,23 @@ public static class NativeFrame
     {
         // a new frame for the material cache (the bridge's scene copy used to start it; the main world no longer goes through it)
         THREE.Render.MaterialCache.NextFrame();
-        BeforeDraw?.Invoke();
+        var all = BeforeDraw;
+        if (all == null) return;
+        // each hook timed under its own name (FrameStats: the perf runs list the slowest)
+        foreach (var d in all.GetInvocationList())
+        {
+            if (!names.TryGetValue(d, out var name))
+                names[d] = name = "draw:" + (d.Target is LiveTree t ? "tree " + t.Name : d.Method.DeclaringType?.Name ?? "?");
+            using (THREE.Render.FrameStats.Time(name)) ((Action)d)();
+        }
     }
 
+    private static readonly System.Collections.Generic.Dictionary<Delegate, string> names = new System.Collections.Generic.Dictionary<Delegate, string>();
+
     /// <summary>Forgets every hook (a reload).</summary>
-    internal static void Clear() => BeforeDraw = null;
+    internal static void Clear()
+    {
+        BeforeDraw = null;
+        names.Clear();
+    }
 }

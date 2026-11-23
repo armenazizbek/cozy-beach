@@ -154,6 +154,18 @@ namespace THREE
             }
         }
 
+        /// <summary>Goes up whenever any object anywhere gains or loses a child.</summary>
+        public static int StructureStamp;
+
+        /// <summary>Goes up when this object or anything under it gains or loses a child (LiveTree re-checks its shape only then).</summary>
+        public int treeVersion;
+
+        private void TreeChanged()
+        {
+            StructureStamp++;
+            for (var o = this; o != null; o = o.parent) o.treeVersion++;
+        }
+
         public Object3D add(params Object3D[] objs)
         {
             foreach (var o in objs)
@@ -162,6 +174,7 @@ namespace THREE
                 o.removeFromParent();
                 o.parent = this;
                 children.Add(o);
+                TreeChanged();
                 touch();
             }
             return this;
@@ -174,6 +187,7 @@ namespace THREE
                 if (o == null) continue;
                 if (children.Remove(o))
                 {
+                    TreeChanged();
                     o.parent = null;
                     touch();
                 }
@@ -207,6 +221,7 @@ namespace THREE
             o.removeFromParent();
             o.parent = this;
             children.Add(o);
+            TreeChanged();
             o.updateWorldMatrix(false, true);
             return this;
         }

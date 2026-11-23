@@ -30,7 +30,19 @@ public sealed class Realized
 
     public Light LightOf(THREE.Object3D o) => this[o]?.GetComponent<Light>();
 
-    private readonly List<(THREE.Object3D o, Transform t)> followed = new List<(THREE.Object3D, Transform)>();
+    /// <summary>A followed part, with the local pose last copied onto it (copied again only when it changed).</summary>
+    private sealed class Part
+    {
+        public THREE.Object3D o;
+        public Transform t;
+        public bool posed;
+        /// <summary>the visibility and the description's parent last applied (Unity is asked only when they change)</summary>
+        public int shown = -1;
+        public THREE.Object3D parent;
+        public double px, py, pz, qx, qy, qz, qw, sx, sy, sz;
+    }
+
+    private readonly List<Part> followed = new List<Part>();
 
     /// <summary>
     /// Names the parts of a placed module that move or show and hide while it runs: <see cref="Apply"/> copies their pose and
@@ -43,23 +55,59 @@ public sealed class Realized
         foreach (var o in parts)
         {
             var t = this[o];
-            if (t != null) followed.Add((o, t));
+            if (t != null) followed.Add(new Part { o = o, t = t });
         }
         return this;
+    }
+
+    /// <summary>Forgets what was last applied (something else switched GameObjects on or off): the next Apply sets it all.</summary>
+    public void Invalidate()
+    {
+        foreach (var part in followed)
+        {
+            part.shown = -1;
+            part.parent = null;
+            part.posed = false;
+        }
     }
 
     /// <summary>Copies every followed part's pose and visibility onto its GameObject (once per update of the module).</summary>
     public void Apply()
     {
-        foreach (var (o, t) in followed)
+        foreach (var part in followed)
         {
+            var o = part.o;
+            var t = part.t;
             if (t == null) continue;
             // a part moved to another parent in the description (a coconut falling from its palm) moves with it
-            var pt = this[o.parent];
-            if (pt != null && !ReferenceEquals(t.parent, pt)) t.SetParent(pt, false);
-            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (!ReferenceEquals(part.parent, o.parent))
+            {
+                part.parent = o.parent;
+                var pt = this[o.parent];
+                if (pt != null && !ReferenceEquals(t.parent, pt)) t.SetParent(pt, false);
+            }
+            int vis = o.visible ? 1 : 0;
+            if (part.shown != vis)
+            {
+                part.shown = vis;
+                if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            }
             if (!o.visible) continue;
-            Realizer.Pose(o, t);
+            // the pose is copied when it changed since the last copy (a still part costs a comparison, not three Transform writes)
+            if (!o.matrixAutoUpdate) Realizer.Pose(o, t);
+            else
+            {
+                var p = o.position; var q = o.quaternion; var sc = o.scale;
+                if (!part.posed || p.x != part.px || p.y != part.py || p.z != part.pz || q._x != part.qx || q._y != part.qy || q._z != part.qz || q._w != part.qw
+                    || sc.x != part.sx || sc.y != part.sy || sc.z != part.sz)
+                {
+                    Realizer.Pose(o, t);
+                    part.posed = true;
+                    part.px = p.x; part.py = p.y; part.pz = p.z;
+                    part.qx = q._x; part.qy = q._y; part.qz = q._z; part.qw = q._w;
+                    part.sx = sc.x; part.sy = sc.y; part.sz = sc.z;
+                }
+            }
             // a point light also carries its colour, strength, reach and shadows (torches flicker, lamps are switched)
             if (o is THREE.PointLight pl)
             {

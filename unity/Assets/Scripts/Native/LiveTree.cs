@@ -14,6 +14,8 @@ public sealed class LiveTree
     private readonly Transform parent;
     private Realized live;
     private long shape = long.MinValue;
+    /// <summary>the description's treeVersion when the shape was last checked</summary>
+    private int stampSeen = -1;
     private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
     /// <summary>drawn parts whose geometry may change, with the Unity mesh made for it and the geometry's version then</summary>
     private readonly List<(THREE.Object3D o, Mesh mesh, int version)> shapes = new List<(THREE.Object3D, Mesh, int)>();
@@ -43,6 +45,10 @@ public sealed class LiveTree
 
     public Transform Root => live?.root;
 
+    /// <summary>The tree's name (its description's), for the frame's timings.</summary>
+    public string Name => !string.IsNullOrEmpty(desc.name) ? desc.name
+        : desc.children.Count > 0 ? $"{desc.type}[{(string.IsNullOrEmpty(desc.children[0].name) ? desc.children[0].type : desc.children[0].name)} +{desc.children.Count - 1}]@{(parent != null ? parent.name : "")}" : desc.type;
+
     /// <summary>
     /// Puts a description into the world natively and keeps it in line at draw time (what a module's Place does, for the loose
     /// pieces Game used to add to the scene itself).
@@ -60,13 +66,31 @@ public sealed class LiveTree
         // a hidden tree (the world under the sea while on land) costs nothing but switching its root off
         if (!desc.visible && live != null)
         {
-            if (live.root.gameObject.activeSelf) live.root.gameObject.SetActive(false);
+            if (live.root.gameObject.activeSelf)
+            {
+                live.root.gameObject.SetActive(false);
+                // switched off behind Apply's back: the next Apply sets every part again
+                live.Invalidate();
+            }
             return;
         }
-        long now = Shape(desc);
-        if (live == null || now != shape)
+        // hung under a part that is switched off (the land, while diving or underground): nothing of it shows, so it waits;
+        // the sync before the frame it shows again brings it all up to date
+        if (live != null && live.root != null && live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+        // the shape can only have changed if something in the tree gained or lost a child since it was last checked
+        bool reshape = live == null;
+        if (reshape || desc.treeVersion != stampSeen)
         {
-            shape = now;
+            stampSeen = desc.treeVersion;
+            long now = Shape(desc);
+            if (now != shape)
+            {
+                shape = now;
+                reshape = true;
+            }
+        }
+        if (reshape)
+        {
             // unless asked to claim (Object3D.native stays null): a part that leaves this tree for a scene the bridge still draws (a
             // find carried to the cleaning bench) must not be skipped there
             var under = live?.root != null && live.root.parent != null ? live.root.parent : parent;
@@ -102,7 +126,7 @@ public sealed class LiveTree
             }
         }
         live.Apply();
-        foreach (var (m, on) in mats) MaterialKit.Push(m, on);
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
         // geometry rewritten since it was drawn (drips falling, a pool filling): its mesh is refilled as the bridge re-sent it
         for (int i = 0; i < shapes.Count; i++)
         {

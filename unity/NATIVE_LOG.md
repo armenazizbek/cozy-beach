@@ -574,3 +574,32 @@ the verification passes (about 14 minutes for all 37 runs).
   S34 if it shows up in the measurements.
 - **Full pass:** every run clean, 7 of 7 self-checks, all 35 logs identical, no FAIL, non-loading shots within
   0.02/255, 428 of 438 dumps identical.
+
+## S34 (first part): the performance pass (2026-11-24)
+
+- **First IL2CPP measurement** (3 rounds each, taking turns with `ref-il2cpp`, VSync off): render time down about 60%
+  and frame rate up 18 to 37% in most scenes, but diving (-29% fps) and underground (-36%) were slower, and the game's
+  own time per frame was over the 5% limit nearly everywhere. The draw-time syncs did work the bridge's scene copy
+  skipped: LiveTrees under the hidden land, every pose and every material of every tree, every frame.
+- **`NativeFrame`** now times each draw-time hook under its own name (`draw:tree ...`, `draw:Underwater`, `draw:view`),
+  which showed where the time went.
+- **Changes, none of which changes what is drawn:**
+  - a LiveTree under a part that is switched off (the land while diving or underground) waits, and catches up in the
+    sync before the frame it shows again;
+  - a tree re-checks its shape only when something in it gained or lost a child (`Object3D.treeVersion`, bumped up the
+    parents by add, remove and attach);
+  - draw-time syncs push each material at most once a frame (`MaterialKit.PushOnce`, after the frame's stamp moved on;
+    `Push` for code that changes a material during its update is unchanged);
+  - `Realized.Apply` copies a part's pose only when its position, rotation or scale changed, and asks Unity about
+    activity and parents only when the description's visibility or parent changed (`Invalidate` when something else
+    switched a tree off).
+- **Parity:** full pass after the changes: every run clean, all logs identical, no FAIL, non-loading shots within
+  0.02/255, 428 of 438 dumps identical.
+- **Second IL2CPP measurement: no regressions over the limits.** Frame rate (median of 3) against the reference:
+  camp +76%, beach running +76%, beach walking +83%, boat +50%, camp at night +75%, camp by day +71%, diving +9%,
+  lighthouse and ships +41%, rain +71%, underground -4% (1,441 fps). Game time per frame down 22 to 35% (diving -6%,
+  lighthouse -8%; underground 0.13 -> 0.16 ms, within the slack for tiny numbers). 99th-percentile frames within
+  -9% to +5%. No late frames. Ready to play: 5.36 -> 5.38 s.
+- **Left for the owner (decision 5 and STEAM_DECK_PLAN.md Phase 5):** the Steam Deck run and sign-off on a real Deck,
+  and the 15-minute hand play at the phase boundary (digging, detector, cleaning, the camp shop, the boat, diving, the
+  map, saving and loading, with a controller and with mouse and keyboard). The visual review is still open as well.

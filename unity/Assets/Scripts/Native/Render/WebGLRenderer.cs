@@ -177,7 +177,8 @@ namespace THREE
             NativeFrame.Run();
             long t0 = Render.FrameStats.Ticks();
             // every scene draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
-            U.Camera cam = NativeView.Prepare(scene, camera, this);
+            U.Camera cam;
+            using (Render.FrameStats.Time("draw:view")) cam = NativeView.Prepare(scene, camera, this);
             known.Add(cam);
             Render.FrameStats.syncMs += Render.FrameStats.Ms(t0);
             ConfigureCamera(cam, camera, scene);
