@@ -26,6 +26,7 @@ internal static class SelfCheck
     {
         checks.AddRange(SelfCheckMeshKit.Checks());
         checks.AddRange(SelfCheckPicking.Checks());
+        checks.AddRange(SelfCheckUi.Checks());
         int failed = 0;
         foreach (var (name, run) in checks)
         {

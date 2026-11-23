@@ -608,8 +608,12 @@ public class UiNode
 
     private bool Pickable()
     {
+        // hidden or leaving (itself or anything above it): never picked
         for (var c = this; c != null; c = c.Parent)
-            if (c.Has("gone") || c.Has("hidden") || c.PointerNoneSelf()) return false;
+            if (c.Has("gone") || c.Has("hidden")) return false;
+        // the page's pointer-events: none classes (#ui, .hud, .prompt, ...) are for the element itself only: the menus and
+        // chips inside #ui and .hud still take the mouse (HTMLElement.ComputeIsPickable)
+        if (PointerNoneSelf()) return false;
         if (tag == "button" || tag == "input" || tag == "select") return true;
         if (onClick != null) return true;
         for (var c = this; c != null; c = c.Parent)

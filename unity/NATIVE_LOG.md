@@ -603,3 +603,18 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Left for the owner (decision 5 and STEAM_DECK_PLAN.md Phase 5):** the Steam Deck run and sign-off on a real Deck,
   and the 15-minute hand play at the phase boundary (digging, detector, cleaning, the camp shop, the boat, diving, the
   map, saving and loading, with a controller and with mouse and keyboard). The visual review is still open as well.
+
+## Fix after S34: the mouse in menus (2026-11-24)
+
+- **Reported by the owner:** the mouse did nothing in any menu (in play it worked). `UiNode.Pickable` treated the
+  page's pointer-events: none classes (`#ui`, `.hud`, ...) as reaching down to everything inside, so no button under
+  `#ui` could be picked. On the page they apply to the element itself only (`HTMLElement.ComputeIsPickable`); now so
+  natively, with only `.gone` and `.hidden` reaching down.
+- **Why the passes missed it:** the parity runs switch the real mouse off and drive menus with keys and a virtual
+  controller. **New self-check** (`SelfCheckUi`): every button on screen must be what UI Toolkit picks at its centre.
+  It fails on the old rule ("'New Game' does not take the pointer") and passes on the fix (8 of 8 self-checks).
+- **The full pass after the fix is not comparable to `ref144`:** the shared PlayerPrefs now hold the owner's settings
+  from playing (`vsync` off, fullscreen 2560x1440) and the display is at 360 Hz / 96 dpi again. With frames uncapped,
+  UI transitions (real time) lag the test clock, so the menu highlight's slide and the screen fade were caught halfway
+  (controller log positions, bench shots). Every other log is identical. A clean comparison needs the reference and the
+  branch run with the same settings and display, or the harness to use its own settings.
