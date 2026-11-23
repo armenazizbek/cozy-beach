@@ -299,6 +299,28 @@ public class Ocean
     private bool seaAll;
     private int seaNext = int.MaxValue; // where the running refresh is; past the end when none is running
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S13: the sea's tree is a LiveTree under World.Land, kept in line with the description at
+    /// draw time (the surface following the viewer, the foam's scrolling texture and its opacity, the shaders' time). A refresh
+    /// of the sea-floor depth rewrites only that vertex channel of the surface mesh.
+    /// </summary>
+    private LiveTree live;
+    private UnityEngine.Mesh waterMesh;
+    private bool depthDirty;
+
+    /// <summary>Puts the sea into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Land);
+        waterMesh = live.Live[water]?.GetComponent<UnityEngine.MeshFilter>()?.sharedMesh;
+        NativeFrame.BeforeDraw += () =>
+        {
+            live.Sync();
+            if (depthDirty && waterMesh != null) MeshKit.RefillExtra(waterMesh, water.geometry, "aDepth");
+            depthDirty = false;
+        };
+    }
+
     public void update(double t, double camX = 0, double camZ = 0)
     {
         // slow tidal breathing; the waves and ripples themselves are drawn by the shader
@@ -327,6 +349,7 @@ public class Ocean
                 for (int i = seaNext; i < end; i++) seaDepth[i] = (float)(WATER_LEVEL - beach.heightAt(seaLocalX[i] + seaAtX, seaLocalZ[i] + seaAtZ));
                 seaNext = end;
                 seaDepthAttr.needsUpdate = true;
+                depthDirty = true;
             }
         }
 

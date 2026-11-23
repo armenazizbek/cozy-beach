@@ -552,6 +552,38 @@ public class Beach
         ch.damp.needsUpdate = true;
     }
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S13: the chunks are realized once under World.Land; at draw time a chunk whose geometry
+    /// changed (dug, smoothed by rain, a new detail level) has its Unity mesh refilled. The surround and skirt are realized
+    /// once (static).
+    /// </summary>
+    private Realized live;
+    private readonly List<(Chunk ch, UnityEngine.Mesh mesh, int version)> drawn = new List<(Chunk, UnityEngine.Mesh, int)>();
+
+    /// <summary>Puts the beach, its surround and its skirt into the world as native objects.</summary>
+    public void Place(THREE.Object3D surround, THREE.Object3D skirt)
+    {
+        live = Realizer.Realize(mesh, World.Land, World.Layer);
+        foreach (var ch in chunks)
+            drawn.Add((ch, live[ch.mesh].GetComponent<UnityEngine.MeshFilter>().sharedMesh, ch.mesh.geometry.ContentVersion()));
+        Realizer.Realize(surround, World.Land, World.Layer);
+        Realizer.Realize(skirt, World.Land, World.Layer);
+        NativeFrame.BeforeDraw += Refresh;
+    }
+
+    /// <summary>Refills the Unity mesh of every chunk whose geometry changed since it was last drawn.</summary>
+    private void Refresh()
+    {
+        for (int i = 0; i < drawn.Count; i++)
+        {
+            var (ch, m, v) = drawn[i];
+            int now = ch.mesh.geometry.ContentVersion();
+            if (now == v) continue;
+            MeshKit.Refill(m, ch.mesh.geometry);
+            drawn[i] = (ch, m, now);
+        }
+    }
+
     /// <summary>Puts every chunk on one detail level, so that loading can send them all to the graphics chip. The next frame sets them right.</summary>
     public void setAllDetail(int lod)
     {

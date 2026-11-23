@@ -117,6 +117,24 @@ public class Scenery
     private readonly THREE.Color tint = new THREE.Color(0x6f8fa6);
     /// <summary>the clock the fronds sway by, in their shader</summary>
     private readonly THREE.Uniform swayTime = new THREE.Uniform(0.0);
+    private THREE.MeshStandardMaterial frondMatRef;
+
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S14: realized once under World.Land. Only what changes is followed: the coconuts (which
+    /// fall, roll, shrink away and grow back on their palm), each palm's coconut group and far-off half of its fronds; the
+    /// mountains' haze colours and the fronds' sway clock are pushed as they change. The descriptions stay up to date for the
+    /// aim and the binoculars' raycasts.
+    /// </summary>
+    private Realized live;
+
+    /// <summary>Puts the scenery into the world as native objects.</summary>
+    public void Place()
+    {
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        foreach (var n in nuts) live.Follow(n.mesh);
+        foreach (var p in palms) live.Follow(p.nuts, p.crownB);
+        NativeFrame.BeforeDraw += live.Apply;
+    }
 
     public Scenery()
     {
@@ -177,6 +195,7 @@ public class Scenery
         // the crowns sway in the shader (Cozy/PalmSway), so no palm's crown has to be turned on the CPU each frame
         var frondMat = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.85, side = THREE.Side.DoubleSide, customShader = "Cozy/PalmSway" };
         frondMat.customUniforms["uTime"] = swayTime;
+        frondMatRef = frondMat;
         var trunkMat = new THREE.MeshStandardMaterial { color = 0x8a6a46, roughness = 1 };
         var nutMat = new THREE.MeshStandardMaterial { color = 0x5a3a1e, roughness = 0.7 };
 
@@ -563,9 +582,11 @@ public class Scenery
             m.lastHaze.copy(haze);
             m.mat.color.copy(ROCK).multiplyScalar(near);
             m.mat.emissive.copy(haze).multiplyScalar(1 - near);
+            if (live != null) MaterialKit.Push(m.mat);
         }
         // every crown sways in its shader by this clock (Cozy/PalmSway)
         swayTime.value = t;
+        if (live != null && frondMatRef != null) MaterialKit.Push(frondMatRef);
         foreach (var p in palms)
         {
             // a palm out across the land has no parts to drop

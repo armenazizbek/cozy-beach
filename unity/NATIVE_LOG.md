@@ -278,3 +278,23 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Check** (selfcheck, base, newgame, islands, dolphins, dograin, photo, photo-alt, house, leap, fish, dive): every
   run clean, 132 PASS and 16 REVIEW (loading shots and within noise), **147 of 147 dumps identical**.
 - `ModernShips` and `OldShip` are builders the lighthouse and the opening call; they convert with S17 and S24.
+
+## S13 and S14: terrain, atmosphere, scenery (2026-11-24)
+
+- **Sky** (committed separately, 56ff807): a `LiveTree` under the world root, plus a native sun and hemisphere light
+  through `Atmosphere`.
+- **Ocean:** a `LiveTree` under `World.Land`, synced at draw time. A refresh of the sea-floor depth rewrites only that
+  vertex channel (`MeshKit.RefillExtra`), as the bridge re-sent one attribute.
+- **Beach:** the ~100 chunks are realized once. At draw time a chunk whose geometry content version changed (dug,
+  smoothed by rain, new detail level) has its Unity mesh refilled. The surround and skirt are realized once.
+- **Scenery (S14):** realized once. It follows only what changes: the coconuts, which fall, roll, shrink and grow back
+  on their palm (`Realized.Apply` now moves a followed part when its description changes parent), each palm's coconut
+  group and far half of its fronds. Mountain haze colours and the frond sway clock are pushed as they change.
+- **A rule found the hard way.** The first S13 pass failed widely (18 FAIL, 4 logs): the find layouts, the catches and
+  a gull's height had changed. Moving `createSurround()`/`createSkirt()` earlier in the build changed when they draw
+  their random numbers, and so every later draw of the seeded sequence. They now run exactly where the scene list
+  called them. **Rule: a conversion must never change when anything draws from `JS.Random`.** The harness's facts
+  check is what caught it.
+- **Full pass:** every run clean, 11 of 11 self-checks, **all 35 logs identical**, no FAIL, 390 PASS and 49 REVIEW
+  (loading shots and within noise), 428 of 438 dumps identical (the 10 others are frozen bridge copies while the bench
+  is open; those pictures pass).

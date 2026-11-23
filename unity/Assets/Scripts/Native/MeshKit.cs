@@ -54,6 +54,33 @@ public static class MeshKit
         Fill(mesh, g, groups ? Topology.Groups : Topology.Triangles);
     }
 
+    /// <summary>
+    /// Rewrites one extra attribute's vertex channel only (the ocean's sea-floor depth, refreshed as the view moves), in the
+    /// TEXCOORD slot <see cref="ToMesh"/> gave it: the rest of the mesh is left as it is. False if the attribute has no slot.
+    /// </summary>
+    public static bool RefillExtra(Mesh mesh, THREE.BufferGeometry g, string attribute)
+    {
+        int slot = 2;
+        int n = g.attributes.position?.count ?? 0;
+        foreach (var attrName in ExtraNames(g))
+        {
+            if (slot > 7) return false;
+            var a = g.attributes[attrName];
+            if (a.isInstanced || a.count != n) continue;
+            if (attrName == attribute)
+            {
+                var v4 = new List<Vector4>(n);
+                int s = a.itemSize;
+                for (int i = 0; i < n; i++)
+                    v4.Add(new Vector4(a.array[i * s], s > 1 ? a.array[i * s + 1] : 0, s > 2 ? a.array[i * s + 2] : 0, s > 3 ? a.array[i * s + 3] : 0));
+                mesh.SetUVs(slot, v4);
+                return true;
+            }
+            slot++;
+        }
+        return false;
+    }
+
     private enum Topology { Triangles, Groups, Lines, LineStrip }
 
     private static void Fill(Mesh mesh, THREE.BufferGeometry g, Topology topo)

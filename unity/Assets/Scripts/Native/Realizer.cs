@@ -54,6 +54,9 @@ public sealed class Realized
         foreach (var (o, t) in followed)
         {
             if (t == null) continue;
+            // a part moved to another parent in the description (a coconut falling from its palm) moves with it
+            var pt = this[o.parent];
+            if (pt != null && !ReferenceEquals(t.parent, pt)) t.SetParent(pt, false);
             if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
             if (o.visible) Realizer.Pose(o, t);
         }

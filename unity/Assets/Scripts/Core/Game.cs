@@ -302,6 +302,8 @@ public class Game
         sky.Place(scene);
         yield return null;
         ocean = new Ocean(beach);
+        ocean.Place();
+        scenery.Place();
         ecology = new Ecology(beach);
         birds = new Birds(beach);
         spawner = new LootSpawner(beach, state);
@@ -319,13 +321,11 @@ public class Game
         station = new CleaningStation(renderer);
         yield return null;
 
+        // the surround and skirt draw random numbers: made here, where the scene list used to make them, so every later draw
+        // of the sequence is the same as before
+        beach.Place(createSurround(), createSkirt());
         scene.add(
-            beach.mesh,
-            createSurround(),
-            createSkirt(),
-            scenery.group,
             sea.group,
-            ocean.group,
             camp.group,
             spawner.group
         );
