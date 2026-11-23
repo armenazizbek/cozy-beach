@@ -58,7 +58,46 @@ public class UiNode
 
     private static readonly HashSet<string> TitleFontClasses = new HashSet<string> { "mm-title", "mm-kicker", "mm-tag", "mm-label", "mm-foot", "game-title", "title-face" };
     private static readonly HashSet<string> InteractiveContainers = new HashSet<string> { "camp", "intro-card", "card", "inspect", "chip", "intro", "pause", "mainmenu", "set-options" };
-    private static readonly HashSet<string> PointerNone = new HashSet<string>(CssAnimations.PointerEventsNone);
+    /// <summary>The page's pointer-events: none (classes and ids): never picked.</summary>
+    private static readonly HashSet<string> PointerNone = new HashSet<string>
+    {
+        "ui", "gone", "prompt", "hud", "result", "fade", "binoc", "map-cursor", "padtools", "padbar", "sleepveil", "dive-tint", "book-spread-crease",
+    };
+
+    /// <summary>The page's z-index (classes and ids): siblings are kept in this order, then in the order they were added.</summary>
+    internal static readonly Dictionary<string, int> ZIndex = new Dictionary<string, int>
+    {
+        { "boot", 100 }, { "padbar", 50 }, { "map-cursor", 20 }, { "achievements", 7 }, { "helpscreen", 7 }, { "farewell", 6 },
+        { "credits", 6 }, { "bookview", 6 }, { "teaser", 6 }, { "saves", 5 }, { "sleepveil", 3 },
+    };
+
+    private static int ZOf(VisualElement v)
+    {
+        int best = 0;
+        if (!string.IsNullOrEmpty(v.name) && ZIndex.TryGetValue(v.name, out int idZ) && idZ > best) best = idZ;
+        foreach (var c in v.GetClasses())
+            if (ZIndex.TryGetValue(c, out int z) && z > best) best = z;
+        return best;
+    }
+
+    /// <summary>Keeps the children in z-index order (a stable sort: equal ones stay in the order they were added).</summary>
+    private void Reorder()
+    {
+        var box = Container;
+        if (box.childCount <= 1) return;
+        var all = new List<(VisualElement v, int z, int i)>();
+        bool any = false;
+        int idx = 0;
+        foreach (var v in box.Children())
+        {
+            int z = ZOf(v);
+            if (z != 0) any = true;
+            all.Add((v, z, idx++));
+        }
+        if (!any) return;
+        all.Sort((a, b) => a.z != b.z ? a.z.CompareTo(b.z) : a.i.CompareTo(b.i));
+        foreach (var e in all) e.v.BringToFront();
+    }
 
     public UiNode(string tag = "div", string classes = null, string text = null)
     {
@@ -187,7 +226,7 @@ public class UiNode
     {
         set
         {
-            if (!HtmlParser.TryText(value, out var t)) throw new ArgumentException("native elements take text, not markup: " + value);
+            if (!TextMarkup.TryText(value, out var t)) throw new ArgumentException("native elements take text, not markup: " + value);
             Clear();
             SetText(t);
         }
@@ -259,6 +298,7 @@ public class UiNode
         // a button straight inside the camp's page keeps its own width (HTMLElement.ApplyDirectChildFixups)
         if (Has("camp-body") && n.Has("btn")) n.ve.style.alignSelf = Align.FlexStart;
         n.Restyle();
+        Reorder();
         n.Attached();
     }
 
@@ -273,18 +313,22 @@ public class UiNode
         p.kids.Insert(i, n);
         p.Container.Insert(p.Container.IndexOf(ve), n.ve);
         n.Restyle();
+        p.Reorder();
         n.Attached();
     }
 
     /// <summary>Hangs this element under a VisualElement that is not a UiNode (a page element while both kinds coexist).</summary>
     public void MountIn(VisualElement parent)
     {
+        if (parent.userData is UiNode p && p.ve == parent)
+        {
+            p.Add(this);
+            return;
+        }
         Remove();
         parent.Add(ve);
         Restyle();
         Attached();
-        // a page parent keeps its children in z-index order, native ones too (the menu bar stays on top)
-        (parent.userData as HTMLElement)?.ReorderChildrenByZIndex();
     }
 
     /// <summary>Hangs this element just before `sibling` under the sibling's (non-UiNode) parent.</summary>
@@ -292,11 +336,15 @@ public class UiNode
     {
         var parent = sibling?.parent;
         if (parent == null) return;
+        if (sibling.userData is UiNode sib && sib.ve == sibling && sib.Parent != null)
+        {
+            sib.Before(this);
+            return;
+        }
         Remove();
         parent.Insert(parent.IndexOf(sibling), ve);
         Restyle();
         Attached();
-        (parent.userData as HTMLElement)?.ReorderChildrenByZIndex();
     }
 
     /// <summary>The font size the page used to size an inline drawing in this element (HTMLElement.GetEffectiveFontSize).</summary>
@@ -427,6 +475,7 @@ public class UiNode
         Fonts();
         Scroll();
         Restyle();
+        Parent?.Reorder();
         UiAnim.OnClassesChanged(ve);
         if (label != null) label.text = Shown();
     }

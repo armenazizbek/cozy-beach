@@ -5,7 +5,7 @@ using UnityEngine;
 /// <summary>
 /// Timers on the game loop (unity/NATIVE_PLAN.md 2.7, S26): what setTimeout, setInterval and requestAnimationFrame did in
 /// the browser, run once a frame from the UI's tick, on the test clock (TestClock), so a fixed-step run fires them on the
-/// same frames every time. The page's window.setTimeout and friends hand their work here until the DOM layer goes (S33).
+/// same frames every time. The page's setTimeout and friends became these (S33).
 /// </summary>
 public static class GameTimers
 {

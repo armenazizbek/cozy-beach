@@ -11,8 +11,8 @@ Each TypeScript file and where it stands in the Unity port (`6000.3.28f1`, URP).
 | Software 2D canvas for `CanvasTexture` and UI canvases, with text | `Three/Textures/Canvas2D.cs`, `CanvasFonts.cs` | done |
 | Native drawing (world root, realized descriptions, materials, textures, lights, cameras, picking); the old scene-copy bridge was deleted in the native rewrite (NATIVE_LOG.md S25) | `Native/*`, `Native/Render/*` | done |
 | Three.js lighting, tone mapping and fog in HLSL | `Resources/Shaders/Cozy*.shader`, `*.hlsl` | done (ready for Unity shader import) |
-| Browser DOM / HTML / SVG / CSS compatibility layer on UI Toolkit | `Assets/Scripts/Dom/*` | done |
-| UI stylesheet (`src/style.css` -> UI Toolkit USS + `@keyframes` driver) | `Resources/UI/Style.uss`, `Dom/CssAnimations.cs` | done |
+| Native UI on UI Toolkit (the page's element structure and classes, built in C#; the old DOM compatibility layer was deleted in the native rewrite, NATIVE_LOG.md S33) | `Assets/Scripts/UI/Native/*` | done |
+| UI stylesheet (`src/style.css` -> UI Toolkit USS + `@keyframes` driver) | `Resources/UI/Style.uss`, `UI/Native/UiAnim.cs` | done |
 | Scene bootstrap (`MonoBehaviour` entry point & scene reload) | `Core/GameHost.cs`, `Scenes/Main.unity` | done |
 | Project setup and build scripts (`BuildScript.BuildWindows`) | `Assets/Editor/ProjectSetup.cs`, `Assets/Editor/BuildScript.cs` | done |
 

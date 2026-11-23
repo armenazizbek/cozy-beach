@@ -54,7 +54,7 @@ internal static class SvgRasterizer
         int texW = Math.Max(64, (int)Math.Ceiling(vbW * 2.0));
         int texH = Math.Max(64, (int)Math.Ceiling(vbH * 2.0));
 
-        var canvas = new HTMLCanvasElement(texW, texH);
+        var canvas = new TexturePainter(texW, texH);
         var ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, texW, texH);
         ctx.save();

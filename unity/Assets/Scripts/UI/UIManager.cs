@@ -116,37 +116,15 @@ public class UIManager
         "<svg viewBox=\"0 0 32 32\" width=\"1.1em\" height=\"1.1em\" style=\"vertical-align:-0.2em\"><rect x=\"3\" y=\"9\" width=\"26\" height=\"18\" rx=\"3\" fill=\"#26282c\"/><path d=\"M3 13V12C3 10.3 4.3 9 6 9H26C27.7 9 29 10.3 29 12V13Z\" fill=\"#c9ced4\"/><rect x=\"6\" y=\"6\" width=\"7\" height=\"4\" rx=\"1\" fill=\"#c9ced4\"/><rect x=\"23\" y=\"6.5\" width=\"3.5\" height=\"3\" rx=\"1\" fill=\"#d94b3e\"/><circle cx=\"17\" cy=\"18.5\" r=\"7\" fill=\"#c9ced4\"/><circle cx=\"17\" cy=\"18.5\" r=\"5.4\" fill=\"#121416\"/><circle cx=\"17\" cy=\"18.5\" r=\"3.4\" fill=\"#5b86b0\"/><circle cx=\"15.6\" cy=\"17.1\" r=\"1.1\" fill=\"#dbe9f5\"/><rect x=\"5.5\" y=\"14.5\" width=\"4.5\" height=\"2.6\" rx=\"0.6\" fill=\"#f4f1e8\"/></svg>";
 
     /// <summary>Shows a tool's icon: an emoji, or one of the drawings above.</summary>
-    private static void showIcon(HTMLElement target, string icon)
-    {
-        if (icon.StartsWith("<")) target.innerHTML = icon;
-        else target.textContent = icon;
-    }
-
     private static void showIcon(UiNode target, string icon)
     {
         if (icon.StartsWith("<")) target.Svg(icon);
         else target.Text = icon;
     }
 
-    private static HTMLElement el(string tag, string cls = "", string html = "")
-    {
-        var e = document.createElement(tag);
-        if (!string.IsNullOrEmpty(cls)) e.className = cls;
-        if (!string.IsNullOrEmpty(html)) e.innerHTML = html;
-        return e;
-    }
-
-    private static T el<T>(string tag, string cls = "", string html = "") where T : HTMLElement
-    {
-        var e = document.createElement<T>(tag);
-        if (!string.IsNullOrEmpty(cls)) e.className = cls;
-        if (!string.IsNullOrEmpty(html)) e.innerHTML = html;
-        return e;
-    }
-
     public readonly UiCanvas waveCanvas = new UiCanvas("wave");
     public readonly CanvasRenderingContext2D waveCtx;
-    private HTMLElement root;
+    private UiNode root;
     // the HUD is native (UI/Native/UiNode.cs): the same elements and classes the page had, so Style.uss draws them alike
     private UiNode coins = new UiNode("span", "val");
     private UiNode warmFill = new UiNode("div", "fill");
@@ -244,7 +222,7 @@ public class UIManager
     private StateManager state;
     private UIHooks hooks;
 
-    public UIManager(HTMLElement root, StateManager state, UIHooks hooks)
+    public UIManager(UiNode root, StateManager state, UIHooks hooks)
     {
         this.root = root;
         this.state = state;
@@ -402,7 +380,7 @@ public class UIManager
             this.badgeName.Text = n == 7 ? $"Flags x{this.state.data.flags}" : inf[1];
         }
         this.scope.Toggle("hidden", n != 1);
-        document.body.classList.toggle("scope-on", n == 1);
+        Page.Body.Toggle("scope-on", n == 1);
     }
 
     /// <summary>Tools that share the d-pad's left slot: the camera, flags (while any are left), the bucket, the bow and the gun.</summary>
@@ -489,9 +467,8 @@ public class UIManager
         if (mode == "INSPECT" || mode == "MENU")
         {
             this.scope.AddClass("hidden");
-            document.body.classList.remove("scope-on");
+            Page.Body.RemoveClass("scope-on");
         }
-        document.body.dataset["mode"] = mode;
     }
 
     public void showPause(bool on, PauseHooks hooks = null)
@@ -963,7 +940,7 @@ public class UIManager
         nav.Add(prev, count, next, close);
         book.Add(spread, nav);
         wrap.Add(book);
-        var per = window.innerWidth < 760 ? 1 : 2;
+        var per = Page.Width < 760 ? 1 : 2;
         int idxNew = -1;
         for (int k = 0; k < pages.Count; k++)
         {
@@ -1360,7 +1337,7 @@ public class UIManager
             foreach (var tb in tabBtns) tabs.Add(tb);
             card.Add(tabs);
         }
-        int size = (int)Math.Min(600, Math.Floor(Math.Min(window.innerWidth, window.innerHeight) * 0.72));
+        int size = (int)Math.Min(600, Math.Floor(Math.Min(Page.Width, Page.Height) * 0.72));
         var c = new UiCanvas("bigmap-canvas");
         c.Width = c.Height = size;
         card.Add(c, node("p", "save-note", "You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it."));
@@ -1423,7 +1400,7 @@ public class UIManager
     /// <summary>The minimap is of no use under the dunes.</summary>
     public void setUnderground(bool on)
     {
-        document.body.classList.toggle("underground", on);
+        Page.Body.Toggle("underground", on);
     }
 
     private UiNode diveTint = null;
@@ -1431,7 +1408,7 @@ public class UIManager
     /// <summary>Underwater the minimap goes away and a soft blue vignette comes in at the edges.</summary>
     public void setDiving(bool on)
     {
-        document.body.classList.toggle("diving", on);
+        Page.Body.Toggle("diving", on);
         if (this.diveTint == null)
         {
             this.diveTint = new UiNode("div", "dive-tint");
@@ -1455,14 +1432,14 @@ public class UIManager
     {
         // put away (nearly always): nothing to build or compare
         if (!on && this.binocKey == "off") return;
-        var key = on ? $"{pad.on}|{zoom}|{range}|{JS.Str(window.innerWidth)}x{JS.Str(window.innerHeight)}" : "off";
+        var key = on ? $"{pad.on}|{zoom}|{range}|{JS.Str(Page.Width)}x{JS.Str(Page.Height)}" : "off";
         if (key == this.binocKey) return;
         this.binocKey = key;
         this.binoc.Toggle("hidden", !on);
         this.binocText.Toggle("hidden", !on);
         if (!on) return;
-        int w = (int)window.innerWidth;
-        int h = (int)window.innerHeight;
+        int w = (int)Page.Width;
+        int h = (int)Page.Height;
         // The browser redrew this whole screen-sized canvas whenever the zoom or the distance changed, which is nearly every
         // frame while looking around; drawn on the CPU here, that stuttered. The lenses, reticle and legend are redrawn only
         // when the screen or the controls change, and the readout has a small canvas of its own.
@@ -1565,15 +1542,15 @@ public class UIManager
     /// </summary>
     public void setViewfinder(bool on, int count = 0, int max = 0)
     {
-        int w = (int)window.innerWidth;
-        int h = (int)window.innerHeight;
+        int w = (int)Page.Width;
+        int h = (int)Page.Height;
         var key = on ? $"{pad.on}|{count}|{w}x{h}" : "off";
         if (key == this.finderKey) return;
         this.finderKey = key;
         this.finder.Toggle("hidden", !on);
         // nothing but the picture while the camera is at the eye: the "F: pet the dog" prompts wait until it is lowered
         // (Style.uss: .viewfinder .prompt.on). The keys themselves still work.
-        document.body.classList.toggle("viewfinder", on);
+        Page.Body.Toggle("viewfinder", on);
         if (!on) return;
         if (this.finder.Width != w) this.finder.Width = w;
         if (this.finder.Height != h) this.finder.Height = h;
@@ -1737,7 +1714,7 @@ public class UIManager
             if (!this.padbar.Has("hidden"))
             {
                 this.padbar.AddClass("hidden");
-                document.body.classList.remove("menu-open");
+                Page.Body.RemoveClass("menu-open");
             }
             this.padbarKey = "";
             return;
@@ -1748,7 +1725,7 @@ public class UIManager
         Glyphs.FillBar(this.padbar, items, pad.on);
         this.padbar.Toggle("left", left);
         this.padbar.RemoveClass("hidden");
-        document.body.classList.add("menu-open");
+        Page.Body.AddClass("menu-open");
     }
 
     /// <summary>Puts a full-screen layer (the telescope's eyepiece) over the HUD but under the toasts and the fade.</summary>
@@ -1757,7 +1734,7 @@ public class UIManager
     public void toast(string msg)
     {
         // the words as the page took them (entities decoded; text with markup never comes here)
-        var t = new UiNode("div", "toast", HtmlParser.DecodeEntities(padText(msg)));
+        var t = new UiNode("div", "toast", TextMarkup.DecodeEntities(padText(msg)));
         this.toasts.Add(t);
         GameTimers.NextFrame(_ => t.AddClass("in"));
         GameTimers.After(3200, () =>
@@ -1942,13 +1919,11 @@ public class UIManager
 
     public bool introOpen => this.intro.ve.panel != null && !this.intro.Has("gone");
 
-    public HTMLElement container => this.root;
+    public UiNode container => this.root;
 
-    /// <summary>Takes away the first element with this class, page or native (document.querySelector(".cls")?.remove()).</summary>
+    /// <summary>Takes away the first element with this class (document.querySelector(".cls")?.remove() on the page).</summary>
     internal static void removeFirst(string cls)
     {
-        var e = MenuNav.Find(UiRoot.Root, v => v.ClassListContains(cls)).FirstOrDefault();
-        if (e.dom != null) e.dom.remove();
-        else e.node?.Remove();
+        MenuNav.Find(UiRoot.Root, v => v.ClassListContains(cls)).FirstOrDefault().node?.Remove();
     }
 }

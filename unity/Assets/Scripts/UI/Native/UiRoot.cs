@@ -49,9 +49,9 @@ public static class UiRoot
         if (Ready) return;
         Metrics(out float scale);
 
-        hostGo = new GameObject("DomHost");
+        hostGo = new GameObject("UiRoot");
         panel = ScriptableObject.CreateInstance<PanelSettings>();
-        panel.name = "DomPanelSettings";
+        panel.name = "UiPanelSettings";
         panel.scaleMode = PanelScaleMode.ConstantPixelSize;
         panel.scale = scale;
         panel.sortingOrder = 100;
@@ -174,7 +174,7 @@ public static class UiRoot
         try
         {
             var pts = ScriptableObject.CreateInstance<PanelTextSettings>();
-            pts.name = "DomPanelTextSettings";
+            pts.name = "UiPanelTextSettings";
 
             // Body text: a friendly sans. Headings and the title: a bold serif (see DisplayFont). A font file dropped into
             // Resources/UI/Fonts (Body, BodyBold, Display) is used ahead of the system's, which is what a console will need.

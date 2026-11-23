@@ -183,7 +183,6 @@ public class Game
     /// <summary>where the grate over the sun shaft lies on the beach</summary>
     private XZ grate = null;
     /// <summary>the dropdown whose choices are open for the controller</summary>
-    private HTMLSelectElement padSelect = null;
     private HashSet<string> padKeys = new HashSet<string>();
     private bool padRun = false;
     private bool padL3Was = false;
@@ -259,10 +258,10 @@ public class Game
     private double lighthouseIntroArmed = 0;
     private bool transitioning = false;
     private bool chillWarned = false;
-    private HTMLElement canvas;
+    private UiNode canvas;
     private bool wasLocked = false;
 
-    public Game(HTMLElement canvas, HTMLElement uiRoot)
+    public Game(UiNode canvas, UiNode uiRoot)
     {
         // the world's root, which native objects hang under (Native/World.cs): bound before anything is built
         World.Bind(scene);
@@ -270,7 +269,7 @@ public class Game
         this.uiRootForBuild = uiRoot;
     }
 
-    private HTMLElement uiRootForBuild;
+    private UiNode uiRootForBuild;
 
     /// <summary>
     /// Builds the world. It pauses between stages so the loading screen keeps moving while the world is made
@@ -392,8 +391,8 @@ public class Game
         camera.updateProjectionMatrix();
 
         input = new InputManager();
-        input.overUI = () => DomHost.IsPointerOverUI();
-        input.typing = () => DomHost.IsTyping();
+        input.overUI = () => Page.IsPointerOverUI();
+        input.typing = () => Page.IsTyping();
         input.handlers = new InputHandlers
         {
             onClick = b => onClick(b),
@@ -543,13 +542,13 @@ public class Game
             print = (x, z, yaw, left) => tracks.paw(x, z, yaw, left),
         };
 
-        document.addEventListener("pointerlockchange", _ =>
+        Page.OnPointerLockChange += () =>
         {
             if (locked) setLockFailed(false);
             // (not when the mouse was let go because the player picked up a controller)
             if (!locked && !usingPad && started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null) setPaused(true);
-        });
-        window.addEventListener("resize", _ => resize());
+        };
+        Page.OnResize += resize;
         resize();
         mapView.flags = flags.positions;
     }
@@ -1305,7 +1304,7 @@ public class Game
         if (root == null) return "no menu";
         var items = padFocusables(root);
         var self = NavEl.Of(root);
-        string cls = self.dom != null ? self.dom.className : self.node?.ClassName ?? "";
+        string cls = self.node?.ClassName ?? "";
         return $"menu '{cls}', {items.Count} reachable: " + string.Join("; ", items.Take(8).Select(e =>
         {
             var r = e.Box;
@@ -1517,23 +1516,23 @@ public class Game
     }
 
     /// <summary>
-    /// The picture's pixels per pixel of the UI's page. The page is stretched to the screen (window.devicePixelRatio is that
+    /// The picture's pixels per pixel of the UI's page. The page is stretched to the screen (Page.PixelRatio is that
     /// stretch), so this is what keeps the 3D picture at the resolution it always had: the screen's own pixels when "Sharp
     /// picture" is on (up to MAX_PIXEL_RATIO times Windows' 100% size), Windows' 100% size when it is off.
     /// </summary>
     private double pixelRatio(bool sharp)
     {
         // on a Deck the screen is the 1280x800 it is: a high DPI figure from Proton must not shrink the 3D picture
-        double os = Platform.IsSteamDeck ? 1 : Math.Max(0.5, window.osPixelRatio);
-        return window.devicePixelRatio / os * (sharp ? Math.Min(os, MAX_PIXEL_RATIO) : 1);
+        double os = Platform.IsSteamDeck ? 1 : Math.Max(0.5, Page.OsRatio);
+        return Page.PixelRatio / os * (sharp ? Math.Min(os, MAX_PIXEL_RATIO) : 1);
     }
 
     private void resize()
     {
         // the page's stretch changes with the window, and the picture's pixel ratio with it
         if (settings != null) renderer.setPixelRatio(pixelRatio(settings.sharp) * settings.renderScale);
-        int w = (int)Math.Max(1, window.innerWidth);
-        int h = (int)Math.Max(1, window.innerHeight);
+        int w = (int)Math.Max(1, Page.Width);
+        int h = (int)Math.Max(1, Page.Height);
         renderer.setSize(w, h, false);
         camera.aspect = (double)w / h;
         camera.updateProjectionMatrix();
@@ -1805,7 +1804,7 @@ public class Game
         lockFailed = on;
         if (!on) lockErrors = 0;
         // with no mouse capture the cursor has to stay visible, since it is what steers
-        document.body.classList.toggle("nolock", on);
+        Page.Body.Toggle("nolock", on);
     }
 
     /// <summary>the browser refused to capture the mouse, so the cursor itself has to do the steering</summary>
@@ -1926,7 +1925,7 @@ public class Game
         input.keys.Clear();
         if (on)
         {
-            document.exitPointerLock();
+            Page.ExitPointerLock();
             audio.setOceanLevel(0.02);
         }
         else
@@ -1996,7 +1995,7 @@ public class Game
         });
         audio.setOceanLevel(on ? 0.02 : gameState == "INSPECT" ? 0.02 : 0.06);
         audio.setMusicLevel(on ? 0.08 : 0, 1);
-        if (on) document.exitPointerLock();
+        if (on) Page.ExitPointerLock();
         else grabMouse();
         input.keys.Clear();
     }
@@ -2653,7 +2652,7 @@ public class Game
     {
         setBinocView(false);
         transitioning = true;
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         ui.fade(() =>
         {
             inspectItem = item;
@@ -2666,7 +2665,7 @@ public class Game
             detector.setActive(false);
             dig.setActive(false);
             ui.setHint(null);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -2676,7 +2675,7 @@ public class Game
         if (lh == null || lh.cleaned || transitioning) return;
         setBinocView(false);
         transitioning = true;
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         ui.fade(() =>
         {
             inspectItem = null;
@@ -2691,7 +2690,7 @@ public class Game
             detector.setActive(false);
             dig.setActive(false);
             ui.setHint(null);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -2702,7 +2701,7 @@ public class Game
         if (ts == null || ts.cleaned || transitioning || gameState != "EXPLORE") return;
         setBinocView(false);
         transitioning = true;
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         ui.fade(() =>
         {
             inspectItem = null;
@@ -2717,7 +2716,7 @@ public class Game
             detector.setActive(false);
             dig.setActive(false);
             ui.setHint(null);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -2816,7 +2815,7 @@ public class Game
                 detector.setActive(tool == 1);
                 dig.setActive(tool == 2);
             }
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
             grabMouse();
         });
     }
@@ -2851,7 +2850,7 @@ public class Game
             input.keys.Clear();
             ui.setCaption(true, lh.introCaption, "Press any key to skip");
             audio.setOceanLevel(0.06);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -2937,7 +2936,7 @@ public class Game
             scope.show(state.data.constellations, Math.Max(0, Math.Min(1, sky.starAmount)));
             audio.setOceanLevel(0.03);
             discover("telescope_first");
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -2955,7 +2954,7 @@ public class Game
             audio.setOceanLevel(0.06);
             if (scopeFoundNow > 0) autoSave();
             grabMouse();
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -3114,7 +3113,7 @@ public class Game
     {
         if (transitioning) return;
         setBinocView(false);
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         if (gameState == "EXPLORE")
         {
             if (walk && JS.Hypot(player.x, player.z - CAMP_Z) > 6)
@@ -3237,11 +3236,11 @@ public class Game
         if (on == usingPad) return;
         usingPad = on;
         mouseShove = 0;
-        document.body.classList.toggle("usingpad", on);
+        Page.Body.Toggle("usingpad", on);
         ui.setPadMode(on);
         if (on)
         {
-            document.exitPointerLock();
+            Page.ExitPointerLock();
             // no mouse cursor floating over the picture while a controller is in hand (it comes back with the next key or click)
             UnityEngine.Cursor.visible = false;
         }
@@ -3311,49 +3310,6 @@ public class Game
         return l.Count > 0 ? l[0] : default;
     }
 
-    /// <summary>A dropdown cannot be opened from code, so a controller gets its choices as a short list of buttons under the row.</summary>
-    private void openPadOptions(HTMLSelectElement sel)
-    {
-        var list = document.createElement("div");
-        list.className = "set-options";
-        for (int idx = 0; idx < sel.options.Count; idx++)
-        {
-            int i = idx;
-            var o = sel.options[i];
-            var b = document.createElement<HTMLButtonElement>("button");
-            b.className = i == sel.selectedIndex ? "set-option on" : "set-option";
-            b.textContent = o.text ?? o.textContent;
-            b.onclick = () =>
-            {
-                bool changed = i != sel.selectedIndex;
-                sel.selectedIndex = i;
-                closePadOptions(list);
-                if (changed) sel.onchange?.Invoke(new Event { type = "change", target = sel });
-            };
-            list.append(b);
-        }
-        padSelect = sel;
-        var row = sel.closest(".set-row") ?? sel;
-        var parent = row.parentElement;
-        if (parent != null)
-        {
-            var next = row.nextElementSibling;
-            if (next != null) parent.insertBefore(list, next);
-            else parent.append(list);
-        }
-        list.querySelector<HTMLElement>(".on")?.focus();
-        list.scrollIntoView();
-        audio.ui();
-    }
-
-    private void closePadOptions(HTMLElement list)
-    {
-        list.remove();
-        padSelect?.focus();
-        padSelect = null;
-        audio.ui();
-    }
-
     private List<NavEl> padFocusables(VisualElement root)
     {
         // while a list of choices is open, only its choices can be reached
@@ -3404,17 +3360,6 @@ public class Game
         {
             cur.OnStep(d == "left" ? -1 : 1);
             audio.ui();
-            return;
-        }
-        if (cur.dom is HTMLInputElement rangeInp && rangeInp.type == "range" && (d == "left" || d == "right"))
-        {
-            double stepVal = double.TryParse(rangeInp.step, NumberStyles.Float, CultureInfo.InvariantCulture, out var st) && st > 0 ? st : 1;
-            double minVal = double.TryParse(rangeInp.min, NumberStyles.Float, CultureInfo.InvariantCulture, out var mn) ? mn : 0;
-            double maxVal = double.TryParse(rangeInp.max, NumberStyles.Float, CultureInfo.InvariantCulture, out var mx) ? mx : 100;
-            double curVal = double.TryParse(rangeInp.value, NumberStyles.Float, CultureInfo.InvariantCulture, out var cv) ? cv : minVal;
-            double nextVal = Math.Max(minVal, Math.Min(maxVal, curVal + (d == "left" ? -stepVal : stepVal)));
-            rangeInp.value = JS.Str(nextVal);
-            rangeInp.oninput?.Invoke(new Event { type = "input", target = rangeInp });
             return;
         }
         var c = cur.Box;
@@ -3488,8 +3433,7 @@ public class Game
     private void menuAccept(VisualElement root)
     {
         var cur = MenuNav.Current;
-        if (cur.dom is HTMLSelectElement sel) openPadOptions(sel);
-        else if (!cur.IsNull && NavEl.Of(root).Contains(cur) && cur.dom?.tagName != "BODY") cur.Click();
+        if (!cur.IsNull && NavEl.Of(root).Contains(cur)) cur.Click();
         else
         {
             var f = padFocusables(root);
@@ -3586,7 +3530,7 @@ public class Game
         var items = padFocusables(root);
         var cur = MenuNav.Current;
         if (!cur.IsNull && items.Contains(cur)) chosenIn[root] = cur;
-        else if (items.Count > 0 && !DomHost.IsTyping())
+        else if (items.Count > 0 && !Page.IsTyping())
         {
             // back from a card that was opened over this menu: the button that opened it is chosen again. Otherwise a menu
             // opens on the button it marks (Resume, Cancel), the camp on its current page, anything else on its first button
@@ -3643,9 +3587,7 @@ public class Game
             if (b == "a") menuAccept(root);
             else if (b == "b")
             {
-                var open = firstWith(root, v => v.ClassListContains("set-options"));
-                if (!open.IsNull && open.dom != null) closePadOptions(open.dom);
-                else padBack(root);
+                padBack(root);
             }
             else if ((b == "lb" || b == "rb") && campModal.isOpen) campModal.stepTab(b == "rb" ? 1 : -1);
             else if ((b == "lb" || b == "rb") && ui.helpStep(b == "rb" ? 1 : -1)) audio.ui();
@@ -3787,7 +3729,7 @@ public class Game
                 if (mapCursorEl == null)
                 {
                     mapCursorEl = new UiNode("div", "map-cursor");
-                    mapCursorEl.MountIn(document.body.ve);
+                    Page.Body.Add(mapCursorEl);
                 }
                 var r = new NavEl(c).Box;
                 mapCursorEl.ve.style.left = (float)(r.xMin + mapCursor.u * r.width);
@@ -3814,7 +3756,7 @@ public class Game
             }
             station.rotate(m.x * dt * 2.2, m.y * dt * 1.8);
             // the same speed on screen both ways, and never off the find
-            double aspect = window.innerWidth / Math.Max(1, window.innerHeight);
+            double aspect = Page.Width / Math.Max(1, Page.Height);
             input.pointer.x = Math.Max(-1, Math.Min(1, input.pointer.x + l.x * dt * 1.6 / aspect));
             input.pointer.y = Math.Max(-1, Math.Min(1, input.pointer.y - l.y * dt * 1.6));
             if (l.x != 0 || l.y != 0) station.keepOnItem(input.pointer);
@@ -3865,7 +3807,7 @@ public class Game
     private void applySettings()
     {
         var st = settings;
-        DomHost.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
+        UiRoot.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
         audio.setVolumes(st.master, st.music, st.ambience);
         THREE.Render.UrpSettings.SetQuality(st.quality);
         ocean?.setReceiveShadow(st.quality != "handheld" && st.quality != "low");
@@ -3993,7 +3935,7 @@ public class Game
             {
                 // as in the desktop app: the game really closes. The browser's farewell card ("you can close this tab")
                 // only ever made sense in a tab, and here it flashed up while the game shut down.
-                window.close();
+                Page.Close();
             },
         });
     }
@@ -4700,7 +4642,7 @@ public class Game
             audio.thud();
             audio.setOceanLevel(0.006);
             discover("underground_first");
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -4736,7 +4678,7 @@ public class Game
             ui.setUnderground(false);
             audio.thud();
             audio.setOceanLevel(0.06);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -4926,7 +4868,7 @@ public class Game
             audio.splash(2);
             audio.setOceanLevel(0.015);
             discover("dive_first");
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -4965,7 +4907,7 @@ public class Game
             ui.setDiving(false);
             audio.splash(2);
             audio.setOceanLevel(0.06);
-            window.setTimeout(() => transitioning = false, 350);
+            GameTimers.After(350, () => transitioning = false);
         });
     }
 
@@ -5587,7 +5529,7 @@ public class Game
         readerKind = "book";
         paused = true;
         input.keys.Clear();
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.02);
         var unread = new HashSet<string>(state.data.unreadPages ?? new List<string>());
@@ -5616,7 +5558,7 @@ public class Game
         readerKind = "mail";
         paused = true;
         input.keys.Clear();
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.02);
         var unread = new HashSet<string>(state.data.unreadLetters ?? new List<string>());
@@ -5687,7 +5629,7 @@ public class Game
         readerKind = "story";
         paused = true;
         input.keys.Clear();
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         audio.discover();
         audio.setEnding(true);
         int finds = d.found.Values.Sum();
@@ -5726,7 +5668,7 @@ public class Game
         readerKind = "story";
         paused = true;
         input.keys.Clear();
-        document.exitPointerLock();
+        Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.006);
         discover("captain_journal");
@@ -6543,8 +6485,8 @@ public class Game
     private bool isOverPanel()
     {
         // the camp panel hugs the right edge of the screen
-        double px = (input.pointer.x + 1) / 2 * window.innerWidth;
-        return px > window.innerWidth - Math.Min(624, window.innerWidth * 0.94);
+        double px = (input.pointer.x + 1) / 2 * Page.Width;
+        return px > Page.Width - Math.Min(624, Page.Width * 0.94);
     }
 
     private THREE.Vector2 zeroNDC = new THREE.Vector2(0, 0);
@@ -7008,7 +6950,7 @@ public class Game
             using (THREE.Render.FrameStats.Time("minimap")) mapView.drawMini(ui.miniCanvas.getContext("2d"), 150, mapPlayer, holes, waypoint, mapCart, mapBoat);
         }
         using (THREE.Render.FrameStats.Time("hint")) updateHint();
-        canvas.classList.toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse || hoveredScope);
+        canvas.Toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse || hoveredScope);
         if (audio.ready)
         {
             double fd = JS.Hypot(camera.position.x - camp.group.position.x, camera.position.z - camp.group.position.z);

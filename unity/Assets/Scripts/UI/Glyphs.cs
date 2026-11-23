@@ -8,23 +8,6 @@ using static PadText;
 /// </summary>
 public static class Glyphs
 {
-    /// <summary>One key or button, named the way the game's hints name it: "F", "Space", "Click", "RT", "A", "left stick", "D-pad left".</summary>
-    public static HTMLElement make(string name, bool onPad)
-    {
-        var e = document.createElement("span");
-        set(e, name, onPad);
-        return e;
-    }
-
-    /// <summary>A key that changes with what the player is holding: `kb` on the keyboard, `padName` on a controller.</summary>
-    public static HTMLElement key(string kb, string padName)
-    {
-        var e = make(pad.on ? padName : kb, pad.on);
-        e.dataset["kb"] = kb;
-        e.dataset["pad"] = padName;
-        return e;
-    }
-
     /// <summary>Redraws every key made by <see cref="key"/> after the player picks up or puts down the controller.</summary>
     public static void refresh(bool onPad)
     {
@@ -33,20 +16,6 @@ public static class Glyphs
             if (!nativeKeys[i].TryGetTarget(out var n)) { nativeKeys.RemoveAt(i); continue; }
             if (keyNames.TryGetValue(n, out var names)) Set(n, onPad ? names[1] : names[0], onPad);
         }
-        foreach (var e in document.querySelectorAll<HTMLElement>(".kc"))
-        {
-            var kb = e.dataset["kb"];
-            var p = e.dataset["pad"];
-            if (kb == null || p == null) continue;
-            set(e, onPad ? p : kb, onPad);
-        }
-    }
-
-    public static void set(HTMLElement e, string name, bool onPad)
-    {
-        var (cls, text) = look(name, onPad, e.classList.contains("mid"));
-        if (e.className != cls) e.className = cls;
-        if (e.textContent != text) e.textContent = text;
     }
 
     // ---------------------------------------------------------------- native (UI/Native/UiNode.cs)
@@ -193,57 +162,6 @@ public static class Glyphs
 
     private static string capital(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
-    /// <summary>
-    /// Lays a hint out with its keys drawn: "Click to fire the harpoon · F picks up a find" becomes a mouse picture and
-    /// "Fire the harpoon", then an F key cap and "picks up a find". The text is the hint as the game writes it (already
-    /// reworded for a controller by PadText when one is in use).
-    /// </summary>
-    public static void fill(HTMLElement target, string text, bool onPad)
-    {
-        target.replaceChildren();
-        if (string.IsNullOrEmpty(text)) return;
-        foreach (var raw in text.Split(new[] { " · " }, System.StringSplitOptions.RemoveEmptyEntries))
-        {
-            var part = raw.Trim();
-            if (part.Length == 0) continue;
-            var seg = document.createElement("div");
-            seg.className = "hint-seg";
-            var lead = (onPad ? LEAD_PAD : LEAD_KB).Match(part);
-            if (lead.Success)
-            {
-                seg.append(make(lead.Groups[1].Value, onPad), words(capital(lead.Groups[2].Value)));
-                target.append(seg);
-                continue;
-            }
-            int at = 0;
-            foreach (Match m in (onPad ? PAD_KEYS : KB_KEYS).Matches(part))
-            {
-                var before = part.Substring(at, m.Index - at).TrimEnd();
-                if (before.Length > 0) seg.append(words(before));
-                bool first = true;
-                foreach (var k in m.Value.Split(new[] { " / " }, System.StringSplitOptions.None))
-                {
-                    var g = document.createElement("span");
-                    if (first && before.Length > 0) g.classList.add("mid");
-                    set(g, k, onPad);
-                    seg.append(g);
-                    first = false;
-                }
-                at = m.Index + m.Length;
-            }
-            var rest = part.Substring(at).TrimStart();
-            if (rest.Length > 0) seg.append(words(rest));
-            target.append(seg);
-        }
-    }
-
-    private static HTMLElement words(string t)
-    {
-        var s = document.createElement("span");
-        s.textContent = t;
-        return s;
-    }
-
     // ---------------------------------------------------------------- the line of buttons under a menu
 
     public class Prompt
@@ -274,20 +192,4 @@ public static class Glyphs
         }
     }
 
-    public static void fillBar(HTMLElement bar, IList<Prompt> items, bool onPad)
-    {
-        bar.replaceChildren();
-        foreach (var it in items)
-        {
-            if ((onPad ? it.pad : it.kb).Length == 0) continue;
-            var e = document.createElement("div");
-            e.className = "pb-item";
-            foreach (var k in onPad ? it.pad : it.kb) e.append(make(k, onPad));
-            var l = document.createElement("span");
-            l.className = "pb-label";
-            l.textContent = it.label;
-            e.append(l);
-            bar.append(e);
-        }
-    }
 }

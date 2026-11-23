@@ -1354,7 +1354,7 @@ public class AutoShot : MonoBehaviour
         string urp = a == null ? "no URP asset"
             : $"render scale {a.renderScale:0.00}, MSAA {a.msaaSampleCount}x, shadows {a.mainLightShadowmapResolution} px / {a.shadowCascadeCount} cascade(s) / {a.shadowDistance:0} m, soft {THREE.Render.UrpSettings.SoftShadowQualityName()}";
         var g = GameHost.Instance?.game;
-        return $"{Platform.Describe()}; quality {g?.settings?.quality}; {urp}; UI ratio {window.devicePixelRatio:0.000}, OS ratio {window.osPixelRatio:0.00}; " +
+        return $"{Platform.Describe()}; quality {g?.settings?.quality}; {urp}; UI ratio {Page.PixelRatio:0.000}, OS ratio {Page.OsRatio:0.00}; " +
                $"scripting {(IsIl2Cpp() ? "IL2CPP" : "Mono")}, development build {Debug.isDebugBuild}";
     }
 

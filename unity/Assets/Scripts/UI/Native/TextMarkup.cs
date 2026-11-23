@@ -6,9 +6,9 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-// HTML subset parser & entity decoder for HTMLElement.innerHTML
+// Text set as HTML: the fragment parser and entity decoder the page used for innerHTML, kept for the words of native elements
 
-internal static class HtmlParser
+internal static class TextMarkup
 {
     private static readonly HashSet<string> VoidTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -28,21 +28,6 @@ internal static class HtmlParser
         public string rawSvg;
         public Dictionary<string, string> attrs;
         public List<HtmlNode> children;
-    }
-
-    public static void ApplyInnerHtml(HTMLElement target, string html)
-    {
-        target.ClearAllContent();
-        if (string.IsNullOrEmpty(html)) return;
-
-        if (html.IndexOf('<') < 0)
-        {
-            target.SetDirectText(DecodeEntities(html), isRich: false);
-            return;
-        }
-
-        var rootNodes = ParseFragment(html);
-        PopulateElementFromNodes(target, rootNodes);
     }
 
     /// <summary>
@@ -74,69 +59,6 @@ internal static class HtmlParser
             return true;
         }
         return false;
-    }
-
-    private static void PopulateElementFromNodes(HTMLElement target, List<HtmlNode> nodes)
-    {
-        if (nodes == null || nodes.Count == 0) return;
-
-        // Single text node inside an HTML element -> decode & collapse HTML whitespace
-        if (nodes.Count == 1 && nodes[0].isText)
-        {
-            target.SetDirectText(DecodeEntities(CollapseWhitespace(nodes[0].text).Trim()), isRich: false);
-            return;
-        }
-
-        // Check if this is an inline-only run (plain text mixed with attribute-less b, i, em, strong, br, small, u)
-        if (CanCollapseToRichText(nodes))
-        {
-            var sb = new StringBuilder();
-            BuildRichText(nodes, sb);
-            target.SetDirectText(sb.ToString(), isRich: true);
-            return;
-        }
-
-        for (int i = 0; i < nodes.Count; i++)
-        {
-            var n = nodes[i];
-            if (n.isText)
-            {
-                if (string.IsNullOrWhiteSpace(n.text)) continue;
-                string decoded = DecodeEntities(CollapseWhitespace(n.text));
-                if (string.IsNullOrEmpty(decoded)) continue;
-                var textNode = new HTMLElement("#text");
-                if (textNode.ve != null) textNode.ve.style.flexShrink = 1;
-                textNode.SetDirectText(decoded, isRich: false);
-                target.appendChild(textNode);
-                continue;
-            }
-
-            if (string.Equals(n.tag, "svg", StringComparison.OrdinalIgnoreCase))
-            {
-                var svgEl = document.createElement("svg");
-                ApplyAttributes(svgEl, n.attrs);
-                float fontSize = target.GetEffectiveFontSize();
-                Texture2D tex = SvgRasterizer.Rasterize(n.rawSvg, fontSize, out float w, out float h);
-                if (tex != null && svgEl.ve != null)
-                {
-                    svgEl.ve.style.backgroundImage = new StyleBackground(tex);
-                    svgEl.ve.style.width = w;
-                    svgEl.ve.style.height = h;
-                    svgEl.ve.style.flexShrink = 0;
-                    svgEl.ve.style.alignSelf = Align.Center;
-                }
-                target.appendChild(svgEl);
-                continue;
-            }
-
-            var el = document.createElement(n.tag);
-            ApplyAttributes(el, n.attrs);
-            if (n.children != null && n.children.Count > 0)
-            {
-                PopulateElementFromNodes(el, n.children);
-            }
-            target.appendChild(el);
-        }
     }
 
     private static bool CanCollapseToRichText(List<HtmlNode> nodes)
@@ -216,15 +138,6 @@ internal static class HtmlParser
             sb.Append(openTag);
             if (n.children != null) BuildRichText(n.children, sb);
             sb.Append(closeTag);
-        }
-    }
-
-    private static void ApplyAttributes(HTMLElement el, Dictionary<string, string> attrs)
-    {
-        if (attrs == null || attrs.Count == 0) return;
-        foreach (var kv in attrs)
-        {
-            el.setAttribute(kv.Key, DecodeEntities(kv.Value));
         }
     }
 

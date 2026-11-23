@@ -62,7 +62,7 @@ public class CampModal
     private CampHooks hooks;
 
     public CampModal(
-        HTMLElement parent,
+        UiNode parent,
         StateManager state,
         AudioManager audio,
         CampHooks hooks)
@@ -124,9 +124,7 @@ public class CampModal
         var ids = TABS.Select(t => t[0]).Where(id => id != "luxury" || this.state.data.hoardTaken).ToList();
         this.tab = ids[(ids.IndexOf(this.tab) + dir + ids.Count) % ids.Count];
         this.audio.ui();
-        var was = MenuNav.Current;
-        if (was.dom != null) was.dom.blur();
-        else was.node?.Blur();
+        MenuNav.Current.node?.Blur();
         this.render();
         tabOn()?.Focus();
     }

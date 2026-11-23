@@ -9,7 +9,7 @@ using UnityEngine.TextCore.Text;
 
 /// <summary>
 /// Turns Assets/Art/Emoji/EmojiAtlas.png (made by unity/Tools/Emoji/update_emoji.py from Microsoft's Fluent Emoji) into a TextCore
-/// sprite asset at Assets/Resources/UI/Emoji.asset, with one sprite per emoji keyed by its code point. DomHost hands it to the
+/// sprite asset at Assets/Resources/UI/Emoji.asset, with one sprite per emoji keyed by its code point. UiRoot hands it to the
 /// UI's text settings, so emoji typed anywhere in the game's text draw in colour: Unity's text engine cannot draw colour emoji
 /// fonts, which is why the system emoji came out as black outlines or empty boxes.
 /// </summary>

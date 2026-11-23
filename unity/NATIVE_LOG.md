@@ -554,3 +554,23 @@ the verification passes (about 14 minutes for all 37 runs).
   (its labels placed from the same rounded numbers the page parsed) are native. `addLayer` takes native layers.
 - **Full passes (S31 before the fixes, then S31 with S32):** every run clean, 7 of 7 self-checks, all logs identical,
   no FAIL; after the fixes non-loading shots within 0.02/255, 428 of 438 dumps identical.
+
+## S33: the DOM layer is gone (2026-11-24)
+
+- **`Page`** (`UI/Native`): what the game still asked of document and window. It builds index.html's tree natively
+  (`.t-html` > `.t-body` > `#scene`, `#ui`, the loading screen), so every Style.uss selector still matches, and keeps the
+  game's state classes on the body (`diving`, `underground`, `menu-open`, `scope-on`, `viewfinder`, `usingpad`,
+  `nolock`). It also gives pointer lock and its change, the screen's resize, the page's size and ratios (`UiRoot`),
+  whether the pointer is over the UI, typing, and the once-a-frame tick (metrics, `GameTimers`, `UiCanvas`).
+- **`UiNode`** keeps the page's pointer-events and z-index tables and orders siblings itself (a stable sort by z, as
+  the page did). **Moved, unchanged:** `SvgRasterizer` and `EmojiText` (into `UI/Native`), the HTML fragment parser
+  as `TextMarkup` (only the text path: entities, whitespace, inline formatting). **Removed:** the controller's choice
+  list for a page `<select>` (no screen has one) and the page-element halves of `Glyphs`, `NavEl` and `MenuNav`.
+- **Deleted:** `Dom/` (DomHost, HTMLElement, DomTypes, DomGlobals, HtmlParser, SelectorEngine, CSSStyleDeclaration,
+  CssAnimations) and `HTMLCanvasElement`. `PORT_STATUS.md` and `MIGRATION.md` say so.
+- **Not done (left as is on purpose):** cleaning `Style.uss` of its DOM-era workarounds. The native elements are built
+  to match them, so removing them would change the look with nothing to gain until someone edits those screens.
+  Icons stay drawn by `SvgRasterizer` at runtime (cached); baking them in the editor is a load-time optimisation for
+  S34 if it shows up in the measurements.
+- **Full pass:** every run clean, 7 of 7 self-checks, all 35 logs identical, no FAIL, non-loading shots within
+  0.02/255, 428 of 438 dumps identical.

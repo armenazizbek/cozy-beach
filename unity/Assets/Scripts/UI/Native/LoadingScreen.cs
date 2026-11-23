@@ -9,7 +9,7 @@ public static class LoadingScreen
 {
     private static VisualElement root, bar;
 
-    /// <summary>Marks a native screen's root, so the pointer over it counts as over the UI (DomHost.IsPointerOverUI).</summary>
+    /// <summary>Marks a native screen's root, so the pointer over it counts as over the UI (Page.IsPointerOverUI).</summary>
     public const string NATIVE = "ui-native";
 
     /// <summary>Makes the screen (once per page) and returns its root, to hang in the page's body.</summary>

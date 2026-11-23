@@ -218,7 +218,7 @@ public class TelescopeView
         card.Add(cardName, cardLore, cardReward);
         wrap.Add(countEl, msgEl, card);
         if (mount != null) mount(wrap);
-        else wrap.MountIn(document.body.ve);
+        else Page.Body.Add(wrap);
         updateCount();
         message(found.Count == 0
             ? "A sky full of stars, and pictures hidden in it. Their stars glow as the ring comes near: light them one by one, or hold a whole picture in the eyepiece."

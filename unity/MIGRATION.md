@@ -38,15 +38,16 @@ system's Segoe UI Emoji came out as black outlines or empty boxes. The game ship
   and draws them all into `Assets/Art/Emoji/EmojiAtlas.png` with Microsoft Edge. **Run it after adding a new emoji to the code.**
 - `Assets/Editor/EmojiSpriteAssetBuilder.cs` (run by every build, or the menu *Tidefinder > Rebuild Emoji Sprite
   Asset*) turns the atlas into the sprite asset `Assets/Resources/UI/Emoji.asset`.
-- `Dom/EmojiText.cs` swaps each emoji in on-screen text for a `<sprite>` tag from that asset.
+- `UI/Native/EmojiText.cs` swaps each emoji in on-screen text for a `<sprite>` tag from that asset.
 - The build writes the Fluent licence to `ThirdPartyNotices.txt` next to the exe; keep that file in the shipped game.
 
 ### The UI's look
 
-The menus and the HUD are built by the DOM layer (`Assets/Scripts/Dom`) from HTML-like elements, as in the browser game, but
-they no longer look like a web page:
+The menus and the HUD are native UI Toolkit elements (`Assets/Scripts/UI/Native`: `UiNode`, `Page`, `UiRoot`), built with the
+element structure and class names the browser game's page had, so `Style.uss` carries the look over. They no longer look like
+a web page:
 
-- **One page, scaled.** The UI is laid out on a 1920 x 1080 page that `DomHost` scales to the screen, so it takes up the same
+- **One page, scaled.** The UI is laid out on a 1920 x 1080 page that `UiRoot` scales to the screen, so it takes up the same
   share of a 720p window and a 4K TV. Sizes in `Assets/Resources/UI/Style.uss` are in those page pixels.
 - **The skin.** Panels, buttons, key caps, controller buttons, meters and frames are pictures in
   `Assets/Resources/UI/Skin`, drawn by `Tools/UiSkin/make_skin.py` (plain Python, nothing to install) and stretched as
@@ -56,7 +57,7 @@ they no longer look like a web page:
   cap for F, the green A button, a trigger, a mouse with a button lit. Hints are still written as plain sentences
   ("Click to dig · F picks it up"); `Glyphs.fill` finds the keys in them.
 - **One highlight.** The mouse, the keyboard (arrows or W A S D, Enter, Esc, Q and E for tabs) and a controller all move the
-  same focus through a menu (`Game.menuKey`, `Game.padNav`, `HTMLElement.HoverFocus`), and a line along the bottom of every
+  same focus through a menu (`Game.menuKey`, `Game.padNav`, `UiNode.HoverFocus`), and a line along the bottom of every
   menu says what the keys do (`Game.menuTick`, `UIManager.setMenuBar`).
 - **Fonts:** Windows PCs use the system's (Trebuchet MS for text, Georgia Bold for headings). The bundled OFL fonts in
   `Assets/Resources/UI/Fonts` (Fira Sans, PT Serif, Noto Sans Symbols 2) are used on a Steam Deck and wherever Trebuchet MS is missing.

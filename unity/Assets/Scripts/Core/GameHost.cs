@@ -46,15 +46,15 @@ public class GameHost : MonoBehaviour
         SteamService.Init();
         SteamBridge.unlockHandler = SteamService.UnlockAchievement;
         SteamService.overlayChanged = open => { if (open) game?.onFocusLost(); };
-        DomHost.Ensure();
+        Page.Ensure();
         AutoShot.Trace("page ready");
 
         // let the loading screen reach the screen before the heavy work of building the world begins
         yield return null;
         yield return null;
 
-        var canvas = document.getElementById("scene");
-        var ui = document.getElementById("ui");
+        var canvas = Page.Scene;
+        var ui = Page.Ui;
         // the world is built a piece at a time, so the loading screen keeps moving; the game is handed over once it is whole
         var pieces = Prebuilt.MakeAll();
         while (pieces.MoveNext())
@@ -93,7 +93,7 @@ public class GameHost : MonoBehaviour
         MainThread.Pump();
         SteamService.Tick();
         game?.input?.poll();
-        DomHost.Tick();
+        Page.Tick();
         THREE.WebGLRenderer.Main?.Tick();
         // native renderers follow a change of quality preset (Native/Draw.cs)
         ShadowPolicy.Tick();
@@ -124,7 +124,7 @@ public class GameHost : MonoBehaviour
         // a page reload wipes everything; here the old game has to be stopped and forgotten by hand, or it keeps running
         // its frame and timers inside the new scene (Load Game froze or closed the game)
         if (Instance != null) Instance.game = null;
-        window.ClearAllTimersAndListeners();
+        Page.Clear();
         THREE.WebGLRenderer.Teardown();
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }

@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 /// <summary>
 /// A text box, native (unity/NATIVE_PLAN.md 2.7, S29): what the page's &lt;input type="text"&gt; built (HTMLInputElement):
 /// a borderless TextField on a clear background filling the element, with the placeholder in a faint label over it,
-/// so Style.uss draws the box as before. While it has the keyboard the game takes no keys (DomHost.IsTyping).
+/// so Style.uss draws the box as before. While it has the keyboard the game takes no keys (Page.IsTyping).
 /// </summary>
 public sealed class UiText : UiNode
 {
@@ -47,9 +47,9 @@ public sealed class UiText : UiNode
         field.RegisterCallback<FocusInEvent>(_ =>
         {
             MenuNav.FocusNative(this);
-            DomHost._isTyping = true;
+            Page.typing = true;
         });
-        field.RegisterCallback<FocusOutEvent>(_ => DomHost._isTyping = false);
+        field.RegisterCallback<FocusOutEvent>(_ => Page.typing = false);
         ve.Add(placeholder);
         ve.Add(field);
         Sync();
