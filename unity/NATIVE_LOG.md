@@ -412,3 +412,22 @@ the verification passes (about 14 minutes for all 37 runs).
   baker belongs with the UI foundation (S26), where the icons are used.
 - **Full pass:** every run clean, 11 of 11 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical (the 10
   others are paused bench views), the largest non-loading picture difference 0.08/255 with no pixel over the threshold.
+
+## S7: Picking (2026-11-24)
+
+- **`Picking.Intersect(raycaster, trees)`** replaces `intersectObjects` for the finds and the camp's clickables (hover)
+  and for the binoculars' rangefinder. Every plain mesh in the asked trees gets a MeshCollider on layer 30 (`Pick`),
+  made from the triangles Three walks (draw range or material groups), posed from its `matrixWorld` after updating it as
+  `Mesh.raycast` does. The colliders stand outside the mirrored root, in Unity's axes with mirrored vertices: under the
+  (1, 1, -1) root PhysX put them in the wrong place.
+- **PhysX finds, Three decides:** a batch raycast (back faces on) gives the meshes the ray passes through; Three's own
+  triangle test then runs on just those, so sides, groups and near/far follow Three exactly. (PhysX's own hits were
+  off: a batch query returns any hit on a mesh collider, not the nearest, and its face culling did not follow the
+  materials' sides.) Points, lines, sprites, instanced and skinned meshes keep their CPU test. Colliders of meshes not
+  asked about in 256 queries are dropped.
+- **Self-check:** 800 rays at the camp's clickables and the rangefinder's targets on the loaded world give the same
+  nearest hit and distance as `THREE.Raycaster` (0 different).
+- The crust fitting (`LootGenerator`) and brushing (`CleaningStation`) keep the exact CPU ray, as planned; it moves into
+  the kit in S25.
+- **Full pass:** every run clean, 13 of 13 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical,
+  non-loading shots within 0.02/255.

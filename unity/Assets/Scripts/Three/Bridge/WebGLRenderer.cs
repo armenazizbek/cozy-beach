@@ -84,6 +84,7 @@ namespace THREE
             Atmosphere.Clear();
             NativeFrame.Clear();
             NativeView.Clear();
+            Picking.Clear();
         }
 
         public WebGLRenderer(WebGLRendererParameters p = null)

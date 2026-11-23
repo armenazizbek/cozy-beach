@@ -6411,7 +6411,7 @@ public class Game
             aimOn = false;
             // underwater only the finds can be looked at
             if (!look || gameState != "EXPLORE") return;
-            var hits = input.ray(camera, true).intersectObjects(spawner.pickables(), true);
+            var hits = Picking.Intersect(input.ray(camera, true), spawner.pickables());
             var hit = hits.Count > 0 ? hits[0] : null;
             if (hit != null && hit.distance < 6) hoveredItem = spawner.itemFromObject(hit.@object);
             return;
@@ -6422,9 +6422,9 @@ public class Game
         if (look)
         {
             bool nearCamp = gameState != "EXPLORE" || JS.Hypot(player.x, player.z - CAMP_Z) < 22;
-            var itemHits = gameState == "EXPLORE" ? ray.intersectObjects(spawner.pickables(), true) : null;
+            var itemHits = gameState == "EXPLORE" ? Picking.Intersect(ray, spawner.pickables()) : null;
             var itemHit = itemHits != null && itemHits.Count > 0 ? itemHits[0] : null;
-            var campHits = nearCamp ? ray.intersectObjects(camp.clickables, true) : null;
+            var campHits = nearCamp ? Picking.Intersect(ray, camp.clickables) : null;
             var campHit = campHits != null && campHits.Count > 0 ? campHits[0] : null;
             if (itemHit != null && itemHit.distance < 6 && itemHit.distance < (campHit?.distance ?? double.PositiveInfinity))
             {
@@ -6526,6 +6526,9 @@ public class Game
     private Waypoint mapBoat = new Waypoint { x = 0, z = 0 };
 
     /// <summary>Distance to whatever is under the binocular reticle. Measured every few frames.</summary>
+    /// <summary>What the binoculars' rangefinder measures to (besides the sand and the sea).</summary>
+    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, birds.group, ecology.group, treasure.group };
+
     private void updateRange()
     {
         if (rangeTick++ % 6 != 0) return;
@@ -6541,8 +6544,7 @@ public class Game
             double t = (ocean.surfaceY - ray.origin.y) / ray.direction.y;
             if (t > 0 && t < best) best = t;
         }
-        var things = new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, birds.group, ecology.group, treasure.group };
-        var hit = rayCaster.intersectObjects(things, true).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
+        var hit = Picking.Intersect(rayCaster, RangeTargets()).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
         if (hit != null && hit.distance < best) best = hit.distance;
         rangeText = best < 900 ? $"{Math.Round(best)} m" : "—";
     }
