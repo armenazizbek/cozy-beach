@@ -118,6 +118,20 @@ public class Underground
     }
 
     public readonly THREE.Group group = new THREE.Group();
+
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S20: the cellar, the passage and the cave behind the door are a LiveTree under the world
+    /// root (not World.Land: it stays while the land is hidden), kept in line with the description at draw time: the torches'
+    /// flicker, which side's lights are on, the beam, the door's seal and glow.
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>Puts the underground into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Root);
+        NativeFrame.BeforeDraw += live.Sync;
+    }
     public readonly List<Solid> colliders = new List<Solid>();
     /// <summary>where you stand after coming down, and which way you face</summary>
     public readonly (double x, double z, double yaw) entry = (-6.5, 0.5, -Math.PI / 2);

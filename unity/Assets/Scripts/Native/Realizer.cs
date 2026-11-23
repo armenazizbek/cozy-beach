@@ -58,7 +58,18 @@ public sealed class Realized
             var pt = this[o.parent];
             if (pt != null && !ReferenceEquals(t.parent, pt)) t.SetParent(pt, false);
             if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
-            if (o.visible) Realizer.Pose(o, t);
+            if (!o.visible) continue;
+            Realizer.Pose(o, t);
+            // a point light also carries its colour, strength, reach and shadows (torches flicker, lamps are switched)
+            if (o is THREE.PointLight pl)
+            {
+                var l = t.GetComponent<Light>();
+                if (l == null) continue;
+                Lights.Set(l, new Color((float)pl.color.r, (float)pl.color.g, (float)pl.color.b), (float)pl.intensity, t.gameObject.layer);
+                float range = pl.distance > 0 ? (float)pl.distance : 1000f;
+                if (l.range != range) l.range = range;
+                Lights.Shadows(l, pl.castShadow);
+            }
         }
     }
 }

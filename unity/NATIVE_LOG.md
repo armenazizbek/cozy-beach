@@ -298,3 +298,13 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Full pass:** every run clean, 11 of 11 self-checks, **all 35 logs identical**, no FAIL, 390 PASS and 49 REVIEW
   (loading shots and within noise), 428 of 438 dumps identical (the 10 others are frozen bridge copies while the bench
   is open; those pictures pass).
+
+## S20: underground, with the sea cave (2026-11-24)
+
+- **Native underground:** the cellar, the passage and the sea cave behind the door (`SeaCave` hangs inside the
+  underground tree) are one `LiveTree` under the world root (not `World.Land`: it stays while diving), synced at draw
+  time.
+- `Realized.Apply` now carries a followed point light's colour, intensity, range and shadows, so the torches flicker
+  and the side switching works.
+- **Check** (selfcheck, base, land, house, dograin, photo-alt, which goes into the underground room): every run clean,
+  **68 of 68 dumps identical**, pictures pass or are within noise.

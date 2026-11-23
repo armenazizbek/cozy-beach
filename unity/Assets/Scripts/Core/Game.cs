@@ -349,11 +349,11 @@ public class Game
             islands[1].group,
             islands[2].group,
             under.group,
-            cellar.group,
             hearts.points,
             view.proxy,
             camera
         );
+        cellar.Place();
         tracks = new Tracks(beach);
         tracks.Place();
         cart = new GolfCart(9, CAMP_Z + 9, Math.PI, beach);
