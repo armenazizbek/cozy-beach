@@ -15,8 +15,8 @@ namespace THREE
     }
 
     /// <summary>
-    /// Three.js Object3D: a node in the scene graph with a transform in Three's right-handed space. The Unity bridge mirrors it into a
-    /// GameObject each frame (see Bridge/SceneSync.cs).
+    /// Three.js Object3D: a node in the game's description of the world, with a transform in Three's right-handed space. Native code
+    /// realizes it into GameObjects (Native/Realizer.cs, LiveTree) and keeps them in line.
     /// </summary>
     public class Object3D
     {
@@ -45,8 +45,6 @@ namespace THREE
         public int renderOrder;
         public Dictionary<string, object> userData = new Dictionary<string, object>();
 
-        /// <summary>The Unity side of this object, made the first time it is synced.</summary>
-        internal Bridge.Node node;
         /// <summary>
         /// The native GameObject this description was realized into (Native/Realizer.cs); from then on the bridge leaves it and
         /// everything under it alone, apart from hanging it under its parent's GameObject.
@@ -177,7 +175,6 @@ namespace THREE
                 if (children.Remove(o))
                 {
                     o.parent = null;
-                    Bridge.SceneSync.Detach(o);
                     touch();
                 }
             }
@@ -311,23 +308,12 @@ namespace THREE
             quaternion._x != _cqx || quaternion._y != _cqy || quaternion._z != _cqz || quaternion._w != _cqw ||
             scale.x != _csx || scale.y != _csy || scale.z != _csz;
 
-        /// <summary>
-        /// Set while the per-frame pass for the scene runs: hidden objects (the sea floor above water, the cellar, the opening
-        /// scene) are not drawn or synced, so nothing under them is brought up to date until they are shown again. Explicit
-        /// calls (building, merging, raycasts) leave it off and still compute everything.
-        /// </summary>
-        public static bool skipHidden;
 
         // a hidden object was passed over: its world matrices are stale, so everything under it is recomputed when it shows
         private bool worldStale;
 
         public virtual void updateMatrixWorld(bool force = false)
         {
-            if (skipHidden && !visible && parent != null)
-            {
-                worldStale = true;
-                return;
-            }
             if (worldStale)
             {
                 worldStale = false;

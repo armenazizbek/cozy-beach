@@ -46,8 +46,22 @@ public static class World
     /// <summary>The main world's root; null before the game is built.</summary>
     public static Transform Root => main == null ? null : RootOf(main);
 
-    /// <summary>The root of one of the bridge's scenes (the world, the cleaning bench, the item photos).</summary>
-    public static Transform RootOf(THREE.Scene scene) => THREE.Bridge.SceneSync.RootFor(scene).transform;
+    private static readonly System.Collections.Generic.Dictionary<THREE.Scene, GameObject> roots = new System.Collections.Generic.Dictionary<THREE.Scene, GameObject>();
+
+    /// <summary>The root of one of the game's scenes (the world, the cleaning bench, the item photos), scaled (1, 1, -1).</summary>
+    public static Transform RootOf(THREE.Scene scene)
+    {
+        if (!roots.TryGetValue(scene, out var go) || go == null)
+        {
+            go = new GameObject(string.IsNullOrEmpty(scene.name) ? "Scene" : scene.name);
+            go.transform.localScale = new Vector3(1, 1, -1);
+            roots[scene] = go;
+        }
+        return go.transform;
+    }
+
+    /// <summary>Forgets the scene roots (a reload destroys them with the scene).</summary>
+    internal static void Clear() => roots.Clear();
 
     /// <summary>Called once by Game when its scene exists.</summary>
     internal static void Bind(THREE.Scene scene)
@@ -56,9 +70,4 @@ public static class World
         land = null;
     }
 
-    /// <summary>
-    /// The GameObject the bridge made for a Three object, to hang native children from (null until the object was first
-    /// synced, or after the bridge let it go).
-    /// </summary>
-    public static Transform Of(THREE.Object3D o) => THREE.Bridge.SceneSync.TransformOf(o);
 }

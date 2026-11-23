@@ -431,3 +431,22 @@ the verification passes (about 14 minutes for all 37 runs).
   the kit in S25.
 - **Full pass:** every run clean, 13 of 13 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical,
   non-loading shots within 0.02/255.
+
+## S25a and S25b: every scene native; the bridge's scene copy deleted (2026-11-24)
+
+- **S25a, the small scenes:** `NativeView` draws every scene. For the cleaning bench and the item photos it keeps a
+  `SceneParts`: each part hung straight in the scene that nobody draws yet becomes a claimed `LiveTree` (a find posed
+  for its photo, the bench's rim light), directional lights become Unity lights outside the mirrored root (aimed, coloured
+  and shadowed as the bridge did, the scene's sun chosen by the bridge's rule), and ambient and hemisphere lights go
+  into the scene's `Atmosphere`. Parts that leave the scene lose their GameObjects.
+- **Bug found and fixed:** the item photos take one find after another in a single frame, and `Object.Destroy` waits
+  for the end of the frame, so every polaroid showed all the earlier finds piled up (`tour-camp-board`).
+  `LiveTree.Destroy` now switches the root off first.
+- **S25b, deleted:** `SceneSync`, `MeshCache`, `Mirror` (and the `-bridge-legacy` mode), the camera-node path in
+  `WebGLRenderer`, `Object3D.node`, `skipHidden`, the geometry's bridge cache fields. The scene roots (scaled
+  (1, 1, -1)) now live in `World.RootOf`, and the shader globals' ids in `NativeView`. The self-checks that compared
+  with the bridge (MeshKit against `MeshCache`, the Realizer twin) went with it; 7 self-checks remain.
+- **Kept:** the descriptions (`THREE.Object3D` and friends) as the game's plain-C# model of the world, `MaterialCache`
+  and `TextureCache` behind `MaterialKit`, and `WebGLRenderer` as the thin front the game calls `render` on.
+- **Full pass:** every run clean, 7 of 7 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical (the 10
+  others are paused bench views), non-loading shots within 0.02/255.

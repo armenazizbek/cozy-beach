@@ -139,7 +139,13 @@ public sealed class LiveTree
     /// <summary>Takes the GameObjects away (the tree left the world).</summary>
     public void Destroy()
     {
-        if (live?.root != null) Object.Destroy(live.root.gameObject);
+        if (live?.root != null)
+        {
+            // Destroy waits for the end of the frame; switched off now, it is gone from renders later in this frame too (the
+            // item photos take one find after another in a single frame)
+            live.root.gameObject.SetActive(false);
+            Object.Destroy(live.root.gameObject);
+        }
         live = null;
     }
 

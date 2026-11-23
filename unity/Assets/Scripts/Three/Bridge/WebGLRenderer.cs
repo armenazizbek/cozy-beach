@@ -40,8 +40,8 @@ namespace THREE
     }
 
     /// <summary>
-    /// The Three.js renderer, standing in front of Unity's: render() mirrors the scene into GameObjects and points a Unity camera at
-    /// it. The game's own renderer draws to the screen; one made without a canvas draws into a texture of its own.
+    /// The Three.js renderer, standing in front of Unity's: render() gets a scene's frame ready (NativeView) and points its Unity
+    /// camera at it. The game's own renderer draws to the screen; one made without a canvas draws into a texture of its own.
     /// </summary>
     public class WebGLRenderer
     {
@@ -77,8 +77,7 @@ namespace THREE
         {
             if (Main != null) Main.loop = null;
             Main = null;
-            Bridge.SceneSync.Clear();
-            Bridge.MeshCache.Clear();
+            World.Clear();
             Bridge.MaterialCache.Clear();
             Bridge.TextureCache.Clear();
             Atmosphere.Clear();
@@ -177,18 +176,9 @@ namespace THREE
             // native objects finish their frame (NativeFrame) before anything is drawn
             NativeFrame.Run();
             long t0 = Bridge.BridgeStats.Ticks();
-            U.Camera cam;
-            if (NativeView.Owns(scene))
-            {
-                // the main world draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
-                cam = NativeView.Prepare(scene, camera, this);
-                known.Add(cam);
-            }
-            else
-            {
-                Bridge.SceneSync.Sync(scene, camera, this);
-                cam = EnsureCamera(camera, scene);
-            }
+            // every scene draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
+            U.Camera cam = NativeView.Prepare(scene, camera, this);
+            known.Add(cam);
             Bridge.BridgeStats.syncMs += Bridge.BridgeStats.Ms(t0);
             ConfigureCamera(cam, camera, scene);
             Bridge.UrpSettings.SetShadows(shadowMap.enabled);
@@ -223,7 +213,7 @@ namespace THREE
         /// </summary>
         internal Texture2D CapturePhoto(Camera camera, int height = 900, Color32? tint = null, float tintAmount = 0)
         {
-            var cam = camera.node?.cam ?? NativeView.CameraFor(camera);
+            var cam = NativeView.CameraFor(camera);
             if (cam == null) return null;
             float aspect = (float)Math.Max(0.5, Math.Min(4, camera is PerspectiveCamera pc ? pc.aspect : 16.0 / 9));
             int h = height;
@@ -282,46 +272,6 @@ namespace THREE
             copy.Apply();
             U.RenderTexture.active = prev;
             return copy;
-        }
-
-        private U.Camera EnsureCamera(Camera camera, Scene scene)
-        {
-            var node = camera.node;
-            if (node == null)
-            {
-                // a camera outside the scene graph: give it a GameObject of its own at the top
-                var go = new GameObject("Camera");
-                node = new Bridge.Node { go = go, tf = go.transform, owner = camera };
-                camera.node = node;
-            }
-            // the Unity camera sits (Mirror) on an eye of its own outside the mirrored root, placed in Unity's axes;
-            // the camera's node stays in the scene for what hangs from it (the tools in hand)
-            if (Bridge.Mirror.On && node.eye == null)
-            {
-                node.eye = new GameObject("Camera eye (" + (scene.name ?? "") + ")").transform;
-            }
-            if (camera.parent == null || Bridge.Mirror.On)
-            {
-                camera.updateMatrixWorld();
-                var p = new Vector3();
-                var q = new Quaternion();
-                var s = new Vector3();
-                camera.matrixWorld.decompose(p, q, s);
-                var at = Bridge.Mirror.On ? node.eye : node.tf;
-                at.position = p.ToUnity();
-                at.rotation = q.ToUnity();
-            }
-            if (node.cam == null)
-            {
-                node.cam = (Bridge.Mirror.On ? node.eye.gameObject : node.go).AddComponent<U.Camera>();
-                node.cam.allowHDR = false;
-                node.cam.allowMSAA = true;
-                node.cam.useOcclusionCulling = false;
-                Bridge.UrpSettings.SetupCamera(node.cam);
-                if (!offscreen && Main == this && U.Object.FindAnyObjectByType<AudioListener>() == null) node.cam.gameObject.AddComponent<AudioListener>();
-                known.Add(node.cam);
-            }
-            return node.cam;
         }
 
         private void ConfigureCamera(U.Camera cam, Camera camera, Scene scene)

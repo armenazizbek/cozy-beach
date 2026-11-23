@@ -187,9 +187,6 @@ namespace THREE
         public string uuid = MathUtils.generateUUID();
         public string name = "";
         public string type = "BufferGeometry";
-        /// <summary>The bridge's cache entry for this geometry (MeshCache), kept here so the sync need not look it up each frame.</summary>
-        internal object bridgeEntry;
-        internal int bridgeVariant, bridgeGen;
         public BufferAttribute index;
         public AttributeMap attributes = new AttributeMap();
         public Dictionary<string, List<BufferAttribute>> morphAttributes = new Dictionary<string, List<BufferAttribute>>();
@@ -426,7 +423,6 @@ namespace THREE
         public void dispose()
         {
             disposed = true;
-            Bridge.MeshCache.Release(this);
         }
 
         /// <summary>Sum of all attribute versions, so the bridge knows when the Unity mesh is stale.</summary>

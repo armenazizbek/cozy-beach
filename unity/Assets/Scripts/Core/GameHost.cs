@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -41,7 +41,6 @@ public class GameHost : MonoBehaviour
     {
         Instance = this;
         AutoShot.Trace("host start");
-        if (!THREE.Bridge.Mirror.On) Debug.Log("-bridge-legacy: the bridge mirrors every transform and mesh (the old way)");
         THREE.Scene.ResetLayers();
         // Steam first: Deck detection and achievements already earned need it before the game is built
         SteamService.Init();

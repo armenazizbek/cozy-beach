@@ -11,11 +11,6 @@ internal static class SelfCheckMeshKit
 {
     internal static IEnumerable<(string, Func<string>)> Checks()
     {
-        yield return ("MeshKit.ToMesh matches the bridge for every generator", Generators);
-        yield return ("MeshKit.ToMesh groups, colours, extras, draw range", Specials);
-        yield return ("MeshKit.ToLines matches the bridge", Lines);
-        yield return ("MeshKit.BakeInstances matches the bridge", Instances);
-        yield return ("MeshKit.PointQuads matches the bridge", PointsCheck);
         yield return ("MeshKit.Write (off-thread path) matches ToMesh", WriteCheck);
     }
 
@@ -50,90 +45,6 @@ internal static class SelfCheckMeshKit
             ("non-indexed sphere", new THREE.SphereGeometry(0.5, 8, 6).toNonIndexed()),
             ("transformed box", new THREE.BoxGeometry(1, 1, 1).rotateX(0.4).rotateY(1.1).translate(0.3, -2, 5).scale(1, 2, -1)),
         };
-    }
-
-    private static string Generators()
-    {
-        foreach (var (name, g) in Table())
-        {
-            var bridge = B.MeshCache.Get(g, B.MeshCache.PLAIN);
-            var mine = MeshKit.ToMesh(g);
-            var diff = Compare(bridge, mine);
-            UnityEngine.Object.Destroy(mine);
-            if (diff != null) return name + ": " + diff;
-        }
-        return null;
-    }
-
-    private static string Specials()
-    {
-        // merged with groups (a multi-material mesh)
-        var merged = THREE.BufferGeometryUtils.mergeGeometries(new List<THREE.BufferGeometry>
-            { new THREE.BoxGeometry(1, 1, 1), new THREE.SphereGeometry(0.5, 8, 6).translate(0, 1, 0), new THREE.CylinderGeometry(0.1, 0.1, 1, 6) }, true);
-        var d = Compare(B.MeshCache.Get(merged, B.MeshCache.GROUPS), MeshKit.ToMesh(merged, groups: true));
-        if (d != null) return "groups: " + d;
-        // vertex colours and two extra attributes, as the shaders read them
-        var g = new THREE.SphereGeometry(0.6, 10, 8);
-        int n = g.attributes.position.count;
-        var col = new float[n * 3]; var e1 = new float[n]; var e2 = new float[n * 2];
-        var rnd = new System.Random(7);
-        for (int i = 0; i < col.Length; i++) col[i] = (float)rnd.NextDouble();
-        for (int i = 0; i < e1.Length; i++) e1[i] = (float)rnd.NextDouble();
-        for (int i = 0; i < e2.Length; i++) e2[i] = (float)rnd.NextDouble();
-        g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
-        g.setAttribute("aPhase", new THREE.Float32BufferAttribute(e1, 1));
-        g.setAttribute("aBend", new THREE.Float32BufferAttribute(e2, 2));
-        d = Compare(B.MeshCache.Get(g, B.MeshCache.PLAIN), MeshKit.ToMesh(g));
-        if (d != null) return "colours and extras: " + d;
-        // a draw range
-        var dr = new THREE.PlaneGeometry(1, 1, 6, 6);
-        dr.setDrawRange(6, 30);
-        d = Compare(B.MeshCache.Get(dr, B.MeshCache.PLAIN), MeshKit.ToMesh(dr));
-        return d == null ? null : "draw range: " + d;
-    }
-
-    private static string Lines()
-    {
-        var pts = new float[] { 0, 0, 0, 1, 2, 3, -1, 0.5f, 2, 4, 4, -4, 0, 1, 0, 2, 2, 2 };
-        var g = new THREE.BufferGeometry();
-        g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-        var d = Compare(B.MeshCache.Get(g, B.MeshCache.LINES), MeshKit.ToLines(g, true));
-        if (d != null) return "segments: " + d;
-        d = Compare(B.MeshCache.Get(g, B.MeshCache.LINESTRIP), MeshKit.ToLines(g, false));
-        return d == null ? null : "strip: " + d;
-    }
-
-    private static string Instances()
-    {
-        var geo = new THREE.ConeGeometry(0.1, 0.4, 5);
-        var im = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial(), 12);
-        var m = new THREE.Matrix4();
-        var q = new THREE.Quaternion();
-        for (int i = 0; i < 12; i++)
-        {
-            q.setFromEuler(new THREE.Euler(i * 0.3, i * 0.7, -i * 0.2));
-            m.compose(new THREE.Vector3(i, i * 0.5, -i * 2), q, new THREE.Vector3(1 + i * 0.1, 1, 0.8));
-            im.setMatrixAt(i, m);
-            im.setColorAt(i, new THREE.Color(0.1 * i, 0.5, 1 - 0.05 * i));
-        }
-        var bridge = B.MeshCache.GetBaked(im);
-        var mine = MeshKit.BakeInstances(geo, im.instanceMatrix.array, 12, im.instanceColor.array);
-        return Compare(bridge, mine);
-    }
-
-    private static string PointsCheck()
-    {
-        var g = new THREE.BufferGeometry();
-        var rnd = new System.Random(3);
-        var p = new float[30 * 3]; var c = new float[30 * 3]; var s = new float[30];
-        for (int i = 0; i < p.Length; i++) { p[i] = (float)(rnd.NextDouble() * 10 - 5); c[i] = (float)rnd.NextDouble(); }
-        for (int i = 0; i < s.Length; i++) s[i] = (float)rnd.NextDouble();
-        g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
-        g.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
-        g.setAttribute("aSize", new THREE.Float32BufferAttribute(s, 1));
-        g.setDrawRange(4, 20);
-        var pts = new THREE.Points(g, new THREE.PointsMaterial());
-        return Compare(B.MeshCache.GetPoints(pts), MeshKit.PointQuads(g));
     }
 
     private static string WriteCheck()
