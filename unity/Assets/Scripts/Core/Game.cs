@@ -3366,7 +3366,7 @@ public class Game
             if (e.Has("nofocus")) return false;
             // a text box is for the mouse and the keyboard: walked onto, it would swallow every key after
             // (with Steam's on-screen keyboard available, pressing A on it opens that keyboard instead)
-            if (e.dom is HTMLInputElement text && text.type == "text" && !SteamService.Ready) return false;
+            if (e.IsTextBox && !SteamService.Ready) return false;
             var r = e.Box;
             return r.width > 0 && r.height > 0;
         }).ToList();

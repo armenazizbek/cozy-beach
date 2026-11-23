@@ -556,11 +556,11 @@ public class UIManager
         p.MountIn(this.root.ve);
     }
 
-    private HTMLElement sleepEl = null;
-    private HTMLElement bookEl = null;
+    private UiNode sleepEl = null;
+    private UiNode bookEl = null;
     private Action<int> bookTurnFn = null;
     private UiNode menuEl = null;
-    private HTMLElement settingsEl = null;
+    private UiNode settingsEl = null;
 
     /// <summary>The main menu: the title and a list of plain words on the left, the living beach behind.</summary>
     public void showMainMenu(MenuHooks h)
@@ -632,60 +632,56 @@ public class UIManager
     public void openSettings(GameSettings settings, Action<GameSettings> onChange, Action onClose = null)
     {
         this.closeSettings();
-        var wrap = el("div", "pause saves settings");
-        var card = el("div", "intro-card settings-card");
-        card.append(el("h1", "", "Settings"));
-        var rows = el("div", "set-rows");
-        HTMLButtonElement rowEl(string label, string hintText)
+        var wrap = new UiNode("div", "pause saves settings");
+        var card = new UiNode("div", "intro-card settings-card");
+        card.Add(new UiNode("h1", "", "Settings"));
+        var rows = new UiNode("div", "set-rows");
+        UiNode rowEl(string label, string hintText)
         {
-            var row = el<HTMLButtonElement>("button", "set-row");
-            var name = el("span", "set-name");
-            name.append(el("span", "set-label", label));
-            if (!string.IsNullOrEmpty(hintText)) name.append(el("span", "set-hint", hintText));
-            row.append(name);
-            rows.append(row);
+            var row = new UiNode("button", "set-row");
+            var name = new UiNode("span", "set-name");
+            name.Add(node("span", "set-label", label));
+            if (!string.IsNullOrEmpty(hintText)) name.Add(node("span", "set-hint", hintText));
+            row.Add(name);
+            rows.Add(row);
             return row;
         }
         void slider(string label, string key, double min, double max, double step, Func<double, string> fmt)
         {
             var row = rowEl(label, null);
-            var input = el<HTMLInputElement>("input", "set-range");
-            input.type = "range";
-            input.min = JS.Str(min);
-            input.max = JS.Str(max);
-            input.step = JS.Str(step);
-            input.value = JS.Str(getSettingDouble(settings, key));
+            var input = new UiRange("set-range") { Min = min, Max = max, Step = step };
+            input.Value = JS.Str(getSettingDouble(settings, key));
             // the row is what is chosen; the slider inside it is only dragged
-            input.noFocus();
-            var val = el("span", "set-val", fmt(getSettingDouble(settings, key)));
+            input.NoFocus();
+            var val = node("span", "set-val", fmt(getSettingDouble(settings, key)));
             void apply(double v)
             {
                 setSettingDouble(settings, key, v);
-                val.textContent = fmt(v);
+                val.Text = fmt(v);
                 onChange(settings);
             }
-            input.oninput = _ =>
+            input.OnInput = () =>
             {
-                if (double.TryParse(input.value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) apply(parsed);
+                if (double.TryParse(input.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) apply(parsed);
             };
-            row.onstep = dir =>
+            row.OnStep = dir =>
             {
                 double next = min + Math.Round((getSettingDouble(settings, key) + dir * step - min) / step) * step;
                 next = Math.Round(Math.Max(min, Math.Min(max, next)) * 1000) / 1000;
-                input.value = JS.Str(next);
+                input.Value = JS.Str(next);
                 apply(next);
             };
-            row.append(input, val);
+            row.Add(input, val);
         }
         void choice(string label, string[][] options, Func<string> get, Action<string> set)
         {
             var row = rowEl(label, null);
-            var prev = el("span", "step-arrow left");
-            var text = el("span", "step-val");
-            var next = el("span", "step-arrow");
+            var prev = new UiNode("span", "step-arrow left");
+            var text = new UiNode("span", "step-val");
+            var next = new UiNode("span", "step-arrow");
             int idx = Math.Max(0, Array.FindIndex(options, o => o[0] == get()));
             int timer = 0;
-            void show() => text.textContent = options.Length > 0 ? options[idx][1] : "";
+            void show() => text.Text = options.Length > 0 ? options[idx][1] : "";
             void go(int dir)
             {
                 if (options.Length == 0) return;
@@ -693,36 +689,29 @@ public class UIManager
                 show();
                 // a choice here changes the screen itself, so it waits a moment: stepping past "Windowed" on the way to
                 // another mode does not switch the screen twice
-                if (timer != 0) window.clearTimeout(timer);
-                timer = window.setTimeout(() =>
+                if (timer != 0) GameTimers.Cancel(timer);
+                timer = GameTimers.After(650, () =>
                 {
                     timer = 0;
                     set(options[idx][0]);
                     onChange(settings);
-                }, 650);
+                });
             }
-            row.onclick = () => go(1);
-            row.onstep = go;
-            prev.addEventListener("click", e =>
-            {
-                e.stopPropagation();
-                go(-1);
-            });
-            next.addEventListener("click", e =>
-            {
-                e.stopPropagation();
-                go(1);
-            });
-            var box = el("span", "set-step");
-            box.append(prev, text, next);
-            row.append(box);
+            row.OnClick = () => go(1);
+            row.OnStep = go;
+            // the arrows' clicks stop at them (UiNode.OnClick), so the row does not step as well
+            prev.OnClick = () => go(-1);
+            next.OnClick = () => go(1);
+            var box = new UiNode("span", "set-step");
+            box.Add(prev, text, next);
+            row.Add(box);
             show();
         }
         void toggle(string label, string hintText, string key)
         {
             bool get() => key == "shadows" ? settings.shadows : key == "vsync" ? settings.vsync : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
             var row = rowEl(label, hintText);
-            var val = el("span", "set-val");
+            var val = new UiNode("span", "set-val");
             void put(bool on)
             {
                 if (key == "shadows") settings.shadows = on;
@@ -733,35 +722,35 @@ public class UIManager
             }
             void show()
             {
-                row.classList.toggle("on", get());
-                val.textContent = get() ? "On" : "Off";
+                row.Toggle("on", get());
+                val.Text = get() ? "On" : "Off";
             }
-            row.onclick = () =>
+            row.OnClick = () =>
             {
                 put(!get());
                 show();
                 onChange(settings);
             };
-            row.onstep = dir =>
+            row.OnStep = dir =>
             {
                 if (get() == dir > 0) return;
                 put(dir > 0);
                 show();
                 onChange(settings);
             };
-            row.append(el("span", "set-switch"), val);
+            row.Add(new UiNode("span", "set-switch"), val);
             show();
         }
         string pct(double v) => $"{JS.Round(v * 100)}%";
-        rows.append(el("h3", "caps", "Sound"));
+        rows.Add(node("h3", "caps", "Sound"));
         slider("Master volume", "master", 0, 1, 0.05, pct);
         slider("Radio music", "music", 0, 1, 0.05, pct);
         slider("Sea and wind", "ambience", 0, 1, 0.05, pct);
-        rows.append(el("h3", "caps", "Controls"));
+        rows.Add(node("h3", "caps", "Controls"));
         slider("Mouse look speed", "sensitivity", 0.4, 2.5, 0.05, v => $"{JS.ToFixed(v, 2)}x");
         toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
         toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
-        rows.append(el("h3", "caps", "Display"));
+        rows.Add(node("h3", "caps", "Display"));
         choice("Text and menu size", new[]
         {
             new[] { "1", "Normal" },
@@ -791,7 +780,7 @@ public class UIManager
         toggle("VSync", "waits for the screen's refresh: no tearing", "vsync");
         choice("Frame limit (VSync off)", FramePacing.LIMITS.Select(n => new[] { JS.Str(n), n == 0 ? "No limit" : $"{n} fps" }).ToArray(),
             () => JS.Str(settings.fpsLimit), v => settings.fpsLimit = int.TryParse(v, out var n) ? n : 0);
-        rows.append(el("h3", "caps", "Graphics"));
+        rows.Add(node("h3", "caps", "Graphics"));
         choice("Quality", new[]
         {
             new[] { "handheld", "Handheld (Steam Deck)" },
@@ -802,21 +791,21 @@ public class UIManager
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);
-        var back = el<HTMLButtonElement>("button", "btn", "Done");
-        back.onclick = () =>
+        var back = new UiNode("button", "btn", "Done");
+        back.OnClick = () =>
         {
             this.closeSettings();
             onClose?.Invoke();
         };
-        card.append(rows, back);
-        wrap.append(card);
+        card.Add(rows, back);
+        wrap.Add(card);
         this.settingsEl = wrap;
-        this.root.append(wrap);
+        wrap.MountIn(this.root.ve);
     }
 
     public void closeSettings()
     {
-        this.settingsEl?.remove();
+        this.settingsEl?.Remove();
         this.settingsEl = null;
     }
 
@@ -967,20 +956,18 @@ public class UIManager
     public void showBook(IList<BookPage> pages, Action onClose)
     {
         this.hideBook();
-        var wrap = el("div", "pause bookview");
-        var book = el("div", "book");
-        var spread = el("div", "book-spread");
-        var nav = el("div", "book-nav");
-        var prev = el<HTMLButtonElement>("button", "btn ghost small", "‹ Previous");
-        prev.dataset["act"] = "prev";
-        var count = el("span", "book-count");
-        var next = el<HTMLButtonElement>("button", "btn ghost small", "Next ›");
-        next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", "Close");
-        close.onclick = () => onClose();
-        nav.append(prev, count, next, close);
-        book.append(spread, nav);
-        wrap.append(book);
+        var wrap = new UiNode("div", "pause bookview");
+        var book = new UiNode("div", "book");
+        var spread = new UiNode("div", "book-spread");
+        var nav = new UiNode("div", "book-nav");
+        var prev = new UiNode("button", "btn ghost small", "‹ Previous");
+        var count = new UiNode("span", "book-count");
+        var next = new UiNode("button", "btn ghost small", "Next ›");
+        var close = new UiNode("button", "btn small", "Close");
+        close.OnClick = () => onClose();
+        nav.Add(prev, count, next, close);
+        book.Add(spread, nav);
+        wrap.Add(book);
         var per = window.innerWidth < 760 ? 1 : 2;
         int idxNew = -1;
         for (int k = 0; k < pages.Count; k++)
@@ -991,25 +978,25 @@ public class UIManager
         first -= first % per;
         void render()
         {
-            spread.replaceChildren();
+            spread.Clear();
             for (int k = 0; k < per; k++)
             {
                 var p = first + k < pages.Count ? pages[first + k] : null;
-                var side = el("div", $"book-page {(k == 0 ? "left" : "right")}");
+                var side = new UiNode("div", $"book-page {(k == 0 ? "left" : "right")}");
                 if (p != null)
                 {
-                    var head = el("div", "bp-head");
-                    head.append(el("span", "bp-group", $"{p.icon}  {p.group}"));
-                    if (p.isNew) head.append(el("span", "bp-new", "New"));
-                    else if (!p.found) head.append(el("span", "bp-todo", "To discover"));
-                    side.append(head, el("h2", "", p.title), el("p", "", p.text), el("div", "bp-num", JS.Str(first + k + 1)));
+                    var head = new UiNode("div", "bp-head");
+                    head.Add(node("span", "bp-group", $"{p.icon}  {p.group}"));
+                    if (p.isNew) head.Add(node("span", "bp-new", "New"));
+                    else if (!p.found) head.Add(node("span", "bp-todo", "To discover"));
+                    side.Add(head, node("h2", "", p.title), node("p", "", p.text), node("div", "bp-num", JS.Str(first + k + 1)));
                 }
-                spread.append(side);
+                spread.Add(side);
             }
             var last = Math.Min(pages.Count, first + per);
-            count.textContent = pages.Count > 0 ? $"{first + 1}{(last > first + 1 ? "–" + last : "")} of {pages.Count}" : "No pages yet";
-            prev.disabled = first <= 0;
-            next.disabled = first + per >= pages.Count;
+            count.Text = pages.Count > 0 ? $"{first + 1}{(last > first + 1 ? "–" + last : "")} of {pages.Count}" : "No pages yet";
+            prev.Disabled = first <= 0;
+            next.Disabled = first + per >= pages.Count;
         }
         void turn(int dir)
         {
@@ -1017,18 +1004,19 @@ public class UIManager
             if (n < 0 || n >= pages.Count) return;
             first = n;
             render();
-            if (document.activeElement == prev || document.activeElement == next)
+            var now = MenuNav.Current.node;
+            if (now == prev || now == next)
             {
                 // keep the focus on a button that still works, so a controller can keep turning
-                if (document.activeElement is HTMLButtonElement hb && hb.disabled) (dir > 0 ? prev : next).focus();
+                if (now.Disabled) (dir > 0 ? prev : next).Focus();
             }
         }
-        prev.onclick = () => turn(-1);
-        next.onclick = () => turn(1);
+        prev.OnClick = () => turn(-1);
+        next.OnClick = () => turn(1);
         this.bookTurnFn = turn;
         render();
         this.bookEl = wrap;
-        this.root.append(wrap);
+        wrap.MountIn(this.root.ve);
     }
 
     public void showBook(IList<BookPageView> pages, Action onClose) => this.showBook(pages.Cast<BookPage>().ToList(), onClose);
@@ -1037,44 +1025,42 @@ public class UIManager
     public void showMail(IList<MailLetter> letters, Action onClose)
     {
         this.hideBook();
-        var wrap = el("div", "pause bookview mailview");
-        var card = el("div", "mail");
-        var sheet = el("div", "mail-sheet");
-        var nav = el("div", "book-nav");
-        var prev = el<HTMLButtonElement>("button", "btn ghost small", "‹ Newer");
-        prev.dataset["act"] = "prev";
-        var count = el("span", "book-count");
-        var next = el<HTMLButtonElement>("button", "btn ghost small", "Older ›");
-        next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", "Close");
-        close.onclick = () => onClose();
-        nav.append(prev, count, next, close);
-        card.append(sheet, nav);
-        wrap.append(card);
+        var wrap = new UiNode("div", "pause bookview mailview");
+        var card = new UiNode("div", "mail");
+        var sheet = new UiNode("div", "mail-sheet");
+        var nav = new UiNode("div", "book-nav");
+        var prev = new UiNode("button", "btn ghost small", "‹ Newer");
+        var count = new UiNode("span", "book-count");
+        var next = new UiNode("button", "btn ghost small", "Older ›");
+        var close = new UiNode("button", "btn small", "Close");
+        close.OnClick = () => onClose();
+        nav.Add(prev, count, next, close);
+        card.Add(sheet, nav);
+        wrap.Add(card);
         // newest letters first
         var list = letters.Reverse().ToList();
         int idxNew = list.FindIndex(l => l.isNew);
         int i = Math.Max(0, idxNew);
         void render()
         {
-            sheet.replaceChildren();
+            sheet.Clear();
             var l = i >= 0 && i < list.Count ? list[i] : null;
             if (l == null)
             {
-                sheet.append(el("p", "mail-empty", "No letters yet. Return something to its owner and they will write to you."));
-                count.textContent = "Empty post box";
+                sheet.Add(node("p", "mail-empty", "No letters yet. Return something to its owner and they will write to you."));
+                count.Text = "Empty post box";
             }
             else
             {
-                var head = el("div", "mail-head");
-                head.append(el("span", "mail-from", $"From: {l.from}"));
-                if (l.isNew) head.append(el("span", "bp-new", "New"));
-                head.append(el("span", "mail-stamp", "✉"));
-                sheet.append(head, el("p", "mail-greeting", l.greeting), el("p", "mail-body", l.text), el("p", "mail-sign", l.sign));
-                count.textContent = $"Letter {i + 1} of {list.Count}";
+                var head = new UiNode("div", "mail-head");
+                head.Add(node("span", "mail-from", $"From: {l.from}"));
+                if (l.isNew) head.Add(node("span", "bp-new", "New"));
+                head.Add(node("span", "mail-stamp", "✉"));
+                sheet.Add(head, node("p", "mail-greeting", l.greeting), node("p", "mail-body", l.text), node("p", "mail-sign", l.sign));
+                count.Text = $"Letter {i + 1} of {list.Count}";
             }
-            prev.disabled = i <= 0;
-            next.disabled = i >= list.Count - 1;
+            prev.Disabled = i <= 0;
+            next.Disabled = i >= list.Count - 1;
         }
         void turn(int dir)
         {
@@ -1083,17 +1069,18 @@ public class UIManager
             if (n < 0 || n >= list.Count) return;
             i = n;
             render();
-            if ((document.activeElement == prev || document.activeElement == next) && document.activeElement is HTMLButtonElement hb && hb.disabled)
+            var now = MenuNav.Current.node;
+            if ((now == prev || now == next) && now.Disabled)
             {
-                (dir > 0 ? prev : next).focus();
+                (dir > 0 ? prev : next).Focus();
             }
         }
-        prev.onclick = () => turn(-1);
-        next.onclick = () => turn(1);
+        prev.OnClick = () => turn(-1);
+        next.OnClick = () => turn(1);
         this.bookTurnFn = turn;
         render();
         this.bookEl = wrap;
-        this.root.append(wrap);
+        wrap.MountIn(this.root.ve);
     }
 
     public void showMail(IList<MailLetterView> letters, Action onClose) => this.showMail(letters.Cast<MailLetter>().ToList(), onClose);
@@ -1102,28 +1089,28 @@ public class UIManager
     public void showEnding(IList<string[]> stats, Action onClose)
     {
         this.hideBook();
-        var wrap = el("div", "pause bookview teaser");
-        var card = el("div", "intro-card");
-        var facts = el("div", "ending-stats");
+        var wrap = new UiNode("div", "pause bookview teaser");
+        var card = new UiNode("div", "intro-card");
+        var facts = new UiNode("div", "ending-stats");
         foreach (var pair in stats)
         {
             string label = pair[0], value = pair[1];
-            facts.append(el("div", "ending-stat", $"<b>{value}</b><span>{label}</span>"));
+            facts.Add(new UiNode("div", "ending-stat").Add(node("b", null, value), node("span", null, label)));
         }
-        card.append(
-            el("h1", "", "The Marigold\u2019s Gold"),
-            el("p", "tag", "You found it"),
-            el("p", "credit", "Whatever lived down here died long before Captain Holt ever heard of this coast. The sea carried the Marigold\u2019s gold in on the tide and left it in the bones, and nobody has laid eyes on it since."),
-            el("p", "credit", "Tucked into the old bell is a note, in a newer hand: \u201cThe town made its peace with this long ago. If you are reading it, you were patient and you were kind, and my great-grandfather asked for no more than that. Keep it. Look after the place.\u201d"),
+        card.Add(
+            node("h1", "", "The Marigold\u2019s Gold"),
+            node("p", "tag", "You found it"),
+            node("p", "credit", "Whatever lived down here died long before Captain Holt ever heard of this coast. The sea carried the Marigold\u2019s gold in on the tide and left it in the bones, and nobody has laid eyes on it since."),
+            node("p", "credit", "Tucked into the old bell is a note, in a newer hand: \u201cThe town made its peace with this long ago. If you are reading it, you were patient and you were kind, and my great-grandfather asked for no more than that. Keep it. Look after the place.\u201d"),
             facts,
-            el("p", "tag", "The beach is still yours.")
+            node("p", "tag", "The beach is still yours.")
         );
-        var back = el<HTMLButtonElement>("button", "btn big", "Keep playing");
-        back.onclick = () => onClose();
-        card.append(back);
-        wrap.append(card);
+        var back = new UiNode("button", "btn big", "Keep playing");
+        back.OnClick = () => onClose();
+        card.Add(back);
+        wrap.Add(card);
         this.bookEl = wrap;
-        this.root.append(wrap);
+        wrap.MountIn(this.root.ve);
     }
 
     public void showEnding(IList<(string, string)> stats, Action onClose)
@@ -1135,31 +1122,29 @@ public class UIManager
     public void showStory(string title, IList<StoryPage> pages, Action onClose)
     {
         this.hideBook();
-        var wrap = el("div", "pause bookview mailview");
-        var card = el("div", "mail");
-        var sheet = el("div", "mail-sheet");
-        var nav = el("div", "book-nav");
-        var prev = el<HTMLButtonElement>("button", "btn ghost small", "\u2039 Earlier");
-        prev.dataset["act"] = "prev";
-        var count = el("span", "book-count");
-        var next = el<HTMLButtonElement>("button", "btn ghost small", "Later \u203a");
-        next.dataset["act"] = "next";
-        var close = el<HTMLButtonElement>("button", "btn small", "Close");
-        close.onclick = () => onClose();
-        nav.append(prev, count, next, close);
-        card.append(sheet, nav);
-        wrap.append(card);
+        var wrap = new UiNode("div", "pause bookview mailview");
+        var card = new UiNode("div", "mail");
+        var sheet = new UiNode("div", "mail-sheet");
+        var nav = new UiNode("div", "book-nav");
+        var prev = new UiNode("button", "btn ghost small", "\u2039 Earlier");
+        var count = new UiNode("span", "book-count");
+        var next = new UiNode("button", "btn ghost small", "Later \u203a");
+        var close = new UiNode("button", "btn small", "Close");
+        close.OnClick = () => onClose();
+        nav.Add(prev, count, next, close);
+        card.Add(sheet, nav);
+        wrap.Add(card);
         int i = 0;
         void render()
         {
-            sheet.replaceChildren();
+            sheet.Clear();
             var p = pages[i];
-            var head = el("div", "mail-head");
-            head.append(el("span", "mail-from", title), el("span", "mail-stamp", "\ud83d\udcd6"));
-            sheet.append(head, el("p", "mail-greeting", p.heading), el("p", "mail-body", p.text), el("p", "mail-sign", p.sign));
-            count.textContent = $"Page {i + 1} of {pages.Count}";
-            prev.disabled = i <= 0;
-            next.disabled = i >= pages.Count - 1;
+            var head = new UiNode("div", "mail-head");
+            head.Add(node("span", "mail-from", title), node("span", "mail-stamp", "\ud83d\udcd6"));
+            sheet.Add(head, node("p", "mail-greeting", p.heading), node("p", "mail-body", p.text), node("p", "mail-sign", p.sign));
+            count.Text = $"Page {i + 1} of {pages.Count}";
+            prev.Disabled = i <= 0;
+            next.Disabled = i >= pages.Count - 1;
         }
         void turn(int dir)
         {
@@ -1167,17 +1152,18 @@ public class UIManager
             if (n < 0 || n >= pages.Count) return;
             i = n;
             render();
-            if ((document.activeElement == prev || document.activeElement == next) && document.activeElement is HTMLButtonElement hb && hb.disabled)
+            var now = MenuNav.Current.node;
+            if ((now == prev || now == next) && now.Disabled)
             {
-                (dir > 0 ? prev : next).focus();
+                (dir > 0 ? prev : next).Focus();
             }
         }
-        prev.onclick = () => turn(-1);
-        next.onclick = () => turn(1);
+        prev.OnClick = () => turn(-1);
+        next.OnClick = () => turn(1);
         this.bookTurnFn = turn;
         render();
         this.bookEl = wrap;
-        this.root.append(wrap);
+        wrap.MountIn(this.root.ve);
     }
 
     public void bookTurn(int dir)
@@ -1190,21 +1176,21 @@ public class UIManager
     {
         if (!on)
         {
-            this.sleepEl?.remove();
+            this.sleepEl?.Remove();
             this.sleepEl = null;
             return;
         }
         if (this.sleepEl != null) return;
-        var v = el("div", "sleepveil");
-        for (int i = 0; i < 3; i++) v.append(el("span", $"zz zz{i}", "z"));
-        v.append(el("div", "sleepmsg", "Resting until morning..."));
+        var v = new UiNode("div", "sleepveil");
+        for (int i = 0; i < 3; i++) v.Add(node("span", $"zz zz{i}", "z"));
+        v.Add(node("div", "sleepmsg", "Resting until morning..."));
         this.sleepEl = v;
-        this.root.append(v);
+        v.MountIn(this.root.ve);
     }
 
     public void hideBook()
     {
-        this.bookEl?.remove();
+        this.bookEl?.Remove();
         this.bookEl = null;
         this.bookTurnFn = null;
     }
@@ -1213,117 +1199,115 @@ public class UIManager
     public void openSaves(string mode, SaveHooks hooks, Action onClose = null)
     {
         this.closeSaves();
-        var m = el("div", "pause saves");
-        var card = el("div", "intro-card save-card");
-        var title = el("h1", "", mode == "save" ? "Save game" : "Load game");
-        card.append(title);
+        var m = new UiNode("div", "pause saves");
+        var card = new UiNode("div", "intro-card save-card");
+        var title = new UiNode("h1", "", mode == "save" ? "Save game" : "Load game");
+        card.Add(title);
 
         Action renderList = null;
-        HTMLInputElement nameInput = null;
+        UiText nameInput = null;
         bool nameEdited = false;
         if (mode == "save")
         {
-            var row = el("div", "save-new");
-            nameInput = el<HTMLInputElement>("input", "save-name");
-            nameInput.type = "text";
-            nameInput.maxLength = 40;
-            nameInput.placeholder = "Name this save";
-            var create = el<HTMLButtonElement>("button", "btn", "Save as new");
-            row.append(nameInput, create);
-            card.append(row);
-            create.onclick = () =>
+            var row = new UiNode("div", "save-new");
+            nameInput = new UiText("save-name");
+            nameInput.MaxLength = 40;
+            nameInput.Placeholder = "Name this save";
+            var create = new UiNode("button", "btn", "Save as new");
+            row.Add(nameInput, create);
+            card.Add(row);
+            create.OnClick = () =>
             {
-                var nm = !string.IsNullOrEmpty(nameInput.value) ? nameInput.value : $"Save {hooks.list().Count + 1}";
+                var nm = !string.IsNullOrEmpty(nameInput.Value) ? nameInput.Value : $"Save {hooks.list().Count + 1}";
                 var meta = hooks.save(nm, null);
                 if (meta != null) renderList();
             };
-            nameInput.value = $"Save {hooks.list().Count + 1}";
-            nameInput.addEventListener("keydown", e => e.stopPropagation());
+            nameInput.Value = $"Save {hooks.list().Count + 1}";
             // the pre-filled "Save N" is only a suggestion: it must not rename a save that is overwritten
             var typed = nameInput;
-            typed.addEventListener("input", _ => nameEdited = true);
+            typed.OnInput = () => nameEdited = true;
             // a controller presses A on the box: Steam's on-screen keyboard types the name (a Deck has no real keyboard handy)
-            typed.onclick = () =>
+            typed.OnClick = () =>
             {
-                SteamService.ShowKeyboard("Save name", typed.value, 40, text =>
+                SteamService.ShowKeyboard("Save name", typed.Value, 40, text =>
                 {
                     if (text == null) return;
-                    typed.value = text;
+                    typed.Value = text;
                     nameEdited = true;
                 });
             };
         }
 
-        var list = el("div", "save-list");
-        var note = el("p", "save-note", mode == "save" ? "Make as many saves as you like. Pick one below to save over it." : "Loading replaces your current game. Unsaved progress is lost.");
-        var back = el<HTMLButtonElement>("button", "btn ghost", "Back");
-        back.onclick = () =>
+        var list = new UiNode("div", "save-list");
+        var note = new UiNode("p", "save-note", mode == "save" ? "Make as many saves as you like. Pick one below to save over it." : "Loading replaces your current game. Unsaved progress is lost.");
+        var back = new UiNode("button", "btn ghost", "Back");
+        back.OnClick = () =>
         {
             this.closeSaves();
             onClose?.Invoke();
         };
-        card.append(list, note, back);
-        m.append(card);
+        card.Add(list, note, back);
+        m.Add(card);
 
         renderList = () =>
         {
-            list.innerHTML = "";
+            list.Clear();
             var saves = hooks.list();
-            if (saves.Count == 0) list.append(el("p", "save-empty", "No saved games yet."));
+            if (saves.Count == 0) list.Add(new UiNode("p", "save-empty", "No saved games yet."));
             foreach (var meta in saves)
             {
                 var metaId = meta.id;
                 var metaName = meta.name;
-                var row = el("div", "save-row");
-                var left = el("div", "si");
-                left.append(el("b", "", metaName), el("span", "", describe(meta)));
-                var right = el("div", "sb");
-                var main = el<HTMLButtonElement>("button", "btn small", mode == "save" ? "Overwrite" : "Load");
-                main.onclick = () =>
+                var row = new UiNode("div", "save-row");
+                var left = new UiNode("div", "si");
+                left.Add(node("b", "", metaName), node("span", "", describe(meta)));
+                var right = new UiNode("div", "sb");
+                var main = new UiNode("button", "btn small", mode == "save" ? "Overwrite" : "Load");
+                main.OnClick = () =>
                 {
                     if (mode == "save")
                     {
-                        var trimmed = nameEdited && nameInput != null && nameInput.value != null ? nameInput.value.Trim() : "";
+                        var trimmed = nameEdited && nameInput != null && nameInput.Value != null ? nameInput.Value.Trim() : "";
                         hooks.save(!string.IsNullOrEmpty(trimmed) ? trimmed : metaName, metaId);
                         renderList();
                     }
                     else hooks.load(metaId);
                 };
-                var del = el<HTMLButtonElement>("button", "btn small ghost", "🗑");
+                var del = new UiNode("button", "btn small ghost", "🗑");
                 var armed = false;
-                del.onclick = () =>
+                del.OnClick = () =>
                 {
                     if (!armed)
                     {
                         armed = true;
-                        del.textContent = "Sure?";
-                        window.setTimeout(() =>
+                        del.Text = "Sure?";
+                        GameTimers.After(2500, () =>
                         {
                             armed = false;
-                            del.textContent = "🗑";
-                        }, 2500);
+                            del.Text = "🗑";
+                        });
                         return;
                     }
                     hooks.remove(metaId);
                     renderList();
                 };
-                right.append(main, del);
-                row.append(left, right);
-                list.append(row);
+                right.Add(main, del);
+                row.Add(left, right);
+                list.Add(row);
             }
         };
         renderList();
         this.savesEl = m;
-        this.root.append(m);
+        m.MountIn(this.root.ve);
     }
 
     public void closeSaves()
     {
-        this.savesEl?.remove();
+        this.savesEl?.Remove();
         this.savesEl = null;
     }
 
-    private HTMLElement savesEl = null;
+    private UiNode savesEl = null;
     private UiNode pauseEl = null;
 
     /// <summary>A second prompt, for the E key.</summary>

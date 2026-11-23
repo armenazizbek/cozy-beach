@@ -159,11 +159,11 @@ public class AutoShot : MonoBehaviour
             yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.DpadDown);
             yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.South);
             yield return Wait(0.8f);
-            Debug.Log("[AutoShot] pad: settings open = " + (document.querySelector(".settings-card") != null));
+            Debug.Log("[AutoShot] pad: settings open = " + (MenuNav.Find(UiRoot.Root, v => v.ClassListContains("settings-card")).Count > 0));
             yield return Shot("1p-pad.png");
             yield return Press(UnityEngine.InputSystem.LowLevel.GamepadButton.East);
             yield return Wait(0.5f);
-            Debug.Log("[AutoShot] pad: settings closed by B = " + (document.querySelector(".settings-card") == null));
+            Debug.Log("[AutoShot] pad: settings closed by B = " + (MenuNav.Find(UiRoot.Root, v => v.ClassListContains("settings-card")).Count == 0));
             UnityEngine.InputSystem.InputSystem.RemoveDevice(pad);
         }
 

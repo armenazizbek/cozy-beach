@@ -523,3 +523,16 @@ the verification passes (about 14 minutes for all 37 runs).
   `UIManager.removeFirst` and `skipIntro`.
 - **Full passes (after each part):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading
   shots within 0.02/255, 428 of 438 dumps identical.
+
+## S29 (rest) and S30: settings, saves, the journal and letters (2026-11-24)
+
+- **`UiRange`**: the page's range input as it was built (`.range` with `.range-track`, `.range-fill`, `.range-thumb`,
+  dragged with pointer capture, the value snapped to its step and written as JS writes numbers).
+- **`UiText`**: the page's text input as it was built (a borderless TextField on a clear background with the faint
+  placeholder label over it); while it has the keyboard the game takes no keys. `NavEl.IsTextBox` keeps a controller
+  off it unless Steam's keyboard can type.
+- **Native now:** Settings (rows, sliders, choices with their delayed apply, switches; the arrows' clicks stop at
+  them), Saves (the name box, Steam's keyboard on A, overwrite, the two-press delete), the journal, the post, story
+  pages, the ending and the sleep veil with its z's.
+- **Full passes (S29 settings, S29 saves, S30):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL,
+  non-loading shots within 0.02/255, 428 of 438 dumps identical.

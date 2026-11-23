@@ -462,7 +462,7 @@ public class UiNode
     public Action<int> OnStep;
 
     /// <summary>Takes the menu highlight (as a page element's focus()).</summary>
-    public void Focus()
+    public virtual void Focus()
     {
         if (!ve.enabledSelf) return;
         MenuNav.FocusNative(this);

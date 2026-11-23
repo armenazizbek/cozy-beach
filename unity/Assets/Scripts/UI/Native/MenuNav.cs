@@ -27,6 +27,9 @@ public readonly struct NavEl : IEquatable<NavEl>
         return default;
     }
 
+    /// <summary>A box to type in (a controller does not walk onto it unless Steam's keyboard can type for it).</summary>
+    public bool IsTextBox => (dom is HTMLInputElement t && t.type == "text") || node is UiText;
+
     public bool Disabled => dom != null ? dom.disabled : node != null && !node.ve.enabledSelf;
     public bool Has(string cls) => ve != null && ve.ClassListContains(cls);
     /// <summary>Its words and its children's (textContent).</summary>
