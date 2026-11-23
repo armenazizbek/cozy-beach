@@ -209,7 +209,7 @@ public static class SeaFlora
     private static THREE.CanvasTexture fanTexture()
     {
         if (fanTex != null) return fanTex;
-        var cv = new HTMLCanvasElement(256, 256);
+        var cv = new TexturePainter(256, 256);
         var c = cv.getContext("2d");
         c.strokeStyle = "#fff";
         c.lineCap = "round";

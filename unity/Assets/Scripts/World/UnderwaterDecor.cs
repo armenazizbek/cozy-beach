@@ -109,12 +109,12 @@ public class UnderwaterDecor
     /// The pattern sunlight makes on the sand under moving water: a net of bright lines round darker cells. It tiles, so it can
     /// be laid across the whole floor. Each pixel is lit by how close it is to the border between its two nearest cells.
     /// </summary>
-    private HTMLCanvasElement causticCanvas()
+    private TexturePainter causticCanvas()
     {
         const int N = 128, CELLS = 26;
         var pts = new (double x, double y)[CELLS];
         for (int i = 0; i < CELLS; i++) pts[i] = (rand(), rand());
-        var c = new HTMLCanvasElement(N, N);
+        var c = new TexturePainter(N, N);
         var g = c.getContext("2d");
         var img = g.createImageData(N, N);
         var data = img.data;
@@ -150,7 +150,7 @@ public class UnderwaterDecor
         return c;
     }
 
-    private static THREE.CanvasTexture tiled(HTMLCanvasElement canvas, double repeat)
+    private static THREE.CanvasTexture tiled(TexturePainter canvas, double repeat)
     {
         var t = new THREE.CanvasTexture(canvas);
         t.wrapS = t.wrapT = THREE.Wrapping.RepeatWrapping;
@@ -207,7 +207,7 @@ public class UnderwaterDecor
     /// <summary>A soft round glow.</summary>
     private static THREE.CanvasTexture glowTexture()
     {
-        var c = new HTMLCanvasElement(128, 128);
+        var c = new TexturePainter(128, 128);
         var g = c.getContext("2d");
         var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
         grad.addColorStop(0, "rgba(255,255,255,0.9)");
@@ -222,7 +222,7 @@ public class UnderwaterDecor
     private static THREE.CanvasTexture rayTexture()
     {
         const int W = 32, H = 128;
-        var c = new HTMLCanvasElement(W, H);
+        var c = new TexturePainter(W, H);
         var g = c.getContext("2d");
         var img = g.createImageData(W, H);
         var data = img.data;

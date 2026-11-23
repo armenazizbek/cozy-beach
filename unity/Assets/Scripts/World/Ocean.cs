@@ -9,7 +9,7 @@ public class Ocean
 
     private static THREE.CanvasTexture foamTexture()
     {
-        var c = new HTMLCanvasElement(256, 64);
+        var c = new TexturePainter(256, 64);
         var g = c.getContext("2d");
         var grad = g.createLinearGradient(0, 0, 0, 64);
         grad.addColorStop(0, "rgba(255,255,255,0.95)");

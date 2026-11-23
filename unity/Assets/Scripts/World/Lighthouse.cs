@@ -57,7 +57,7 @@ public class Lighthouse
     /// <summary>the player's switch at the top: off leaves the cleaned lamp dark, with no beam and no ships, until switched on again</summary>
     public bool lampOn { get; private set; } = true;
     /// <summary>the sand crust canvas used when brushing the lighthouse lamp on the workbench</summary>
-    public HTMLCanvasElement crustCanvas;
+    public TexturePainter crustCanvas;
 
     private readonly THREE.MeshStandardMaterial cleanPaint = new THREE.MeshStandardMaterial { color = 0xffffff, vertexColors = true, roughness = 0.85, flatShading = false };
     private readonly THREE.MeshStandardMaterial cleanGlass = new THREE.MeshStandardMaterial { color = 0xcfe6ee, roughness = 0.05, metalness = 0.2, transparent = true, opacity = 0.28, side = THREE.Side.DoubleSide, depthWrite = false };

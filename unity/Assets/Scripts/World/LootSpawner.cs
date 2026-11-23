@@ -13,7 +13,7 @@ public class BuriedItem
     public bool revealed, collected;
     public THREE.Group mesh;
     /// <summary>persistent brush progress so leaving the workbench never loses it</summary>
-    public HTMLCanvasElement crustCanvas;
+    public TexturePainter crustCanvas;
     public double popT;
     /// <summary>the captain's hatch has been lifted, showing the strongbox</summary>
     public bool opened;

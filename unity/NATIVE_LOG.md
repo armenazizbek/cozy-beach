@@ -398,3 +398,17 @@ the verification passes (about 14 minutes for all 37 runs).
   `Push` forces an update (`MaterialCache.Get(..., force: true)`).
 - **Full pass:** every run clean, 11 of 11 self-checks, all 35 logs identical, no FAIL, the largest non-loading picture
   difference 0.02/255, 428 of 438 dumps identical (the 10 others are paused bench views).
+
+## S6: TexturePainter (2026-11-24)
+
+- **`TexturePainter`** (in `Three/Textures/Canvas2D.cs` until S25 moves the files): the CPU pixels, size, version and
+  Canvas2D-style context, with no DOM type. `CanvasRenderingContext2D.canvas`, `drawImage`, `CanvasTexture` and the
+  texture upload take a painter. Every world and mechanics texture (sky, sea, camp signs, crusts, tracks, the detector's
+  heat map and waveform background, ...) is now a plain `TexturePainter`.
+- **`HTMLCanvasElement`** is the UI's page element wrapping a painter (`painter`, an implicit conversion, and
+  `HTMLCanvasElement.Of(painter)` for the two UI spots that need the element: the waveform host and the minimap). It goes
+  with the DOM in the UI track.
+- **Left for later:** pixels are painted where they were before (loader thread for Prebuilt pieces); the editor-only icon
+  baker belongs with the UI foundation (S26), where the icons are used.
+- **Full pass:** every run clean, 11 of 11 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical (the 10
+  others are paused bench views), the largest non-loading picture difference 0.08/255 with no pixel over the threshold.

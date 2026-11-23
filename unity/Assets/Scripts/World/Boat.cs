@@ -158,7 +158,7 @@ public class Boat
         // ---- the cockpit floor: teak planks running fore and aft, out to where the hull meets it
         THREE.CanvasTexture planksTex()
         {
-            var cv = new HTMLCanvasElement(128, 8);
+            var cv = new TexturePainter(128, 8);
             var x2 = cv.getContext("2d");
             x2.fillStyle = "#b5885a";
             x2.fillRect(0, 0, 128, 8);
@@ -310,7 +310,7 @@ public class Boat
         add(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshStandardMaterial { color = 0xe63946, side = THREE.Side.DoubleSide }, 0.91, 1.66, 2.14);
         Merge.mergeStatic(group, new HashSet<THREE.Object3D> { wheel });
         // the name on the stern, painted when the boat is given the Marigold's colours
-        var cv2 = new HTMLCanvasElement(256, 64);
+        var cv2 = new TexturePainter(256, 64);
         var c = cv2.getContext("2d");
         c.fillStyle = "#b8892a";
         c.font = "bold italic 42px Georgia, serif";

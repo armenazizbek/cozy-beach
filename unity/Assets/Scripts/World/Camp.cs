@@ -329,7 +329,7 @@ public class Camp
     private void buildDecor()
     {
         // the rug: woven stripes with a border and fringe
-        var cv = new HTMLCanvasElement(512, 320);
+        var cv = new TexturePainter(512, 320);
         var c = cv.getContext("2d");
         c.fillStyle = "#b8453a";
         c.fillRect(0, 0, 512, 320);
@@ -457,7 +457,7 @@ public class Camp
         var woodM = new THREE.MeshStandardMaterial { color = 0x7a5538, roughness = 0.9 };
         THREE.CanvasTexture stripes(string a, string b, int n)
         {
-            var cv = new HTMLCanvasElement(256, 16);
+            var cv = new TexturePainter(256, 16);
             var c = cv.getContext("2d");
             double w = 256.0 / n;
             for (int i = 0; i < n; i++)
@@ -645,7 +645,7 @@ public class Camp
     {
         if (text == signText) return;
         signText = text;
-        var cv = new HTMLCanvasElement(512, 190);
+        var cv = new TexturePainter(512, 190);
         var c = cv.getContext("2d");
         c.fillStyle = "#c8935a";
         c.fillRect(0, 0, 512, 190);
@@ -751,7 +751,7 @@ public class Camp
     private static THREE.Group enamelMug()
     {
         var g = new THREE.Group();
-        var c = new HTMLCanvasElement(128, 64);
+        var c = new TexturePainter(128, 64);
         var x = c.getContext("2d");
         x.fillStyle = "#4a82b8";
         x.fillRect(0, 0, 128, 64);
@@ -936,7 +936,7 @@ public class Camp
         // the stripes run the length of the cloth, the way a woven hammock's do
         THREE.CanvasTexture makeTex()
         {
-            var cvs = new HTMLCanvasElement(8, 128);
+            var cvs = new TexturePainter(8, 128);
             var x = cvs.getContext("2d");
             var cols = new[] { "#d9704a", "#e9d9b4", "#3f9a8d", "#e9d9b4", "#d9704a", "#e9d9b4", "#3f9a8d", "#e9d9b4", "#d9704a" };
             for (int i = 0; i < cols.Length; i++)
@@ -1086,7 +1086,7 @@ public class Camp
     /// <summary>Three arrows chasing each other around a triangle, white on nothing, as a texture.</summary>
     private THREE.CanvasTexture recycleLogo()
     {
-        var cv = new HTMLCanvasElement(256, 256);
+        var cv = new TexturePainter(256, 256);
         var c = cv.getContext("2d");
         c.translate(128, 150);
         c.fillStyle = c.strokeStyle = "#ffffff";
@@ -1135,7 +1135,7 @@ public class Camp
             g.add(note);
         }
         // the title, painted on a cream plate along the top beam
-        var cv = new HTMLCanvasElement(768, 112);
+        var cv = new TexturePainter(768, 112);
         var c = cv.getContext("2d");
         c.fillStyle = "#f6efe0";
         c.fillRect(0, 0, cv.width, cv.height);
@@ -1196,7 +1196,7 @@ public class Camp
             photoSlots.Add((slot, pic));
         }
         // the title, painted on a cream plate along the top beam, like the Lost & Found board
-        var cv = new HTMLCanvasElement(768, 112);
+        var cv = new TexturePainter(768, 112);
         var c = cv.getContext("2d");
         c.fillStyle = "#f6efe0";
         c.fillRect(0, 0, cv.width, cv.height);

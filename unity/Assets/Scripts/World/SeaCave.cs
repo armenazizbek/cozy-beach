@@ -39,7 +39,7 @@ public class SeaCave
     private static THREE.CanvasTexture rockTexture()
     {
         const int size = 512;
-        var cv = new HTMLCanvasElement(size, size);
+        var cv = new TexturePainter(size, size);
         var c = cv.getContext("2d");
         var rand = rng(19);
         c.fillStyle = "#7d7266";
@@ -102,7 +102,7 @@ public class SeaCave
     private static THREE.CanvasTexture coinTexture()
     {
         const int size = 512;
-        var cv = new HTMLCanvasElement(size, size);
+        var cv = new TexturePainter(size, size);
         var c = cv.getContext("2d");
         var rand = rng(53);
         c.fillStyle = "#6e4a10";

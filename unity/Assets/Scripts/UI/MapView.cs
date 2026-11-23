@@ -614,8 +614,8 @@ public class MapView
         var fz = -Math.Cos(p.yaw);
         // The sea, the island and the dig holes are drawn by the GPU underneath (MiniMapGpu: one turned texture and a vector
         // layer); this canvas only carries the markers, so it is cleared to transparent and the circle is cut by the layer.
-        if (this.miniGpu == null || this.miniGpu.Host != ctx.canvas.ve)
-            this.miniGpu = new MiniMapGpu(ctx.canvas, size, this._base, EXT_X0, EXT_Z0, EXT);
+        if (this.miniGpu == null || this.miniGpu.Host != HTMLCanvasElement.Of(ctx.canvas)?.ve)
+            this.miniGpu = new MiniMapGpu(HTMLCanvasElement.Of(ctx.canvas), size, this._base, EXT_X0, EXT_Z0, EXT);
         this.miniGpu.SetHoles(holes);
         this.miniGpu.Place(p.x, p.z, -Math.PI / 2 - Math.Atan2(fz, fx), r);
         ctx.clearRect(0, 0, size, size);

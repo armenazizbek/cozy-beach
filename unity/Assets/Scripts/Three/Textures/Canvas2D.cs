@@ -75,113 +75,53 @@ public struct CssColor_RGBA
     public double r, g, b, a;
 }
 
-/// <summary>document.createElement('canvas') for drawing textures in code. Pixels live on the CPU; a CanvasTexture uploads them.</summary>
-public class HTMLCanvasElement : HTMLElement
+/// <summary>
+/// A picture drawn in code (unity/NATIVE_PLAN.md 2.6, S6): premultiplied RGBA pixels on the CPU with a Canvas2D-style
+/// context, so the game's drawing code reads as it always did. World textures (CanvasTexture) are painted on these
+/// directly, with no page element; the UI's canvases (HTMLCanvasElement) wrap one.
+/// </summary>
+public class TexturePainter
 {
     private int _w, _h;
     /// <summary>Premultiplied RGBA, sRGB values, first row at the top (as a browser keeps it).</summary>
     internal byte[] px;
     private CanvasRenderingContext2D ctx;
+    /// <summary>Goes up whenever the pixels change (a texture re-uploads when it differs from what it sent).</summary>
     public int version;
-    private UnityEngine.Texture2D _uiTex;
-    private int _uiUploadedVersion = -1;
-    private byte[] _uiBuf;
-    private UnityEngine.UIElements.VisualElement _texTarget;
 
-    /// <summary>
-    /// Shows the canvas pixels on this element instead of the canvas's own background (the mini-map puts them on a layer
-    /// above the map that the GPU draws). Null puts them back.
-    /// </summary>
-    internal UnityEngine.UIElements.VisualElement textureTarget
-    {
-        get => _texTarget;
-        set
-        {
-            if (ve != null) ve.style.backgroundImage = UnityEngine.UIElements.StyleKeyword.Null;
-            _texTarget = value;
-            if (_uiTex != null) (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
-        }
-    }
-
-    public HTMLCanvasElement(int width = 300, int height = 150) : base("CANVAS")
+    public TexturePainter(int width = 300, int height = 150)
     {
         _w = Math.Max(1, width);
         _h = Math.Max(1, height);
         px = new byte[_w * _h * 4];
-        // the canvases on the page, so DomHost.Tick uploads them without walking the whole page every frame
-        ve?.RegisterCallback<UnityEngine.UIElements.AttachToPanelEvent>(_ => OnPage.Add(this));
-        ve?.RegisterCallback<UnityEngine.UIElements.DetachFromPanelEvent>(_ => OnPage.Remove(this));
     }
-
-    /// <summary>Every canvas that is on the page right now.</summary>
-    internal static readonly HashSet<HTMLCanvasElement> OnPage = new HashSet<HTMLCanvasElement>();
 
     public int width
     {
         get => _w;
-        set
-        {
-            _w = Math.Max(1, value);
-            px = new byte[_w * _h * 4];
-            ctx?.Reset();
-            version++;
-            if (ve != null && id != "scene" && string.IsNullOrEmpty(style?.width))
-                ve.style.width = _w;
-        }
+        set => Resize(value, _h);
     }
 
     public int height
     {
         get => _h;
-        set
-        {
-            _h = Math.Max(1, value);
-            px = new byte[_w * _h * 4];
-            ctx?.Reset();
-            version++;
-            if (ve != null && id != "scene" && string.IsNullOrEmpty(style?.height))
-                ve.style.height = _h;
-        }
+        set => Resize(_w, value);
+    }
+
+    /// <summary>A new size clears the picture and the context's state, as setting a canvas's width or height does.</summary>
+    internal void Resize(int w, int h)
+    {
+        _w = Math.Max(1, w);
+        _h = Math.Max(1, h);
+        px = new byte[_w * _h * 4];
+        ctx?.Reset();
+        version++;
     }
 
     public CanvasRenderingContext2D getContext(string kind = "2d", object opts = null) => ctx ??= new CanvasRenderingContext2D(this);
 
-    /// <summary>Re-uploads the software canvas into a UI Toolkit background texture when attached to the UI.</summary>
-    internal void SyncUITexture()
-    {
-        if (ve == null || id == "scene" || ctx == null || _uiUploadedVersion == version) return;
-        _uiUploadedVersion = version;
-        if (_uiTex == null || _uiTex.width != _w || _uiTex.height != _h)
-        {
-            if (_uiTex != null) UnityEngine.Object.Destroy(_uiTex);
-            _uiTex = new UnityEngine.Texture2D(_w, _h, UnityEngine.TextureFormat.RGBA32, false)
-            {
-                name = string.IsNullOrEmpty(id) ? (string.IsNullOrEmpty(className) ? "UICanvas" : className) : id,
-                wrapMode = UnityEngine.TextureWrapMode.Clamp,
-                filterMode = UnityEngine.FilterMode.Bilinear,
-            };
-            (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
-        }
-        int len = _w * _h * 4;
-        if (_uiBuf == null || _uiBuf.Length != len) _uiBuf = new byte[len];
-        for (int y = 0; y < _h; y++)
-        {
-            int sy = _h - 1 - y;
-            int si = sy * _w * 4, di = y * _w * 4;
-            for (int x = 0; x < _w; x++, si += 4, di += 4)
-            {
-                int a = px[si + 3];
-                if (a == 0) { _uiBuf[di] = 0; _uiBuf[di + 1] = 0; _uiBuf[di + 2] = 0; _uiBuf[di + 3] = 0; continue; }
-                if (a == 255) { _uiBuf[di] = px[si]; _uiBuf[di + 1] = px[si + 1]; _uiBuf[di + 2] = px[si + 2]; _uiBuf[di + 3] = 255; continue; }
-                _uiBuf[di] = (byte)Math.Min(255, px[si] * 255 / a);
-                _uiBuf[di + 1] = (byte)Math.Min(255, px[si + 1] * 255 / a);
-                _uiBuf[di + 2] = (byte)Math.Min(255, px[si + 2] * 255 / a);
-                _uiBuf[di + 3] = (byte)a;
-            }
-        }
-        _uiTex.SetPixelData(_uiBuf, 0);
-        _uiTex.Apply(false, false);
-    }
+    /// <summary>True once something asked for the context (a canvas nobody drew on shows nothing).</summary>
+    internal bool HasContext => ctx != null;
 
     /// <summary>Straight (not premultiplied) RGBA32 with the first row at the bottom, ready for Texture2D.SetPixelData.</summary>
     internal byte[] ToUnityRGBA(bool flipY)
@@ -210,6 +150,108 @@ public class HTMLCanvasElement : HTMLElement
             }
         }
     }
+}
+
+/// <summary>
+/// document.createElement('canvas') for the UI: a page element showing a <see cref="TexturePainter"/>'s pixels. It goes
+/// with the DOM layer (S26 to S33); anything that takes a painter takes one of these too.
+/// </summary>
+public class HTMLCanvasElement : HTMLElement
+{
+    /// <summary>The pixels this element shows.</summary>
+    public readonly TexturePainter painter;
+    private UnityEngine.Texture2D _uiTex;
+    private int _uiUploadedVersion = -1;
+    private byte[] _uiBuf;
+    private UnityEngine.UIElements.VisualElement _texTarget;
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<TexturePainter, HTMLCanvasElement> owners =
+        new System.Runtime.CompilerServices.ConditionalWeakTable<TexturePainter, HTMLCanvasElement>();
+
+    /// <summary>The page element showing a painter, or null for a painter that is only a texture.</summary>
+    public static HTMLCanvasElement Of(TexturePainter p) => p != null && owners.TryGetValue(p, out var e) ? e : null;
+
+    public static implicit operator TexturePainter(HTMLCanvasElement e) => e?.painter;
+
+    internal byte[] px => painter.px;
+    public int version { get => painter.version; set => painter.version = value; }
+
+    /// <summary>
+    /// Shows the canvas pixels on this element instead of the canvas's own background (the mini-map puts them on a layer
+    /// above the map that the GPU draws). Null puts them back.
+    /// </summary>
+    internal UnityEngine.UIElements.VisualElement textureTarget
+    {
+        get => _texTarget;
+        set
+        {
+            if (ve != null) ve.style.backgroundImage = UnityEngine.UIElements.StyleKeyword.Null;
+            _texTarget = value;
+            if (_uiTex != null) (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
+        }
+    }
+
+    public HTMLCanvasElement(int width = 300, int height = 150) : base("CANVAS")
+    {
+        painter = new TexturePainter(width, height);
+        owners.Add(painter, this);
+        // the canvases on the page, so DomHost.Tick uploads them without walking the whole page every frame
+        ve?.RegisterCallback<UnityEngine.UIElements.AttachToPanelEvent>(_ => OnPage.Add(this));
+        ve?.RegisterCallback<UnityEngine.UIElements.DetachFromPanelEvent>(_ => OnPage.Remove(this));
+    }
+
+    /// <summary>Every canvas that is on the page right now.</summary>
+    internal static readonly HashSet<HTMLCanvasElement> OnPage = new HashSet<HTMLCanvasElement>();
+
+    public int width
+    {
+        get => painter.width;
+        set
+        {
+            painter.width = value;
+            if (ve != null && id != "scene" && string.IsNullOrEmpty(style?.width))
+                ve.style.width = painter.width;
+        }
+    }
+
+    public int height
+    {
+        get => painter.height;
+        set
+        {
+            painter.height = value;
+            if (ve != null && id != "scene" && string.IsNullOrEmpty(style?.height))
+                ve.style.height = painter.height;
+        }
+    }
+
+    public CanvasRenderingContext2D getContext(string kind = "2d", object opts = null) => painter.getContext(kind, opts);
+
+    /// <summary>Re-uploads the software canvas into a UI Toolkit background texture when attached to the UI.</summary>
+    internal void SyncUITexture()
+    {
+        if (ve == null || id == "scene" || !painter.HasContext || _uiUploadedVersion == painter.version) return;
+        int w = painter.width, h = painter.height;
+        _uiUploadedVersion = painter.version;
+        if (_uiTex == null || _uiTex.width != w || _uiTex.height != h)
+        {
+            if (_uiTex != null) UnityEngine.Object.Destroy(_uiTex);
+            _uiTex = new UnityEngine.Texture2D(w, h, UnityEngine.TextureFormat.RGBA32, false)
+            {
+                name = string.IsNullOrEmpty(id) ? (string.IsNullOrEmpty(className) ? "UICanvas" : className) : id,
+                wrapMode = UnityEngine.TextureWrapMode.Clamp,
+                filterMode = UnityEngine.FilterMode.Bilinear,
+            };
+            (_texTarget ?? ve).style.backgroundImage = new UnityEngine.UIElements.StyleBackground(_uiTex);
+        }
+        int len = w * h * 4;
+        if (_uiBuf == null || _uiBuf.Length != len) _uiBuf = new byte[len];
+        painter.CopyUnityRGBA(true, _uiBuf);
+        _uiTex.SetPixelData(_uiBuf, 0);
+        _uiTex.Apply(false, false);
+    }
+
+    internal byte[] ToUnityRGBA(bool flipY) => painter.ToUnityRGBA(flipY);
+    internal void CopyUnityRGBA(bool flipY, byte[] o) => painter.CopyUnityRGBA(flipY, o);
 
     /// <summary>A PNG data URL is not needed in Unity; this hands back the canvas itself for UI images to show.</summary>
     public HTMLCanvasElement toDataURL(string type = "image/png") => this;
@@ -221,7 +263,7 @@ public class HTMLCanvasElement : HTMLElement
 /// </summary>
 public class CanvasRenderingContext2D
 {
-    public readonly HTMLCanvasElement canvas;
+    public readonly TexturePainter canvas;
 
     private struct Xf
     {
@@ -271,7 +313,7 @@ public class CanvasRenderingContext2D
     private List<(double x, double y)> cur;
     private double lastX, lastY;
 
-    internal CanvasRenderingContext2D(HTMLCanvasElement c) { canvas = c; }
+    internal CanvasRenderingContext2D(TexturePainter c) { canvas = c; }
 
     internal void Reset()
     {
@@ -1126,11 +1168,11 @@ public class CanvasRenderingContext2D
         canvas.version++;
     }
 
-    public void drawImage(HTMLCanvasElement img, double dx, double dy) => drawImage(img, 0, 0, img.width, img.height, dx, dy, img.width, img.height);
+    public void drawImage(TexturePainter img, double dx, double dy) => drawImage(img, 0, 0, img.width, img.height, dx, dy, img.width, img.height);
 
-    public void drawImage(HTMLCanvasElement img, double dx, double dy, double dw, double dh) => drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
+    public void drawImage(TexturePainter img, double dx, double dy, double dw, double dh) => drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
 
-    public void drawImage(HTMLCanvasElement img, double sx, double sy, double sw, double sh, double dx, double dy, double dw, double dh)
+    public void drawImage(TexturePainter img, double sx, double sy, double sw, double sh, double dx, double dy, double dw, double dh)
     {
         if (sw == 0 || sh == 0 || dw == 0 || dh == 0) return;
         // a picture copied 1:1 onto whole pixels (no scaling, rotation, alpha or filter): copy rows, no resampling
@@ -1177,7 +1219,7 @@ public class CanvasRenderingContext2D
     }
 
     /// <summary>Premultiplied source-over of a pixel-aligned rectangle; opaque pixels are simply copied.</summary>
-    private void BlitAligned(HTMLCanvasElement img, int sx, int sy, int w, int h, int ox, int oy)
+    private void BlitAligned(TexturePainter img, int sx, int sy, int w, int h, int ox, int oy)
     {
         var src = img.px;
         var dst = canvas.px;

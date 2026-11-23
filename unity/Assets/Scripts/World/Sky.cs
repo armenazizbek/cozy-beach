@@ -38,7 +38,7 @@ public class Sky
 
     private static THREE.CanvasTexture moonTexture()
     {
-        var c = new HTMLCanvasElement(128, 128);
+        var c = new TexturePainter(128, 128);
         var g = c.getContext("2d");
         var grad = g.createRadialGradient(64, 64, 0, 64, 64, 62);
         grad.addColorStop(0, "#f6f8ff");
@@ -61,7 +61,7 @@ public class Sky
 
     private static THREE.CanvasTexture glowTexture()
     {
-        var c = new HTMLCanvasElement(128, 128);
+        var c = new TexturePainter(128, 128);
         var g = c.getContext("2d");
         var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
         grad.addColorStop(0, "rgba(255,255,255,1)");
@@ -74,7 +74,7 @@ public class Sky
 
     private static THREE.CanvasTexture puffTexture(long seed)
     {
-        var c = new HTMLCanvasElement(256, 128);
+        var c = new TexturePainter(256, 128);
         var g = c.getContext("2d");
         long s = seed;
         double r() => (s = (s * 16807) % 2147483647) / 2147483647.0;
@@ -94,7 +94,7 @@ public class Sky
 
     private static THREE.CanvasTexture discTexture()
     {
-        var c = new HTMLCanvasElement(128, 128);
+        var c = new TexturePainter(128, 128);
         var g = c.getContext("2d");
         var grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
         grad.addColorStop(0, "rgba(255,255,255,1)");

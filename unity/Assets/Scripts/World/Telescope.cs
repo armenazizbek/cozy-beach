@@ -109,7 +109,7 @@ public class Telescope
     /// <summary>false until the player has taken the tube to the workbench and brushed it; it stays clean from then on</summary>
     public bool cleaned { get; private set; } = false;
     /// <summary>the sand crust used while brushing the tube on the workbench, kept so a half-brushed tube stays half brushed</summary>
-    public HTMLCanvasElement crustCanvas;
+    public TexturePainter crustCanvas;
 
     public void setClean(bool on)
     {

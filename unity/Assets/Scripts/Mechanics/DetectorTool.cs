@@ -18,7 +18,7 @@ public class DetectorTool
     /// <summary>a dark band under each bright ring, so the rings stand out on pale sand as well as dark</summary>
     private readonly THREE.Mesh pulseDark, edgeDark;
     private readonly THREE.Mesh heat;
-    private readonly HTMLCanvasElement heatCanvas = new HTMLCanvasElement(128, 128);
+    private readonly TexturePainter heatCanvas = new TexturePainter(128, 128);
     private readonly THREE.CanvasTexture heatTex;
     private double pingTimer = 0, pulseT = 0, radius = 2;
 
@@ -199,7 +199,7 @@ public class DetectorTool
     /// <summary>Live oscilloscope trace.</summary>
     // The detector screen. The browser redrew it all on a canvas every frame; here the CPU canvas holds only the screen and its
     // grid (drawn once), the moving line is a GPU vector layer above it (Painter2D) and the label a small texture on top.
-    private HTMLCanvasElement waveBg;
+    private TexturePainter waveBg;
     private UnityEngine.UIElements.VisualElement waveLine;
     private UnityEngine.UIElements.VisualElement waveHost;
     private readonly List<UnityEngine.Vector2> wavePts = new List<UnityEngine.Vector2>();
@@ -211,10 +211,10 @@ public class DetectorTool
 
     public void drawWaveform(CanvasRenderingContext2D ctx, double w, double h, double t, int tier)
     {
-        var host = ctx.canvas.ve;
+        var host = HTMLCanvasElement.Of(ctx.canvas)?.ve;
         if (waveBg == null || waveBg.width != (int)w || waveBg.height != (int)h || !ReferenceEquals(host, waveHost))
         {
-            waveBg = new HTMLCanvasElement((int)w, (int)h);
+            waveBg = new TexturePainter((int)w, (int)h);
             var bg = waveBg.getContext("2d");
             bg.fillStyle = "#0b1a14";
             bg.fillRect(0, 0, w, h);

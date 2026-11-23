@@ -126,7 +126,7 @@ public class Tracks
 
     private static THREE.CanvasTexture footTexture()
     {
-        var c = new HTMLCanvasElement(64, 128);
+        var c = new TexturePainter(64, 128);
         var g = c.getContext("2d");
         g.fillStyle = "#fff";
         // toe pad, ball, gap, then the heel (a shoe sole seen from above, toe at the top)
@@ -145,7 +145,7 @@ public class Tracks
     /// <summary>A dog's paw seen from above: four toes and a pad, toes at the top.</summary>
     private static THREE.CanvasTexture pawTexture()
     {
-        var c = new HTMLCanvasElement(64, 64);
+        var c = new TexturePainter(64, 64);
         var g = c.getContext("2d");
         g.fillStyle = "#fff";
         g.beginPath();
@@ -162,7 +162,7 @@ public class Tracks
 
     private static THREE.CanvasTexture treadTexture()
     {
-        var c = new HTMLCanvasElement(32, 128);
+        var c = new TexturePainter(32, 128);
         var g = c.getContext("2d");
         g.fillStyle = "#fff";
         g.fillRect(2, 0, 28, 128);

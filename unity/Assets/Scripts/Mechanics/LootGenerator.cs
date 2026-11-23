@@ -8,7 +8,7 @@ public class CrustRig
 {
     public THREE.Group root;
     public THREE.Mesh crust;
-    public HTMLCanvasElement canvas;
+    public TexturePainter canvas;
     public THREE.CanvasTexture texture;
     public double size;
 }
@@ -1406,9 +1406,9 @@ public static class LootGenerator
         return g;
     }
 
-    public static HTMLCanvasElement newCrustCanvas()
+    public static TexturePainter newCrustCanvas()
     {
-        var c = new HTMLCanvasElement(256, 256);
+        var c = new TexturePainter(256, 256);
         var g = c.getContext("2d");
         g.fillStyle = "#fff";
         g.fillRect(0, 0, 256, 256);
@@ -1420,7 +1420,7 @@ public static class LootGenerator
     /// crust starts as a sphere and each of its points is pulled in toward the item's middle until it meets the item, plus a
     /// layer of sand (see shrinkToItem). It keeps the sphere's own UVs, so brushing never depends on the item's (messy) UVs.
     /// </summary>
-    public static CrustRig wrapWithCrust(THREE.Group item, HTMLCanvasElement canvas, double fitSize = 2.0)
+    public static CrustRig wrapWithCrust(THREE.Group item, TexturePainter canvas, double fitSize = 2.0)
     {
         var root = new THREE.Group();
         var box = new THREE.Box3().setFromObject(item);

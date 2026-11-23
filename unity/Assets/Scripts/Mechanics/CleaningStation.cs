@@ -30,7 +30,7 @@ public class CleaningStation
     public double brushScale = 1;
     private THREE.Vector2 lastUV;
     private readonly THREE.Vector2 lastUVVec = new THREE.Vector2();
-    private readonly HTMLCanvasElement sampleCv = new HTMLCanvasElement(64, 64);
+    private readonly TexturePainter sampleCv = new TexturePainter(64, 64);
     private readonly CanvasRenderingContext2D sampleCtx;
     private readonly CanvasGradient brushGrad;
     private double sinceSample = 0;
@@ -113,7 +113,7 @@ public class CleaningStation
         item = it;
     }
 
-    public void enterGroup(THREE.Group clean, HTMLCanvasElement canvas, double brush, THREE.Euler initialPose = null, double fitSize = 2.0)
+    public void enterGroup(THREE.Group clean, TexturePainter canvas, double brush, THREE.Euler initialPose = null, double fitSize = 2.0)
     {
         exit();
         brushPx = brush;

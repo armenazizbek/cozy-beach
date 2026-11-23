@@ -14,7 +14,7 @@ public class Whitecaps
     private static THREE.CanvasTexture foamTexture()
     {
         const int w = 256, h = 96;
-        var c = new HTMLCanvasElement(w, h);
+        var c = new TexturePainter(w, h);
         var g = c.getContext("2d");
         // a body of soft blobs along the streak
         for (int i = 0; i < 70; i++)

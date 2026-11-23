@@ -67,7 +67,7 @@ namespace THREE.Bridge
                 e.mips = mips;
             }
             byte[] bytes = null;
-            if (t.image is HTMLCanvasElement c)
+            if (t.image is TexturePainter c)
             {
                 int len = c.width * c.height * 4;
                 if (e.buf == null || e.buf.Length != len) e.buf = new byte[len];

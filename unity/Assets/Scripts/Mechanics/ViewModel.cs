@@ -856,7 +856,7 @@ public class ViewModel
     /// <summary>A honeycomb of holes as an alpha map (white solid, black hole), for the perforated sifting scoop.</summary>
     private THREE.CanvasTexture hexHoles()
     {
-        var c = new HTMLCanvasElement(76, 132);
+        var c = new TexturePainter(76, 132);
         var x = c.getContext("2d");
         x.fillStyle = "#fff";
         x.fillRect(0, 0, c.width, c.height);

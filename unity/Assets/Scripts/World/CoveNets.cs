@@ -99,7 +99,7 @@ public class CoveNets
     /// <summary>A diamond mesh of knotted twine, see-through between the strands.</summary>
     private static THREE.CanvasTexture netTexture()
     {
-        var cv = new HTMLCanvasElement(64, 64);
+        var cv = new TexturePainter(64, 64);
         var c = cv.getContext("2d");
         c.clearRect(0, 0, 64, 64);
         c.strokeStyle = "rgba(255,255,255,1)";
@@ -214,7 +214,7 @@ public class CoveNets
     /// <summary>The words on each side of a banner.</summary>
     private static THREE.CanvasTexture bannerTexture(bool outside)
     {
-        var cv = new HTMLCanvasElement(512, 192);
+        var cv = new TexturePainter(512, 192);
         var c = cv.getContext("2d");
         c.fillStyle = outside ? "#f1e2bf" : "#e9dcc0";
         c.fillRect(0, 0, 512, 192);

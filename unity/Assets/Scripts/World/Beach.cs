@@ -329,7 +329,7 @@ public class Beach
     internal static THREE.CanvasTexture grainTexture(double repeat = BEACH_SIZE / 1.6)
     {
         const int size = 256;
-        var c = new HTMLCanvasElement(size, size);
+        var c = new TexturePainter(size, size);
         var g = c.getContext("2d");
         var img = g.createImageData(size, size);
         for (int i = 0; i < size * size; i++)
@@ -364,7 +364,7 @@ public class Beach
     private static THREE.CanvasTexture dampTexture()
     {
         const int size = 256;
-        var c = new HTMLCanvasElement(size, size);
+        var c = new TexturePainter(size, size);
         var g = c.getContext("2d");
         g.fillStyle = "rgb(170,160,148)";
         g.fillRect(0, 0, size, size);

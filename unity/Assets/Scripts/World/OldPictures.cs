@@ -15,7 +15,7 @@ public static class OldPictures
 
     public static THREE.CanvasTexture make()
     {
-        var c = new HTMLCanvasElement(SIZE, SIZE);
+        var c = new TexturePainter(SIZE, SIZE);
         var g = c.getContext("2d");
         var rand = Stones.rng(1712);
         captain(g, CAPTAIN, rand);

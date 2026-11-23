@@ -53,7 +53,7 @@ public class Underground
     private static THREE.CanvasTexture stoneTexture(double[] bse, int rows, int cols, double seed)
     {
         const int size = 256;
-        var cv = new HTMLCanvasElement(size, size);
+        var cv = new TexturePainter(size, size);
         var c = cv.getContext("2d");
         var r = rng(seed);
         c.fillStyle = "#17120e";
@@ -293,7 +293,7 @@ public class Underground
         var to = new THREE.Vector3(ROOM.x1 - 0.08, 1.35, DOOR_Z);
         var dir = to.clone().sub(from);
         // it fades in from nothing at the top, so it has no hard end up in the stairwell
-        var fade = new HTMLCanvasElement(4, 64);
+        var fade = new TexturePainter(4, 64);
         var c = fade.getContext("2d");
         var grad = c.createLinearGradient(0, 0, 0, 64);
         grad.addColorStop(0, "#000");

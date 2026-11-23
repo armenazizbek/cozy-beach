@@ -8,7 +8,7 @@ namespace THREE
         public readonly int id = _nextId++;
         public string uuid = MathUtils.generateUUID();
         public string name = "";
-        /// <summary>An HTMLCanvasElement, an ImageData, or null.</summary>
+        /// <summary>A TexturePainter, an ImageData, or null.</summary>
         public object image;
         public Wrapping wrapS = Wrapping.ClampToEdgeWrapping, wrapT = Wrapping.ClampToEdgeWrapping;
         public TextureFilter magFilter = TextureFilter.LinearFilter, minFilter = TextureFilter.LinearMipmapLinearFilter;
@@ -47,7 +47,7 @@ namespace THREE
         /// <summary>Width and height of the image, or 0 when there is none.</summary>
         internal (int w, int h) Size()
         {
-            if (image is HTMLCanvasElement c) return (c.width, c.height);
+            if (image is TexturePainter c) return (c.width, c.height);
             if (image is ImageData d) return (d.width, d.height);
             return (0, 0);
         }
@@ -55,7 +55,7 @@ namespace THREE
 
     public class CanvasTexture : Texture
     {
-        public CanvasTexture(HTMLCanvasElement canvas) : base(canvas) { version = 1; }
+        public CanvasTexture(TexturePainter canvas) : base(canvas) { version = 1; }
     }
 
     public enum PixelFormat { RGBAFormat = 1023, RGBFormat = 1022, RedFormat = 1028, AlphaFormat = 1021 }
