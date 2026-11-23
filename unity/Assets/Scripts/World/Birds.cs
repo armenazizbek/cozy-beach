@@ -28,6 +28,20 @@ public class Birds
 
     public readonly THREE.Group group = new THREE.Group();
     private readonly List<Gull> gulls = new List<Gull>();
+
+    /// <summary>
+    /// The flock's GameObjects (native since unity/NATIVE_PLAN.md S11). Each gull follows its body, wings, folded wings and legs;
+    /// the descriptions stay up to date for the aim and the binoculars' raycasts.
+    /// </summary>
+    private Realized live;
+
+    /// <summary>Puts the flock into the world as native objects.</summary>
+    public void Place()
+    {
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        foreach (var g in gulls) live.Follow(g.root, g.legs, g.folded, g.left, g.right);
+        live.Apply();
+    }
     private readonly THREE.BufferGeometry wingGeo;
     private readonly THREE.MeshStandardMaterial white = new THREE.MeshStandardMaterial { color = 0xf6f4ee, roughness = 0.8 };
     private readonly THREE.MeshStandardMaterial grey = new THREE.MeshStandardMaterial { color = 0xb9bec4, roughness = 0.8 };
@@ -214,6 +228,7 @@ public class Birds
         g.timer = rand(40, 70);
         g.root.visible = false;
         g.root.rotation.x = 0;
+        live?.Apply();
         return at;
     }
 
@@ -332,5 +347,6 @@ public class Birds
         }
         // gulls too far away to make out are not drawn
         foreach (var g in gulls) if (g.mode != "away") g.root.visible = JS.Hypot(g.root.position.x - px, g.root.position.z - pz) < 140;
+        live?.Apply();
     }
 }

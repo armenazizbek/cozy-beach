@@ -324,17 +324,20 @@ public class Game
             createSurround(),
             createSkirt(),
             scenery.group,
-            birds.group,
             sea.group,
             ocean.group,
             camp.group,
-            ecology.group,
             spawner.group
         );
         whitecaps.Place();
         dolphins.Place(scene);
         treasure.Place(scene);
         coveNets.Place();
+        rain.buildShelter(OldHouse.X, OldHouse.Z, (x, z) => oldHouse.covers(x, z, 1.1));
+        rain.Place();
+        ecology.Place();
+        birds.Place();
+        castles.Place();
         foreach (var ov in detector.overlays) scene.add(ov);
         scene.add(
             dig.ring,
@@ -342,10 +345,6 @@ public class Game
             dig.particles.points,
             bullets.group,
             arrows.group,
-            rain.group,
-            rain.buildShelter(OldHouse.X, OldHouse.Z, (x, z) => oldHouse.covers(x, z, 1.1)),
-            grass.group,
-            castles.group,
             islands[0].group,
             islands[1].group,
             islands[2].group,
@@ -356,7 +355,7 @@ public class Game
             camera
         );
         tracks = new Tracks(beach);
-        scene.add(tracks.group);
+        tracks.Place();
         cart = new GolfCart(9, CAMP_Z + 9, Math.PI, beach);
         cart.Place();
         dog = new Dog(beach);

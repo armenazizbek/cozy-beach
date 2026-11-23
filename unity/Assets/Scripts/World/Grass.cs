@@ -67,6 +67,10 @@ public class Grass
 
     public readonly THREE.Group group = new THREE.Group();
     private THREE.InstancedMesh mesh;
+    /// <summary>the tufts as drawn: one baked mesh under the world root (native since unity/NATIVE_PLAN.md S11)</summary>
+    private UnityEngine.Transform root;
+    private UnityEngine.Mesh unityMesh;
+    private UnityEngine.MeshRenderer drawn;
     private List<Tuft> tufts = new List<Tuft>();
     private readonly THREE.Matrix4 zero = new THREE.Matrix4().makeScale(0, 0, 0);
     private readonly THREE.Uniform uTime = new THREE.Uniform(0.0);
@@ -90,6 +94,13 @@ public class Grass
             group.remove(mesh);
             mesh.dispose();
             mesh = null;
+        }
+        if (drawn != null)
+        {
+            UnityEngine.Object.Destroy(drawn.gameObject);
+            UnityEngine.Object.Destroy(unityMesh);
+            drawn = null;
+            unityMesh = null;
         }
         bool ok(double x, double z)
         {
@@ -161,6 +172,9 @@ public class Grass
         mesh = im;
         tufts = list.Select(t => new Tuft { x = t.x, z = t.z, alive = true }).ToList();
         group.add(im);
+        if (root == null) root = Draw.Group(World.Root);
+        unityMesh = MeshKit.BakeInstances(geo, im.instanceMatrix.array, Count(), im.instanceColor?.array, Instanced());
+        drawn = Draw.Mesh(root, unityMesh, MaterialKit.Get(mat, MaterialKit.On.Instanced), receive: true, type: "InstancedMesh");
         trimDug();
     }
 
@@ -182,8 +196,25 @@ public class Grass
                 changed = true;
             }
         }
-        if (changed) mesh.instanceMatrix.needsUpdate = true;
+        if (changed)
+        {
+            mesh.instanceMatrix.needsUpdate = true;
+            if (unityMesh != null) MeshKit.Bake(unityMesh, geo, mesh.instanceMatrix.array, Count(), mesh.instanceColor?.array, Instanced());
+        }
     }
 
-    public void update(double t) => uTime.value = t;
+    private int Count() => Math.Min(mesh.count, mesh.instanceMatrix.count);
+
+    /// <summary>The geometry's per-instance attribute, if it has one (the bake puts it into TEXCOORD2).</summary>
+    private THREE.BufferAttribute Instanced()
+    {
+        foreach (var name in MeshKit.ExtraNames(geo)) if (geo.attributes[name].isInstanced) return geo.attributes[name];
+        return null;
+    }
+
+    public void update(double t)
+    {
+        uTime.value = t;
+        if (drawn != null) MaterialKit.Push(mat, MaterialKit.On.Instanced);
+    }
 }

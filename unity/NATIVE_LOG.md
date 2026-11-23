@@ -245,3 +245,22 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Check** (selfcheck, base, dolphins, islands, cove, dive, land): every run clean, 81 PASS and 7 REVIEW (the loading
   shots), **87 of 87 scene dumps identical**.
 - **Hours:** about 45 minutes.
+
+## S11: weather, tracks, critters (2026-11-24)
+
+- **Native:**
+  - **Rain:** open and sheltered rain realized; the leaning, sliding parts are followed; opacity pushed each frame.
+  - **Tracks:** the three decal sets are baked instanced meshes. A set re-bakes **at draw time** when a mark was laid,
+    through the new `NativeFrame.BeforeDraw` hook: the dump had caught a one-frame lag when baking in `update`.
+  - **Grass:** baked when scattered, re-baked when digging clears tufts, real culling bounds; sway time pushed.
+  - **Ecology:** tufts and crabs are realized as they are added; crabs follow body and wobble.
+  - **Birds:** the flock is realized; each gull follows its body, wings, folded wings and legs.
+  - **Sandcastles:** a `LiveTree` per castle (the new helper for small trees that change shape). At draw time it
+    re-realizes when parts are added or removed, copies every part's pose and visibility, and pushes its materials.
+- **`compare.py`:** reference renderers with the 100 km "never culled" bounds (the bridge's static-group warm-up
+  quirk, S2-S5) are compared without their bounds.
+- **Full pass:** every run clean; 392 PASS and 47 REVIEW (loading shots and within-noise); 428 of 438 dumps identical.
+  - The 10 differing dumps are at the cleaning bench. While it is open the game is paused and the bridge stops copying
+    the main world, so its crab copies stay frozen, while the native crabs had already been hidden as too far away. The
+    main world isn't drawn there; every bench picture passes.
+- **Hours:** about 1.5 h.

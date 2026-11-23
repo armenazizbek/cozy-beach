@@ -82,6 +82,7 @@ namespace THREE
             Bridge.MaterialCache.Clear();
             Bridge.TextureCache.Clear();
             Atmosphere.Clear();
+            NativeFrame.Clear();
         }
 
         public WebGLRenderer(WebGLRendererParameters p = null)
@@ -171,6 +172,8 @@ namespace THREE
                 scene = new Scene();
                 scene.add(sceneObj);
             }
+            // native objects finish their frame (NativeFrame) before anything is drawn
+            NativeFrame.Run();
             long t0 = Bridge.BridgeStats.Ticks();
             Bridge.SceneSync.Sync(scene, camera, this);
             Bridge.BridgeStats.syncMs += Bridge.BridgeStats.Ms(t0);

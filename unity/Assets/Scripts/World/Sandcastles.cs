@@ -26,6 +26,8 @@ public class Castle
     public double wet;
     /// <summary>run over by the golf cart: its pieces are flying off and it is gone once they have landed</summary>
     public bool smashed;
+    /// <summary>the castle's GameObjects (native since unity/NATIVE_PLAN.md S11)</summary>
+    public LiveTree native;
 
     public class Rising { public THREE.Group pivot; public double t; }
     public class Falling
@@ -97,6 +99,22 @@ public class Sandcastles
     public class Collider { public double x, z, r; }
 
     public Sandcastles(Beach beach) { this.beach = beach; }
+
+    private UnityEngine.Transform root;
+
+    /// <summary>
+    /// Puts the castles into the world as native objects. Each castle is a LiveTree, brought in line with its description at
+    /// draw time (NativeFrame), after everything that grows, crumbles, smashes or washes them this frame.
+    /// </summary>
+    public void Place()
+    {
+        root = Draw.Group(World.Root);
+        foreach (var c in castles) c.native = new LiveTree(c.group, root);
+        NativeFrame.BeforeDraw += () =>
+        {
+            foreach (var c in castles) c.native?.Sync();
+        };
+    }
 
     public Castle nearest(double x, double z, double reach)
     {
@@ -283,6 +301,7 @@ public class Sandcastles
         c.group.add(c.target);
         group.add(c.group);
         castles.Add(c);
+        if (root != null) c.native = new LiveTree(c.group, root);
         for (int s = 1; s <= stage; s++) raise(c, s, hp == 1 && stage == 1);
         refreshColliders();
         return c;
@@ -315,6 +334,8 @@ public class Sandcastles
     public void remove(Castle c)
     {
         group.remove(c.group);
+        c.native?.Destroy();
+        c.native = null;
         castles = castles.Where(k => k != c).ToList();
         refreshColliders();
     }

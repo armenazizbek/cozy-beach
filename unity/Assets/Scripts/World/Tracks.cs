@@ -23,6 +23,25 @@ internal class Decals
     /// <summary>"not pushed out of the trail yet"</summary>
     private const float NEVER = 1e9f;
 
+    /// <summary>the baked Unity mesh of the marks (native since unity/NATIVE_PLAN.md S11), and whether a mark was laid since it was baked</summary>
+    private UnityEngine.Mesh unityMesh;
+    private bool dirty;
+
+    /// <summary>Finds the Unity mesh the Realizer baked for these marks.</summary>
+    internal void Bind(Realized live)
+    {
+        unityMesh = live[mesh]?.GetComponent<UnityEngine.MeshFilter>()?.sharedMesh;
+        NativeFrame.BeforeDraw += Flush;
+    }
+
+    /// <summary>Marks laid this frame: one bake, at draw time, however many were laid.</summary>
+    private void Flush()
+    {
+        if (!dirty || unityMesh == null) return;
+        dirty = false;
+        MeshKit.Bake(unityMesh, mesh.geometry, mesh.instanceMatrix.array, Math.Min(mesh.count, mesh.instanceMatrix.count), mesh.instanceColor?.array, ageAttr);
+    }
+
     public Decals(int max, double life, double trail, THREE.Texture texture)
     {
         this.max = max;
@@ -81,6 +100,7 @@ internal class Decals
         int old = ((i - trail - 1) % max + max) % max;
         if (a[old * 2 + 1] >= NEVER && a[old * 2] > -NEVER) a[old * 2 + 1] = (float)clock;
         ageAttr.needsUpdate = true;
+        dirty = true;
     }
 
     public void update(double dt, double strength)
@@ -88,6 +108,8 @@ internal class Decals
         clock += dt;
         clockU.value = clock;
         strengthU.value = strength;
+        if (unityMesh == null) return;
+        MaterialKit.Push(mesh.material, MaterialKit.On.Instanced);
     }
 }
 
@@ -180,6 +202,15 @@ public class Tracks
     public void tire(double x, double z, double yaw) => tires.put(beach, x, z, yaw, 0.24, 0.6);
 
     /// <summary>`night` (0..1) makes the marks a little fainter in the dark.</summary>
+    /// <summary>Puts the marks into the world as native objects.</summary>
+    public void Place()
+    {
+        var live = Realizer.Realize(group, World.Root, World.Layer);
+        feet.Bind(live);
+        tires.Bind(live);
+        paws.Bind(live);
+    }
+
     public void update(double dt, double night)
     {
         double s = 1 - 0.45 * night;

@@ -106,7 +106,25 @@ public class Rain
     /// <summary>Eases toward `target` and moves the rain. `cam` is where the rain should fall around.</summary>
     /// <param name="where">"open": falls round the camera; "shelter": the camera is under the roof built by
     /// <see cref="buildShelter"/>, so it falls round that instead; "none": not seen at all (under the sea, in the cellar)</param>
+    /// <summary>The rain's GameObjects (native since unity/NATIVE_PLAN.md S11), once placed.</summary>
+    private Realized live, shelterLive;
+
+    /// <summary>Puts the rain into the world as native objects (after <see cref="buildShelter"/>).</summary>
+    public void Place()
+    {
+        live = Realizer.Realize(group, World.Root, World.Layer).Follow(group, lines);
+        if (shelterLines != null) shelterLive = Realizer.Realize(shelterGroup, World.Root, World.Layer).Follow(shelterGroup, shelterLines);
+    }
+
     public void update(double dt, double target, THREE.Vector3 cam, string where = "open")
+    {
+        Fall(dt, target, cam, where);
+        live?.Apply();
+        shelterLive?.Apply();
+        if (live != null) MaterialKit.Push(mat, MaterialKit.On.Line);
+    }
+
+    private void Fall(double dt, double target, THREE.Vector3 cam, string where)
     {
         amount += (target - amount) * Math.Min(1, dt * 0.35);
         if (Math.Abs(amount - target) < 0.002) amount = target;

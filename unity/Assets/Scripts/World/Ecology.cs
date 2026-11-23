@@ -125,6 +125,28 @@ public class Ecology
 
     public Ecology(Beach beach) { this.beach = beach; }
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S11: tufts and crabs are realized as they are added, under one root; crabs move their
+    /// own GameObjects (Realized.Follow). The descriptions stay up to date, for the aim and the binoculars' raycasts.
+    /// </summary>
+    private UnityEngine.Transform root;
+    private readonly List<Realized> crabLives = new List<Realized>();
+
+    /// <summary>Puts what exists so far into the world; everything added later goes in as it is made.</summary>
+    public void Place()
+    {
+        root = Draw.Group(World.Root);
+        foreach (var t in tufts) Realizer.Realize(t, root, World.Layer);
+        foreach (var c in crabs) PlaceCrab(c);
+    }
+
+    private void PlaceCrab(Crab c) => crabLives.Add(Realizer.Realize(c.mesh, root, World.Layer).Follow(c.mesh, c.body));
+
+    private void Apply()
+    {
+        foreach (var l in crabLives) l.Apply();
+    }
+
     public void setScore(double score)
     {
         double wantTufts = Math.Min(260, score * 4);
@@ -154,6 +176,7 @@ public class Ecology
         g.syncStatic = true;
         group.add(g);
         tufts.Add(g);
+        if (root != null) Realizer.Realize(g, root, World.Layer);
     }
 
     private void addCrab()
@@ -173,6 +196,7 @@ public class Ecology
         var crab = new Crab { mesh = g, vx = 0, vz = 0, timer = 0, phase = JS.Random() * 6, alive = true, respawn = 0, hit = hit, body = body };
         hit.userData["crab"] = crab;
         crabs.Add(crab);
+        if (root != null) PlaceCrab(crab);
     }
 
     /// <summary>Invisible hit spheres of the crabs that are still alive.</summary>
@@ -186,6 +210,7 @@ public class Ecology
         crab.alive = false;
         crab.respawn = 25;
         crab.mesh.visible = false;
+        Apply();
         return crab.mesh.position.clone();
     }
 
@@ -254,5 +279,6 @@ public class Ecology
             }
         }
         // crabs ignore terrain edits except sinking into holes; keep them from clipping
+        Apply();
     }
 }
