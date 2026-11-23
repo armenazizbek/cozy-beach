@@ -163,27 +163,33 @@ def num_diff(a, b, tol):
 
 def compare_dump(ref, br, tol=2e-3):
     a, b = json.load(open(ref, encoding='utf-8')), json.load(open(br, encoding='utf-8'))
-    ra = {r['path']: r for r in a['renderers']}
-    rb = {r['path']: r for r in b['renderers']}
     issues = []
-    missing = sorted(set(ra) - set(rb))
-    extra = sorted(set(rb) - set(ra))
-    # objects whose path changed (the native world moves things between parents) are paired by what they are: the same
-    # world-space vertices (vhash) and vertex count
-    if missing and extra:
-        by_content = {}
-        for p in extra:
-            by_content.setdefault((rb[p].get('vhash'), rb[p].get('verts')), []).append(p)
-        still = []
-        for p in missing:
-            cands = by_content.get((ra[p].get('vhash'), ra[p].get('verts')))
-            if cands and ra[p].get('vhash'):
-                q = cands.pop(0)
-                rb[p] = rb.pop(q)
-                extra.remove(q)
-            else:
-                still.append(p)
-        missing = still
+    # pair renderers by what they are first: the same world-space vertices (vhash) and vertex count, whatever their path
+    # (the native world moves objects between parents and changes sibling order); what is left is paired by path
+    ra_list, rb_list = a['renderers'], b['renderers']
+    by_content = {}
+    for i, r in enumerate(rb_list):
+        if r.get('vhash'):
+            by_content.setdefault((r['vhash'], r['verts']), []).append(i)
+    pairs, used_b, left_a = [], set(), []
+    for r in ra_list:
+        cands = by_content.get((r.get('vhash'), r.get('verts'))) if r.get('vhash') else None
+        if cands:
+            j = cands.pop(0)
+            used_b.add(j)
+            pairs.append((r['path'], r, rb_list[j]))
+        else:
+            left_a.append(r)
+    rest_b = {r['path']: r for i, r in enumerate(rb_list) if i not in used_b}
+    missing = []
+    for r in left_a:
+        if r['path'] in rest_b:
+            pairs.append((r['path'], r, rest_b.pop(r['path'])))
+        else:
+            missing.append(r['path'])
+    extra = sorted(rest_b)
+    ra = {r['path']: r for r in ra_list}
+    rb = {r['path']: r for r in rb_list}
     for p in missing[:20]:
         issues.append(f'missing renderer {p}')
     for p in extra[:20]:
@@ -191,8 +197,7 @@ def compare_dump(ref, br, tol=2e-3):
     if len(missing) > 20 or len(extra) > 20:
         issues.append(f'... {len(missing)} missing, {len(extra)} extra in all')
     changed = 0
-    for p in sorted(set(ra) & set(rb)):
-        x, y = ra[p], rb[p]
+    for p, x, y in pairs:
         keys = [k for k in x if k != 'path' and (k not in y or num_diff(x[k], y[k], tol))]
         if keys:
             changed += 1

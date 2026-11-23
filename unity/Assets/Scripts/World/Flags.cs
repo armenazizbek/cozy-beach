@@ -1,19 +1,24 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
-// Port of src/world/Flags.ts
+// Port of src/world/Flags.ts; native since unity/NATIVE_PLAN.md S9.
 
 /// <summary>Marker flags the player plants on the beach. Their positions also feed the maps.</summary>
 public class Flags
 {
     private class Placed
     {
-        public THREE.Group group;
-        public THREE.Mesh cloth;
+        public Transform group;
+        public Transform cloth;
         public double phase;
     }
 
-    public readonly THREE.Group group = new THREE.Group();
+    private Transform root;
+
+    /// <summary>The flags' parent under the world root (made on first use: Flags is built before the world is bound).</summary>
+    public Transform Root => root != null ? root : root = Draw.Group(World.Root);
+
     /// <summary>[x, z] of every planted flag; edited in place so the map can hold on to it</summary>
     public readonly List<double[]> positions = new List<double[]>();
     private readonly List<Placed> placed = new List<Placed>();
@@ -22,6 +27,7 @@ public class Flags
     private readonly THREE.BufferGeometry clothGeo;
     private readonly THREE.MeshStandardMaterial clothMat = new THREE.MeshStandardMaterial { color = 0xe63946, roughness = 0.7, side = THREE.Side.DoubleSide };
     private readonly THREE.SphereGeometry capGeo = new THREE.SphereGeometry(0.05, 8, 6);
+    private Mesh poleMesh, clothMesh, capMesh;
 
     public Flags()
     {
@@ -35,19 +41,21 @@ public class Flags
 
     public void add(double x, double z, double y)
     {
-        var g = new THREE.Group();
-        var p = new THREE.Mesh(pole, poleMat);
-        p.position.y = 0.75;
-        p.castShadow = true;
-        var cloth = new THREE.Mesh(clothGeo, clothMat);
-        cloth.position.set(0.03, 1.55, 0);
-        cloth.castShadow = true;
-        var cap = new THREE.Mesh(capGeo, poleMat);
-        cap.position.y = 1.62;
-        g.add(p, cloth, cap);
-        g.position.set(x, y, z);
-        g.rotation.y = JS.Random() * Math.PI * 2;
-        group.add(g);
+        if (poleMesh == null)
+        {
+            poleMesh = MeshKit.ToMesh(pole);
+            clothMesh = MeshKit.ToMesh(clothGeo);
+            capMesh = MeshKit.ToMesh(capGeo);
+        }
+        var g = Draw.Group(Root);
+        var p = Draw.Mesh(g, poleMesh, MaterialKit.Get(poleMat), cast: true).transform;
+        p.localPosition = new Vector3(0, 0.75f, 0);
+        var cloth = Draw.Mesh(g, clothMesh, MaterialKit.Get(clothMat), cast: true).transform;
+        cloth.localPosition = GameSpace.V(0.03, 1.55, 0);
+        var cap = Draw.Mesh(g, capMesh, MaterialKit.Get(poleMat)).transform;
+        cap.localPosition = new Vector3(0, 1.62f, 0);
+        g.localPosition = GameSpace.V(x, y, z);
+        g.localRotation = GameSpace.Euler(0, JS.Random() * Math.PI * 2, 0);
         placed.Add(new Placed { group = g, cloth = cloth, phase = JS.Random() * 6 });
         positions.Add(new[] { x, z });
     }
@@ -72,7 +80,7 @@ public class Flags
     public void remove(int i)
     {
         if (i < 0 || i >= placed.Count) return;
-        group.remove(placed[i].group);
+        UnityEngine.Object.Destroy(placed[i].group.gameObject);
         placed.RemoveAt(i);
         positions.RemoveAt(i);
     }
@@ -87,9 +95,6 @@ public class Flags
     public void update(double t)
     {
         foreach (var p in placed)
-        {
-            p.cloth.rotation.y = Math.Sin(t * 2.4 + p.phase) * 0.22;
-            p.cloth.rotation.z = Math.Sin(t * 3.1 + p.phase) * 0.05;
-        }
+            p.cloth.localRotation = GameSpace.Euler(0, Math.Sin(t * 2.4 + p.phase) * 0.22, Math.Sin(t * 3.1 + p.phase) * 0.05);
     }
 }

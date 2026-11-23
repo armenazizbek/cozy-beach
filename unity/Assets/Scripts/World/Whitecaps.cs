@@ -54,7 +54,11 @@ public class Whitecaps
     /// spent patch down somewhere new, and sends the new values at most ten times a second. (The patches used to be an
     /// InstancedMesh whose every matrix changed each frame, so the bridge baked all of them into a new mesh every frame.)
     /// </summary>
-    public readonly THREE.Mesh mesh;
+    private readonly THREE.BufferGeometry geo;
+    private readonly THREE.ShaderMaterial mat;
+    /// <summary>The foam's GameObject under the world root (native since unity/NATIVE_PLAN.md S9), once placed.</summary>
+    public UnityEngine.Transform root;
+    private UnityEngine.Mesh unityMesh;
     private readonly List<Patch> patches = new List<Patch>();
     private readonly float[] patchData = new float[COUNT * 4 * 4], lifeData = new float[COUNT * 4 * 4];
     private readonly THREE.BufferAttribute patchAttr, lifeAttr;
@@ -86,7 +90,7 @@ public class Whitecaps
             int b = i * 4;
             index.AddRange(new[] { b, b + 2, b + 1, b + 2, b + 3, b + 1 });
         }
-        var geo = new THREE.BufferGeometry();
+        geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
         geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
         patchAttr = new THREE.BufferAttribute(patchData, 4);
@@ -94,7 +98,7 @@ public class Whitecaps
         geo.setAttribute("aPatch", patchAttr);
         geo.setAttribute("aLife", lifeAttr);
         geo.setIndex(index);
-        var mat = new THREE.ShaderMaterial
+        mat = new THREE.ShaderMaterial
         {
             customShader = "Cozy/Whitecaps",
             uniforms = new Dictionary<string, THREE.Uniform>
@@ -109,13 +113,21 @@ public class Whitecaps
             polygonOffsetFactor = -2,
             polygonOffsetUnits = -2,
         };
-        mesh = new THREE.Mesh(geo, mat) { frustumCulled = false, renderOrder = 2 };
         for (int i = 0; i < COUNT; i++)
         {
             var p = new Patch();
             patches.Add(p);
             spawn(i, p, 0, SHORE_Z + 60, true);
         }
+    }
+
+    /// <summary>Puts the foam into the world: one mesh, never culled, drawn after the sea (renderOrder 2).</summary>
+    public void Place()
+    {
+        unityMesh = MeshKit.ToMesh(geo);
+        unityMesh.MarkDynamic();
+        root = Draw.Mesh(World.Root, unityMesh, MaterialKit.Get(mat), order: 2, unculled: true).transform;
+        dirty = false;
     }
 
     /// <summary>Puts a patch somewhere in the sea near the player (or near a given spot at the start).</summary>
@@ -162,8 +174,8 @@ public class Whitecaps
         // a spent patch is invisible in the shader until it is sent again, so a tenth of a second's wait shows nothing
         if (dirty && (clock - sentAt >= 0.1 || sentAt < 0))
         {
-            patchAttr.needsUpdate = true;
-            lifeAttr.needsUpdate = true;
+            // the patches' data lives in the mesh's TEXCOORD2 (aLife) and TEXCOORD3 (aPatch), as MeshKit lays extras out
+            if (unityMesh != null) MeshKit.Refill(unityMesh, geo);
             dirty = false;
             sentAt = clock;
         }
@@ -172,6 +184,7 @@ public class Whitecaps
         levelU.value = level;
         // foam looks grey-blue in the dark
         color.set(0xffffff).lerp(nightTint, night * 0.8);
-        ((THREE.Color)((THREE.ShaderMaterial)mesh.material).uniforms["uColor"].value).copy(color);
+        ((THREE.Color)mat.uniforms["uColor"].value).copy(color);
+        MaterialKit.Push(mat);
     }
 }

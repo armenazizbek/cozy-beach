@@ -18,6 +18,7 @@ public static class Draw
     {
         var t = new GameObject(Label(name, "Group")).transform;
         if (parent != null) t.SetParent(parent, false);
+        t.gameObject.layer = World.LayerUnder(parent);
         return t;
     }
 
@@ -30,6 +31,7 @@ public static class Draw
     {
         var go = new GameObject(Label(name, type));
         go.transform.SetParent(parent, false);
+        go.layer = World.LayerUnder(parent);
         go.AddComponent<MeshFilter>().sharedMesh = mesh;
         var r = go.AddComponent<MeshRenderer>();
         Setup(r);

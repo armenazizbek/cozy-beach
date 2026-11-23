@@ -50,7 +50,17 @@ public class Pier
         return (X, Math.Min(Z1 - 0.8, boatZ));
     }
 
+    /// <summary>
+    /// The pier as built: a description (unity/NATIVE_PLAN.md 2.11), turned into GameObjects once by <see cref="Place"/>.
+    /// Nothing on it moves, so nothing needs it after that.
+    /// </summary>
     public readonly THREE.Group group = new THREE.Group { name = "Pier" };
+
+    /// <summary>The pier's GameObject under the world root, once placed.</summary>
+    public UnityEngine.Transform root;
+
+    /// <summary>Puts the pier into the world as native objects.</summary>
+    public void Place() => root = Realizer.Realize(group, World.Root, World.Layer).root;
 
     private static THREE.Mesh box(double w, double h, double d, THREE.Material mat, double x, double y, double z)
     {

@@ -13,6 +13,20 @@ public static class World
     /// <summary>The main world's description (the Three scene the bridge still copies the unconverted part of).</summary>
     public static THREE.Scene Scene => main;
 
+    /// <summary>The Unity layer the main world is drawn on (its camera draws only this layer).</summary>
+    public static int Layer => main == null ? 0 : main.unityLayer;
+
+    /// <summary>
+    /// The layer an object hung under `parent` belongs on: the parent's, or the world's for objects hung straight under a
+    /// scene's root (roots themselves keep the default layer).
+    /// </summary>
+    public static int LayerUnder(Transform parent)
+    {
+        if (parent == null) return Layer;
+        if (main != null && ReferenceEquals(parent, Root)) return Layer;
+        return parent.parent == null ? Layer : parent.gameObject.layer;
+    }
+
     /// <summary>The main world's root; null before the game is built.</summary>
     public static Transform Root => main == null ? null : RootOf(main);
 

@@ -187,3 +187,46 @@ meshes stay baked (plan 2.2). Deferred to S34, where track and whitecap instanci
   receiving them.
 
 **Hours:** about 3 h of code plus build and run waits.
+
+## S9: pilot (Stones, Flags, Pier, Whitecaps), plus the golf cart from S10 (2026-11-24)
+
+**Three ways of going native, now tried:**
+
+1. **Direct native code (Stones, Flags).** The module makes GameObjects itself with `Draw.Mesh`, `MeshKit` meshes and
+   `MaterialKit` materials. Placement maths, seeds and shapes are unchanged. Flags plants and removes GameObjects as the
+   player does, and waves its cloth through `GameSpace.Euler`.
+2. **Built description, placed by the `Realizer` (Pier).** The building code is unchanged (merges included);
+   `Pier.Place()` realizes it once. Nothing on it moves.
+3. **Description plus `Realizer`, with the module moving the native Transforms (golf cart).** The update code keeps
+   its maths. `Sync()` copies the moving parts' poses (body, wheels, steering wheel) onto the realized Transforms
+   (`Realizer.Pose`). The headlight is a native spot light outside the world root, aimed from the cart each frame. The
+   description is still updated because the binoculars' range finder raycasts against it until S7.
+   - Whitecaps is a native mesh refilled when its patch data changes (at most 10 Hz); its uniforms are pushed through
+     `MaterialKit.Push` every frame.
+
+**Found and fixed along the way:**
+
+- **Native objects need the world's layer.** The main camera only draws layer 8, so the first native stones were
+  invisible. The scene dump caught it (`layer 8 -> 0`). `Draw` now puts objects on `World.LayerUnder(parent)`.
+- **`Game.hideLand` (diving) hid the scene's children only.** It now also hides native land objects under the world
+  root, and puts them back. Caught by the dump of `fish/7-net-in-hand` (49 stones too many).
+- **Lights outside the root don't follow their object's hiding.** The cart's `Refresh()` runs after `hideLand`.
+- **`compare.py` pairs renderers by content first** (world-vertex hash plus vertex count), then by path. Native
+  objects change sibling order, and path-first matching paired the wrong objects.
+
+**Results, full pass (all 37 runs):** every run exits cleanly; self-check 11 of 11; **438 of 438 scene dumps identical
+to the reference**; 397 shots PASS and 42 REVIEW, all of them loading shots or within noise (mean 0.00). Golf cart
+(base, holes, newgame, dive, house): 47 PASS, 6 REVIEW (loading shots), every dump identical, the `holes` facts
+unchanged.
+
+**Calibration (plan 6.4).** The pilot took about 1.5 h for 567 lines, verification included; the golf cart (225 lines)
+took about 30 minutes. The plan budgeted 1.5 to 2.5 days for the pilot. The measured rate is far above the fast end of
+section 6, mostly because:
+
+- the kits reuse the generators and material rules, so nothing in the look has to be re-tuned;
+- the `Realizer` covers static content in one call;
+- the scene dump says exactly what differs.
+
+**Re-projection:** the world and mechanics steps (S10 to S24) look like **days rather than weeks**, about 1,500 to
+2,500 lines a day. The UI track keeps its estimate until its first screen is measured. The fixed cost per step is now
+the verification passes (about 14 minutes for all 37 runs).

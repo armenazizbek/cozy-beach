@@ -170,6 +170,7 @@ public class Game
     private double diveY = -1.4;
     private object diveBg = null;
     private List<THREE.Object3D> hiddenByDive = new List<THREE.Object3D>();
+    private readonly List<UnityEngine.Transform> nativeHiddenByDive = new List<UnityEngine.Transform>();
     private LiftState lift = new LiftState();
     private string dogWas = "rest";
     public readonly Rain rain = new Rain();
@@ -326,13 +327,13 @@ public class Game
             birds.group,
             sea.group,
             dolphins.group,
-            whitecaps.mesh,
             treasure.group,
             ocean.group,
             camp.group,
             ecology.group,
             spawner.group
         );
+        whitecaps.Place();
         foreach (var ov in detector.overlays) scene.add(ov);
         scene.add(
             dig.ring,
@@ -340,10 +341,8 @@ public class Game
             dig.particles.points,
             bullets.group,
             arrows.group,
-            flags.group,
             rain.group,
             rain.buildShelter(OldHouse.X, OldHouse.Z, (x, z) => oldHouse.covers(x, z, 1.1)),
-            stones.group,
             coveNets.group,
             grass.group,
             castles.group,
@@ -359,7 +358,7 @@ public class Game
         tracks = new Tracks(beach);
         scene.add(tracks.group);
         cart = new GolfCart(9, CAMP_Z + 9, Math.PI, beach);
-        scene.add(cart.group);
+        cart.Place();
         dog = new Dog(beach);
         scene.add(dog.group);
         placeDogHome();
@@ -467,7 +466,8 @@ public class Game
         showDecor();
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
-        scene.add(pier.group, fishing.group);
+        scene.add(fishing.group);
+        pier.Place();
         // the old house past the nets on the left of the beach
         scene.add(oldHouse.group);
         scene.add(oldHouse.water);
@@ -1446,7 +1446,7 @@ public class Game
         {
             var p = places[i];
             camp.group.visible = p.camp;
-            cart.group.visible = p.camp;
+            cart.SetVisible(p.camp);
             under.group.visible = p.under;
             cellar.group.visible = p.cellar;
             cellar.setSide(p.cave);
@@ -4827,12 +4827,28 @@ public class Game
             var keep = new HashSet<THREE.Object3D> { sky.group, camera, under.group, cellar.group, spawner.group };
             hiddenByDive = scene.children.Where(o => o.visible && !keep.Contains(o)).ToList();
             foreach (var o in hiddenByDive) o.visible = false;
+            // native land (Native/World.cs) hangs under the world root rather than in the scene: everything there that is not the
+            // bridge's copy of a scene object goes too
+            var bridged = new HashSet<UnityEngine.Transform>(scene.children.Select(World.Of).Where(t => t != null));
+            var root = World.Root;
+            nativeHiddenByDive.Clear();
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var t = root.GetChild(i);
+                if (bridged.Contains(t) || !t.gameObject.activeSelf) continue;
+                t.gameObject.SetActive(false);
+                nativeHiddenByDive.Add(t);
+            }
         }
         else
         {
             foreach (var o in hiddenByDive) o.visible = true;
             hiddenByDive = new List<THREE.Object3D>();
+            foreach (var t in nativeHiddenByDive) if (t != null) t.gameObject.SetActive(true);
+            nativeHiddenByDive.Clear();
         }
+        // lights outside the world root (the cart's headlight) follow what was hidden or shown
+        cart.Refresh();
         showFindsFor(on);
     }
 

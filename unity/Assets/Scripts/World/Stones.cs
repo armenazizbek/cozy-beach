@@ -13,6 +13,10 @@ public class Spot
 }
 
 /// <summary>Stones and boulders scattered over the beach. Nothing is buried near them, so they never hide a find.</summary>
+/// <summary>
+/// The boulders on the beach and across the land (native: unity/NATIVE_PLAN.md S9). The six rock shapes and six stone colours are
+/// made once; scatter() lays the boulders down as GameObjects under <see cref="root"/>, in game numbers.
+/// </summary>
 public class Stones
 {
     /// <summary>tiny deterministic PRNG so the beach looks the same every visit</summary>
@@ -22,11 +26,12 @@ public class Stones
         return seed / 4294967296.0;
     };
 
-    public readonly THREE.Group group = new THREE.Group();
+    /// <summary>The boulders' parent, under the world root.</summary>
+    public readonly UnityEngine.Transform root = Draw.Group(World.Root);
     /// <summary>the bigger stones, which block walking and driving</summary>
     public readonly List<Spot> colliders = new List<Spot>();
-    private readonly List<THREE.BufferGeometry> shapes = new List<THREE.BufferGeometry>();
-    private readonly List<THREE.MeshStandardMaterial> mats = new List<THREE.MeshStandardMaterial>();
+    private readonly List<UnityEngine.Mesh> shapes = new List<UnityEngine.Mesh>();
+    private readonly List<UnityEngine.Material> mats = new List<UnityEngine.Material>();
     private readonly Beach beach;
 
     public Stones(Beach beach)
@@ -51,10 +56,10 @@ public class Stones
                 p.setXYZ(i, p.getX(i) * k * 1.12, Math.Max(p.getY(i), -0.45) * k * 0.72, p.getZ(i) * k);
             }
             geo.computeVertexNormals();
-            shapes.Add(geo);
+            shapes.Add(MeshKit.ToMesh(geo));
         }
         foreach (var c in new[] { 0x7a7872, 0x65635e, 0x948b7c, 0x5c5a57, 0x877c6b, 0x726859 })
-            mats.Add(new THREE.MeshStandardMaterial { color = c, roughness = 0.95, flatShading = true });
+            mats.Add(MaterialKit.Get(new THREE.MeshStandardMaterial { color = c, roughness = 0.95, flatShading = true }));
     }
 
     /// <summary>
@@ -63,7 +68,7 @@ public class Stones
     /// </summary>
     public void scatter(List<Spot> keepClear)
     {
-        foreach (var m in group.children.ToArray()) group.remove(m);
+        for (int i = root.childCount - 1; i >= 0; i--) UnityEngine.Object.Destroy(root.GetChild(i).gameObject);
         colliders.Clear();
         var rand = rng(1234);
         var placed = new List<Spot>();
@@ -79,14 +84,15 @@ public class Stones
         }
         void lay(double x, double z, double r)
         {
-            var mesh = new THREE.Mesh(shapes[(int)Math.Floor(rand() * shapes.Count)], mats[(int)Math.Floor(rand() * mats.Count)]);
-            mesh.scale.set(r * (0.9 + rand() * 0.3), r * (0.75 + rand() * 0.3), r * (0.9 + rand() * 0.3));
-            mesh.rotation.y = rand() * Math.PI * 2;
+            var shape = shapes[(int)Math.Floor(rand() * shapes.Count)];
+            var mat = mats[(int)Math.Floor(rand() * mats.Count)];
+            var t = Draw.Mesh(root, shape, mat, cast: true, receive: true).transform;
+            t.localScale = GameSpace.V(r * (0.9 + rand() * 0.3), r * (0.75 + rand() * 0.3), r * (0.9 + rand() * 0.3));
+            t.localRotation = GameSpace.Euler(0, rand() * Math.PI * 2, 0);
             // sunk a little into the sand
-            mesh.position.set(x, beach.heightAt(x, z) + r * 0.12, z);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            group.add(mesh);
+            t.localPosition = GameSpace.V(x, beach.heightAt(x, z) + r * 0.12, z);
+            // the small-caster rule needs the scale, which is set after the renderer was made
+            ShadowPolicy.Want(t.GetComponent<UnityEngine.Renderer>(), true);
             placed.Add(new Spot(x, z, r));
             if (r >= 0.42) colliders.Add(new Spot(x, z, r * 0.85));
         }

@@ -26,7 +26,17 @@ public class GolfCart
     private const double MAX_REVERSE = 4;
     private const double WHEEL_BASE = 1.7;
 
+    /// <summary>
+    /// The cart as built (a description, unity/NATIVE_PLAN.md 2.11). <see cref="Place"/> turns it into GameObjects; after that the
+    /// cart moves its own Transforms. The description is still kept in step, because the binoculars' range finder raycasts
+    /// against it until picking is native (S7).
+    /// </summary>
     public readonly THREE.Group group = new THREE.Group();
+    private Realized live;
+    private UnityEngine.Light lamp;
+
+    /// <summary>The cart's GameObject under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => live?.root;
     private THREE.MeshStandardMaterial paint = new THREE.MeshStandardMaterial();
     public double x, z;
     /// <summary>same convention as three.js rotation.y: forward is (-sin, -cos); positive turns left</summary>
@@ -63,6 +73,52 @@ public class GolfCart
         paint.color.set(0xe8b93a);
         paint.metalness = 0.6;
         paint.roughness = 0.3;
+        MaterialKit.Push(paint);
+    }
+
+    /// <summary>
+    /// Puts the cart into the world as native objects. The headlight is a native spot light outside the world root (as every
+    /// spot light is, NATIVE_PLAN.md 2.1), aimed from the cart each frame.
+    /// </summary>
+    public void Place()
+    {
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        lamp = Lights.Make(UnityEngine.LightType.Spot, null, "Cart headlight");
+        Lights.Set(lamp, new UnityEngine.Color((float)headlight.color.r, (float)headlight.color.g, (float)headlight.color.b), (float)headlight.intensity, World.Layer);
+        Lights.Cone(lamp, headlight.distance, headlight.angle, headlight.penumbra);
+        Lights.Shadows(lamp, headlight.castShadow);
+        Sync();
+    }
+
+    /// <summary>The native objects follow the description: the body's pose, the wheels, the steering wheel, the headlight.</summary>
+    private void Sync()
+    {
+        if (live == null) return;
+        Realizer.Pose(group, live.root);
+        foreach (var s in spinners) Realizer.Pose(s, live[s]);
+        foreach (var f in frontWheels) Realizer.Pose(f, live[f]);
+        Realizer.Pose(steeringWheel, live[steeringWheel]);
+        bool shining = headlight.visible && live.root.gameObject.activeInHierarchy;
+        if (lamp.gameObject.activeSelf != shining) lamp.gameObject.SetActive(shining);
+        if (shining)
+        {
+            var from = live.root.TransformPoint(GameSpace.V(headlight.position.x, headlight.position.y, headlight.position.z));
+            var to = live.root.TransformPoint(GameSpace.V(headlight.target.position.x, headlight.target.position.y, headlight.target.position.z));
+            lamp.transform.position = from;
+            if ((to - from).sqrMagnitude > 1e-9f) lamp.transform.rotation = UnityEngine.Quaternion.LookRotation((to - from).normalized);
+            lamp.intensity = (float)headlight.intensity;
+        }
+    }
+
+    /// <summary>Brings the native objects and the headlight in line again (after something else hid or showed the cart's root).</summary>
+    public void Refresh() => Sync();
+
+    /// <summary>Shows or hides the cart (Three's group.visible).</summary>
+    public void SetVisible(bool on)
+    {
+        group.visible = on;
+        if (live != null) live.root.gameObject.SetActive(on);
+        Sync();
     }
 
     private THREE.Mesh part(THREE.BufferGeometry geo, THREE.Material mat, double px, double py, double pz, THREE.Object3D parent = null)
@@ -167,7 +223,8 @@ public class GolfCart
         headlight.intensity = on ? 35 : 0;
         // a light that is off still costs every material in the scene a spot-light loop, so take it out of the render altogether
         headlight.visible = on;
-        foreach (var m in lampMats) m.emissiveIntensity = on ? 2 : 0.3;
+        foreach (var m in lampMats) { m.emissiveIntensity = on ? 2 : 0.3; MaterialKit.Push(m); }
+        Sync();
     }
 
     /// <summary>The most a hole can drop the cart, however deep it was dug.</summary>
@@ -221,5 +278,6 @@ public class GolfCart
         foreach (var f in frontWheels) f.rotation.y = steerAngle;
         steeringWheel.rotation.z = steerAngle * 2.6;
         place();
+        Sync();
     }
 }
