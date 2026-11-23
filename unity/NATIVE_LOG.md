@@ -344,3 +344,25 @@ the verification passes (about 14 minutes for all 37 runs).
 - **Check** (selfcheck, base, islands, island, telescope, lighthouse, ships, cove, crust): every run clean, pictures
   pass or within noise, 112 of 122 dumps identical. The 10 others are the paused cleaning-bench views (frozen bridge
   copies); their pictures pass.
+
+## S18, S21 and S22: old house, finds, tools in hand (2026-11-24)
+
+- **Old house (S18):** the house (paintings painted by `OldPictures` into one texture) and its indoor rain are
+  `LiveTree`s under `World.Land`.
+- **`LiveTree` refills meshes whose geometry changed** (the drip lines in the house), by the geometry's content version
+  and each part's own topology (triangles, lines, strips, point quads; `MeshKit.RefillLines`).
+- **`LiveTree` no longer claims its descriptions** (`Object3D.native` stays null), because a part may leave the tree for
+  a scene the bridge still draws. With `claim: true` it does claim them: for trees that stay inside a bridge scene,
+  giving claims up when parts leave.
+- **Finds (S21):** `LootSpawner`'s buried and sunken finds (models from `LootGenerator`) are a `LiveTree` under the world
+  root; the dive keeps them, as before. The cleaning bench builds its own copies.
+- **Tools in hand (S22):** the view model stays the camera's child in the description and is a *claimed* `LiveTree`. The
+  bridge keeps its native root hung under the camera's GameObject and skips the rest. The detector's overlays, the dig
+  rings, the arrows, the shadow proxy and the fishing line are `LiveTree`s under `World.Land`
+  (`LiveTree.Place(desc, parent)`). Bullets (a trail particle pool) and the dig particles stay with the bridge until S24.
+- **Full pass:** every run clean; 11 of 11 self-checks; **all 35 logs identical**; no FAIL; the largest non-loading
+  picture difference is a mean of 0.04/255; 428 of 438 dumps identical (the others are paused bench views).
+- **Where this leads (S25):** the description classes (Object3D, Mesh, Group, geometries, materials) stay as the game's
+  plain-C# model of the world. Builders, raycasts and update maths use them, and every frame of drawing is native. S25
+  moves them out of `Three` and deletes the bridge. Turning update code into direct Transform writes can follow module
+  by module, with no effect on the look.

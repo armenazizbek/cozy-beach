@@ -43,6 +43,20 @@ public class LootSpawner
     }
 
     public readonly THREE.Group group = new THREE.Group();
+
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S21: the buried and sunken finds (models from LootGenerator) are a LiveTree under the
+    /// world root (the dive keeps them: sea-floor finds show under water), kept in line with the description at draw time:
+    /// finds laid, dug up, swapped, shown on land or under the sea. The descriptions stay up to date for the aim's raycasts.
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>Puts the finds into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Root);
+        NativeFrame.BeforeDraw += live.Sync;
+    }
     public List<BuriedItem> items = new List<BuriedItem>();
     private int nextId = 1;
     /// <summary>circles nothing may be buried in: under the grate, and around the hatch</summary>

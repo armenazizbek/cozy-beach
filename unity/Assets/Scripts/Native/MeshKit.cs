@@ -47,6 +47,13 @@ public static class MeshKit
         return mesh;
     }
 
+    /// <summary>Refills a mesh made by <see cref="ToLines"/> after its geometry changed (drips falling).</summary>
+    public static void RefillLines(Mesh mesh, THREE.BufferGeometry g, bool segments = true)
+    {
+        mesh.Clear();
+        Fill(mesh, g, segments ? Topology.Lines : Topology.LineStrip);
+    }
+
     /// <summary>Refills a mesh made by <see cref="ToMesh"/> after its geometry changed (a dug beach chunk, a rebuilt ring).</summary>
     public static void Refill(Mesh mesh, THREE.BufferGeometry g, bool groups = false)
     {

@@ -324,9 +324,7 @@ public class Game
         // the surround and skirt draw random numbers: made here, where the scene list used to make them, so every later draw
         // of the sequence is the same as before
         beach.Place(createSurround(), createSkirt());
-        scene.add(
-            spawner.group
-        );
+        spawner.Place();
         whitecaps.Place();
         dolphins.Place(scene);
         treasure.Place(scene);
@@ -336,15 +334,18 @@ public class Game
         ecology.Place();
         birds.Place();
         castles.Place();
-        foreach (var ov in detector.overlays) scene.add(ov);
+        // native since unity/NATIVE_PLAN.md S22: the detector's overlays, the dig rings, the arrows and the shadow proxy hang
+        // under World.Land (the dive hides them, as it hid them in the scene); bullets and the dig particles stay with the
+        // bridge until particles are native (S24)
+        foreach (var ov in detector.overlays) LiveTree.Place(ov, World.Land);
+        LiveTree.Place(dig.ring, World.Land);
+        LiveTree.Place(dig.ringDark, World.Land);
+        LiveTree.Place(arrows.group, World.Land);
+        LiveTree.Place(view.proxy, World.Land);
         scene.add(
-            dig.ring,
-            dig.ringDark,
             dig.particles.points,
             bullets.group,
-            arrows.group,
             hearts.points,
-            view.proxy,
             camera
         );
         cellar.Place();
@@ -383,6 +384,9 @@ public class Game
         beam.visible = false;
         scene.add(beam);
         camera.add(view.group);
+        // the tools in hand stay the camera's child in the description; claimed, the bridge keeps their native root hung under
+        // the camera's GameObject and leaves the rest to this tree
+        LiveTree.Place(view.group, World.Root, claim: true);
         camera.rotation.order = "YXZ";
         camera.near = 0.05;
         camera.updateProjectionMatrix();
@@ -463,11 +467,10 @@ public class Game
         showDecor();
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
-        scene.add(fishing.group);
+        LiveTree.Place(fishing.group, World.Land);
         pier.Place();
         // the old house past the nets on the left of the beach
-        scene.add(oldHouse.group);
-        scene.add(oldHouse.water);
+        oldHouse.Place();
         // the chimney stands in everyone's way; the house itself only in the cart's (people walk in, see updateCamera)
         camp.obstacles.AddRange(oldHouse.solids);
         state.subscribe(refreshAquarium);

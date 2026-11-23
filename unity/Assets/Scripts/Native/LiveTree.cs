@@ -15,18 +15,41 @@ public sealed class LiveTree
     private Realized live;
     private long shape = long.MinValue;
     private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
+    /// <summary>drawn parts whose geometry may change, with the Unity mesh made for it and the geometry's version then</summary>
+    private readonly List<(THREE.Object3D o, Mesh mesh, int version)> shapes = new List<(THREE.Object3D, Mesh, int)>();
 
     /// <summary>The GameObjects made for the tree's descriptions (null before the first sync).</summary>
     public Realized Live => live;
 
-    public LiveTree(THREE.Object3D desc, Transform parent)
+    private readonly bool claim;
+
+    public LiveTree(THREE.Object3D desc, Transform parent) : this(desc, parent, false) { }
+
+    /// <summary>
+    /// With `claim` the tree stays part of a scene the bridge still draws (the tools in hand hang from the camera): the bridge
+    /// skips its descriptions and only keeps its root hung under their parent's GameObject. A part that leaves the tree gives
+    /// the claim up again.
+    /// </summary>
+    public LiveTree(THREE.Object3D desc, Transform parent, bool claim)
     {
         this.desc = desc;
         this.parent = parent;
+        this.claim = claim;
         Sync();
     }
 
     public Transform Root => live?.root;
+
+    /// <summary>
+    /// Puts a description into the world natively and keeps it in line at draw time (what a module's Place does, for the loose
+    /// pieces Game used to add to the scene itself).
+    /// </summary>
+    public static LiveTree Place(THREE.Object3D desc, Transform parent, bool claim = false)
+    {
+        var t = new LiveTree(desc, parent, claim);
+        NativeFrame.BeforeDraw += t.Sync;
+        return t;
+    }
 
     /// <summary>Brings the GameObjects in line with the description.</summary>
     public void Sync()
@@ -40,9 +63,13 @@ public sealed class LiveTree
         long now = Shape(desc);
         if (live == null || now != shape)
         {
-            Destroy();
             shape = now;
-            live = Realizer.Realize(desc, parent, World.Layer);
+            // unless asked to claim (Object3D.native stays null): a part that leaves this tree for a scene the bridge still draws (a
+            // find carried to the cleaning bench) must not be skipped there
+            var under = live?.root != null && live.root.parent != null ? live.root.parent : parent;
+            if (claim && live != null) foreach (var o in live.map.Keys) o.native = null;
+            Destroy();
+            live = Realizer.Realize(desc, under, World.Layer, claim);
             live.Follow(live.map.Keys);
             mats.Clear();
             var seen = new HashSet<(THREE.Material, MaterialKit.On)>();
@@ -62,10 +89,41 @@ public sealed class LiveTree
                     case THREE.Sprite sp: add(sp.material, MaterialKit.On.Sprite); break;
                 }
             }
+            shapes.Clear();
+            foreach (var kv in live.map)
+            {
+                if (kv.Key is THREE.InstancedMesh || kv.Key is THREE.SkinnedMesh) continue;
+                var g = Geometry(kv.Key);
+                var mf = kv.Value.GetComponent<MeshFilter>();
+                if (g != null && mf != null && mf.sharedMesh != null) shapes.Add((kv.Key, mf.sharedMesh, g.ContentVersion()));
+            }
         }
         live.Apply();
         foreach (var (m, on) in mats) MaterialKit.Push(m, on);
+        // geometry rewritten since it was drawn (drips falling, a pool filling): its mesh is refilled as the bridge re-sent it
+        for (int i = 0; i < shapes.Count; i++)
+        {
+            var (o, mesh, v) = shapes[i];
+            var g = Geometry(o);
+            int ver = g.ContentVersion();
+            if (ver == v) continue;
+            switch (o)
+            {
+                case THREE.Points _: MeshKit.RefillPoints(mesh, g); break;
+                case THREE.Line l: MeshKit.RefillLines(mesh, g, l is THREE.LineSegments); break;
+                case THREE.Mesh m: MeshKit.Refill(mesh, g, m.isMultiMaterial && g.groups.Count > 0); break;
+            }
+            shapes[i] = (o, mesh, ver);
+        }
     }
+
+    private static THREE.BufferGeometry Geometry(THREE.Object3D o) => o switch
+    {
+        THREE.Mesh m => m.geometry,
+        THREE.Points p => p.geometry,
+        THREE.Line l => l.geometry,
+        _ => null,
+    };
 
     /// <summary>Takes the GameObjects away (the tree left the world).</summary>
     public void Destroy()

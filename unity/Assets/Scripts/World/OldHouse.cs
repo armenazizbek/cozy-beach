@@ -114,6 +114,24 @@ public class OldHouse
     /// </summary>
     public readonly THREE.Group water = new THREE.Group { name = "old house rain" };
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S18: the house (with its paintings, which OldPictures paints into one texture) and the
+    /// rain that drips and pools inside it are LiveTrees under World.Land, kept in line with the descriptions at draw time.
+    /// </summary>
+    private LiveTree live, liveWater;
+
+    /// <summary>Puts the house and its rain into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Land);
+        liveWater = new LiveTree(water, World.Land);
+        NativeFrame.BeforeDraw += () =>
+        {
+            live.Sync();
+            liveWater.Sync();
+        };
+    }
+
     /// <summary>where the rain falls through the roof, on the floor, in the house's frame: the back half, away from the door and the dog's corner</summary>
     private const double LEAK_X = -1.4, LEAK_Z = -1.4;
     private const int DRIPS = 26;
