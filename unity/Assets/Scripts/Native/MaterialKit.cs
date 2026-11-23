@@ -20,7 +20,7 @@ public static class MaterialKit
     public static Material Get(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on);
 
     /// <summary>Brings the Unity material up to date with its description (call after changing the description's fields).</summary>
-    public static Material Push(THREE.Material m, On on = On.Mesh) => Get(m, on);
+    public static Material Push(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on, force: true);
 
     /// <summary>
     /// A description is drawn only while it is visible (Three's material.visible): hit spheres use invisible materials, and

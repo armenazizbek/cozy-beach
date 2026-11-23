@@ -385,3 +385,16 @@ the verification passes (about 14 minutes for all 37 runs).
   closed; the native bench exists from the start and lets them go.
 - **Full passes (S24, and S23 on top):** every run clean, all logs identical, no FAIL, the largest non-loading picture
   difference 0.02/255, 428 of 438 dumps identical (the 10 others are paused bench views).
+
+## S8: the main world's frame without the bridge (2026-11-24)
+
+- **`NativeView`:** the renderer hands the main scene to `NativeView.Prepare` instead of `SceneSync.Sync`. It sets the
+  Cozy shaders' globals from the scene's `Atmosphere` (hemisphere, ambient, environment, fog, tone mapping, screen,
+  `_CozyThreeZ`, `RenderSettings.sun`), poses a camera rig under the world root (what hangs from the camera hangs there),
+  and places a Unity camera on an eye outside the root in Unity's axes. Photos use `NativeView.CameraFor`. The cleaning
+  bench and the item photos still go through the bridge until S25.
+- **The material cache's frame:** only `SceneSync.Sync` advanced it, so with the main scene skipped `MaterialKit.Push`
+  stopped applying (first pass: 62 FAIL, stale sky sprite colours). `NativeFrame.Run` now starts the cache's frame, and
+  `Push` forces an update (`MaterialCache.Get(..., force: true)`).
+- **Full pass:** every run clean, 11 of 11 self-checks, all 35 logs identical, no FAIL, the largest non-loading picture
+  difference 0.02/255, 428 of 438 dumps identical (the 10 others are paused bench views).

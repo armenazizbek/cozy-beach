@@ -94,7 +94,8 @@ namespace THREE.Bridge
             }
         }
 
-        public static UnityEngine.Material Get(THREE.Material m, Kind kind)
+        /// <summary>`force`: look at the description again even if it was looked at this frame (a native module saying it changed).</summary>
+        public static UnityEngine.Material Get(THREE.Material m, Kind kind, bool force = false)
         {
             if (m == null) return null;
             Entry e;
@@ -112,7 +113,7 @@ namespace THREE.Bridge
                 m.bridgeKind = (int)kind;
                 m.bridgeGen = gen;
             }
-            if (e.frame == frame) return e.mat;
+            if (e.frame == frame && !force) return e.mat;
             e.frame = frame;
             long h = Hash(m);
             long vh = ValuesHash(m);

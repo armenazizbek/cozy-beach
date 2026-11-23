@@ -9,7 +9,12 @@ public static class NativeFrame
 {
     public static event Action BeforeDraw;
 
-    internal static void Run() => BeforeDraw?.Invoke();
+    internal static void Run()
+    {
+        // a new frame for the material cache (the bridge's scene copy used to start it; the main world no longer goes through it)
+        THREE.Bridge.MaterialCache.NextFrame();
+        BeforeDraw?.Invoke();
+    }
 
     /// <summary>Forgets every hook (a reload).</summary>
     internal static void Clear() => BeforeDraw = null;

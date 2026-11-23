@@ -83,6 +83,7 @@ namespace THREE
             Bridge.TextureCache.Clear();
             Atmosphere.Clear();
             NativeFrame.Clear();
+            NativeView.Clear();
         }
 
         public WebGLRenderer(WebGLRendererParameters p = null)
@@ -175,9 +176,19 @@ namespace THREE
             // native objects finish their frame (NativeFrame) before anything is drawn
             NativeFrame.Run();
             long t0 = Bridge.BridgeStats.Ticks();
-            Bridge.SceneSync.Sync(scene, camera, this);
+            U.Camera cam;
+            if (NativeView.Owns(scene))
+            {
+                // the main world draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
+                cam = NativeView.Prepare(scene, camera, this);
+                known.Add(cam);
+            }
+            else
+            {
+                Bridge.SceneSync.Sync(scene, camera, this);
+                cam = EnsureCamera(camera, scene);
+            }
             Bridge.BridgeStats.syncMs += Bridge.BridgeStats.Ms(t0);
-            var cam = EnsureCamera(camera, scene);
             ConfigureCamera(cam, camera, scene);
             Bridge.UrpSettings.SetShadows(shadowMap.enabled);
             if (target != null || offscreen)
@@ -211,7 +222,7 @@ namespace THREE
         /// </summary>
         internal Texture2D CapturePhoto(Camera camera, int height = 900, Color32? tint = null, float tintAmount = 0)
         {
-            var cam = camera.node?.cam;
+            var cam = camera.node?.cam ?? NativeView.CameraFor(camera);
             if (cam == null) return null;
             float aspect = (float)Math.Max(0.5, Math.Min(4, camera is PerspectiveCamera pc ? pc.aspect : 16.0 / 9));
             int h = height;
