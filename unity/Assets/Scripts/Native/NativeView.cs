@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using B = THREE.Bridge;
+using B = THREE.Render;
 
 /// <summary>
 /// The main world's frame without the bridge's scene copy (unity/NATIVE_PLAN.md S8). Everything in the world draws itself

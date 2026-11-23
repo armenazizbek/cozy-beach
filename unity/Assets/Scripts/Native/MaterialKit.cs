@@ -1,5 +1,5 @@
 using UnityEngine;
-using B = THREE.Bridge;
+using B = THREE.Render;
 
 /// <summary>
 /// Unity materials from the game's material descriptions (unity/NATIVE_PLAN.md 2.4, S4). The descriptions are the plain data

@@ -12,7 +12,7 @@ public static class NativeFrame
     internal static void Run()
     {
         // a new frame for the material cache (the bridge's scene copy used to start it; the main world no longer goes through it)
-        THREE.Bridge.MaterialCache.NextFrame();
+        THREE.Render.MaterialCache.NextFrame();
         BeforeDraw?.Invoke();
     }
 

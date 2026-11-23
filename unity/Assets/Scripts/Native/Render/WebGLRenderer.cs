@@ -78,8 +78,8 @@ namespace THREE
             if (Main != null) Main.loop = null;
             Main = null;
             World.Clear();
-            Bridge.MaterialCache.Clear();
-            Bridge.TextureCache.Clear();
+            Render.MaterialCache.Clear();
+            Render.TextureCache.Clear();
             Atmosphere.Clear();
             NativeFrame.Clear();
             NativeView.Clear();
@@ -104,7 +104,7 @@ namespace THREE
             // r is picture pixels per pixel of the UI's 1920x1080 page, which is stretched to the screen by
             // window.devicePixelRatio; URP's render scale is per screen pixel, so the stretch is taken out. Handing r over
             // as it was rendered a 1440p screen at 1.33x and a 4K one at up to 2x, and a 720p one at 0.67x.
-            if (!offscreen) Bridge.UrpSettings.SetRenderScale(r / Math.Max(0.01, window.devicePixelRatio));
+            if (!offscreen) Render.UrpSettings.SetRenderScale(r / Math.Max(0.01, window.devicePixelRatio));
         }
 
         public double getPixelRatio() => pixelRatio;
@@ -138,10 +138,10 @@ namespace THREE
             frames++;
             screenRenders = 0;
             usedThisFrame.Clear();
-            long t0 = Bridge.BridgeStats.Ticks();
+            long t0 = Render.FrameStats.Ticks();
             loop?.Invoke();
-            Bridge.BridgeStats.tickMs += Bridge.BridgeStats.Ms(t0);
-            Bridge.BridgeStats.frames++;
+            Render.FrameStats.tickMs += Render.FrameStats.Ms(t0);
+            Render.FrameStats.frames++;
             foreach (var c in known)
             {
                 if (c == null) continue;
@@ -175,19 +175,19 @@ namespace THREE
             }
             // native objects finish their frame (NativeFrame) before anything is drawn
             NativeFrame.Run();
-            long t0 = Bridge.BridgeStats.Ticks();
+            long t0 = Render.FrameStats.Ticks();
             // every scene draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
             U.Camera cam = NativeView.Prepare(scene, camera, this);
             known.Add(cam);
-            Bridge.BridgeStats.syncMs += Bridge.BridgeStats.Ms(t0);
+            Render.FrameStats.syncMs += Render.FrameStats.Ms(t0);
             ConfigureCamera(cam, camera, scene);
-            Bridge.UrpSettings.SetShadows(shadowMap.enabled);
+            Render.UrpSettings.SetShadows(shadowMap.enabled);
             if (target != null || offscreen)
             {
                 var rt = target != null ? target.Ensure() : Own();
                 cam.enabled = false;
                 cam.targetTexture = null;
-                Bridge.UrpSettings.RenderTo(cam, rt);
+                Render.UrpSettings.RenderTo(cam, rt);
                 return;
             }
             cam.targetTexture = null;
@@ -226,7 +226,7 @@ namespace THREE
             try
             {
                 cam.aspect = aspect;
-                Bridge.UrpSettings.RenderTo(cam, rt);
+                Render.UrpSettings.RenderTo(cam, rt);
                 var photo = new Texture2D(cw, ch, TextureFormat.RGB24, false, false) { wrapMode = TextureWrapMode.Clamp };
                 var prev = U.RenderTexture.active;
                 U.RenderTexture.active = rt;

@@ -327,7 +327,7 @@ public static class Realizer
         {
             if (invisible == null)
             {
-                invisible = new Material(THREE.Bridge.MaterialCache.FindShader("Cozy/Basic"));
+                invisible = new Material(THREE.Render.MaterialCache.FindShader("Cozy/Basic"));
                 invisible.SetFloat("_ColorMask", 0);
                 invisible.SetFloat("_ZWrite", 0);
                 invisible.renderQueue = 3000;

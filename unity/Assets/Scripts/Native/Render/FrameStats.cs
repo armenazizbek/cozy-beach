@@ -2,13 +2,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 
-namespace THREE.Bridge
+namespace THREE.Render
 {
     /// <summary>
     /// Cheap timings of the bridge's own work (the game's frame, copying the scene into Unity, rebuilding meshes), read by the
     /// -autoshot smoke test to find what a slow frame spends its time on. Only timestamps and counters: nothing is logged here.
     /// </summary>
-    public static class BridgeStats
+    public static class FrameStats
     {
         public static long Ticks() => Stopwatch.GetTimestamp();
         public static double Ms(long since) => (Stopwatch.GetTimestamp() - since) * 1000.0 / Stopwatch.Frequency;
@@ -50,7 +50,7 @@ namespace THREE.Bridge
 
         private static readonly Dictionary<string, double> sections = new Dictionary<string, double>();
 
-        /// <summary>Times a named part of the game's frame: <c>using (BridgeStats.Time("dog")) updateDog(dt, t);</c></summary>
+        /// <summary>Times a named part of the game's frame: <c>using (FrameStats.Time("dog")) updateDog(dt, t);</c></summary>
         public static Section Time(string name) => new Section(name);
 
         public readonly struct Section : System.IDisposable

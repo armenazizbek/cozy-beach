@@ -450,3 +450,17 @@ the verification passes (about 14 minutes for all 37 runs).
   and `TextureCache` behind `MaterialKit`, and `WebGLRenderer` as the thin front the game calls `render` on.
 - **Full pass:** every run clean, 7 of 7 self-checks, all 35 logs identical, no FAIL, 428 of 438 dumps identical (the 10
   others are paused bench views), non-loading shots within 0.02/255.
+
+## S25c: the rest of the bridge moves into the kit (2026-11-24)
+
+- `Three/Bridge` is gone. `MaterialCache`, `TextureCache`, `UrpSettings` and `WebGLRenderer` moved to `Native/Render`
+  (namespace `THREE.Render`); `BridgeStats` became `FrameStats` with the same log text, so perf logs still compare.
+  `PORT_STATUS.md` says so.
+- **The display changed under the harness:** between S25b and S25c this machine's display went from 240 Hz / 96 dpi
+  (OS ratio 1.0) to 144 Hz / 144 dpi (1.5). That alone moved six shots against the old reference (the lighthouse lamp
+  at night by a mean of 13/255); today's rebuild of the S25b commit shows the same, so the code was not the cause.
+  **New reference:** `C:\TidefinderParity\shots\ref144`, taken from the same reference build on this display (its
+  `selfcheck` folder removed, as the reference build has no self-check mode). Use it from now on. The lamp shot also
+  varies a little from run to run at 144 Hz (0.005 to 1.4/255 between runs).
+- **Full pass against `ref144`:** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading shots
+  within 0.02/255, the dump differences are the paused bench views.

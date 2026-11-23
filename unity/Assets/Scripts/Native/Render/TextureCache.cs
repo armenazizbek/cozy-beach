@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace THREE.Bridge
+namespace THREE.Render
 {
     /// <summary>Uploads Three textures (canvases and raw pixels) as Unity Texture2Ds, again whenever needsUpdate was set.</summary>
     internal static class TextureCache

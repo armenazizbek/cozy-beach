@@ -92,7 +92,7 @@ namespace THREE
         public void dispose()
         {
             disposed = true;
-            Bridge.MaterialCache.Release(this);
+            Render.MaterialCache.Release(this);
         }
     }
 

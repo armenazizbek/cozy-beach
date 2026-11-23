@@ -4,7 +4,7 @@ using UnityEngine;
 using U = UnityEngine;
 using UnityEngine.Rendering;
 
-namespace THREE.Bridge
+namespace THREE.Render
 {
     /// <summary>
     /// Keeps one Unity material per Three material (and per kind of object it is drawn on), and copies the fields across each

@@ -1352,7 +1352,7 @@ public class AutoShot : MonoBehaviour
     {
         var a = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
         string urp = a == null ? "no URP asset"
-            : $"render scale {a.renderScale:0.00}, MSAA {a.msaaSampleCount}x, shadows {a.mainLightShadowmapResolution} px / {a.shadowCascadeCount} cascade(s) / {a.shadowDistance:0} m, soft {THREE.Bridge.UrpSettings.SoftShadowQualityName()}";
+            : $"render scale {a.renderScale:0.00}, MSAA {a.msaaSampleCount}x, shadows {a.mainLightShadowmapResolution} px / {a.shadowCascadeCount} cascade(s) / {a.shadowDistance:0} m, soft {THREE.Render.UrpSettings.SoftShadowQualityName()}";
         var g = GameHost.Instance?.game;
         return $"{Platform.Describe()}; quality {g?.settings?.quality}; {urp}; UI ratio {window.devicePixelRatio:0.000}, OS ratio {window.osPixelRatio:0.00}; " +
                $"scripting {(IsIl2Cpp() ? "IL2CPP" : "Mono")}, development build {Debug.isDebugBuild}";
@@ -1379,7 +1379,7 @@ public class AutoShot : MonoBehaviour
         float start = Now, worst = 0;
         double mainMs = 0, renderMs = 0, gpuMs = 0;
         var ft = new FrameTiming[1];
-        THREE.Bridge.BridgeStats.Reset();
+        THREE.Render.FrameStats.Reset();
         // the memory the frame threw away (the garbage collector's work later), and how uneven the frames were: a frame
         // longer than a screen refresh misses it, which with VSync on costs a whole refresh
         var gcRec = Unity.Profiling.ProfilerRecorder.StartNew(Unity.Profiling.ProfilerCategory.Memory, "GC Allocated In Frame");
@@ -1410,8 +1410,8 @@ public class AutoShot : MonoBehaviour
         int n = Math.Max(1, timed);
         Debug.Log($"[AutoShot] {label}: {frames / secs:0.0} fps average, slowest frame {worst * 1000:0} ms; " +
                   $"Unity main thread {mainMs / n:0.00} ms, render thread {renderMs / n:0.00} ms, GPU {gpuMs / n:0.00} ms; " +
-                  THREE.Bridge.BridgeStats.Report());
-        Debug.Log($"[AutoShot] {label} slowest parts (ms/frame): {THREE.Bridge.BridgeStats.SectionReport()}");
+                  THREE.Render.FrameStats.Report());
+        Debug.Log($"[AutoShot] {label} slowest parts (ms/frame): {THREE.Render.FrameStats.SectionReport()}");
         times.Sort();
         int fr = Math.Max(1, frames);
         float P(double q) => times.Count > 0 ? times[Math.Min(times.Count - 1, (int)(q * times.Count))] : 0;

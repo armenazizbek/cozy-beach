@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using B = THREE.Bridge;
+using B = THREE.Render;
 
 /// <summary>
 /// MeshKit against the bridge (S3): for every kind of geometry the game makes, MeshKit's mesh must hold exactly the arrays the

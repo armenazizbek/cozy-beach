@@ -9,7 +9,7 @@ Each TypeScript file and where it stands in the Unity port (`6000.3.28f1`, URP).
 | JavaScript number helpers | `Assets/Scripts/Three/JS.cs` | done |
 | Three.js maths, scene graph, geometries, curves, earcut, extrude | `Assets/Scripts/Three/**` | done |
 | Software 2D canvas for `CanvasTexture` and UI canvases, with text | `Three/Textures/Canvas2D.cs`, `CanvasFonts.cs` | done |
-| Scene to Unity bridge (meshes, materials, textures, lights, cameras) | `Three/Bridge/*` | done |
+| Native drawing (world root, realized descriptions, materials, textures, lights, cameras, picking); the old scene-copy bridge was deleted in the native rewrite (NATIVE_LOG.md S25) | `Native/*`, `Native/Render/*` | done |
 | Three.js lighting, tone mapping and fog in HLSL | `Resources/Shaders/Cozy*.shader`, `*.hlsl` | done (ready for Unity shader import) |
 | Browser DOM / HTML / SVG / CSS compatibility layer on UI Toolkit | `Assets/Scripts/Dom/*` | done |
 | UI stylesheet (`src/style.css` -> UI Toolkit USS + `@keyframes` driver) | `Resources/UI/Style.uss`, `Dom/CssAnimations.cs` | done |

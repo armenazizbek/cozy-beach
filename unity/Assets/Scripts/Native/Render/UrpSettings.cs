@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace THREE.Bridge
+namespace THREE.Render
 {
     /// <summary>The few things that talk to URP directly: render scale, shadows, camera setup and drawing into a texture.</summary>
     internal static class UrpSettings
