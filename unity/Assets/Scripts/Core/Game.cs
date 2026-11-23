@@ -299,6 +299,7 @@ public class Game
         scene.environmentIntensity = 0.3;
 
         sky = new Sky(renderer, scene);
+        sky.Place(scene);
         yield return null;
         ocean = new Ocean(beach);
         ecology = new Ecology(beach);
@@ -319,7 +320,6 @@ public class Game
         yield return null;
 
         scene.add(
-            sky.group,
             beach.mesh,
             createSurround(),
             createSkirt(),
@@ -4828,15 +4828,13 @@ public class Game
             foreach (var o in hiddenByDive) o.visible = false;
             // native land (Native/World.cs) hangs under the world root rather than in the scene: everything there that is not the
             // bridge's copy of a scene object goes too
-            var bridged = new HashSet<UnityEngine.Transform>(scene.children.Select(World.Of).Where(t => t != null));
-            var root = World.Root;
+            // the native land hangs under World.Land (the native sky hangs beside it and stays)
             nativeHiddenByDive.Clear();
-            for (int i = 0; i < root.childCount; i++)
+            var land = World.Land;
+            if (land != null && land.gameObject.activeSelf)
             {
-                var t = root.GetChild(i);
-                if (bridged.Contains(t) || !t.gameObject.activeSelf) continue;
-                t.gameObject.SetActive(false);
-                nativeHiddenByDive.Add(t);
+                land.gameObject.SetActive(false);
+                nativeHiddenByDive.Add(land);
             }
         }
         else

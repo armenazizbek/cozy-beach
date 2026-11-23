@@ -196,6 +196,59 @@ public class Sky
         setTime(0);
     }
 
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S13: the sky's tree (dome, stars, sun and moon, clouds) is a LiveTree under the world
+    /// root (not under World.Land: the sky stays while diving), kept in line with the description at draw time. The sun is a
+    /// native directional light outside the root and the scene's RenderSettings.sun; the hemisphere light goes to the scene's
+    /// Atmosphere. The fog stays the scene's setting.
+    /// </summary>
+    private LiveTree live;
+    private UnityEngine.Light sunLight;
+
+    /// <summary>Puts the sky into the world as native objects and lights.</summary>
+    public void Place(THREE.Scene scene)
+    {
+        live = new LiveTree(group, World.Root);
+        sunLight = Lights.Make(UnityEngine.LightType.Directional, null, "Sun");
+        var at = Atmosphere.Of(scene);
+        at.sun = sunLight;
+        NativeFrame.BeforeDraw += () => Shine(at);
+        Shine(at);
+    }
+
+    private static UnityEngine.Color Lin(THREE.Color c) => new UnityEngine.Color((float)c.r, (float)c.g, (float)c.b);
+
+    private static bool Shown(THREE.Object3D o)
+    {
+        for (var p = o; p != null; p = p.parent) if (!p.visible) return false;
+        return true;
+    }
+
+    /// <summary>The sky's objects, sun and hemisphere light as the description has them now (at draw time).</summary>
+    private void Shine(Atmosphere at)
+    {
+        live.Sync();
+        group.updateMatrixWorld(true);
+        // the sun: from its position toward its target, as the bridge aimed it
+        bool sunOn = Shown(sun);
+        if (sunLight.gameObject.activeSelf != sunOn) sunLight.gameObject.SetActive(sunOn);
+        if (sunOn)
+        {
+            var a = sun.getWorldPosition(new THREE.Vector3());
+            var b = sun.target.getWorldPosition(new THREE.Vector3());
+            Lights.Set(sunLight, Lin(sun.color), (float)sun.intensity, World.Layer);
+            Lights.Shadows(sunLight, sun.castShadow);
+            Lights.Aim(sunLight, GameSpace.V(a.x, a.y, a.z), GameSpace.V(b.x, b.y, b.z));
+        }
+        // the hemisphere light, summed into the shaders' globals by the scene's atmosphere
+        at.ClearLights();
+        if (Shown(hemi))
+        {
+            var up = hemi.getWorldPosition(new THREE.Vector3()).normalize();
+            at.AddHemisphere(Lin(hemi.color), Lin(hemi.groundColor), (float)hemi.intensity, GameSpace.V(up.x, up.y, up.z));
+        }
+    }
+
     private void buildClouds()
     {
         for (int i = 0; i < 3; i++)

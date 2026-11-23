@@ -14,7 +14,10 @@ public sealed class LiveTree
     private readonly Transform parent;
     private Realized live;
     private long shape = long.MinValue;
-    private readonly List<THREE.Material> mats = new List<THREE.Material>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
+
+    /// <summary>The GameObjects made for the tree's descriptions (null before the first sync).</summary>
+    public Realized Live => live;
 
     public LiveTree(THREE.Object3D desc, Transform parent)
     {
@@ -36,12 +39,26 @@ public sealed class LiveTree
             live = Realizer.Realize(desc, parent, World.Layer);
             live.Follow(live.map.Keys);
             mats.Clear();
-            var seen = new HashSet<THREE.Material>();
+            var seen = new HashSet<(THREE.Material, MaterialKit.On)>();
+            void add(THREE.Material m, MaterialKit.On on)
+            {
+                if (m != null && seen.Add((m, on))) mats.Add((m, on));
+            }
+            // each material with the kind of object it is drawn on (sprites, points and lines have shaders of their own)
             foreach (var o in live.map.Keys)
-                if (o is THREE.Mesh m && m.material != null && seen.Add(m.material)) mats.Add(m.material);
+            {
+                switch (o)
+                {
+                    case THREE.InstancedMesh im: add(im.material, MaterialKit.On.Instanced); break;
+                    case THREE.Mesh m: add(m.material, MaterialKit.On.Mesh); break;
+                    case THREE.Points p: add(p.material, MaterialKit.On.Points); break;
+                    case THREE.Line l: add(l.material, MaterialKit.On.Line); break;
+                    case THREE.Sprite sp: add(sp.material, MaterialKit.On.Sprite); break;
+                }
+            }
         }
         live.Apply();
-        foreach (var m in mats) MaterialKit.Push(m);
+        foreach (var (m, on) in mats) MaterialKit.Push(m, on);
     }
 
     /// <summary>Takes the GameObjects away (the tree left the world).</summary>
