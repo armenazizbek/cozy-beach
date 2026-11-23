@@ -253,138 +253,22 @@ public static class window
         set => _devicePixelRatio = value;
     }
 
-    private sealed class TimerTask
-    {
-        public int id;
-        public Action fn;
-        public Action<double> rafFn;
-        public double nextFireMs;
-        public double intervalMs;
-        public bool isInterval;
-        public bool isRaf;
-        public bool cancelled;
-    }
-
-    private static int _nextTimerId = 1;
-    private static readonly List<TimerTask> _timers = new List<TimerTask>();
     private static readonly Dictionary<string, List<Action<Event>>> _listeners =
         new Dictionary<string, List<Action<Event>>>(StringComparer.OrdinalIgnoreCase);
 
-    private static double NowMs() => TestClock.Ms;
-
-    public static int setTimeout(Action fn, double ms = 0)
-    {
-        if (fn == null) return 0;
-        int id = _nextTimerId++;
-        _timers.Add(new TimerTask
-        {
-            id = id,
-            fn = fn,
-            nextFireMs = NowMs() + Math.Max(0.0, ms),
-            intervalMs = 0,
-            isInterval = false,
-            isRaf = false,
-        });
-        return id;
-    }
-
-    public static void clearTimeout(int id)
-    {
-        for (int i = 0; i < _timers.Count; i++)
-        {
-            if (_timers[i].id == id)
-            {
-                _timers[i].cancelled = true;
-            }
-        }
-    }
-
-    public static int setInterval(Action fn, double ms)
-    {
-        if (fn == null) return 0;
-        int id = _nextTimerId++;
-        double period = Math.Max(1.0, ms);
-        _timers.Add(new TimerTask
-        {
-            id = id,
-            fn = fn,
-            nextFireMs = NowMs() + period,
-            intervalMs = period,
-            isInterval = true,
-            isRaf = false,
-        });
-        return id;
-    }
-
-    public static void clearInterval(int id) => clearTimeout(id);
-
-    public static int requestAnimationFrame(Action<double> fn)
-    {
-        if (fn == null) return 0;
-        int id = _nextTimerId++;
-        _timers.Add(new TimerTask
-        {
-            id = id,
-            rafFn = fn,
-            nextFireMs = 0,
-            isRaf = true,
-        });
-        return id;
-    }
-
-    public static int requestAnimationFrame(Action fn)
-    {
-        if (fn == null) return 0;
-        return requestAnimationFrame(_ => fn());
-    }
-
-    public static void cancelAnimationFrame(int id) => clearTimeout(id);
-
-    internal static void RunTimers()
-    {
-        if (_timers.Count == 0) return;
-        double now = NowMs();
-
-        // Snapshot current count so newly queued rAFs/timeouts fire on the next tick
-        int count = _timers.Count;
-        for (int i = 0; i < count && i < _timers.Count; i++)
-        {
-            var t = _timers[i];
-            if (t == null || t.cancelled) continue;
-
-            if (t.isRaf)
-            {
-                t.cancelled = true;
-                try { t.rafFn?.Invoke(now); }
-                catch (Exception ex) { Debug.LogException(ex); }
-            }
-            else if (now >= t.nextFireMs)
-            {
-                if (t.isInterval)
-                {
-                    t.nextFireMs = now + t.intervalMs;
-                }
-                else
-                {
-                    t.cancelled = true;
-                }
-                try { t.fn?.Invoke(); }
-                catch (Exception ex) { Debug.LogException(ex); }
-            }
-        }
-
-        for (int i = _timers.Count - 1; i >= 0; i--)
-        {
-            if (_timers[i] == null || _timers[i].cancelled)
-            {
-                _timers.RemoveAt(i);
-            }
-        }
-    }
+    // the page's timers run on the game loop (UI/Native/GameTimers.cs)
+    public static int setTimeout(Action fn, double ms = 0) => GameTimers.After(ms, fn);
+    public static void clearTimeout(int id) => GameTimers.Cancel(id);
+    public static int setInterval(Action fn, double ms) => GameTimers.Every(ms, fn);
+    public static void clearInterval(int id) => GameTimers.Cancel(id);
+    public static int requestAnimationFrame(Action<double> fn) => GameTimers.NextFrame(fn);
+    public static int requestAnimationFrame(Action fn) => fn == null ? 0 : GameTimers.NextFrame(_ => fn());
+    public static void cancelAnimationFrame(int id) => GameTimers.Cancel(id);
+    internal static void RunTimers() => GameTimers.Run();
 
     internal static void ClearAllTimersAndListeners()
     {
-        _timers.Clear();
+        GameTimers.Clear();
         _listeners.Clear();
     }
 

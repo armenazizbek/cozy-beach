@@ -464,3 +464,21 @@ the verification passes (about 14 minutes for all 37 runs).
   varies a little from run to run at 144 Hz (0.005 to 1.4/255 between runs).
 - **Full pass against `ref144`:** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, non-loading shots
   within 0.02/255, the dump differences are the paused bench views.
+
+## S26 and S27: the UI's foundation and the native loading screen (2026-11-24)
+
+- **`UiRoot`** (`UI/Native`): the one UIDocument, PanelSettings, the fonts (body, bold, heading, title, the emoji
+  sprites and fallbacks) and the 1920 x 1080 page scaled to the screen with the UI size setting, moved out of
+  `DomHost` unchanged. `DomHost` now builds only the page's tree under `UiRoot.Root` and copies the metrics into
+  `window`. Native screens hang in the same panel.
+- **`GameTimers`**: setTimeout, setInterval and requestAnimationFrame on the test clock, moved out of `window`
+  (which hands its calls over). **`UiX`**: small helpers for native screens (elements with classes, text, buttons,
+  show and hide, class toggles).
+- **S27, `LoadingScreen`**: the loading screen is native, built with the page's element structure and class names
+  (`#boot`, `.t-h1.game-title`, `.t-p.title-face`, `#boot-track`, `#boot-bar`; text in a label with no margins, the
+  title face as the page gave it), over `LoadingSea`. `GameHost` and `Game` move its bar and lift it
+  (`LoadingScreen.Progress`, `Lift`: the 0.5 s fade, then gone after 0.7 s). The pointer over any native screen counts
+  as over the UI (class `ui-native`).
+- **Not yet:** `UiAnim`, `MenuNav` and the icon baker come with the screens that first need them (S28, S29).
+- **Full passes (S26, S27):** every run clean, 7 of 7 self-checks, all logs identical, no FAIL, the loading shots
+  within their usual noise (mean at most 0.16/255) and the same picture side by side, 428 of 438 dumps identical.

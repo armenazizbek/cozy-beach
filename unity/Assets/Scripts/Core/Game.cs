@@ -602,9 +602,7 @@ public class Game
         // a loaded save (or a new game that skips the opening) is in play from the first frame: the game takes the mouse
         // at once, as Begin does, instead of showing the cursor until the player clicks
         else if (started && gameState == "EXPLORE" && !paused) grabMouse();
-        var boot = document.getElementById("boot");
-        boot?.classList.add("gone");
-        window.setTimeout(() => boot?.remove(), 700);
+        LoadingScreen.Lift();
         loaded = true;
     }
 
@@ -1426,7 +1424,6 @@ public class Game
     /// </summary>
     private IEnumerator prepareEverythingCoroutine()
     {
-        var bar = document.getElementById("boot-bar");
         var places = new (bool camp, bool near, bool under, bool cellar, bool cave)[]
         {
             (true, false, false, false, false),
@@ -1439,7 +1436,7 @@ public class Game
         void done(int n)
         {
             // the world was built in the first 70% of the bar (GameHost); getting it ready to draw is the rest
-            if (bar != null) bar.style.width = $"{JS.Str((0.7 + 0.3 * n / steps) * 100)}%";
+            LoadingScreen.Progress(0.7 + 0.3 * n / steps);
         }
         for (int i = 0; i < places.Length; i++)
         {

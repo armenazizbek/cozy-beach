@@ -56,11 +56,10 @@ public class GameHost : MonoBehaviour
         var canvas = document.getElementById("scene");
         var ui = document.getElementById("ui");
         // the world is built a piece at a time, so the loading screen keeps moving; the game is handed over once it is whole
-        var bar = document.getElementById("boot-bar");
         var pieces = Prebuilt.MakeAll();
         while (pieces.MoveNext())
         {
-            if (bar != null) bar.style.width = $"{JS.Str(Prebuilt.Progress * 40)}%";
+            LoadingScreen.Progress(Prebuilt.Progress * 0.4);
             yield return pieces.Current;
         }
         AutoShot.Trace("big pieces made");
@@ -77,7 +76,6 @@ public class GameHost : MonoBehaviour
     /// <summary>Runs one stage of the loading and moves the loading bar from one point to the next as its steps go by.</summary>
     private static IEnumerator Stepped(IEnumerator stage, double from, double to, int steps)
     {
-        var bar = document.getElementById("boot-bar");
         int n = 0;
         while (true)
         {
@@ -85,7 +83,7 @@ public class GameHost : MonoBehaviour
             if (!stage.MoveNext()) break;
             n++;
             AutoShot.Trace($"loading step {from:0.00}+{n}: {(Time.realtimeSinceStartup - t0) * 1000:0} ms");
-            if (bar != null) bar.style.width = $"{JS.Str((from + (to - from) * Math.Min(1.0, (double)n / steps)) * 100)}%";
+            LoadingScreen.Progress(from + (to - from) * Math.Min(1.0, (double)n / steps));
             yield return stage.Current;
         }
     }
