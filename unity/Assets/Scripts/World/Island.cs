@@ -61,6 +61,20 @@ public class Island
     /// <summary>0 the green island, 1 the lagoon cay, 2 the ember rock</summary>
     public readonly int kind;
     public readonly THREE.Group group = new THREE.Group();
+
+    /// <summary>
+    /// Native since unity/NATIVE_PLAN.md S16/S17: the island with its landmark (Lagoon Cay's telescope, Ember Rock's lighthouse,
+    /// its lamp, beams and the ships on the night horizon) is a LiveTree under World.Land, kept in line with the description at
+    /// draw time: the palms swaying, the haze, the beams turning, the ships sailing, the door and the dirt being cleaned.
+    /// </summary>
+    private LiveTree live;
+
+    /// <summary>Puts the island into the world as native objects.</summary>
+    public void Place()
+    {
+        live = new LiveTree(group, World.Land);
+        NativeFrame.BeforeDraw += live.Sync;
+    }
     /// <summary>solid circles for walking around: trunks, boulders, ruin pillars, the wreck</summary>
     public readonly List<Spot> colliders = new List<Spot>();
     /// <summary>the island's landmark: the old stone circle on the summit, the castaway's camp, or the crater</summary>

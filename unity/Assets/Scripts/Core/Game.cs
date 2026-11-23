@@ -343,9 +343,6 @@ public class Game
             dig.particles.points,
             bullets.group,
             arrows.group,
-            islands[0].group,
-            islands[1].group,
-            islands[2].group,
             hearts.points,
             view.proxy,
             camera
@@ -353,6 +350,7 @@ public class Game
         cellar.Place();
         sea.Place(scene);
         camp.Place(scene);
+        foreach (var island in islands) island.Place();
         under.Place(scene);
         tracks = new Tracks(beach);
         tracks.Place();

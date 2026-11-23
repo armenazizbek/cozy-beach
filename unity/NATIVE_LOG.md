@@ -332,3 +332,15 @@ the verification passes (about 14 minutes for all 37 runs).
   are emitted in the camp's frame.
 - **Check** (selfcheck, base, newgame, shop, photo, tour, ui, dograin, rain, fish, gear): every run clean, **124 of 124
   dumps identical**, pictures pass or within noise.
+
+## S16 and S17: islands, telescope, lighthouse and night ships (2026-11-24)
+
+- **Native islands:** each island with its landmark is one `LiveTree` under `World.Land`, synced at draw time. That
+  covers Lagoon Cay's telescope and Ember Rock's lighthouse with its lamp, beams and the ships on the night horizon
+  (built by `ModernShips`, added into the island). It follows the palms' sway, the haze, the beams turning, the ships
+  sailing, the door, and the dirt being cleaned off.
+- **`compare.py`:** "never culled" bounds are recognised from 5 km, not 10 km. Under a scaled parent the bridge's
+  100 km box shrank to about ±9.7 km, and no real object reaches 5 km (the largest is the beach surround, 1.3 km).
+- **Check** (selfcheck, base, islands, island, telescope, lighthouse, ships, cove, crust): every run clean, pictures
+  pass or within noise, 112 of 122 dumps identical. The 10 others are the paused cleaning-bench views (frozen bridge
+  copies); their pictures pass.
