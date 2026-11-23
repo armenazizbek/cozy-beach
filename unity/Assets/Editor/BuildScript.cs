@@ -32,6 +32,8 @@ public static class BuildScript
     {
         ProjectSetup.Apply();
         EmojiSpriteAssetBuilder.Rebuild();
+        // the UI's drawings, rasterised now instead of while the game runs (UI/Native/IconAtlas.cs)
+        IconBaker.Bake();
         UiSkinImporter.Apply();
         bool il2cpp = preferIl2Cpp && Il2CppInstalled();
         if (preferIl2Cpp && !il2cpp)

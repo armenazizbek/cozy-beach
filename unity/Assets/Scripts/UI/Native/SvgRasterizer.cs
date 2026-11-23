@@ -6,7 +6,7 @@ using UnityEngine;
 
 // Small SVG rasterizer that draws <svg>...</svg> markup through CanvasRenderingContext2D into a cached Texture2D.
 
-internal static class SvgRasterizer
+public static class SvgRasterizer
 {
     private static readonly Dictionary<string, Texture2D> _cache = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
 
@@ -50,9 +50,53 @@ internal static class SvgRasterizer
         {
             return cached;
         }
+        // baked in the editor (IconAtlas): the same pixels, nothing to draw now
+        var baked = IconAtlas.Get(svgMarkup);
+        if (baked != null)
+        {
+            _cache[svgMarkup] = baked;
+            return baked;
+        }
 
-        int texW = Math.Max(64, (int)Math.Ceiling(vbW * 2.0));
-        int texH = Math.Max(64, (int)Math.Ceiling(vbH * 2.0));
+        byte[] rgba = RasterizeRgba(svgMarkup, out int texW, out int texH);
+        if (rgba == null) return null;
+        var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, false)
+        {
+            name = "SvgIcon",
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        tex.SetPixelData(rgba, 0);
+        tex.Apply(false, false);
+
+        _cache[svgMarkup] = tex;
+        return tex;
+    }
+
+    /// <summary>
+    /// Draws the markup and returns its pixels: straight RGBA32, first row at the bottom, at twice the viewBox's size (at least
+    /// 64 x 64). The editor's icon baker keeps these; Rasterize turns them into a texture.
+    /// </summary>
+    public static byte[] RasterizeRgba(string svgMarkup, out int texW, out int texH)
+    {
+        texW = texH = 0;
+        if (string.IsNullOrWhiteSpace(svgMarkup)) return null;
+        var rootAttrs = ParseAttributes(ExtractOpeningTag(svgMarkup, "svg"));
+        double vbX = 0, vbY = 0, vbW = 32, vbH = 32;
+        if (rootAttrs.TryGetValue("viewBox", out string vbStr) && !string.IsNullOrWhiteSpace(vbStr))
+        {
+            double[] nums = ParseNumberList(vbStr);
+            if (nums.Length >= 4 && nums[2] > 0 && nums[3] > 0)
+            {
+                vbX = nums[0];
+                vbY = nums[1];
+                vbW = nums[2];
+                vbH = nums[3];
+            }
+        }
+
+        texW = Math.Max(64, (int)Math.Ceiling(vbW * 2.0));
+        texH = Math.Max(64, (int)Math.Ceiling(vbH * 2.0));
 
         var canvas = new TexturePainter(texW, texH);
         var ctx = canvas.getContext("2d");
@@ -80,18 +124,7 @@ internal static class SvgRasterizer
 
         ctx.restore();
 
-        byte[] rgba = canvas.ToUnityRGBA(flipY: true);
-        var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, false)
-        {
-            name = "SvgIcon",
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-        };
-        tex.SetPixelData(rgba, 0);
-        tex.Apply(false, false);
-
-        _cache[svgMarkup] = tex;
-        return tex;
+        return canvas.ToUnityRGBA(flipY: true);
     }
 
     private static float ParseSvgCssSize(string raw, float emBase, float fallback)

@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- A name over a place in the telescope's view (TelescopeView). -->
+    <El class="glass-label" />
+</ui:UXML>

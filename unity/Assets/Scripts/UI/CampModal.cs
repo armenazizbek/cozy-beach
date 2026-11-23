@@ -43,10 +43,9 @@ public class CampModal
         ["night"] = "Cozy Night",
     };
 
-    // native (UI/Native/UiNode.cs): the same elements and classes the page had
-    private UiNode panel = new UiNode("div");
-    private UiNode body = new UiNode("div");
-    private UiNode tabs = new UiNode("div");
+    // the camp's shell is UXML (Resources/UI/Screens/Camp.uxml); its pages are built from templates and elements
+    private readonly UiNode panel = Ux.Load("Camp");
+    private readonly UiNode body, tabs;
     private string tab = "rest";
     private bool _open = false;
     private string shownTab = null;
@@ -70,18 +69,9 @@ public class CampModal
         this.state = state;
         this.audio = audio;
         this.hooks = hooks;
-        this.panel.ClassName = "camp hidden";
-        var head = new UiNode("div");
-        head.ClassName = "camp-head";
-        head.Add(new UiNode("h2", null, "Base Camp"));
-        var close = new UiNode("button");
-        close.ClassName = "btn ghost small";
-        close.Text = "Close";
-        close.OnClick = () => this.hooks.onClose();
-        head.Add(close);
-        this.tabs.ClassName = "tabs";
-        this.body.ClassName = "camp-body";
-        this.panel.Add(head, this.tabs, this.body);
+        this.tabs = this.panel.Must("tabs");
+        this.body = this.panel.Must("body");
+        this.panel.Must("close").OnClick = () => this.hooks.onClose();
         this.panel.MountIn(parent.ve);
         state.subscribe(() =>
         {
@@ -250,14 +240,9 @@ public class CampModal
 
     private UiNode row(string left, string right, UiNode extra = null)
     {
-        var r = new UiNode("div");
-        r.ClassName = "item-row";
-        var a = new UiNode("span");
-        a.Text = left;
-        var b = new UiNode("span");
-        b.ClassName = "right";
-        b.Text = right;
-        r.Add(a, b);
+        var r = Ux.Load("CampRow");
+        r.Must("left").Text = left;
+        r.Must("right").Text = right;
         if (extra != null) r.Add(extra);
         return r;
     }

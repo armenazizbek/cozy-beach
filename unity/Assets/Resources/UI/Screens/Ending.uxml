@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The end of the story (UIManager.showEnding); the facts are filled in by the code. -->
+    <El class="pause bookview teaser">
+        <El class="intro-card">
+            <El tag="h1" text="The Marigold’s Gold" />
+            <El tag="p" class="tag" text="You found it" />
+            <El tag="p" class="credit" text="Whatever lived down here died long before Captain Holt ever heard of this coast. The sea carried the Marigold’s gold in on the tide and left it in the bones, and nobody has laid eyes on it since." />
+            <El tag="p" class="credit" text="Tucked into the old bell is a note, in a newer hand: “The town made its peace with this long ago. If you are reading it, you were patient and you were kind, and my great-grandfather asked for no more than that. Keep it. Look after the place.”" />
+            <El name="facts" class="ending-stats" />
+            <El tag="p" class="tag" text="The beach is still yours." />
+            <El tag="button" name="back" class="btn big" text="Keep playing" />
+        </El>
+    </El>
+</ui:UXML>

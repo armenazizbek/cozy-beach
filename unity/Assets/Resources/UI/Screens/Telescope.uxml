@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The telescope's view (TelescopeView.open). The drawn layer goes in first from the code; the labels come from GlassLabel.uxml. -->
+    <El name="glass" class="glass">
+        <El name="count" class="glass-count" />
+        <El name="msg" class="glass-msg" />
+        <El name="card" class="glass-card hidden">
+            <El tag="h2" name="name" />
+            <El tag="p" name="lore" />
+            <El name="reward" class="glass-reward" />
+        </El>
+    </El>
+</ui:UXML>

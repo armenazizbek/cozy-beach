@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Every achievement, the earned ones lit up (UIManager.showAchievements). -->
+    <El class="pause achievements">
+        <El class="intro-card ach-card">
+            <El tag="h1" text="Achievements" />
+            <El tag="p" name="count" class="tag" />
+            <El name="meter" class="bar ach-progress">
+                <El name="fill" class="fill teal" />
+            </El>
+            <El name="list" class="ach-list" />
+            <El tag="button" name="back" class="btn big" text="Back" />
+        </El>
+    </El>
+</ui:UXML>

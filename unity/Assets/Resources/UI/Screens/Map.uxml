@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The big map (UIManager.showMap). The tabs, one per map, and the map's canvas are made in the code. -->
+    <El class="pause bigmap">
+        <El class="intro-card map-card">
+            <El tag="h1" name="title" />
+            <El name="tabs" class="map-tabs" />
+            <El name="canvasSlot" />
+            <El tag="p" class="save-note" text="You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it." />
+        </El>
+    </El>
+</ui:UXML>

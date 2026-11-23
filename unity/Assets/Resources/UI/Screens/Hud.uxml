@@ -1,0 +1,100 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!--
+    The HUD and the cards that sit with it (UIManager's constructor). Every top element goes straight under #ui, in this
+    order, after the binocular and viewfinder canvases (made in code); the minimap and the detector's waveform are canvases
+    too and take the places marked "slot". Screens opened later go above all of these.
+    -->
+    <El name="flash" class="binoc photo-flash hidden" />
+    <El name="cross" class="cross" />
+    <El name="drawbar" class="drawbar hidden">
+        <El name="drawFill" class="fill" />
+    </El>
+    <El class="prompt-row">
+        <El name="prompt" class="prompt">
+            <El tag="span" name="holdF" class="kbd" />
+            <El tag="span" name="promptText" class="txt" />
+        </El>
+    </El>
+    <El class="prompt-row p2">
+        <El name="prompt2" class="prompt p2">
+            <El tag="span" name="holdE" class="kbd" />
+            <El tag="span" name="prompt2Text" class="txt" />
+        </El>
+    </El>
+    <El name="hud" class="hud">
+        <El class="stats">
+            <El class="stat coins">
+                <El tag="span" class="ico" text="🪙" />
+                <El tag="span" name="coins" class="val" />
+            </El>
+            <El class="stat warm">
+                <El tag="span" class="ico" text="☕" />
+                <El class="warm-col">
+                    <El class="warm-head">
+                        <El tag="span" name="mugName" class="sub" />
+                        <El tag="span" name="warmText" class="val" />
+                    </El>
+                    <El class="bar">
+                        <El name="warmFill" class="fill" />
+                    </El>
+                </El>
+            </El>
+        </El>
+        <El class="right-chips">
+            <El name="clock" class="chip clock" tooltip="Time of day and the day count" />
+            <El class="chip" text="🎒 " tooltip="Backpack">
+                <El tag="span" name="pack" class="val" />
+            </El>
+            <El class="chip" text="🌿 " tooltip="Beach Ecology Score">
+                <El tag="span" name="eco" class="val" />
+            </El>
+            <El name="boneChip" class="chip hidden" text="🦴 " tooltip="Dog bones">
+                <El tag="span" name="bones" class="val" />
+            </El>
+            <El tag="button" name="mute" class="chip mute" text="🔊" tooltip="Mute (N)" />
+        </El>
+        <El name="minimapSlot" />
+        <El class="minimap-ring" />
+        <El name="badge" class="tool-badge">
+            <El tag="span" name="badgeIcon" class="tb-ico" />
+            <El tag="span" name="badgeName" class="tb-name" />
+        </El>
+        <El name="padTools" class="padtools hidden">
+            <El name="padUp" class="pt up" />
+            <El name="padLeft" class="pt left" />
+            <El class="pt-center" />
+            <El name="padRight" class="pt right" />
+            <El name="padDown" class="pt down" />
+            <El name="padCaption" class="pt-caption" />
+            <El name="padStack" class="pt-stack hidden" />
+            <El name="padNext" class="pt-next hidden" />
+        </El>
+    </El>
+    <El name="scope" class="scope">
+        <El class="scope-title" text="DETECTOR SIGNAL" />
+        <El name="waveSlot" />
+    </El>
+    <El class="hint-row">
+        <El name="hint" class="hint" />
+    </El>
+    <El name="toasts" class="toasts" />
+    <El name="inspect" class="inspect hidden">
+        <El name="inspectTitle" class="inspect-title" />
+        <El name="inspectHelp" class="inspect-help" text="Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate" />
+        <El class="bar big">
+            <El name="progFill" class="fill" />
+        </El>
+        <El class="row between">
+            <El tag="span" class="sub" text="Cleanliness" />
+            <El tag="span" name="progText" class="val" />
+        </El>
+        <El class="row gap">
+            <El tag="button" name="inspectBack" class="btn ghost" text="Back" />
+            <El tag="button" name="instant" class="btn" text="Instant Clean" />
+        </El>
+    </El>
+    <El name="result" class="result hidden" />
+    <El name="fade" class="fade" />
+    <El name="intro" class="intro" />
+    <El name="padbar" class="padbar hidden" />
+</ui:UXML>

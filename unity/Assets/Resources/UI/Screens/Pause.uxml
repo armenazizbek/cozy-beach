@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The pause screen (UIManager.showPause): one column of buttons, filled in by the code. -->
+    <El class="pause pausemenu">
+        <El class="intro-card pause-card">
+            <El tag="h1" text="Paused" />
+            <El tag="p" class="tag" text="Take your time. The beach will wait." />
+            <El name="actions" class="pause-actions" />
+            <El tag="p" name="info" class="save-info" />
+        </El>
+    </El>
+</ui:UXML>

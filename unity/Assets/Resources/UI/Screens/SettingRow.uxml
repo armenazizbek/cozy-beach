@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One setting: chosen whole; its name and hint on the left, its control added on the right by the code. -->
+    <El tag="button" class="set-row">
+        <El tag="span" class="set-name">
+            <El tag="span" name="label" class="set-label" />
+            <El tag="span" name="hint" class="set-hint" />
+        </El>
+    </El>
+</ui:UXML>

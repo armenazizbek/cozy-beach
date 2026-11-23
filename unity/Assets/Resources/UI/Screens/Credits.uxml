@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The credits, from the main menu (UIManager.showCredits). -->
+    <El class="pause credits">
+        <El class="intro-card">
+            <El tag="h1" text="Credits" />
+            <El tag="p" class="tag" text="Tidefinder" />
+            <El tag="p" class="credit" text="Made by Armen Azizbekyan, a solo developer and the creator of this game." />
+            <El tag="p" class="credit" text="Thank you for playing." />
+            <El tag="p" name="version" class="save-note" />
+            <El tag="button" name="back" class="btn big" text="Back" />
+        </El>
+    </El>
+</ui:UXML>

@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The base camp (UI/CampModal.cs): the head with the title and Close, the page tabs, and the page itself. -->
+    <El class="camp hidden">
+        <El class="camp-head">
+            <El tag="h2" text="Base Camp" />
+            <El tag="button" name="close" class="btn ghost small" text="Close" />
+        </El>
+        <El name="tabs" class="tabs" />
+        <El name="body" class="camp-body" />
+    </El>
+</ui:UXML>

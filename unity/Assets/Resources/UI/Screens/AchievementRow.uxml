@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One achievement: its icon, its name and what earns it. -->
+    <El class="ach-row">
+        <El tag="span" name="icon" class="ach-icon" />
+        <El class="ach-text">
+            <El tag="b" name="name" />
+            <El tag="span" name="desc" />
+        </El>
+    </El>
+</ui:UXML>

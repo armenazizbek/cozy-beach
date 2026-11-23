@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One sheet of notepaper at a time: the post (UIManager.showMail) and story pages (showStory) name the buttons. -->
+    <El class="pause bookview mailview">
+        <El class="mail">
+            <El name="sheet" class="mail-sheet" />
+            <El class="book-nav">
+                <El tag="button" name="prev" class="btn ghost small" />
+                <El tag="span" name="count" class="book-count" />
+                <El tag="button" name="next" class="btn ghost small" />
+                <El tag="button" name="close" class="btn small" text="Close" />
+            </El>
+        </El>
+    </El>
+</ui:UXML>

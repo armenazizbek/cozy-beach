@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Settings (UIManager.openSettings): the rows are made from SettingRow.uxml by the code, one per setting. -->
+    <El class="pause saves settings">
+        <El class="intro-card settings-card">
+            <El tag="h1" text="Settings" />
+            <El name="rows" class="set-rows" />
+            <El tag="button" name="done" class="btn" text="Done" />
+        </El>
+    </El>
+</ui:UXML>

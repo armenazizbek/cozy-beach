@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One entry of the main menu: the mark that shows when it is chosen, and its words. -->
+    <El tag="button" class="mm-btn">
+        <El tag="span" class="mm-mark" />
+        <El tag="span" name="label" class="mm-label" />
+    </El>
+</ui:UXML>

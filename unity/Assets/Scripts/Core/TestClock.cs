@@ -44,6 +44,8 @@ public static class TestClock
     /// <summary>Switches off a real mouse or keyboard (virtual controllers the smoke test adds stay on).</summary>
     private static void Isolate(UnityEngine.InputSystem.InputDevice d)
     {
+        // the smoke test's own virtual devices (named AutoShot...) stay on: the mouse suite drives one
+        if (d.name.StartsWith("AutoShot")) return;
         if ((d is UnityEngine.InputSystem.Mouse || d is UnityEngine.InputSystem.Keyboard || d is UnityEngine.InputSystem.Pen
              || d is UnityEngine.InputSystem.Touchscreen) && d.enabled)
             UnityEngine.InputSystem.InputSystem.DisableDevice(d);

@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One line of a camp list: what it is on the left, its value on the right (CampModal.row). -->
+    <El class="item-row">
+        <El tag="span" name="left" />
+        <El tag="span" name="right" class="right" />
+    </El>
+</ui:UXML>

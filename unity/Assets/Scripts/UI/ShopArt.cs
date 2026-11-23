@@ -280,5 +280,11 @@ public static class ShopArt
     };
 
     /// <summary>The picture of a thing the camp sells, as SVG, or null if it has none.</summary>
+    /// <summary>Every shop picture's markup, for the editor's icon baker (IconAtlas).</summary>
+    public static System.Collections.Generic.IEnumerable<string> All()
+    {
+        foreach (var id in ART.Keys) yield return svg(id);
+    }
+
     public static string svg(string id) => id != null && ART.TryGetValue(id, out var body) ? OPEN + body + "</svg>" : null;
 }

@@ -45,7 +45,8 @@
       "tour": ["-autoshot-tour"],
       "pad": ["-autoshot-pad"],
       "settings": ["-autoshot-settings"],
-      "layout": ["-autoshot-layout"]
+      "layout": ["-autoshot-layout"],
+      "mouse": ["-autoshot-mouse"]
     },
     "saves": {
       "saves": ["-autoshot-saves"]

@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Saving and loading (UIManager.openSaves): the save-name box goes above the list when saving. -->
+    <El class="pause saves">
+        <El class="intro-card save-card">
+            <El tag="h1" name="title" />
+            <El name="list" class="save-list" />
+            <El tag="p" name="note" class="save-note" />
+            <El tag="button" name="back" class="btn ghost" text="Back" />
+        </El>
+    </El>
+</ui:UXML>

@@ -1,0 +1,14 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The journal (UIManager.showBook): two pages side by side, filled in by the code, and the buttons that turn them. -->
+    <El class="pause bookview">
+        <El class="book">
+            <El name="spread" class="book-spread" />
+            <El class="book-nav">
+                <El tag="button" name="prev" class="btn ghost small" text="‹ Previous" />
+                <El tag="span" name="count" class="book-count" />
+                <El tag="button" name="next" class="btn ghost small" text="Next ›" />
+                <El tag="button" name="close" class="btn small" text="Close" />
+            </El>
+        </El>
+    </El>
+</ui:UXML>

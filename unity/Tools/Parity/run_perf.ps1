@@ -21,6 +21,10 @@ $builds = [ordered]@{ ref = (Resolve-Path (Join-Path $Ref "Tidefinder.exe")).Pat
 New-Item -ItemType Directory -Force $Out | Out-Null
 $w = 1280; $h = if ($Deck) { 800 } else { 720 }
 $failed = 0
+# fixed, silent settings for the runs; the player's own come back afterwards (TestSettings.ps1)
+. (Join-Path $PSScriptRoot "TestSettings.ps1")
+Use-TestSettings
+try {
 for ($i = 1; $i -le $Rounds; $i++) {
     foreach ($which in $builds.Keys) {
         $dir = Join-Path $Out ("{0}_{1}" -f $which, $i)
@@ -36,5 +40,7 @@ for ($i = 1; $i -le $Rounds; $i++) {
         elseif ($p.ExitCode -ne 0) { Write-Host "    exit $($p.ExitCode)"; $failed++ }
     }
 }
+}
+finally { Restore-PlayerSettings }
 if ($failed -gt 0) { Write-Host "$failed perf run(s) failed"; exit 1 }
 Write-Host "Done: $Rounds rounds in $Out"

@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections;
 using System.IO;
@@ -165,6 +166,108 @@ public class AutoShot : MonoBehaviour
             yield return Wait(0.5f);
             Debug.Log("[AutoShot] pad: settings closed by B = " + (MenuNav.Find(UiRoot.Root, v => v.ClassListContains("settings-card")).Count == 0));
             UnityEngine.InputSystem.InputSystem.RemoveDevice(pad);
+        }
+
+        // -autoshot-mouse: the title menu and settings driven by a virtual mouse through the real input path (Input System, then
+        // the panel, picking, hover and click), which the other runs never use; each check logs ok or FAIL (unity/UI_PLAN.md 3)
+        if (Array.IndexOf(args, "-autoshot-mouse") >= 0)
+        {
+            var mouse = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Mouse>("AutoShotMouse");
+            mouse.MakeCurrent();
+            int failures = 0;
+            var at = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            void Check(string what, bool ok)
+            {
+                Debug.Log($"[AutoShot] mouse: {what}: {(ok ? "ok" : "FAIL")}");
+                if (!ok) failures++;
+            }
+            // a point on the panel, as the Input System's screen position (origin at the bottom left)
+            Vector2 ToScreen(Vector2 panel)
+            {
+                float s = Screen.width / Mathf.Max(1f, UiRoot.Root.layout.width);
+                return new Vector2(panel.x * s, Screen.height - panel.y * s);
+            }
+            IEnumerator MoveTo(Vector2 screen, bool held = false)
+            {
+                var from = at;
+                for (int i = 1; i <= 6; i++)
+                {
+                    var p = Vector2.Lerp(from, screen, i / 6f);
+                    var st = new UnityEngine.InputSystem.LowLevel.MouseState { position = p, delta = p - at };
+                    if (held) st = st.WithButton(UnityEngine.InputSystem.LowLevel.MouseButton.Left);
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, st);
+                    at = p;
+                    yield return null;
+                }
+            }
+            IEnumerator Button(bool down)
+            {
+                var st = new UnityEngine.InputSystem.LowLevel.MouseState { position = at };
+                if (down) st = st.WithButton(UnityEngine.InputSystem.LowLevel.MouseButton.Left);
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, st);
+                yield return null;
+                yield return null;
+            }
+            IEnumerator Click(Vector2 panel)
+            {
+                yield return MoveTo(ToScreen(panel));
+                yield return Button(true);
+                yield return Button(false);
+            }
+            NavEl Find(string cls, string text = null) =>
+                MenuNav.Find(UiRoot.Root, v => v.ClassListContains(cls)).FirstOrDefault(e => text == null || (e.Text ?? "").Contains(text));
+            bool SettingsOpen() => MenuNav.Find(UiRoot.Root, v => v.ClassListContains("settings-card")).Count > 0;
+
+            yield return Wait(0.5f);
+            var settings = Find("mm-btn", "Settings");
+            Check("the main menu has a Settings button", !settings.IsNull);
+            if (!settings.IsNull)
+            {
+                yield return MoveTo(ToScreen(settings.Box.center));
+                yield return Wait(0.3f);
+                Check("hovering Settings chooses it", MenuNav.Current == settings);
+                yield return Click(settings.Box.center);
+                yield return Wait(0.8f);
+                Check("clicking Settings opens it", SettingsOpen());
+            }
+            var range = Find("set-range");
+            if (SettingsOpen() && !range.IsNull)
+            {
+                var row = range.ve.parent;
+                string Shown() => UnityEngine.UIElements.UQueryExtensions.Q(row, className: "set-val")?.userData is UiNode n ? n.Text : "";
+                string before = Shown();
+                var box = range.Box;
+                yield return MoveTo(ToScreen(new Vector2(box.xMin + box.width * 0.9f, box.center.y)));
+                yield return Button(true);
+                yield return MoveTo(ToScreen(new Vector2(box.xMin + box.width * 0.3f, box.center.y)), held: true);
+                yield return Button(false);
+                yield return Wait(0.3f);
+                Check($"dragging the first slider changes it ({before} -> {Shown()})", Shown() != before);
+                yield return Shot("1m-mouse-settings.png");
+                var rows = MenuNav.Find(UiRoot.Root, v => v.ClassListContains("set-rows")).FirstOrDefault();
+                if (!rows.IsNull)
+                {
+                    double top = rows.ScrollTop;
+                    yield return MoveTo(ToScreen(rows.Box.center));
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new UnityEngine.InputSystem.LowLevel.MouseState { position = at, scroll = new Vector2(0, -360) });
+                    yield return null;
+                    UnityEngine.InputSystem.InputSystem.QueueStateEvent(mouse, new UnityEngine.InputSystem.LowLevel.MouseState { position = at });
+                    yield return Wait(0.4f);
+                    Check($"the wheel scrolls the settings ({top:0} -> {rows.ScrollTop:0})", rows.ScrollTop > top);
+                }
+                var done = MenuNav.Find(UiRoot.Root, v => v.ClassListContains("t-button") && v.ClassListContains("btn")).FirstOrDefault(e => (e.Text ?? "").Trim() == "Done");
+                Check("settings has a Done button", !done.IsNull);
+                if (!done.IsNull)
+                {
+                    yield return Click(done.Box.center);
+                    yield return Wait(0.6f);
+                    Check("clicking Done closes settings", !SettingsOpen());
+                }
+            }
+            Debug.Log($"[AutoShot] mouse: {failures} check(s) failed");
+            UnityEngine.InputSystem.InputSystem.RemoveDevice(mouse);
+            Quit(failures == 0 ? 0 : 2);
+            yield break;
         }
 
         // -autoshot-opening: New Game, then the opening at a moment in each of its four shots, and the card that follows it

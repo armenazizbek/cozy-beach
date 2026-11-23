@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The opening's words along the bottom and the note on how to skip (UIManager.setCaption); both go straight under #ui. -->
+    <El name="caption" class="cine-caption">
+        <El name="text" class="cine-caption-text" />
+    </El>
+    <El name="skip" class="cine-skip" />
+</ui:UXML>

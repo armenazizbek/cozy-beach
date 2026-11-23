@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The main menu (UIManager.showMainMenu): the title and a list of plain words on the left, the living beach behind. -->
+    <El class="mainmenu">
+        <El class="mm-scrim" />
+        <El class="mm-panel">
+            <El class="mm-kicker" text="a quiet little adventure" />
+            <El tag="h1" class="mm-title" text="Tidefinder" />
+            <El tag="p" class="mm-tag" text="Misty mornings. Buried treasure. Nothing to rush." />
+            <El name="list" class="mm-buttons" />
+        </El>
+        <El name="foot" class="mm-foot" />
+    </El>
+</ui:UXML>

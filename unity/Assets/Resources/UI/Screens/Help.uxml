@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- How to play (UIManager.showHelp): the topic tabs between their two keys, the topic, and Back. -->
+    <El class="pause helpscreen">
+        <El class="intro-card help-card">
+            <El tag="h1" text="Help" />
+            <El name="tabs" class="help-tabs">
+                <El name="tabWrap" class="tabs-wrap" />
+            </El>
+            <El name="body" class="help-body" />
+            <El tag="button" name="back" class="btn big" text="Back" />
+        </El>
+    </El>
+</ui:UXML>

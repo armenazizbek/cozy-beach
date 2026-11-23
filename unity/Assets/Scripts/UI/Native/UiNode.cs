@@ -99,10 +99,16 @@ public class UiNode
         foreach (var e in all) e.v.BringToFront();
     }
 
-    public UiNode(string tag = "div", string classes = null, string text = null)
+    public UiNode(string tag = "div", string classes = null, string text = null) : this(new VisualElement(), tag, classes, text) { }
+
+    /// <summary>
+    /// Gives an element made by UXML (an <see cref="El"/>) the same behaviour a built element has (UI/Native/Ux.cs adopts
+    /// whole trees): the structure comes from the screen's UXML, the look and behaviour stay what the harness checked.
+    /// </summary>
+    internal UiNode(VisualElement existing, string tag, string classes, string text)
     {
         this.tag = string.IsNullOrEmpty(tag) ? "div" : tag.ToLowerInvariant();
-        ve = new VisualElement();
+        ve = existing;
         // the element a VisualElement stands for (the menu navigation finds native elements by it, NavEl.Of)
         ve.userData = this;
         ve.AddToClassList("t-" + this.tag);
@@ -417,6 +423,22 @@ public class UiNode
     }
 
     public IReadOnlyList<UiNode> Children => kids;
+
+    /// <summary>Links a child made by UXML (already in place under this element) into the tree, without moving it.</summary>
+    internal void AdoptChild(UiNode n)
+    {
+        n.Parent = this;
+        kids.Add(n);
+        // a scroll box holds its children in its content
+        if (n.ve.parent != Container) Container.Add(n.ve);
+        if (Has("camp-body") && n.Has("btn")) n.ve.style.alignSelf = Align.FlexStart;
+    }
+
+    /// <summary>The element with this name (UXML's name attribute) under this one, or null.</summary>
+    public UiNode Q(string name) => ve.Q(name)?.userData as UiNode;
+
+    /// <summary>Like <see cref="Q"/>, but a missing element is a mistake in the screen's UXML.</summary>
+    public UiNode Must(string name) => Q(name) ?? throw new InvalidOperationException($"no element named '{name}' under {ClassName}");
 
     // ------------------------------------------------------------------ classes
 

@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The card for a cleaned find (UIManager.showResult). The key glyph goes into its slot from the code. -->
+    <El class="card">
+        <El name="cat" class="cat" />
+        <El tag="h2" name="name" />
+        <El tag="p" name="lore" class="lore" />
+        <El name="worth" class="worth" />
+        <El tag="button" name="go" class="btn big">
+            <El name="keySlot" />
+            <El tag="span" name="label" />
+        </El>
+    </El>
+</ui:UXML>

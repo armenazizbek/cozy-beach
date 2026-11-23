@@ -232,10 +232,49 @@ def compare_dump(ref, br, tol=2e-3):
 # ------------------------------------------------------------------------------------------------------------ main
 
 
-def compare(ref, br, thresholds, report, calibrate):
+def environment(log):
+    """The display and VSync a run had (UI_PLAN.md section 5): the context line's screen, dpi and OS ratio, and the
+    pacing lines' vsync. Runs that differ here differ in pictures and UI timing for reasons that are not the code's."""
+    if log is None:
+        return {}
+    if isinstance(log, list):
+        log = chr(10).join(log)
+    env = {}
+    m = re.search(r'\[AutoShot\] context: .*?screen (\d+x\d+ at \d+ Hz, \w+, dpi \d+).*?OS ratio ([\d.]+)', log)
+    if m:
+        env['display'] = m.group(1)
+        env['os ratio'] = m.group(2)
+    v = re.search(r'pacing: .*?vsync (\d+)', log)
+    if v:
+        env['vsync'] = v.group(1)
+    return env
+
+
+def check_environment(ref, br, ran):
+    """Stops the comparison when the branch ran on another display or with other settings than the reference."""
+    for d in sorted(ran):
+        pa, pb = os.path.join(ref, d, 'Player.log'), os.path.join(br, d, 'Player.log')
+        if not (os.path.exists(pa) and os.path.exists(pb)):
+            continue
+        ea, eb = environment(read_log(pa)), environment(read_log(pb))
+        diff = {k: (ea.get(k), eb.get(k)) for k in set(ea) | set(eb) if ea.get(k) != eb.get(k)}
+        if diff:
+            print(f'ENVIRONMENT DIFFERS in run "{d}" (reference vs branch):')
+            for k, (x, y) in sorted(diff.items()):
+                print(f'  {k}: {x}  vs  {y}')
+            print('Pictures and UI timing would differ for that reason alone. Retake the reference on this display and with')
+            print('the fixed test settings (run_suites.ps1 sets them), or pass --any-environment to compare anyway.')
+            return False
+        return True
+    return True
+
+
+def compare(ref, br, thresholds, report, calibrate, any_environment=False):
     rows, worst = [], 'PASS'
     # only the runs (top-level folders) the branch actually made are compared
     ran = {d for d in os.listdir(br) if os.path.isdir(os.path.join(br, d)) and d != '_report'}
+    if not any_environment and not check_environment(ref, br, ran):
+        return 3
 
     def in_run(rel):
         return '/' not in rel or rel.split('/')[0] in ran
@@ -432,13 +471,14 @@ def main():
     ap.add_argument('--report')
     ap.add_argument('--calibrate')
     ap.add_argument('--perf')
+    ap.add_argument('--any-environment', action='store_true', help='compare even if the display or VSync differ')
     a = ap.parse_args()
     if a.perf:
         sys.exit(perf(a.perf))
     if not a.ref or not a.branch:
         ap.error('give a reference and a branch folder, or --perf <folder>')
     thresholds = json.load(open(a.thresholds, encoding='utf-8')) if a.thresholds else {}
-    sys.exit(compare(a.ref, a.branch, thresholds, a.report or os.path.join(a.branch, '_report', 'report.html'), a.calibrate))
+    sys.exit(compare(a.ref, a.branch, thresholds, a.report or os.path.join(a.branch, '_report', 'report.html'), a.calibrate, a.any_environment))
 
 
 if __name__ == '__main__':

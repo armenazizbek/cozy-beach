@@ -1,0 +1,32 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- The new-game introduction (UIManager.showIntro). The detector's drawing goes into its slot from the code. -->
+    <El class="intro-card">
+        <El tag="h1" text="Tidefinder" />
+        <El tag="p" class="tag" text="A misty golden morning. A quiet beach. Nothing to rush." />
+        <El class="intro-text">
+            <El tag="p" text="The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat." />
+            <El tag="p" text="You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it." />
+            <El tag="p" text="The finds wash in to the treasure cove, the sand below the camp inside the old fishing nets. Beyond the nets there is only sand." />
+            <El tag="p" text="There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like." />
+            <El tag="ul" class="intro-first">
+                <El tag="li">
+                    <El name="detectorSlot" />
+                    <El tag="#text" style="flex-shrink: 1;" text="Sweep the sand with the detector and listen for the beep." />
+                </El>
+                <El tag="li">
+                    <El tag="span" text="⛏️" />
+                    <El tag="#text" style="flex-shrink: 1;" text="Dig where it beeps fastest." />
+                </El>
+                <El tag="li">
+                    <El tag="span" text="✨" />
+                    <El tag="#text" style="flex-shrink: 1;" text="Brush what you find until it shines." />
+                </El>
+            </El>
+            <El tag="p" name="hint" class="intro-hint" />
+        </El>
+        <El class="row gap">
+            <El tag="button" name="begin" class="btn big" text="Begin" />
+            <El tag="button" name="load" class="btn ghost big" text="Load saved game" />
+        </El>
+    </El>
+</ui:UXML>

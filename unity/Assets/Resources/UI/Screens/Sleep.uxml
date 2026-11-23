@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Sleeping in the hammock (UIManager.setSleep): a dark veil with drifting z's. -->
+    <El class="sleepveil">
+        <El tag="span" class="zz zz0" text="z" />
+        <El tag="span" class="zz zz1" text="z" />
+        <El tag="span" class="zz zz2" text="z" />
+        <El class="sleepmsg" text="Resting until morning..." />
+    </El>
+</ui:UXML>

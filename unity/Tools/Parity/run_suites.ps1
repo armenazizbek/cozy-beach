@@ -44,6 +44,10 @@ if ($Only) {
 New-Item -ItemType Directory -Force $Out | Out-Null
 $w = 1280; $h = if ($Deck) { 800 } else { 720 }
 $results = @()
+# fixed, silent settings for the runs; the player's own come back afterwards (TestSettings.ps1)
+. (Join-Path $PSScriptRoot "TestSettings.ps1")
+Use-TestSettings
+try {
 foreach ($name in $runs.Keys) {
     $dir = Join-Path $Out $name
     if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
@@ -69,6 +73,8 @@ foreach ($name in $runs.Keys) {
     Write-Host ("    exit {0}, {1} s, {2} shots" -f $code, $secs, $shots)
     $results += [pscustomobject]@{ run = $name; flags = ($runs[$name] -join " "); exit = "$code"; seconds = $secs; shots = $shots }
 }
+}
+finally { Restore-PlayerSettings }
 $results | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $Out "runs.json")
 $bad = @($results | Where-Object { $_.exit -ne "0" })
 if ($bad.Count -gt 0) {

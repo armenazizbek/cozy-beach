@@ -198,25 +198,19 @@ public class TelescopeView
         if (wrap != null) return;
         isOpen = true;
         ensureTextures();
-        wrap = new UiNode("div");
-        wrap.ClassName = "glass";
+        // the layout is UXML (Telescope.uxml); the drawn layer goes in under the words
+        wrap = Ux.Load("Telescope");
         layer = new VisualElement { pickingMode = PickingMode.Ignore };
         layer.style.position = Position.Absolute;
         layer.style.left = layer.style.top = layer.style.right = layer.style.bottom = 0;
         layer.generateVisualContent += draw;
-        wrap.ve.Add(layer);
-        countEl = new UiNode("div");
-        countEl.ClassName = "glass-count";
-        msgEl = new UiNode("div");
-        msgEl.ClassName = "glass-msg";
-        card = new UiNode("div");
-        card.ClassName = "glass-card hidden";
-        cardName = new UiNode("h2");
-        cardLore = new UiNode("p");
-        cardReward = new UiNode("div");
-        cardReward.ClassName = "glass-reward";
-        card.Add(cardName, cardLore, cardReward);
-        wrap.Add(countEl, msgEl, card);
+        wrap.ve.Insert(0, layer);
+        countEl = wrap.Must("count");
+        msgEl = wrap.Must("msg");
+        card = wrap.Must("card");
+        cardName = wrap.Must("name");
+        cardLore = wrap.Must("lore");
+        cardReward = wrap.Must("reward");
         if (mount != null) mount(wrap);
         else Page.Body.Add(wrap);
         updateCount();
@@ -514,8 +508,7 @@ public class TelescopeView
             var c = Constellations.BY_ID[id];
             if (!labels.TryGetValue(id, out var lab))
             {
-                lab = new UiNode("div");
-                lab.ClassName = "glass-label";
+                lab = Ux.Load("GlassLabel");
                 lab.Text = c.name;
                 wrap.Add(lab);
                 labels[id] = lab;

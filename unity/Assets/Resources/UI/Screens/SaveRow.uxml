@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- One saved game: its name and when, then Overwrite or Load, and delete. -->
+    <El class="save-row">
+        <El class="si">
+            <El tag="b" name="name" />
+            <El tag="span" name="desc" />
+        </El>
+        <El class="sb">
+            <El tag="button" name="main" class="btn small" />
+            <El tag="button" name="del" class="btn small ghost" text="🗑" />
+        </El>
+    </El>
+</ui:UXML>

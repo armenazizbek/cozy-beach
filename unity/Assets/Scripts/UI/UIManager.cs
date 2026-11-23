@@ -97,6 +97,9 @@ public class UIManager
     private const string __BUILD_YEAR__ = "2026";
 
     /// <summary>Tool badge drawings that match the tools in hand: the metal detector, the trowel and the binoculars.</summary>
+    /// <summary>Every tool drawing, for the editor's icon baker (IconAtlas).</summary>
+    public static string[] ToolIcons => new[] { DETECTOR_ICON, TROWEL_ICON, SCOOP_ICON, SHOVEL_ICON, BINOC_ICON, CAMERA_ICON };
+
     private const string DETECTOR_ICON =
         "<svg viewBox=\"0 0 32 32\" width=\"1.1em\" height=\"1.1em\" style=\"vertical-align:-0.2em\"><ellipse cx=\"9.5\" cy=\"25.5\" rx=\"7.5\" ry=\"3.6\" fill=\"#1f2124\" stroke=\"#e6b422\" stroke-width=\"1.8\"/><circle cx=\"9.5\" cy=\"25.5\" r=\"2.1\" fill=\"#3a4048\"/><path d=\"M9.5 25L21 11.5L23.5 5.5L27.5 7\" fill=\"none\" stroke=\"#9aa3ad\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path d=\"M25.5 3.5C28.5 3.8 30 6.2 29.2 9\" fill=\"none\" stroke=\"#1f2124\" stroke-width=\"2.6\" stroke-linecap=\"round\"/><path d=\"M21.8 10.5L23.2 6.8\" stroke=\"#1f2124\" stroke-width=\"4\" stroke-linecap=\"round\"/><path d=\"M14.2 19.5L15.8 17.6\" stroke=\"#e6b422\" stroke-width=\"3.2\" stroke-linecap=\"round\"/><g transform=\"translate(18.8 13.8) rotate(-49)\"><rect x=\"-3.4\" y=\"-3.2\" width=\"6.8\" height=\"5.2\" rx=\"1.2\" fill=\"#3a4048\" stroke=\"#1f2124\" stroke-width=\"1\"/><rect x=\"-2\" y=\"-2\" width=\"4\" height=\"2.4\" rx=\"0.4\" fill=\"#39ff88\"/></g></svg>";
 
@@ -125,50 +128,44 @@ public class UIManager
     public readonly UiCanvas waveCanvas = new UiCanvas("wave");
     public readonly CanvasRenderingContext2D waveCtx;
     private UiNode root;
-    // the HUD is native (UI/Native/UiNode.cs): the same elements and classes the page had, so Style.uss draws them alike
-    private UiNode coins = new UiNode("span", "val");
-    private UiNode warmFill = new UiNode("div", "fill");
-    private UiNode warmText = new UiNode("span", "val");
-    private UiNode mugName = new UiNode("span", "sub");
-    private UiNode pack = new UiNode("span", "val");
-    private UiNode eco = new UiNode("span", "val");
-    private UiNode bones = new UiNode("span", "val");
-    private UiNode boneChip = new UiNode("div", "chip hidden", "🦴 ");
-    private UiNode badge = new UiNode("div", "tool-badge");
-    private UiNode badgeIcon = new UiNode("span", "tb-ico");
-    private UiNode badgeName = new UiNode("span", "tb-name");
+    // the HUD and its cards are UXML (Resources/UI/Screens/Hud.uxml), found by name in the constructor
+    private UiNode coins;
+    private UiNode warmFill;
+    private UiNode warmText;
+    private UiNode mugName;
+    private UiNode pack;
+    private UiNode eco;
+    private UiNode bones;
+    private UiNode boneChip;
+    private UiNode badge;
+    private UiNode badgeIcon;
+    private UiNode badgeName;
     /// <summary>the controller's d-pad tool picker, shown instead of the badge while a controller is in use</summary>
-    private UiNode padTools = new UiNode("div", "padtools hidden");
-    private Dictionary<string, UiNode> padSlots = new Dictionary<string, UiNode>
-    {
-        ["up"] = new UiNode("div", "pt up"),
-        ["right"] = new UiNode("div", "pt right"),
-        ["down"] = new UiNode("div", "pt down"),
-        ["left"] = new UiNode("div", "pt left"),
-    };
-    private UiNode padCaption = new UiNode("div", "pt-caption");
+    private UiNode padTools;
+    private Dictionary<string, UiNode> padSlots;
+    private UiNode padCaption;
     /// <summary>every tool that shares the d-pad's left slot, in the order the presses go round them, the one in hand lit</summary>
-    private UiNode padStack = new UiNode("div", "pt-stack hidden");
+    private UiNode padStack;
     /// <summary>"(d-pad left) Bow": what the next press of left gives, so it is plain that pressing again moves on</summary>
-    private UiNode padNext = new UiNode("div", "pt-next hidden");
+    private UiNode padNext;
     private int curTool = 1;
     private bool badgeOverride = false;
-    private UiNode hint = new UiNode("div", "hint");
-    private UiNode toasts = new UiNode("div", "toasts");
-    private UiNode fadeEl = new UiNode("div", "fade");
-    private UiNode hud = new UiNode("div", "hud");
-    private UiNode scope = new UiNode("div", "scope");
-    private UiNode inspect = new UiNode("div", "inspect hidden");
-    private UiNode inspectTitle = new UiNode("div", "inspect-title");
+    private UiNode hint;
+    private UiNode toasts;
+    private UiNode fadeEl;
+    private UiNode hud;
+    private UiNode scope;
+    private UiNode inspect;
+    private UiNode inspectTitle;
     private UiNode inspectHelp;
-    private UiNode progFill = new UiNode("div", "fill");
-    private UiNode progText = new UiNode("span", "val");
-    private UiNode instantBtn = new UiNode("button", "btn", "Instant Clean");
-    private UiNode result = new UiNode("div", "result hidden");
-    private UiNode intro = new UiNode("div", "intro");
-    private UiNode cross = new UiNode("div", "cross");
-    private UiNode drawbar = new UiNode("div", "drawbar hidden");
-    private UiNode drawFill = new UiNode("div", "fill");
+    private UiNode progFill;
+    private UiNode progText;
+    private UiNode instantBtn;
+    private UiNode result;
+    private UiNode intro;
+    private UiNode cross;
+    private UiNode drawbar;
+    private UiNode drawFill;
     private UiCanvas binoc = new UiCanvas("binoc hidden");
     private UiCanvas binocText = new UiCanvas("binoc-text hidden");
     private string binocFrameKey = "";
@@ -176,7 +173,7 @@ public class UIManager
     private UiCanvas finder = new UiCanvas("binoc hidden");
     private string finderKey = "";
     /// <summary>the white flash as a photo is taken</summary>
-    private UiNode flashEl = new UiNode("div", "binoc photo-flash hidden");
+    private UiNode flashEl;
     private double flashAt = -1;
 
     /// <summary>The zoom and distance under the binoculars, on a small canvas of its own (see setBinoculars).</summary>
@@ -208,14 +205,14 @@ public class UIManager
     private bool mapTabs = false;
     private Action mapToggle = null;
     private Action mapRepaint = null;
-    private UiNode clock = new UiNode("div", "chip clock");
-    private UiNode prompt = new UiNode("div", "prompt");
-    private UiNode prompt2 = new UiNode("div", "prompt p2");
-    private UiNode prompt2Text = new UiNode("span", "txt");
-    private UiNode promptText = new UiNode("span", "txt");
-    private UiNode muteBtn = new UiNode("button", "chip mute", "🔊");
+    private UiNode clock;
+    private UiNode prompt;
+    private UiNode prompt2;
+    private UiNode prompt2Text;
+    private UiNode promptText;
+    private UiNode muteBtn;
     /// <summary>what the keys or the controller's buttons do in the menu that is open, along the bottom of the screen</summary>
-    private UiNode padbar = new UiNode("div", "padbar hidden");
+    private UiNode padbar;
     private string padbarKey = "";
     private string hintKey = null;
 
@@ -230,92 +227,80 @@ public class UIManager
         this.waveCanvas.Width = 240;
         this.waveCanvas.Height = 84;
         this.waveCtx = this.waveCanvas.getContext("2d");
+        // The prompts and the hint sit in the middle of a row as wide as the screen (Hud.uxml). They used to be centred
+        // with "left: 50%; translate: -50%", but UI Toolkit works that half-width out once and keeps it: when the words
+        // changed, the box grew to the right only, and a long hint ran under the tool in the corner.
+        var parts = Ux.LoadAll("Hud");
+        UiNode find(string n) => Ux.Find(parts, n);
+        this.flashEl = find("flash");
+        this.cross = find("cross");
+        this.drawbar = find("drawbar");
+        this.drawFill = find("drawFill");
+        this.prompt = find("prompt");
+        this.promptText = find("promptText");
+        this.prompt2 = find("prompt2");
+        this.prompt2Text = find("prompt2Text");
+        this.hud = find("hud");
+        this.coins = find("coins");
+        this.mugName = find("mugName");
+        this.warmText = find("warmText");
+        this.warmFill = find("warmFill");
+        this.clock = find("clock");
+        this.pack = find("pack");
+        this.eco = find("eco");
+        this.boneChip = find("boneChip");
+        this.bones = find("bones");
+        this.muteBtn = find("mute");
+        this.badge = find("badge");
+        this.badgeIcon = find("badgeIcon");
+        this.badgeName = find("badgeName");
+        this.padTools = find("padTools");
+        this.padSlots = new Dictionary<string, UiNode> { ["up"] = find("padUp"), ["right"] = find("padRight"), ["down"] = find("padDown"), ["left"] = find("padLeft") };
+        this.padCaption = find("padCaption");
+        this.padStack = find("padStack");
+        this.padNext = find("padNext");
+        this.scope = find("scope");
+        this.hint = find("hint");
+        this.toasts = find("toasts");
+        this.inspect = find("inspect");
+        this.inspectTitle = find("inspectTitle");
+        this.inspectHelp = find("inspectHelp");
+        this.progFill = find("progFill");
+        this.progText = find("progText");
+        this.instantBtn = find("instant");
+        this.result = find("result");
+        this.fadeEl = find("fade");
+        this.intro = find("intro");
+        this.padbar = find("padbar");
         this.buildHud();
         this.buildInspect();
+        Ux.Replace(find("minimapSlot"), this.miniCanvas);
+        Ux.Replace(find("waveSlot"), this.waveCanvas);
         // the key to press is a picture (a key cap, or the controller's button), in a holder that bobs gently
         this.kbdF = Glyphs.Make("F", false);
         this.kbdE = Glyphs.Make("E", false);
-        var holdF = new UiNode("span", "kbd");
-        holdF.Add(this.kbdF);
-        var holdE = new UiNode("span", "kbd");
-        holdE.Add(this.kbdE);
-        this.prompt.Add(holdF, this.promptText);
-        this.prompt2.Add(holdE, this.prompt2Text);
-        this.drawbar.Add(this.drawFill);
-        // The prompts and the hint sit in the middle of a row as wide as the screen. They used to be centred with
-        // "left: 50%; translate: -50%", but UI Toolkit works that half-width out once and keeps it: when the words changed,
-        // the box grew to the right only, and a long hint ran under the tool in the corner.
-        UiNode centred(string cls, UiNode what) => new UiNode("div", cls).Add(what);
-        // page elements and native ones, in the page's order
-        foreach (var part in new object[] { this.binoc, this.binocText, this.finder, this.flashEl, this.cross, this.drawbar, centred("prompt-row", this.prompt), centred("prompt-row p2", this.prompt2), this.hud, this.scope, centred("hint-row", this.hint), this.toasts, this.inspect, this.result, this.fadeEl, this.intro, this.padbar })
-        {
-            ((UiNode)part).MountIn(root.ve);
-        }
+        find("holdF").Add(this.kbdF);
+        find("holdE").Add(this.kbdE);
+        // the binocular and viewfinder canvases first, then the HUD's parts, in the page's order
+        foreach (var c in new UiNode[] { this.binoc, this.binocText, this.finder }) c.MountIn(root.ve);
+        foreach (var part in parts) part.MountIn(root.ve);
         state.subscribe(() => this.refresh());
         this.refresh();
     }
 
     private void buildHud()
     {
-        // top left: coins, and the warmth meter with the mug it comes from
-        var left = new UiNode("div", "stats");
-        var coinRow = new UiNode("div", "stat coins").Add(new UiNode("span", "ico", "🪙"));
-        coinRow.Add(this.coins);
-        var warmRow = new UiNode("div", "stat warm").Add(new UiNode("span", "ico", "☕"));
-        var warmCol = new UiNode("div", "warm-col");
-        var head = new UiNode("div", "warm-head");
-        head.Add(this.mugName, this.warmText);
-        var bar = new UiNode("div", "bar");
-        bar.Add(this.warmFill);
-        warmCol.Add(head, bar);
-        warmRow.Add(warmCol);
-        left.Add(coinRow, warmRow);
-
-        var right = new UiNode("div", "right-chips");
-        var packChip = new UiNode("div", "chip", "🎒 ");
-        packChip.Add(this.pack);
-        packChip.Tooltip = "Backpack";
-        var ecoChip = new UiNode("div", "chip", "🌿 ");
-        ecoChip.Add(this.eco);
-        ecoChip.Tooltip = "Beach Ecology Score";
-        this.muteBtn.Tooltip = "Mute (N)";
         this.muteBtn.OnClick = () =>
         {
             this.muteBtn.Text = this.hooks.onMute() ? "🔇" : "🔊";
         };
-        this.clock.Tooltip = "Time of day and the day count";
-        this.boneChip.Add(this.bones);
-        this.boneChip.Tooltip = "Dog bones";
-        right.Add(this.clock, packChip, ecoChip, this.boneChip, this.muteBtn);
-
-        this.badge.Add(this.badgeIcon, this.badgeName);
         this.miniCanvas.Width = this.miniCanvas.Height = MINI_PX;
-        var center = new UiNode("div", "pt-center");
-        this.padTools.Add(this.padSlots["up"], this.padSlots["left"], center, this.padSlots["right"], this.padSlots["down"], this.padCaption, this.padStack, this.padNext);
-        this.hud.Add(left, right, this.miniCanvas, new UiNode("div", "minimap-ring"), this.badge, this.padTools);
-
-        this.scope.Add(new UiNode("div", "scope-title", "DETECTOR SIGNAL"), this.waveCanvas);
     }
 
     private void buildInspect()
     {
-        var prog = new UiNode("div", "bar big");
-        prog.Add(this.progFill);
-        var row = new UiNode("div", "row between");
-        row.Add(new UiNode("span", "sub", "Cleanliness"), this.progText);
-        var back = new UiNode("button", "btn ghost", "Back");
-        back.OnClick = () => this.hooks.onInspectBack();
+        Ux.Find(new[] { this.inspect }, "inspectBack").OnClick = () => this.hooks.onInspectBack();
         this.instantBtn.OnClick = () => this.hooks.onInstantClean();
-        var btns = new UiNode("div", "row gap");
-        btns.Add(back, this.instantBtn);
-        this.inspectHelp = new UiNode("div", "inspect-help", "Drag with the left mouse to scrub · Right-drag or Q / E / arrows to rotate");
-        this.inspect.Add(
-            this.inspectTitle,
-            this.inspectHelp,
-            prog,
-            row,
-            btns
-        );
     }
 
     public void refresh()
@@ -483,12 +468,9 @@ public class UIManager
         if (this.pauseEl != null || hooks == null) return;
         // one column of buttons, so a controller, the keyboard and the mouse all walk it the same way; the controls that
         // used to be listed here are in Help
-        var p = new UiNode("div", "pause pausemenu");
-        var card = new UiNode("div", "intro-card pause-card");
-        var actions = new UiNode("div", "pause-actions");
-        var info = new UiNode("p", "save-info");
-        card.Add(new UiNode("h1", "", "Paused"), new UiNode("p", "tag", "Take your time. The beach will wait."), actions, info);
-        p.Add(card);
+        var p = Ux.Load("Pause");
+        var actions = p.Must("actions");
+        var info = p.Must("info");
 
         Action mainButtons = null;
         void confirmStep(string question, string yes, Action run)
@@ -538,14 +520,13 @@ public class UIManager
     public void showMainMenu(MenuHooks h)
     {
         this.hideMainMenu();
-        var m = new UiNode("div", "mainmenu");
-        var panel = new UiNode("div", "mm-panel");
-        panel.Add(new UiNode("div", "mm-kicker", "a quiet little adventure"), new UiNode("h1", "mm-title", "Tidefinder"), new UiNode("p", "mm-tag", "Misty mornings. Buried treasure. Nothing to rush."));
-        var list = new UiNode("div", "mm-buttons");
+        // the layout is UXML (Resources/UI/Screens/MainMenu.uxml, MenuButton.uxml); the entries depend on the saves
+        var m = Ux.Load("MainMenu");
+        var list = m.Must("list");
         UiNode mk(string label, Action fn, bool disabled = false)
         {
-            var b = new UiNode("button", "mm-btn");
-            b.Add(new UiNode("span", "mm-mark"), new UiNode("span", "mm-label", label));
+            var b = Ux.Load("MenuButton");
+            b.Must("label").Text = label;
             b.Disabled = disabled;
             b.OnClick = fn;
             list.Add(b);
@@ -561,8 +542,7 @@ public class UIManager
         mk("Achievements", h.onAchievements);
         mk("Credits", () => this.showCredits());
         mk("Exit Game", h.onExit);
-        panel.Add(list);
-        m.Add(new UiNode("div", "mm-scrim"), panel, new UiNode("div", "mm-foot", $"Version {__APP_VERSION__}"));
+        m.Must("foot").Text = $"Version {__APP_VERSION__}";
         this.menuEl = m;
         m.MountIn(this.root.ve);
     }
@@ -604,17 +584,16 @@ public class UIManager
     public void openSettings(GameSettings settings, Action<GameSettings> onChange, Action onClose = null)
     {
         this.closeSettings();
-        var wrap = new UiNode("div", "pause saves settings");
-        var card = new UiNode("div", "intro-card settings-card");
-        card.Add(new UiNode("h1", "", "Settings"));
-        var rows = new UiNode("div", "set-rows");
+        // the layout is UXML (Settings.uxml, SettingRow.uxml); each setting adds its control to its row here
+        var wrap = Ux.Load("Settings");
+        var rows = wrap.Must("rows");
         UiNode rowEl(string label, string hintText)
         {
-            var row = new UiNode("button", "set-row");
-            var name = new UiNode("span", "set-name");
-            name.Add(node("span", "set-label", label));
-            if (!string.IsNullOrEmpty(hintText)) name.Add(node("span", "set-hint", hintText));
-            row.Add(name);
+            var row = Ux.Load("SettingRow");
+            row.Must("label").Markup = label;
+            var hint = row.Must("hint");
+            if (!string.IsNullOrEmpty(hintText)) hint.Markup = hintText;
+            else hint.Remove();
             rows.Add(row);
             return row;
         }
@@ -763,14 +742,11 @@ public class UIManager
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);
-        var back = new UiNode("button", "btn", "Done");
-        back.OnClick = () =>
+        wrap.Must("done").OnClick = () =>
         {
             this.closeSettings();
             onClose?.Invoke();
         };
-        card.Add(rows, back);
-        wrap.Add(card);
         this.settingsEl = wrap;
         wrap.MountIn(this.root.ve);
     }
@@ -789,14 +765,13 @@ public class UIManager
     /// <summary>How to play: tabs of short topics, from what the game is about to the controls and saving.</summary>
     public void showHelp()
     {
-        var wrap = new UiNode("div", "pause helpscreen");
-        var card = new UiNode("div", "intro-card help-card");
-        card.Add(new UiNode("h1", "", "Help"));
-        var tabs = new UiNode("div", "help-tabs");
-        var body = new UiNode("div", "help-body");
+        // the layout is UXML (Help.uxml); the tabs and the topic are filled in here
+        var wrap = Ux.Load("Help");
+        var tabs = wrap.Must("tabs");
+        var body = wrap.Must("body");
         int cur = 0;
         Action<int> show = null;
-        var tabWrap = new UiNode("div", "tabs-wrap");
+        var tabWrap = wrap.Must("tabWrap");
         var buttons = HELP_TOPICS.Select((t, i) =>
         {
             var idx = i;
@@ -805,7 +780,9 @@ public class UIManager
             tabWrap.Add(b);
             return b;
         }).ToList();
-        tabs.Add(Glyphs.KeyNode("Q", "LB"), tabWrap, Glyphs.KeyNode("E", "RB"));
+        // the keys that turn the topics, either side of the tabs
+        tabWrap.Before(Glyphs.KeyNode("Q", "LB"));
+        tabs.Add(Glyphs.KeyNode("E", "RB"));
         show = (int i) =>
         {
             cur = i;
@@ -846,43 +823,34 @@ public class UIManager
             buttons[cur].Focus();
             return true;
         };
-        var back = new UiNode("button", "btn big", "Back");
-        back.OnClick = () =>
+        wrap.Must("back").OnClick = () =>
         {
             wrap.Remove();
             this.helpStepFn = null;
         };
-        card.Add(tabs, body, back);
-        wrap.Add(card);
         wrap.MountIn(this.root.ve);
     }
 
     /// <summary>Every achievement, with the ones already earned lit up.</summary>
     public void showAchievements(IList<AchievementItem> list)
     {
-        var wrap = new UiNode("div", "pause achievements");
-        var card = new UiNode("div", "intro-card ach-card");
+        // the layout is UXML (Achievements.uxml, AchievementRow.uxml)
+        var wrap = Ux.Load("Achievements");
         var done = list.Count(a => a.done);
-        var meter = new UiNode("div", "bar ach-progress");
-        var meterFill = new UiNode("div", "fill teal");
-        meterFill.ve.style.width = UnityEngine.UIElements.Length.Percent((float)(list.Count > 0 ? JS.Round(done * 100.0 / list.Count) : 0));
-        meter.Add(meterFill);
-        card.Add(new UiNode("h1", "", "Achievements"), new UiNode("p", "tag", $"{done} of {list.Count} earned"), meter);
-        var grid = new UiNode("div", "ach-list");
+        wrap.Must("fill").ve.style.width = UnityEngine.UIElements.Length.Percent((float)(list.Count > 0 ? JS.Round(done * 100.0 / list.Count) : 0));
+        wrap.Must("count").Text = $"{done} of {list.Count} earned";
+        var grid = wrap.Must("list");
         foreach (var a in list)
         {
-            var row = new UiNode("div", $"ach-row{(a.done ? " done" : "")}");
+            var row = Ux.Load("AchievementRow");
+            if (a.done) row.AddClass("done");
             var hidden = a.secret && !a.done;
-            row.Add(node("span", "ach-icon", hidden ? "❔" : a.icon));
-            var text = new UiNode("div", "ach-text");
-            text.Add(node("b", "", hidden ? "Secret" : a.name), node("span", "", hidden ? "Keep exploring to find out." : a.desc));
-            row.Add(text);
+            row.Must("icon").Markup = hidden ? "❔" : a.icon;
+            row.Must("name").Markup = hidden ? "Secret" : a.name;
+            row.Must("desc").Markup = hidden ? "Keep exploring to find out." : a.desc;
             grid.Add(row);
         }
-        var back = new UiNode("button", "btn big", "Back");
-        back.OnClick = () => wrap.Remove();
-        card.Add(grid, back);
-        wrap.Add(card);
+        wrap.Must("back").OnClick = () => wrap.Remove();
         wrap.MountIn(this.root.ve);
     }
 
@@ -891,36 +859,21 @@ public class UIManager
     /// <summary>The credits: who made the game. Opened from the main menu.</summary>
     public void showCredits()
     {
-        var wrap = new UiNode("div", "pause credits");
-        var card = new UiNode("div", "intro-card");
-        card.Add(
-            new UiNode("h1", "", "Credits"),
-            new UiNode("p", "tag", "Tidefinder"),
-            new UiNode("p", "credit", "Made by Armen Azizbekyan, a solo developer and the creator of this game."),
-            new UiNode("p", "credit", "Thank you for playing."),
-            new UiNode("p", "save-note", $"Version {__APP_VERSION__} · {__BUILD_YEAR__}")
-        );
-        var back = new UiNode("button", "btn big", "Back");
-        back.OnClick = () => wrap.Remove();
-        card.Add(back);
-        wrap.Add(card);
+        var wrap = Ux.Load("Credits");
+        wrap.Must("version").Text = $"Version {__APP_VERSION__} · {__BUILD_YEAR__}";
+        wrap.Must("back").OnClick = () => wrap.Remove();
         wrap.MountIn(this.root.ve);
     }
 
     /// <summary>What "Exit Game" shows: a web page cannot always close itself, so say goodbye nicely.</summary>
     public void showFarewell(Action onBack)
     {
-        var wrap = new UiNode("div", "pause farewell");
-        var card = new UiNode("div", "intro-card");
-        card.Add(new UiNode("h1", "", "See you on the beach"), new UiNode("p", "tag", "Thanks for playing. Your saved games are kept for next time."), new UiNode("p", "save-note", "You can close this tab now."));
-        var back = new UiNode("button", "btn big", "Back to the menu");
-        back.OnClick = () =>
+        var wrap = Ux.Load("Farewell");
+        wrap.Must("back").OnClick = () =>
         {
             wrap.Remove();
             onBack();
         };
-        card.Add(back);
-        wrap.Add(card);
         wrap.MountIn(this.root.ve);
     }
 
@@ -928,18 +881,13 @@ public class UIManager
     public void showBook(IList<BookPage> pages, Action onClose)
     {
         this.hideBook();
-        var wrap = new UiNode("div", "pause bookview");
-        var book = new UiNode("div", "book");
-        var spread = new UiNode("div", "book-spread");
-        var nav = new UiNode("div", "book-nav");
-        var prev = new UiNode("button", "btn ghost small", "‹ Previous");
-        var count = new UiNode("span", "book-count");
-        var next = new UiNode("button", "btn ghost small", "Next ›");
-        var close = new UiNode("button", "btn small", "Close");
-        close.OnClick = () => onClose();
-        nav.Add(prev, count, next, close);
-        book.Add(spread, nav);
-        wrap.Add(book);
+        // the layout is UXML (Book.uxml); the pages are filled in here
+        var wrap = Ux.Load("Book");
+        var spread = wrap.Must("spread");
+        var prev = wrap.Must("prev");
+        var count = wrap.Must("count");
+        var next = wrap.Must("next");
+        wrap.Must("close").OnClick = () => onClose();
         var per = Page.Width < 760 ? 1 : 2;
         int idxNew = -1;
         for (int k = 0; k < pages.Count; k++)
@@ -997,18 +945,15 @@ public class UIManager
     public void showMail(IList<MailLetter> letters, Action onClose)
     {
         this.hideBook();
-        var wrap = new UiNode("div", "pause bookview mailview");
-        var card = new UiNode("div", "mail");
-        var sheet = new UiNode("div", "mail-sheet");
-        var nav = new UiNode("div", "book-nav");
-        var prev = new UiNode("button", "btn ghost small", "‹ Newer");
-        var count = new UiNode("span", "book-count");
-        var next = new UiNode("button", "btn ghost small", "Older ›");
-        var close = new UiNode("button", "btn small", "Close");
-        close.OnClick = () => onClose();
-        nav.Add(prev, count, next, close);
-        card.Add(sheet, nav);
-        wrap.Add(card);
+        // the layout is UXML (Letters.uxml); the letter is filled in here
+        var wrap = Ux.Load("Letters");
+        var sheet = wrap.Must("sheet");
+        var prev = wrap.Must("prev");
+        prev.Text = "‹ Newer";
+        var count = wrap.Must("count");
+        var next = wrap.Must("next");
+        next.Text = "Older ›";
+        wrap.Must("close").OnClick = () => onClose();
         // newest letters first
         var list = letters.Reverse().ToList();
         int idxNew = list.FindIndex(l => l.isNew);
@@ -1061,26 +1006,15 @@ public class UIManager
     public void showEnding(IList<string[]> stats, Action onClose)
     {
         this.hideBook();
-        var wrap = new UiNode("div", "pause bookview teaser");
-        var card = new UiNode("div", "intro-card");
-        var facts = new UiNode("div", "ending-stats");
+        // the layout is UXML (Ending.uxml); the facts are filled in here
+        var wrap = Ux.Load("Ending");
+        var facts = wrap.Must("facts");
         foreach (var pair in stats)
         {
             string label = pair[0], value = pair[1];
             facts.Add(new UiNode("div", "ending-stat").Add(node("b", null, value), node("span", null, label)));
         }
-        card.Add(
-            node("h1", "", "The Marigold\u2019s Gold"),
-            node("p", "tag", "You found it"),
-            node("p", "credit", "Whatever lived down here died long before Captain Holt ever heard of this coast. The sea carried the Marigold\u2019s gold in on the tide and left it in the bones, and nobody has laid eyes on it since."),
-            node("p", "credit", "Tucked into the old bell is a note, in a newer hand: \u201cThe town made its peace with this long ago. If you are reading it, you were patient and you were kind, and my great-grandfather asked for no more than that. Keep it. Look after the place.\u201d"),
-            facts,
-            node("p", "tag", "The beach is still yours.")
-        );
-        var back = new UiNode("button", "btn big", "Keep playing");
-        back.OnClick = () => onClose();
-        card.Add(back);
-        wrap.Add(card);
+        wrap.Must("back").OnClick = () => onClose();
         this.bookEl = wrap;
         wrap.MountIn(this.root.ve);
     }
@@ -1094,18 +1028,15 @@ public class UIManager
     public void showStory(string title, IList<StoryPage> pages, Action onClose)
     {
         this.hideBook();
-        var wrap = new UiNode("div", "pause bookview mailview");
-        var card = new UiNode("div", "mail");
-        var sheet = new UiNode("div", "mail-sheet");
-        var nav = new UiNode("div", "book-nav");
-        var prev = new UiNode("button", "btn ghost small", "\u2039 Earlier");
-        var count = new UiNode("span", "book-count");
-        var next = new UiNode("button", "btn ghost small", "Later \u203a");
-        var close = new UiNode("button", "btn small", "Close");
-        close.OnClick = () => onClose();
-        nav.Add(prev, count, next, close);
-        card.Add(sheet, nav);
-        wrap.Add(card);
+        // the layout is UXML (Letters.uxml), as the post's; the page is filled in here
+        var wrap = Ux.Load("Letters");
+        var sheet = wrap.Must("sheet");
+        var prev = wrap.Must("prev");
+        prev.Text = "\u2039 Earlier";
+        var count = wrap.Must("count");
+        var next = wrap.Must("next");
+        next.Text = "Later \u203a";
+        wrap.Must("close").OnClick = () => onClose();
         int i = 0;
         void render()
         {
@@ -1153,9 +1084,7 @@ public class UIManager
             return;
         }
         if (this.sleepEl != null) return;
-        var v = new UiNode("div", "sleepveil");
-        for (int i = 0; i < 3; i++) v.Add(node("span", $"zz zz{i}", "z"));
-        v.Add(node("div", "sleepmsg", "Resting until morning..."));
+        var v = Ux.Load("Sleep");
         this.sleepEl = v;
         v.MountIn(this.root.ve);
     }
@@ -1171,10 +1100,10 @@ public class UIManager
     public void openSaves(string mode, SaveHooks hooks, Action onClose = null)
     {
         this.closeSaves();
-        var m = new UiNode("div", "pause saves");
-        var card = new UiNode("div", "intro-card save-card");
-        var title = new UiNode("h1", "", mode == "save" ? "Save game" : "Load game");
-        card.Add(title);
+        // the layout is UXML (Saves.uxml, SaveRow.uxml); the name box goes in above the list when saving
+        var m = Ux.Load("Saves");
+        m.Must("title").Text = mode == "save" ? "Save game" : "Load game";
+        var list = m.Must("list");
 
         Action renderList = null;
         UiText nameInput = null;
@@ -1187,7 +1116,7 @@ public class UIManager
             nameInput.Placeholder = "Name this save";
             var create = new UiNode("button", "btn", "Save as new");
             row.Add(nameInput, create);
-            card.Add(row);
+            list.Before(row);
             create.OnClick = () =>
             {
                 var nm = !string.IsNullOrEmpty(nameInput.Value) ? nameInput.Value : $"Save {hooks.list().Count + 1}";
@@ -1210,16 +1139,12 @@ public class UIManager
             };
         }
 
-        var list = new UiNode("div", "save-list");
-        var note = new UiNode("p", "save-note", mode == "save" ? "Make as many saves as you like. Pick one below to save over it." : "Loading replaces your current game. Unsaved progress is lost.");
-        var back = new UiNode("button", "btn ghost", "Back");
-        back.OnClick = () =>
+        m.Must("note").Text = mode == "save" ? "Make as many saves as you like. Pick one below to save over it." : "Loading replaces your current game. Unsaved progress is lost.";
+        m.Must("back").OnClick = () =>
         {
             this.closeSaves();
             onClose?.Invoke();
         };
-        card.Add(list, note, back);
-        m.Add(card);
 
         renderList = () =>
         {
@@ -1230,11 +1155,11 @@ public class UIManager
             {
                 var metaId = meta.id;
                 var metaName = meta.name;
-                var row = new UiNode("div", "save-row");
-                var left = new UiNode("div", "si");
-                left.Add(node("b", "", metaName), node("span", "", describe(meta)));
-                var right = new UiNode("div", "sb");
-                var main = new UiNode("button", "btn small", mode == "save" ? "Overwrite" : "Load");
+                var row = Ux.Load("SaveRow");
+                row.Must("name").Markup = metaName;
+                row.Must("desc").Markup = describe(meta);
+                var main = row.Must("main");
+                main.Text = mode == "save" ? "Overwrite" : "Load";
                 main.OnClick = () =>
                 {
                     if (mode == "save")
@@ -1245,7 +1170,7 @@ public class UIManager
                     }
                     else hooks.load(metaId);
                 };
-                var del = new UiNode("button", "btn small ghost", "🗑");
+                var del = row.Must("del");
                 var armed = false;
                 del.OnClick = () =>
                 {
@@ -1263,8 +1188,6 @@ public class UIManager
                     hooks.remove(metaId);
                     renderList();
                 };
-                right.Add(main, del);
-                row.Add(left, right);
                 list.Add(row);
             }
         };
@@ -1323,25 +1246,27 @@ public class UIManager
         }
         if (this.mapEl != null || draw == null) return;
         if (alts == null) alts = new List<MapAlt>();
-        var wrap = new UiNode("div", "pause bigmap");
-        var card = new UiNode("div", "intro-card map-card");
+        // the layout is UXML (Map.uxml); the tabs and the canvas are made here
+        var wrap = Ux.Load("Map");
         var names = new List<string> { "Island map" };
         names.AddRange(alts.Select(x => x.name));
         int mode = 0;
-        var title = node("h1", "", names[0]);
-        card.Add(title);
-        var tabs = new UiNode("div", "map-tabs");
+        var title = wrap.Must("title");
+        title.Markup = names[0];
+        var tabs = wrap.Must("tabs");
         var tabBtns = names.Select((n, i) => node("button", $"btn tab{(i == 0 ? " on" : "")}", n)).ToList();
         if (alts.Count > 0)
         {
             foreach (var tb in tabBtns) tabs.Add(tb);
-            card.Add(tabs);
+        }
+        else
+        {
+            tabs.Remove();
         }
         int size = (int)Math.Min(600, Math.Floor(Math.Min(Page.Width, Page.Height) * 0.72));
         var c = new UiCanvas("bigmap-canvas");
         c.Width = c.Height = size;
-        card.Add(c, node("p", "save-note", "You are the red arrow. Mark a place and a dashed line leads you there; mark the pin again to remove it."));
-        wrap.Add(card);
+        Ux.Replace(wrap.Must("canvasSlot"), c);
         var ctx2 = c.getContext("2d");
         void paint()
         {
@@ -1787,17 +1712,16 @@ public class UIManager
     {
         this.inspectTitle.Text = name;
         this.result.Clear();
-        var card = new UiNode("div", "card");
-        card.Add(
-            node("div", "cat", category),
-            node("h2", "", name),
-            node("p", "lore", lore),
-            node("div", "worth", valueText)
-        );
-        var b = new UiNode("button", "btn big");
-        b.Add(Glyphs.KeyNode("Space", "A"), node("span", "", button));
+        // the layout is UXML (ResultCard.uxml); the words are filled in here
+        var card = Ux.Load("ResultCard");
+        card.Must("cat").Markup = category;
+        card.Must("name").Markup = name;
+        card.Must("lore").Markup = lore;
+        card.Must("worth").Markup = valueText;
+        card.Must("label").Markup = button;
+        Ux.Replace(card.Must("keySlot"), Glyphs.KeyNode("Space", "A"));
+        var b = card.Must("go");
         b.OnClick = () => this.hooks.onContinue();
-        card.Add(b);
         this.result.Add(card);
         this.result.RemoveClass("hidden");
     }
@@ -1807,48 +1731,25 @@ public class UIManager
         return !this.result.Has("hidden");
     }
 
-    /// <summary>A paragraph as the page parsed one: its words with the whitespace of the source collapsed.</summary>
-    private static UiNode para(string cls, string words) => node("p", cls, words);
-
     public void showIntro(Action onStart, Action onLoad = null)
     {
         this.intro.RemoveClass("gone");
         if (this.intro.ve.panel == null) this.intro.MountIn(this.root.ve);
         this.intro.Clear();
-        var card = new UiNode("div", "intro-card");
-        card.Add(new UiNode("h1", null, "Tidefinder"), para("tag", "A misty golden morning. A quiet beach. Nothing to rush."));
-        var text = new UiNode("div", "intro-text");
-        text.Add(
-            para(null, "The tide has gone out, and the beach is full of things nobody came back for: coins, rings, a pocket watch, a child's toy boat."),
-            para(null, "You have a metal detector, a trowel and a small camp at the top of the dunes. Walk the shore, sweep the sand, dig where the detector sings, and clean what you find. Sell it, recycle it, or return it to the person who lost it."),
-            para(null, "The finds wash in to the treasure cove, the sand below the camp inside the old fishing nets. Beyond the nets there is only sand."),
-            para(null, "There is a golf cart at camp, a boat that wants a key, an island out in the water and a sea you can dive in. Nobody is in a hurry. Wander wherever you like."));
-        var first = new UiNode("ul", "intro-first");
-        UiNode item(UiNode icon, string words)
-        {
-            var li = new UiNode("li");
-            var t = new UiNode("#text", null, words);
-            t.ve.style.flexShrink = 1;
-            return li.Add(icon, t);
-        }
+        // the layout is UXML (Intro.uxml); the hint, the detector's drawing and the Load button are code
+        var card = Ux.Load("Intro");
         // the drawing was sized while its span was not yet on the page (16.36 px, as the page's parser sized it)
         var detector = new UiNode("span");
         detector.Svg(DETECTOR_ICON);
-        first.Add(
-            item(detector, "Sweep the sand with the detector and listen for the beep."),
-            item(new UiNode("span", null, "⛏️"), "Dig where it beeps fastest."),
-            item(new UiNode("span", null, "✨"), "Brush what you find until it shines."));
-        text.Add(first, para("intro-hint", $"{(pad.on ? "Press Start" : "Press Esc")} at any time for the pause menu. Help there explains every control."));
-        var buttons = new UiNode("div", "row gap");
-        var begin = new UiNode("button", "btn big", "Begin");
-        buttons.Add(begin);
-        UiNode load = null;
-        if (onLoad != null)
+        Ux.Replace(card.Must("detectorSlot"), detector);
+        card.Must("hint").Markup = $"{(pad.on ? "Press Start" : "Press Esc")} at any time for the pause menu. Help there explains every control.";
+        var begin = card.Must("begin");
+        var load = card.Must("load");
+        if (onLoad == null)
         {
-            load = new UiNode("button", "btn ghost big", "Load saved game");
-            buttons.Add(load);
+            load.Remove();
+            load = null;
         }
-        card.Add(text, buttons);
         this.intro.Add(card);
         void go()
         {
@@ -1894,10 +1795,12 @@ public class UIManager
         }
         if (this.cineCaption == null)
         {
-            this.cineCaption = new UiNode("div", "cine-caption");
-            this.cineText = new UiNode("div", "cine-caption-text");
-            this.cineCaption.Add(this.cineText);
-            this.cineSkip = node("div", "cine-skip", skipHint ?? "");
+            // the layout is UXML (Caption.uxml)
+            var parts = Ux.LoadAll("Caption");
+            this.cineCaption = Ux.Find(parts, "caption");
+            this.cineText = Ux.Find(parts, "text");
+            this.cineSkip = Ux.Find(parts, "skip");
+            this.cineSkip.Markup = skipHint ?? "";
             this.cineCaption.MountIn(this.root.ve);
             this.cineSkip.MountIn(this.root.ve);
         }

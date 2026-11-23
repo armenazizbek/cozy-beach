@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- What "Exit Game" shows (UIManager.showFarewell). -->
+    <El class="pause farewell">
+        <El class="intro-card">
+            <El tag="h1" text="See you on the beach" />
+            <El tag="p" class="tag" text="Thanks for playing. Your saved games are kept for next time." />
+            <El tag="p" class="save-note" text="You can close this tab now." />
+            <El tag="button" name="back" class="btn big" text="Back to the menu" />
+        </El>
+    </El>
+</ui:UXML>
