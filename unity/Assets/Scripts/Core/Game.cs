@@ -6006,7 +6006,10 @@ public class Game
 
     private void updateDog(double dt, double t)
     {
-        if (rain.amount > 0.35) dogRain = true;
+        // the opening's storm is staged weather (its own cut to the island): the dog stays by the fire through it, or a new
+        // game began with the dog trotting off to the old house and back
+        if (opening != null) dogRain = false;
+        else if (rain.amount > 0.35) dogRain = true;
         else if (rain.amount < 0.08) dogRain = false;
         dog.raining = dogRain;
         dogEnv.playerX = player.x;

@@ -483,3 +483,18 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   loading screens (review-only) and the known 0.03% camp-tab outline flicker in shop/28-shop-upgrades-1.
 - Not done here: the IL2CPP perf measurement the plan lists for U10, and the 15-minute play with controller, keyboard and
   mouse at the phase boundary.
+
+## Fixes from play: magenta flash on reload; the dog at a new game
+
+- **Magenta for about a second on Main Menu / New Game / Load Game.** `GameRenderer.Teardown` destroyed every cached
+  material and texture at once, but Unity swaps the scene only on the next frame: the old world was drawn once more
+  without its materials (91.6% of the screen magenta), and that frame stayed up while the new world was built.
+  MaterialCache and TextureCache now only forget them at teardown; the new scene's host destroys them
+  (`DestroyRetired`) once the old scene is gone. Test: the photo run checks the frame drawn right after a reload
+  (`reload frame: N magenta pixels`), now 0.
+- **The dog went to the old house and back when a new game began.** The opening's storm is staged weather
+  (`rain.amount` 1), and the dog read it as rain and went to shelter, then walked back when the opening ended. The dog
+  now ignores rain while the opening plays. Test: the opening run logs the dog's state in the storm and after the card
+  (`dog rest`).
+- Check against `refB` (photo, opening, newgame, dograin, saves): every scene dump pairs exactly; logs differ only by the
+  two new check lines.

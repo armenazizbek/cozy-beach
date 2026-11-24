@@ -457,6 +457,12 @@ public class AutoShot : MonoBehaviour
                 // in the storm the line above calls lightning, so the picture is taken in the first flash of it
                 if (name.StartsWith("storm") || name.StartsWith("reef")) yield return Wait(0.04f);
                 yield return Shot($"24-opening-{name}.png");
+                // the opening's storm is staged: the dog must not go off to the old house in it (and walk back after)
+                if (name == "storm-2" || name == "card")
+                {
+                    string dog = game.smokeTestDogRain("status");
+                    Debug.Log($"[AutoShot] opening {name} dog: {dog} " + (dog.Contains("dog rest ") ? "ok" : "FAILED"));
+                }
             }
             game.smokeTestClose("intro");
             game.ui.skipIntro();
@@ -1454,6 +1460,7 @@ public class AutoShot : MonoBehaviour
             SaveGame.requestLoad("phototest");
             var before = game;
             GameHost.Reload();
+            yield return ReloadFrameCheck();
             t0 = Time.realtimeSinceStartup;
             while ((GameHost.Instance == null || GameHost.Instance.game == null || GameHost.Instance.game == before || !GameHost.Instance.game.loaded)
                    && Time.realtimeSinceStartup - t0 < 180)
@@ -1690,6 +1697,22 @@ public class AutoShot : MonoBehaviour
                   // Unity records the garbage a frame makes only in development players: in a release build the collection count is the signal
                   $"garbage {(gcValid ? $"{gcSum / fr / 1024:0.0} KB/frame" : "not recorded in this build")}, {GC.CollectionCount(0) - gc0} collections; vsync {QualitySettings.vSyncCount}, target fps {Application.targetFrameRate}");
         gcRec.Dispose();
+    }
+
+    /// <summary>
+    /// The frame drawn right after a reload is asked for stays on screen while the new world is built (about a second):
+    /// the old world must still look itself in it, not magenta (materials destroyed before the old scene went).
+    /// </summary>
+    private IEnumerator ReloadFrameCheck()
+    {
+        yield return new WaitForEndOfFrame();
+        var tex = ScreenCapture.CaptureScreenshotAsTexture();
+        var px = tex.GetPixels32();
+        int pink = 0;
+        foreach (var c in px) if (c.r > 200 && c.g < 60 && c.b > 200) pink++;
+        Destroy(tex);
+        double share = px.Length > 0 ? 100.0 * pink / px.Length : 0;
+        Debug.Log($"[AutoShot] reload frame: {pink} magenta pixels ({share:0.00}%) " + (share < 0.5 ? "ok" : "FAILED"));
     }
 
     private IEnumerator Shot(string name)

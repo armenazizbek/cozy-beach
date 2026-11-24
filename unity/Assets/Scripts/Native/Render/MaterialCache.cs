@@ -43,12 +43,25 @@ namespace NativeRender
 
         private static readonly Dictionary<(THREE.Material, Kind), Entry> cache = new Dictionary<(THREE.Material, Kind), Entry>();
 
-        /// <summary>Destroys every Unity material made so far (see GameRenderer.Teardown); shaders stay loaded.</summary>
+        /// <summary>
+        /// Forgets every Unity material made so far (see GameRenderer.Teardown); shaders stay loaded. The materials are only
+        /// destroyed by <see cref="DestroyRetired"/> once the old scene has gone: the old world is drawn once more after a
+        /// reload is asked for, and that frame stays on screen while the new world is built, all magenta without them.
+        /// </summary>
         public static void Clear()
         {
-            foreach (var e in cache.Values) if (e.mat != null) UnityEngine.Object.Destroy(e.mat);
+            foreach (var e in cache.Values) if (e.mat != null) retired.Add(e.mat);
             gen++;
             cache.Clear();
+        }
+
+        private static readonly List<UnityEngine.Material> retired = new List<UnityEngine.Material>();
+
+        /// <summary>Destroys the materials a reload forgot (the host calls it when the new scene starts).</summary>
+        public static void DestroyRetired()
+        {
+            foreach (var m in retired) if (m != null) UnityEngine.Object.Destroy(m);
+            retired.Clear();
         }
         private static readonly Dictionary<string, Shader> shaders = new Dictionary<string, Shader>();
         private static int frame;

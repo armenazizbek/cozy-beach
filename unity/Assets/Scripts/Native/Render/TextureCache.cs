@@ -34,11 +34,23 @@ namespace NativeRender
 
         private static readonly Dictionary<THREE.Texture, Entry> cache = new Dictionary<THREE.Texture, Entry>();
 
-        /// <summary>Destroys every texture uploaded so far (see GameRenderer.Teardown). Render targets belong to their owners.</summary>
+        /// <summary>
+        /// Forgets every texture uploaded so far (see GameRenderer.Teardown). Render targets belong to their owners. As with
+        /// the materials, they are only destroyed by <see cref="DestroyRetired"/> once the old scene has gone.
+        /// </summary>
         public static void Clear()
         {
-            foreach (var e in cache.Values) if (e.tex != null && !(e.tex is RenderTexture)) Object.Destroy(e.tex);
+            foreach (var e in cache.Values) if (e.tex != null && !(e.tex is RenderTexture)) retired.Add(e.tex);
             cache.Clear();
+        }
+
+        private static readonly List<UnityEngine.Texture> retired = new List<UnityEngine.Texture>();
+
+        /// <summary>Destroys the textures a reload forgot (the host calls it when the new scene starts).</summary>
+        public static void DestroyRetired()
+        {
+            foreach (var t in retired) if (t != null) Object.Destroy(t);
+            retired.Clear();
         }
 
         public static void Release(THREE.Texture t)

@@ -41,6 +41,9 @@ public class GameHost : MonoBehaviour
     {
         Instance = this;
         AutoShot.Trace("host start");
+        // the old scene is gone now: what the last reload forgot can be destroyed (GameRenderer.Teardown)
+        NativeRender.MaterialCache.DestroyRetired();
+        NativeRender.TextureCache.DestroyRetired();
         THREE.Scene.ResetLayers();
         // Steam first: Deck detection and achievements already earned need it before the game is built
         SteamService.Init();
