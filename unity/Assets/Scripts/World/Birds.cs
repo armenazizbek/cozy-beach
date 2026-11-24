@@ -209,7 +209,7 @@ public class Birds
     }
 
     /// <summary>Hit spheres of every gull that is currently around.</summary>
-    public List<THREE.Object3D> targets() => gulls.Where(g => g.mode != "away" && g.root.visible).Select(g => (THREE.Object3D)g.hit).ToList();
+    public List<Target> targets() => gulls.Where(g => g.mode != "away" && g.root.visible).Select(g => Target.Of(TargetKind.Gull, g.hit)).ToList();
 
     /// <summary>Whether the gull this hit sphere belongs to is on the sand (and not in the air).</summary>
     public bool standing(THREE.Object3D hit) => hit.userData.Get<Gull>("gull")?.mode == "ground";

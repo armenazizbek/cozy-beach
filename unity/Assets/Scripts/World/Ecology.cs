@@ -200,7 +200,7 @@ public class Ecology
     }
 
     /// <summary>Invisible hit spheres of the crabs that are still alive.</summary>
-    public List<THREE.Object3D> crabTargets() => crabs.Where(c => c.alive && c.mesh.visible).Select(c => (THREE.Object3D)c.hit).ToList();
+    public List<Target> crabTargets() => crabs.Where(c => c.alive && c.mesh.visible).Select(c => Target.Of(TargetKind.Crab, c.hit)).ToList();
 
     /// <summary>Removes a crab for a while; returns where it was.</summary>
     public THREE.Vector3 shoot(THREE.Object3D obj)

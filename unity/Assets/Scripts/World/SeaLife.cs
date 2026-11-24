@@ -493,13 +493,13 @@ public class SeaLife
     }
 
     /// <summary>Hit spheres of the sharks and fish that are currently in the water.</summary>
-    public List<THREE.Object3D> targets()
+    public List<Target> targets()
     {
-        var o = sharks.Where(s => s.alive).Select(s => (THREE.Object3D)s.hit).ToList();
+        var o = sharks.Where(s => s.alive).Select(s => Target.Of(TargetKind.SeaLife, s.hit)).ToList();
         foreach (var sc in schools)
         {
             if (!sc.root.visible) continue;
-            foreach (var f in sc.fish) if (f.alive) o.Add(f.hit);
+            foreach (var f in sc.fish) if (f.alive) o.Add(Target.Of(TargetKind.SeaLife, f.hit));
         }
         return o;
     }

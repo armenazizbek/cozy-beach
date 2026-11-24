@@ -212,3 +212,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   GameObjects.
 - Testing from here (the owner's choice): a quick check per change (the one or two suites it touches), one full pass at
   the end.
+
+## B1 hub, step 1: the bow and the pistol aim at Targets (2026-11-24)
+
+- `Core/Target.cs`: a thing a shot can hit is a `Target` (where it is, its hit radius, its kind, the module's own handle).
+  `Arrows`, `Bullets` and `Game.onBulletHit` only see Targets and dispatch by kind (castle, sea life, coconut, gull,
+  crab) instead of reading flags off Three objects. The five modules still make their Targets from their hit meshes
+  (`Target.Of`, made once per mesh, the same radius and position as before), so each can now drop its descriptions
+  without the shooting code changing.
+- Quick check against `refB` (birds, smash, fish, sealife, gear): logs and dumps identical, no FAIL.

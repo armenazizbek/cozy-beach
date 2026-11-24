@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 public class ArrowHooks
 {
-    public Action<THREE.Object3D, THREE.Vector3> onHit;
+    public Action<Target, THREE.Vector3> onHit;
     public Action onStick;
 }
 
@@ -86,7 +86,7 @@ public class Arrows
         return b.copy(pa).addScaledVector(c, t).distanceTo(p);
     }
 
-    public void update(double dt, List<THREE.Object3D> targets, Beach beach, List<Scenery.Trunk> trunks, ArrowHooks hooks)
+    public void update(double dt, List<Target> targets, Beach beach, List<Scenery.Trunk> trunks, ArrowHooks hooks)
     {
         for (int i = arrows.Count - 1; i >= 0; i--)
         {
@@ -109,8 +109,8 @@ public class Arrows
             var world = new THREE.Vector3();
             foreach (var t in targets)
             {
-                t.getWorldPosition(world);
-                if (segDist(prev, ar.mesh.position, world) < t.userData.Num("hitRadius", 0.42))
+                t.Where(world);
+                if (segDist(prev, ar.mesh.position, world) < t.radius)
                 {
                     hooks.onHit(t, ar.mesh.position.clone());
                     remove(i);

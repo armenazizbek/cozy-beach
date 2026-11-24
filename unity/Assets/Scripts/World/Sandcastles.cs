@@ -136,7 +136,7 @@ public class Sandcastles
     public int count => castles.Count(c => !c.smashed);
 
     /// <summary>What bullets and arrows can hit.</summary>
-    public List<THREE.Object3D> targets() => castles.Where(c => !c.smashed).Select(c => c.target).ToList();
+    public List<Target> targets() => castles.Where(c => !c.smashed).Select(c => Target.Of(TargetKind.Castle, c.target)).ToList();
 
     public Castle castleOf(THREE.Object3D obj) => castles.FirstOrDefault(c => c.target == obj);
 

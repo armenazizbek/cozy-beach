@@ -474,10 +474,10 @@ public class Scenery
     }
 
     /// <summary>Coconuts still hanging on the trees.</summary>
-    public List<THREE.Object3D> targets()
+    public List<Target> targets()
     {
         // coconuts on palms that are drawn without them (far away) cannot be hit either
-        return nutTargets.Where(n => n.parent == null || n.parent.visible).ToList();
+        return nutTargets.Where(n => n.parent == null || n.parent.visible).Select(n => Target.Of(TargetKind.Coconut, n)).ToList();
     }
 
     /// <summary>A coconut was shot: it drops from the crown. Returns where it was, or null if it is not one of ours.</summary>

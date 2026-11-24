@@ -39,7 +39,7 @@ public class Game
     private const double COCONUT_REWARD = 0.5;
     /// <summary>Above this the extra sharpness is barely visible, and the cost keeps climbing.</summary>
     private const double MAX_PIXEL_RATIO = 1.5;
-    private static readonly List<THREE.Object3D> NO_TARGETS = new List<THREE.Object3D>();
+    private static readonly List<Target> NO_TARGETS = new List<Target>();
 
     /// <summary>the chance that a bone sends the dog after a Lost & Found item instead of a coin or trash</summary>
     private const double DOG_LOST_CHANCE = 0.06;
@@ -916,7 +916,7 @@ public class Game
     /// </summary>
     internal string smokeTestShootBird(bool flying)
     {
-        var hit = birds.targets().FirstOrDefault(o => birds.standing(o) != flying);
+        var hit = birds.targets().Select(t => (THREE.Object3D)t.owner).FirstOrDefault(o => birds.standing(o) != flying);
         if (hit == null) return $"no {(flying ? "flying" : "standing")} gull around";
         var at = hit.getWorldPosition(new THREE.Vector3());
         var from = at.clone().add(new THREE.Vector3(0.5, flying ? -2.5 : 1.5, -4));
@@ -2513,14 +2513,16 @@ public class Game
         }
     }
 
-    private void onBulletHit(THREE.Object3D obj, THREE.Vector3 impact = null, double power = 0.14)
+    private void onBulletHit(Target target, THREE.Vector3 impact = null, double power = 0.14)
     {
-        if (castles.castleOf(obj) != null)
+        // the target's kind says whose it is (Core/Target.cs); the module gets its own handle back
+        var obj = (THREE.Object3D)target.owner;
+        if (target.kind == TargetKind.Castle)
         {
-            hitCastle(obj, impact, power);
+            if (castles.castleOf(obj) != null) hitCastle(obj, impact, power);
             return;
         }
-        if (obj.userData.Flag("shark") || obj.userData.Flag("fish"))
+        if (target.kind == TargetKind.SeaLife)
         {
             var res = sea.hit(obj);
             if (res == null) return;
@@ -2543,7 +2545,7 @@ public class Game
             }
             return;
         }
-        if (obj.userData.Flag("coconut"))
+        if (target.kind == TargetKind.Coconut)
         {
             var atNut = scenery.shootNut(obj);
             if (atNut != null)
@@ -2558,7 +2560,7 @@ public class Game
         }
         // a gull's hit sphere carries the gull itself (Birds.blank); the port looked for a "bird" mark that nothing sets, so no
         // shot at a gull ever counted
-        if (obj.userData.Flag("gull"))
+        if (target.kind == TargetKind.Gull)
         {
             var atBird = birds.shoot(obj);
             if (atBird != null)

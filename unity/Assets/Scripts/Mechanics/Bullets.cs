@@ -6,7 +6,7 @@ using System.Collections.Generic;
 public class BulletHooks
 {
     /// <summary>a target was struck; the bullet vanishes</summary>
-    public Action<THREE.Object3D, THREE.Vector3> onHit;
+    public Action<Target, THREE.Vector3> onHit;
     public Action<THREE.Vector3> onGround;
 }
 
@@ -55,7 +55,7 @@ public class Bullets
         return b.copy(pa).addScaledVector(c, t).distanceTo(p);
     }
 
-    public void update(double dt, List<THREE.Object3D> targets, Beach beach, BulletHooks hooks)
+    public void update(double dt, List<Target> targets, Beach beach, BulletHooks hooks)
     {
         var target = new THREE.Vector3();
         for (int i = bullets.Count - 1; i >= 0; i--)
@@ -78,8 +78,8 @@ public class Bullets
             bool done = bl.life <= 0;
             foreach (var hit in targets)
             {
-                hit.getWorldPosition(target);
-                if (segDist(prev, bl.mesh.position, target) < hit.userData.Num("hitRadius", 0.42))
+                hit.Where(target);
+                if (segDist(prev, bl.mesh.position, target) < hit.radius)
                 {
                     hooks.onHit(hit, bl.mesh.position.clone());
                     done = true;
