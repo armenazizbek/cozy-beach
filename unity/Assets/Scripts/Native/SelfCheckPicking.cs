@@ -45,14 +45,7 @@ internal static class SelfCheckPicking
         var g = G;
         if (g == null) return "no game";
         var targets = g.RangeTargets();
-        var rays = new List<(THREE.Vector3 o, THREE.Vector3 d)>();
-        for (int i = 0; i < 400; i++)
-        {
-            var from = new THREE.Vector3(R(70), 1.5 + rnd.NextDouble() * 12, R(90));
-            var d = new THREE.Vector3(R(1), -0.05 - rnd.NextDouble() * 0.3, R(1)).normalize();
-            rays.Add((from, d));
-        }
-        return Compare(rays, targets, 0.5);
+        return Compare(Aimed(targets, 400), targets, 0.5);
     }
 
     /// <summary>
@@ -66,15 +59,17 @@ internal static class SelfCheckPicking
         if (g == null) return "no game";
         var targets = g.RangeTargets();
         // the modules that still keep descriptions: gulls and crabs are posed from numbers now (no description to compare with)
-        var roots = g.RangeRoots().Where(r => r != g.birds.Root && r != g.ecology.Root && r != g.treasure.Root && r != g.boat.Root).ToArray();
+        var roots = g.RangeRoots().Where(r => r != g.birds.Root && r != g.ecology.Root && r != g.treasure.Root && r != g.boat.Root && r != g.scenery.Root).ToArray();
         int hits = 0, bad = 0, n = 400;
         string first = null;
-        for (int i = 0; i < n; i++)
+        // aimed at the drawn parts of the modules that still keep descriptions (the camp, the cart, the sea creatures):
+        // random rays over the beach seldom meet them now that the palms and the boat pose themselves
+        foreach (var (o, d) in Aimed(targets, n))
         {
-            var o = new THREE.Vector3(R(70), 1.5 + rnd.NextDouble() * 12, R(90));
-            var d = new THREE.Vector3(R(1), -0.05 - rnd.NextDouble() * 0.3, R(1)).normalize();
             var rc = new THREE.Raycaster(o, d);
-            var before = Picking.Intersect(rc, targets).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
+            // drawn things only: the old check also hit the invisible hit spheres round the sharks and fish (made for the aim),
+            // which the drawn check does not see; the range now reads the creature itself
+            var before = Picking.Intersect(rc, targets).FirstOrDefault(h => h.@object.visible && h.distance > 0.5 && Drawn(h.@object));
             var now = Picking.NearestDrawn(GameSpace.V(o.x, o.y, o.z), GameSpace.V(d.x, d.y, d.z), roots, 0.5);
             double? a = before?.distance;
             if (a != null) hits++;
@@ -85,6 +80,40 @@ internal static class SelfCheckPicking
         }
         UnityEngine.Debug.Log($"[SelfCheck] drawn range: {n} rays, {hits} hits, {bad} different" + (first != null ? $", first: {first}" : ""));
         return bad <= n / 100 ? (hits < n / 10 ? $"only {hits} of {n} rays hit anything" : null) : $"{bad} of {n} rays differ, first: {first}";
+    }
+
+    /// <summary>
+    /// `n` rays at the drawn meshes under these trees: each from a few metres off, at a point near a mesh's middle, so most
+    /// of them hit something whichever modules are left.
+    /// </summary>
+    /// <summary>
+    /// Whether it is drawn: a visible material, and it and every group above it shown. The old range check only asked the mesh
+    /// itself, so it measured to parts inside hidden groups too (the drawn check, rightly, does not).
+    /// </summary>
+    private static bool Drawn(THREE.Object3D o)
+    {
+        if (o is THREE.Mesh m && m.material != null && !m.material.visible) return false;
+        for (var q = o; q != null; q = q.parent) if (!q.visible) return false;
+        return true;
+    }
+
+    private static List<(THREE.Vector3 o, THREE.Vector3 d)> Aimed(List<THREE.Object3D> targets, int n)
+    {
+        var meshes = new List<THREE.Mesh>();
+        foreach (var t in targets) t.traverseVisible(o => { if (o is THREE.Mesh m && !(m is THREE.InstancedMesh) && Drawn(m)) meshes.Add(m); });
+        var rays = new List<(THREE.Vector3 o, THREE.Vector3 d)>();
+        if (meshes.Count == 0) return rays;
+        for (int i = 0; i < n; i++)
+        {
+            var m = meshes[rnd.Next(meshes.Count)];
+            m.updateWorldMatrix(true, false);
+            var at = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld);
+            var to = new THREE.Vector3(at.x + R(0.3), at.y + R(0.3), at.z + R(0.3));
+            double ang = rnd.NextDouble() * Math.PI * 2, dist = 3 + rnd.NextDouble() * 10;
+            var from = new THREE.Vector3(to.x + Math.Cos(ang) * dist, to.y + 0.5 + rnd.NextDouble() * 2, to.z + Math.Sin(ang) * dist);
+            rays.Add((from, new THREE.Vector3().subVectors(to, from).normalize()));
+        }
+        return rays;
     }
 
     private static string Compare(List<(THREE.Vector3 o, THREE.Vector3 d)> rays, List<THREE.Object3D> targets, double near)

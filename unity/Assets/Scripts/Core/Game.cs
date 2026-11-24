@@ -2549,7 +2549,7 @@ public class Game
         }
         if (target.kind == TargetKind.Coconut)
         {
-            var atNut = scenery.shootNut(obj);
+            var atNut = scenery.shootNut(target.owner);
             if (atNut != null)
             {
                 dig.particles.burst(atNut, 18, 1.6, 1.4, 0.7, new THREE.Color(0xc9b28a));
@@ -6512,7 +6512,7 @@ public class Game
     /// <summary>The GameObjects the binoculars' range can land on: the same modules as <see cref="RangeTargets"/>.</summary>
     internal UnityEngine.Transform[] RangeRoots() => new[] { camp.Root, scenery.Root, boat.Root, cart.Root, sea.Root, birds.Root, ecology.Root, treasure.Root };
 
-    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, cart.group, sea.group };
+    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, cart.group, sea.group };
 
     private void updateRange()
     {

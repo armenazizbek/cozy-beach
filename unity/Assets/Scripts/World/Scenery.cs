@@ -9,7 +9,14 @@ public class Scenery
 {
     private class Nut
     {
+        /// <summary>the coconut as built (a description), realised once; from then on its GameObject is moved directly</summary>
         public THREE.Mesh mesh;
+        public UnityEngine.Transform t, onTreeParent;
+        /// <summary>where it is while off the tree (in the scenery's space, which is the world's), how big, whether drawn</summary>
+        public THREE.Vector3 pos = new THREE.Vector3();
+        public double size = 1;
+        public bool shown = true;
+        public Target target;
         public THREE.Group crown;
         public THREE.Vector3 home;
         /// <summary>on the tree and shootable</summary>
@@ -37,6 +44,8 @@ public class Scenery
         public THREE.Mesh crownA;
         /// <summary>the other half, which shrink away far off</summary>
         public THREE.Mesh crownB;
+        /// <summary>the coconut group's and the far-off fronds' GameObjects (unity/UI_PLAN.md B1)</summary>
+        public UnityEngine.Transform nutsT, crownBT;
         /// <summary>0 = every part, 1 = no rings or coconuts, 2 = and half the fronds</summary>
         public int lod;
         /// <summary>0..1 how much of the small detail is showing</summary>
@@ -120,23 +129,51 @@ public class Scenery
     private THREE.MeshStandardMaterial frondMatRef;
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S14: realized once under World.Land. Only what changes is followed: the coconuts (which
-    /// fall, roll, shrink away and grow back on their palm), each palm's coconut group and far-off half of its fronds; the
-    /// mountains' haze colours and the fronds' sway clock are pushed as they change. The descriptions stay up to date for the
-    /// aim and the binoculars' raycasts.
+    /// Realised once under World.Land. What changes is moved on the GameObjects directly (unity/UI_PLAN.md B1): the coconuts
+    /// (which fall, roll, shrink away and grow back on their palm), each palm's coconut group and far-off half of its fronds;
+    /// the mountains' haze colours and the fronds' sway clock are pushed as they change. A coconut's Target reads where its
+    /// GameObject is, so the aim needs no description.
     /// </summary>
-    private Realized live;
+    private UnityEngine.Transform root;
+    private bool placed;
 
     /// <summary>The scenery's GameObjects under the world root, once placed.</summary>
-    public UnityEngine.Transform Root => live?.root;
+    public UnityEngine.Transform Root => root;
 
     /// <summary>Puts the scenery into the world as native objects.</summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Land, World.Layer);
-        foreach (var n in nuts) live.Follow(n.mesh);
-        foreach (var p in palms) live.Follow(p.nuts, p.crownB);
-        NativeFrame.BeforeDraw += live.Apply;
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        root = live.root;
+        foreach (var n in nuts)
+        {
+            n.t = live[n.mesh];
+            n.onTreeParent = n.t.parent;
+            var nut = n;
+            n.target = new Target(TargetKind.Coconut, nut, 0.5, v =>
+            {
+                var w = GameSpace.WorldPos(nut.t);
+                v.set(w.x, w.y, w.z);
+            });
+        }
+        foreach (var p in palms)
+        {
+            if (p.nuts == null) continue;
+            p.nutsT = live[p.nuts];
+            p.crownBT = live[p.crownB];
+        }
+        placed = true;
+    }
+
+    /// <summary>Sets a coconut's GameObject from its numbers: on its palm at home, or loose in the world. Hidden, it is left as it was.</summary>
+    private static void PoseNut(Nut n)
+    {
+        if (n.t == null) return;
+        if (n.t.gameObject.activeSelf != n.shown) n.t.gameObject.SetActive(n.shown);
+        if (!n.shown) return;
+        var at = n.onTree ? n.home : n.pos;
+        n.t.localPosition = GameSpace.V(at.x, at.y, at.z);
+        n.t.localScale = UnityEngine.Vector3.one * (float)n.size;
     }
 
     public Scenery()
@@ -480,25 +517,25 @@ public class Scenery
     public List<Target> targets()
     {
         // coconuts on palms that are drawn without them (far away) cannot be hit either
-        return nutTargets.Where(n => n.parent == null || n.parent.visible).Select(n => Target.Of(TargetKind.Coconut, n)).ToList();
+        return nuts.Where(n => n.onTree && n.target != null && (n.onTreeParent == null || n.onTreeParent.gameObject.activeSelf)).Select(n => n.target).ToList();
     }
 
     /// <summary>A coconut was shot: it drops from the crown. Returns where it was, or null if it is not one of ours.</summary>
-    public THREE.Vector3 shootNut(THREE.Object3D obj)
+    public THREE.Vector3 shootNut(object who)
     {
-        var n = nuts.FirstOrDefault(x => x.mesh == obj && x.onTree);
-        if (n == null) return null;
-        var at = n.mesh.getWorldPosition(new THREE.Vector3());
-        n.mesh.parent?.remove(n.mesh);
-        n.mesh.position.copy(at);
-        group.add(n.mesh);
+        var n = who as Nut;
+        if (n == null || !n.onTree || !nuts.Contains(n)) return null;
+        var w = GameSpace.WorldPos(n.t);
+        var at = new THREE.Vector3(w.x, w.y, w.z);
+        // it leaves its palm for the scenery's own group (the world's space), where it falls
+        n.t.SetParent(root, false);
+        n.pos.copy(at);
         n.onTree = false;
         n.falling = true;
         n.lie = 7;
         n.regrow = 120;
         n.vel.set((JS.Random() - 0.5) * 1.2, 1.2, (JS.Random() - 0.5) * 1.2);
-        n.mesh.userData["coconut"] = false;
-        nutTargets.Remove(obj);
+        PoseNut(n);
         return at;
     }
 
@@ -513,19 +550,19 @@ public class Scenery
                 {
                     n.growT = Math.Min(1, n.growT + dt / 2);
                     double e = n.growT * n.growT * (3 - 2 * n.growT);
-                    n.mesh.scale.setScalar(Math.Max(0.01, e));
-                    n.mesh.touch();
+                    n.size = Math.Max(0.01, e);
+                    PoseNut(n);
                 }
                 continue;
             }
             if (n.falling)
             {
                 n.vel.y -= 9.8 * dt;
-                n.mesh.position.addScaledVector(n.vel, dt);
-                double ground = baseHeight(n.mesh.position.x, n.mesh.position.z) + 0.17;
-                if (n.mesh.position.y <= ground)
+                n.pos.addScaledVector(n.vel, dt);
+                double ground = baseHeight(n.pos.x, n.pos.z) + 0.17;
+                if (n.pos.y <= ground)
                 {
-                    n.mesh.position.y = ground;
+                    n.pos.y = ground;
                     if (n.vel.y < -2)
                     {
                         n.vel.y *= -0.3;
@@ -535,31 +572,29 @@ public class Scenery
                     else n.falling = false;
                 }
             }
-            else if (n.mesh.visible)
+            else if (n.shown)
             {
                 // after a while on the sand it shrinks away rather than vanishing
                 n.lie -= dt;
                 if (n.lie <= 0)
                 {
                     double k = Math.Max(0, 1 + n.lie / 1.0);
-                    n.mesh.scale.setScalar(Math.Max(0.001, k));
-                    if (k <= 0) n.mesh.visible = false;
+                    n.size = Math.Max(0.001, k);
+                    if (k <= 0) n.shown = false;
                 }
             }
             n.regrow -= dt;
             if (n.regrow <= 0)
             {
-                group.remove(n.mesh);
-                n.mesh.position.copy(n.home);
-                n.mesh.visible = true;
+                n.shown = true;
                 n.growT = 0;
-                n.mesh.scale.setScalar(0.01);
-                n.crown.children[0].add(n.mesh); // back into the palm's coconut group, which the distance detail switches on and off
-                n.mesh.userData["coconut"] = true;
+                n.size = 0.01;
+                // back into the palm's coconut group, which the distance detail switches on and off
+                n.t.SetParent(n.onTreeParent, false);
                 n.onTree = true;
                 n.falling = false;
-                nutTargets.Add(n.mesh);
             }
+            PoseNut(n);
         }
     }
 
@@ -585,11 +620,11 @@ public class Scenery
             m.lastHaze.copy(haze);
             m.mat.color.copy(ROCK).multiplyScalar(near);
             m.mat.emissive.copy(haze).multiplyScalar(1 - near);
-            if (live != null) MaterialKit.Push(m.mat);
+            if (placed) MaterialKit.Push(m.mat);
         }
         // every crown sways in its shader by this clock (Cozy/PalmSway)
         swayTime.value = t;
-        if (live != null && frondMatRef != null) MaterialKit.Push(frondMatRef);
+        if (placed && frondMatRef != null) MaterialKit.Push(frondMatRef);
         foreach (var p in palms)
         {
             // a palm out across the land has no parts to drop
@@ -609,11 +644,14 @@ public class Scenery
                 if (Math.Abs(wantK - p.k) < 0.01) p.k = wantK;
                 if (Math.Abs(wantF - p.kf) < 0.01) p.kf = wantF;
                 double k = Math.Max(p.k, 0.001);
-                p.nuts.visible = p.k > 0.01;
-                p.nuts.scale.setScalar(k);
-                p.crownB.visible = p.kf > 0.01;
-                p.crownB.scale.setScalar(Math.Max(p.kf, 0.001));
-                p.group.touch();
+                if (p.nutsT != null)
+                {
+                    bool nutsOn = p.k > 0.01, frondsOn = p.kf > 0.01;
+                    if (p.nutsT.gameObject.activeSelf != nutsOn) p.nutsT.gameObject.SetActive(nutsOn);
+                    if (nutsOn) p.nutsT.localScale = UnityEngine.Vector3.one * (float)k;
+                    if (p.crownBT.gameObject.activeSelf != frondsOn) p.crownBT.gameObject.SetActive(frondsOn);
+                    if (frondsOn) p.crownBT.localScale = UnityEngine.Vector3.one * (float)Math.Max(p.kf, 0.001);
+                }
             }
         }
     }

@@ -269,3 +269,16 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   as the description did). No per-frame copy, no description posed.
 - Quick check against `refB` (dolphins, pier, ships, saves, selfcheck): logs pass, selfcheck 9 of 9, dumps differ only
   by 0.00001 m in some bounds, three sea shots flagged with 0% of pixels changed.
+
+## B1: palms and coconuts move their GameObjects directly (2026-11-24)
+
+- `Scenery`: realised once; a coconut's GameObject is moved directly (shot: it leaves its palm for the scenery's group
+  and falls; it shrinks away on the sand and grows back on its palm), and each palm's distance detail switches its
+  coconut group and far-off fronds on the GameObjects. A coconut's `Target` reads where its GameObject is
+  (`GameSpace.WorldPos`), so the aim needs no description. Quick check against `refB` (base, island, shadow, smash,
+  gear): logs and shots pass, dumps differ by 0.00001 m at most.
+- The binoculars' self-check: with the palms, boat, gulls, crabs and chests posing themselves, random rays rarely met
+  what still has descriptions (the camp, the cart, the sea creatures), so its rays are now aimed at those. That showed
+  two ways the old range differed from what is drawn: it measured to the invisible hit spheres round the sharks and fish
+  (made for the aim) and to parts inside hidden groups. The range now reads what is drawn; the check compares drawn
+  parts only: 9 of 9, 0 of 400 rays differ.
