@@ -39,6 +39,27 @@ public class Aquarium
 
     private readonly Dictionary<string, Swimmer> swimmers = new Dictionary<string, Swimmer>();
     private readonly Dictionary<string, Dweller> dwellers = new Dictionary<string, Dweller>();
+
+    /// <summary>
+    /// What of the tank moves or shows, for the camp to keep its GameObjects in line (unity/UI_PLAN.md B1): each fish and its
+    /// tail, each creature's wrapper and the creature's own parts. A catch added later makes the camp rebuild, and it asks
+    /// again.
+    /// </summary>
+    internal IEnumerable<THREE.Object3D> Moving()
+    {
+        foreach (var f in swimmers.Values)
+        {
+            yield return f.root;
+            yield return f.tail;
+        }
+        foreach (var d in dwellers.Values)
+        {
+            yield return d.wrap;
+            var parts = new List<THREE.Object3D>();
+            d.animal.root.traverse(o => parts.Add(o));
+            foreach (var o in parts) yield return o;
+        }
+    }
     /// <summary>far above everything, so nothing in the tank thinks a diver is near and flees</summary>
     private readonly THREE.Vector3 nobody = new THREE.Vector3(0, 1e6, 0);
 

@@ -379,3 +379,13 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   cellar's root once more during loading, which moved it among the world root's children; it is now made once. The same
   objects, renderer counts and poses (bounds within 0.00001 m); only sibling numbers differ. Quick check against `refB`
   (base, photo-alt, saves): logs and shots pass.
+
+## Fix: the camp's aquarium (2026-11-24)
+
+- The camp conversion (efb9517) left the aquarium's catches hidden and still: the tank shows a fish or creature by
+  switching it on when it is caught (and adds new ones at runtime), and it swims them each frame; the camp listed neither.
+  The camp quick check had not run the fish suite, where the aquarium shots lost 72 renderers. Now the camp is rebuilt
+  whenever its shape changes (as the whole-tree copy did; this replaces `Attach`), and other modules can hand it moving
+  parts to keep in line (`Camp.follow`; the aquarium gives its fish and tails and each creature's wrapper and parts,
+  `Aquarium.Moving`). Checked against `refB` (fish, dive, shop, tour): renderer counts equal, logs pass, dumps within
+  0.00001 m once the world root's top-level groups are paired by what they hold.

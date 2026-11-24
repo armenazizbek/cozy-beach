@@ -72,9 +72,51 @@ public class Camp
         loose.scale.copy(group.scale);
         loose.add(embers.points);
         LiveTree.Place(loose, World.Land);
+        Realise();
+        NativeFrame.BeforeDraw += () =>
+        {
+            Sync();
+            loose.visible = group.visible && World.Land.gameObject.activeSelf;
+        };
+    }
+
+    private int stamp = int.MinValue;
+    private long shape;
+    /// <summary>other modules' moving parts hung in the camp (the aquarium's fish and creatures), asked for after each build</summary>
+    private readonly List<Func<IEnumerable<THREE.Object3D>>> followed = new List<Func<IEnumerable<THREE.Object3D>>>();
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> extra = new List<(THREE.Object3D, UnityEngine.Transform)>();
+
+    /// <summary>Keeps these parts (moved and switched by another module in the camp) in line with their descriptions each frame.</summary>
+    public void follow(Func<IEnumerable<THREE.Object3D>> parts) => followed.Add(parts);
+
+    /// <summary>
+    /// Realises the camp, and again whenever its shape changed (a prop, the skull, a trophy, a new fish in the aquarium), as
+    /// the whole-tree copy did; then finds again what is posed, switched and lit.
+    /// </summary>
+    private void Realise()
+    {
+        if (root != null)
+        {
+            root.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(root.gameObject);
+        }
+        made.Clear();
+        posed.Clear();
+        switched.Clear();
+        lit.Clear();
+        mats.Clear();
+        extra.Clear();
         var live = Realizer.Realize(group, World.Land, World.Layer);
         root = live.root;
+        stamp = group.treeVersion;
+        shape = LiveTree.Shape(group);
         Took(live);
+        foreach (var source in followed)
+            foreach (var o in source())
+            {
+                var t = Got(o);
+                if (t != null) extra.Add((o, t));
+            }
         // what moves each frame
         foreach (var f in flames) posed.Add((f, Got(f)));
         foreach (var f in tikiFlames) posed.Add((f, Got(f)));
@@ -90,11 +132,6 @@ public class Camp
             var u = Got(l)?.GetComponent<UnityEngine.Light>();
             if (u != null) lit.Add((l, u));
         }
-        NativeFrame.BeforeDraw += () =>
-        {
-            Sync();
-            loose.visible = group.visible && World.Land.gameObject.activeSelf;
-        };
     }
 
     /// <summary>Takes in the GameObjects made for some of the camp: their descriptions, and the materials to keep pushing.</summary>
@@ -120,13 +157,6 @@ public class Camp
         if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
     }
 
-    /// <summary>Realises something added to the camp after it was placed, under its parent's GameObject.</summary>
-    private void Attach(THREE.Object3D o)
-    {
-        if (root == null || o.parent == null || !made.TryGetValue(o.parent, out var parentT)) return;
-        Took(Realizer.Realize(o, parentT, World.Layer));
-    }
-
     /// <summary>Brings what changes in line with the camp, before the frame is drawn.</summary>
     private void Sync()
     {
@@ -136,12 +166,22 @@ public class Camp
             if (root.gameObject.activeSelf) root.gameObject.SetActive(false);
             return;
         }
+        if (group.treeVersion != stamp)
+        {
+            stamp = group.treeVersion;
+            if (LiveTree.Shape(group) != shape) Realise();
+        }
         if (!root.gameObject.activeSelf) root.gameObject.SetActive(true);
         if (root.parent != null && !root.parent.gameObject.activeInHierarchy) return;
         foreach (var (o, t) in switched)
             if (t != null && t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
         foreach (var (o, t) in posed)
             if (t != null && o.visible) Realizer.Pose(o, t);
+        foreach (var (o, t) in extra)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
         foreach (var (l, u) in lit)
         {
             if (!l.visible) continue;
@@ -255,7 +295,6 @@ public class Camp
     {
         mark(obj, kind, hitRadius, 1.1);
         group.add(obj);
-        Attach(obj);
         obstacles.Add(new Solid { x = x, z = CAMP_Z + z, r = solidRadius });
     }
 
@@ -779,7 +818,6 @@ public class Camp
         g.position.set(x, 0, z);
         g.rotation.y = rot;
         group.add(g);
-        Attach(g);
         foreach (var s in new[] { -0.85, 0.85 })
             obstacles.Add(new Solid { x = x + Math.Sin(rot) * s, z = CAMP_Z + z + Math.Cos(rot) * s, r = 1.25 });
         skull = g;
@@ -1467,7 +1505,6 @@ public class Camp
         }
         trophies[setId] = t;
         shelf.add(t);
-        Attach(t);
     }
 
     public void update(double dt, double boost, bool lanternOn, double night = 0)

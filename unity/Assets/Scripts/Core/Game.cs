@@ -313,6 +313,8 @@ public class Game
         under.onCatch = (_at, reward, label) => onFishSpeared(reward, label);
         aquarium = new Aquarium(under);
         camp.addProp(aquarium.group, "aquarium", Aquarium.AT.x, Aquarium.AT.z, 1.1, 1.15);
+        // the tank's fish and creatures move and show inside the camp: the camp keeps their GameObjects in line
+        camp.follow(aquarium.Moving);
         fishing.makeFish = s => under.makeFish(s);
         fishing.waterAt = (x, z) => ocean.heightAt(x, z);
         fishing.pick = () => Catches.pickRod(dayTime, rain.amount > 0.4, state.aquarium, JS.Random);
