@@ -556,3 +556,13 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   (World/OldShip.cs). Checked in every opening shot and from the boat's helm.
 - Follow-up: the rounded frame corners left the glass's square corners showing outside them as small pale triangles. The
   frame now turns each corner within about a centimetre, less than its own thickness, so the glass stays inside it.
+
+## Under the dunes: no "put it away"; the ladder stops below the rim (2026-11-25)
+
+- The camera is the only thing in hand under the dunes and is never put away (`setAltTool`), but the hint offered
+  "3 puts it away" and the raised viewfinder offered "Scroll: Switch tool". The hint now says how to raise the camera and
+  how to get out; the viewfinder there shows only Take photo and Lower camera (`setViewfinder(canSwitch: false)`).
+- The ladder at the top of the stairs lifted the eye to 8.0 m, 0.65 m over the top of the shaft, where nothing is built.
+  It now goes 1.0 m up (eye at 7.0 m, 0.35 m under the rim); "Climb out through the hatch" still comes up at the top.
+- photo-alt test: checks the lowered hint has no "puts it away", and stands at the ladder's top (picture
+  `5-underground-5-ladder-top`, its height and the F prompt in the log).

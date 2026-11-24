@@ -485,8 +485,11 @@ public class Underground
         return (Math.Min(STAIRS.landingX1 - 0.45, Math.Max(ROOM.x0 + 0.4, x)), Math.Min(ROOM.z1 - 0.4, Math.Max(ROOM.z0 + 0.3, z)));
     }
 
-    /// <summary>how far the ladder lifts you above the top step; at the top of it the hatch can be reached</summary>
-    public readonly double ladderH = 2.0;
+    /// <summary>
+    /// how far the ladder lifts you above the top step; at the top of it the hatch can be reached. The eye (1.65 up) stays
+    /// 0.35 below the top of the shaft (3 above the top step), so nothing past the rim, where nothing is built, comes into view.
+    /// </summary>
+    public readonly double ladderH = 1.0;
 
     /// <summary>True where the ladder hangs: at the east end of the landing, against the wall.</summary>
     public bool onLadder(double x, double z)

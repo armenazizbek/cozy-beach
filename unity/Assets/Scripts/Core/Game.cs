@@ -676,6 +676,23 @@ public class Game
         else if (underground) leaveUnderground();
     }
 
+    /// <summary>For the tests: the hint along the bottom as it reads now.</summary>
+    internal string smokeTestHint() => ui.HintNow;
+
+    /// <summary>
+    /// For the -autoshot-photo-alt test: under the dunes, at the top of the ladder looking up the shaft (null: as high as the
+    /// ladder goes). Reports the hint and what F does there.
+    /// </summary>
+    internal string smokeTestLadderTop()
+    {
+        player.x = 7.4;
+        player.z = -4;
+        ladderY = cellar.ladderH;
+        player.yaw = -Math.PI / 2;
+        player.pitch = 0.9;
+        return $"ladder {ladderY:0.00} m up, eye {eyeY - UG.y:0.00} m over the floor; F: {interaction?.label ?? "nothing"}; hint: {ui.HintNow}";
+    }
+
     /// <summary>For the -autoshot-photo-alt test: takes the camera out down there and raises it, or puts it away.</summary>
     internal void smokeTestAltCamera(bool on)
     {
@@ -6584,7 +6601,7 @@ public class Game
     private void updateHint()
     {
         bool finderOn = holdingCamera && camView && gameState == "EXPLORE" && started && !paused && !driving && hammock == null;
-        ui.setViewfinder(finderOn, state.photos.Count, Photos.MAX_PHOTOS);
+        ui.setViewfinder(finderOn, state.photos.Count, Photos.MAX_PHOTOS, canSwitch: !underground);
         ui.tickFlash();
         if (islands[2].lighthouse?.introActive == true)
         {
@@ -6632,7 +6649,8 @@ public class Game
             string camKey = usingPad ? "D-pad left" : "3";
             // the keys as the player bound them (Core/Controls.cs)
             ui.setHint(Controls.Say(gameState == "INSPECT" ? null
-                : altCamera ? $"Click to raise the camera · {camKey} puts it away"
+                // the camera is all there is down here and is never put away (setAltTool), so nothing offers to
+                : altCamera ? "Click to raise the camera · climb the stairs and the ladder, then press F at the top to go back out"
                 : $"Climb the stairs and the ladder, then press F at the top to go back out · {camKey} takes out the camera", Act.Use));
             ui.setCrosshair(gameState == "EXPLORE");
             return;

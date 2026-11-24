@@ -1631,9 +1631,23 @@ public class AutoShot : MonoBehaviour
                 game.smokeTestTakePhoto();
                 yield return Wait(1.2f);
                 Debug.Log($"[AutoShot] {place}: photos {had} -> {game.smokeTestPhotoCount}, copied to {game.smokeTestExportPhoto() ?? "(failed)"}");
-                game.smokeTestAltCamera(false);
+                // under the dunes the camera only comes down from the eye (it is never put away); underground the picture
+                // shows it lowered, with the hint along the bottom
+                if (place == "underground") game.smokeTestLowerCamera();
+                else game.smokeTestAltCamera(false);
                 yield return Wait(1);
                 yield return Shot($"5-{place}-4-put-away.png");
+                if (place == "underground") Debug.Log("[AutoShot] underground hint with the camera lowered: " + game.smokeTestHint() + (game.smokeTestHint().Contains("puts it away") ? " FAILED" : " ok"));
+                if (place == "underground")
+                {
+                    // the hint never offers to put the camera away down here, and the ladder stops below the shaft's rim
+                    yield return Wait(0.5f);
+                    game.smokeTestLadderTop();
+                    yield return Wait(1.5f);
+                    string top = game.smokeTestLadderTop();
+                    Debug.Log("[AutoShot] underground ladder top: " + top + (top.Contains("puts it away") ? " FAILED (put-away hint)" : "") + (top.Contains("Climb out") ? "" : " FAILED (no way out)"));
+                    yield return Shot("5-underground-5-ladder-top.png");
+                }
                 game.smokeTestGo("out");
                 yield return Wait(3);
                 Debug.Log($"[AutoShot] back from {place}: {game.smokeTestWhere()}");

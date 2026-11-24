@@ -1556,11 +1556,12 @@ public class UIManager
     /// The camera's viewfinder: the middle 4:3 of the screen, which is what the photo keeps, with the rest dimmed, corner marks, a
     /// focus square and how to use it. Redrawn only when the screen, the controls or the number of photos change.
     /// </summary>
-    public void setViewfinder(bool on, int count = 0, int max = 0)
+    /// <param name="canSwitch">false where the camera is the only thing in hand (under the dunes): no "Switch tool" then</param>
+    public void setViewfinder(bool on, int count = 0, int max = 0, bool canSwitch = true)
     {
         int w = (int)Page.Width;
         int h = (int)Page.Height;
-        var key = on ? $"{pad.on}|{count}|{w}x{h}" : "off";
+        var key = on ? $"{pad.on}|{count}|{w}x{h}|{canSwitch}" : "off";
         if (key == this.finderKey) return;
         this.finderKey = key;
         this.finder.Toggle("hidden", !on);
@@ -1619,6 +1620,7 @@ public class UIManager
         var items = pad.on
             ? new string[][] { new[] { "RT", "Take photo" }, new[] { "LT", "Lower camera" }, new[] { "LB / RB", "Switch tool" } }
             : new string[][] { new[] { "Click", "Take photo" }, new[] { "Right-click", "Lower camera" }, new[] { "Scroll", "Switch tool" } };
+        if (!canSwitch) items = items.Take(2).ToArray();
         const string labelFont = "13px \"Trebuchet MS\", sans-serif";
         const string keyFont = "700 13px \"Trebuchet MS\", sans-serif";
         const double gap = 26;
@@ -1707,6 +1709,9 @@ public class UIManager
         this.binocKey = "";
         this.finderKey = "";
     }
+
+    /// <summary>The hint along the bottom as it reads now (the tests check its words).</summary>
+    internal string HintNow => this.hintKey != null && this.hintKey.Length > 2 ? this.hintKey.Substring(2) : "";
 
     public void setHint(string text)
     {
