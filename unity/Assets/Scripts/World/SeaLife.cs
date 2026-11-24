@@ -155,6 +155,8 @@ public class SeaLife
         /// <summary>the school's object (its mesh and the fish's hit spheres), and the fish's data on the mesh's vertices</summary>
         public THREE.Group root;
         public THREE.BufferAttribute fishAttr;
+        /// <summary>the school's one mesh (every fish of it), whose fish data changes when one is caught or comes back</summary>
+        public THREE.Mesh mesh;
 
         /// <summary>Shows or hides one fish (a caught fish is drawn at size 0 until it comes back).</summary>
         public void show(Fish f, bool on)
@@ -452,7 +454,7 @@ public class SeaLife
         var school = new School
         {
             heading = JS.Random() * 6.28, speed = rand(1.2, 2.2), phase = JS.Random() * 6, fish = fish,
-            root = root, fishAttr = merged.attributes["aFish"],
+            root = root, fishAttr = merged.attributes["aFish"], mesh = mesh,
         };
         var (sx0, sz0) = openWater(SHORE_Z + 6, Z_MAX - 20);
         school.x = sx0;
@@ -579,13 +581,20 @@ public class SeaLife
 
     /// <summary>`level` is the current surface height; onSplash(distance) lets the sound be placed.</summary>
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S19: the sea's life above the reef (sharks, schools, the fish that bite at the pier) is a
-    /// LiveTree under World.Land, synced at draw time. The splashes and wakes stay particle pools the scene draws until S24.
+    /// The sea's life above the reef (sharks, schools, the fish that leap at the pier), realised once under World.Land. At draw
+    /// time only what moves is brought in line (unity/UI_PLAN.md B1): each shark and its tail, each school, each leaping fish,
+    /// the shader values (the sharks' swimming wave, the schools' clock) and a school's fish data when one is caught or comes
+    /// back. Nothing else is compared, as the whole-tree copy (LiveTree) did. The splashes and wakes stay particle pools.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
 
-    /// <summary>The sea creatures' GameObjects under the world root, once placed and drawn.</summary>
-    public UnityEngine.Transform Root => live?.Live?.root;
+    /// <summary>The sea creatures' GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => live?.root;
+
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<THREE.Material> shaded = new List<THREE.Material>();
+    private readonly List<(THREE.BufferGeometry g, UnityEngine.Mesh mesh, int version)> refilled = new List<(THREE.BufferGeometry, UnityEngine.Mesh, int)>();
+
 
     /// <summary>the particle pools' own group in the scene, shown with the sea life (the pools keep their own visibility)</summary>
     private readonly THREE.Group loose = new THREE.Group();
@@ -596,13 +605,59 @@ public class SeaLife
         group.remove(splashes.points, wakeParticles.points);
         loose.add(splashes.points, wakeParticles.points);
         LiveTree.Place(loose, World.Land);
-        live = new LiveTree(group, World.Land);
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        moving.Add((group, live.root));
+        foreach (var s in sharks)
+        {
+            moving.Add((s.root, live[s.root]));
+            moving.Add((s.caudal, live[s.caudal]));
+            if (!shaded.Contains(s.body.material)) shaded.Add(s.body.material);
+        }
+        foreach (var sc in schools)
+        {
+            moving.Add((sc.root, live[sc.root]));
+            var mf = live[sc.mesh]?.GetComponent<UnityEngine.MeshFilter>();
+            if (mf != null && mf.sharedMesh != null) refilled.Add((sc.mesh.geometry, mf.sharedMesh, sc.mesh.geometry.ContentVersion()));
+        }
+        foreach (var j in jumpers) moving.Add((j.mesh, live[j.mesh]));
+        shaded.Add(schoolMat);
         NativeFrame.BeforeDraw += () =>
         {
-            live.Sync();
+            Sync();
             // under World.Land, which the dive switches off: the pools go with it
             loose.visible = group.visible && World.Land.gameObject.activeSelf;
         };
+    }
+
+    /// <summary>Brings what moves in line with the creatures, before the frame is drawn.</summary>
+    private void Sync()
+    {
+        if (live == null) return;
+        // hidden (or under the land while it is switched off): nothing shows, so nothing is done; all of it is posed again
+        // the first frame it shows
+        if (!group.visible)
+        {
+            if (live.root.gameObject.activeSelf) live.root.gameObject.SetActive(false);
+
+            return;
+        }
+        if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+        foreach (var (o, t) in moving)
+        {
+            if (t == null) continue;
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+
+        foreach (var m in shaded) MaterialKit.PushOnce(m, MaterialKit.On.Mesh);
+        for (int i = 0; i < refilled.Count; i++)
+        {
+            var (g, mesh, v) = refilled[i];
+            int now = g.ContentVersion();
+            if (now == v) continue;
+            MeshKit.Refill(mesh, g, false);
+            refilled[i] = (g, mesh, now);
+        }
     }
 
     public void update(double dt, double t, double level, double px, double pz, Action<double> onSplash)

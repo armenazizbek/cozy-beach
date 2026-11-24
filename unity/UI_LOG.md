@@ -293,3 +293,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Still copied every frame: the sea creatures and the camp (LiveTree, with lights, redrawn boards, shader values and the
   fish schools' mesh data), the underwater world, the cleaning bench, the tools in hand, and the dug-up items (picked by
   their descriptions).
+
+## B1: sea life without the whole-tree copy (2026-11-24)
+
+- `SeaLife` is realised once; at draw time only what moves is brought in line: the sea group, each shark and its tail,
+  each school, each leaping fish (posed from their descriptions with `Realizer.Pose`, as the golf cart does), the shader
+  values (the sharks' wave, the schools' clock) and a school's mesh when its fish data changes. LiveTree's whole-tree
+  comparison is gone for it. Its state stays in its descriptions for now, which the aim and the binoculars' self-check use.
+- Quick check against `refB` (ui, pier, dolphins, sealife, fish, selfcheck): logs pass, selfcheck 9 of 9, dumps within
+  0.00001 m, one sea shot flagged with 0% of pixels changed.
