@@ -2424,22 +2424,26 @@ public class Game
     {
         photoPending = false;
         if (!(camView && holdingCamera && gameState == "EXPLORE")) return;
-        // underwater the page lays a soft blue over the whole view; the photo gets the same, so it shows what the diver saw
-        var tex = diving
-            ? renderer.CapturePhoto(camera, 900, new UnityEngine.Color32(15, 85, 125, 255), 0.24f)
-            : renderer.CapturePhoto(camera);
-        string id = tex != null ? Photos.save(tex) : null;
-        if (id == null)
+        // the caption is written now, as the shutter goes; the picture arrives from the GPU a frame or two later
+        string caption = photoCaption();
+        void developed(UnityEngine.Texture2D tex)
         {
-            audio.error();
-            ui.toast("The camera jammed. Try again.");
-            return;
+            string id = tex != null ? Photos.save(tex) : null;
+            if (id == null)
+            {
+                audio.error();
+                ui.toast("The camera jammed. Try again.");
+                return;
+            }
+            audio.shutter();
+            ui.photoFlash();
+            dog.photographed();
+            state.addPhoto(id, caption);
+            discover("photo_first");
         }
-        audio.shutter();
-        ui.photoFlash();
-        dog.photographed();
-        state.addPhoto(id, photoCaption());
-        discover("photo_first");
+        // underwater the page lays a soft blue over the whole view; the photo gets the same, so it shows what the diver saw
+        if (diving) renderer.CapturePhoto(camera, developed, 900, new UnityEngine.Color32(15, 85, 125, 255), 0.24f);
+        else renderer.CapturePhoto(camera, developed);
     }
 
     /// <summary>Written under each photo: the day, the time of day and where it was taken.</summary>

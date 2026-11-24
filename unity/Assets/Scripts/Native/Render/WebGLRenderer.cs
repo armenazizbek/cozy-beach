@@ -210,12 +210,18 @@ namespace THREE
 
         /// <summary>
         /// Takes a photograph through a camera that was drawn this frame: the world only, no page on top. It renders at the
-        /// screen's shape and keeps the middle 4:3 of it, the part the camera's viewfinder frames.
+        /// screen's shape and keeps the middle 4:3 of it, the part the camera's viewfinder frames. The pixels come back
+        /// from the GPU a frame or two later (AsyncGPUReadback), so the game does not stop and wait for them; `done` gets the
+        /// photo then, or null when it could not be taken. In the smoke tests it waits at once, so a run is the same each time.
         /// </summary>
-        internal Texture2D CapturePhoto(Camera camera, int height = 900, Color32? tint = null, float tintAmount = 0)
+        internal void CapturePhoto(Camera camera, Action<Texture2D> done, int height = 900, Color32? tint = null, float tintAmount = 0)
         {
             var cam = NativeView.CameraFor(camera);
-            if (cam == null) return null;
+            if (cam == null)
+            {
+                done(null);
+                return;
+            }
             float aspect = (float)Math.Max(0.5, Math.Min(4, camera is PerspectiveCamera pc ? pc.aspect : 16.0 / 9));
             int h = height;
             int w = Mathf.RoundToInt(h * aspect);
@@ -223,19 +229,52 @@ namespace THREE
             int ch = Math.Min(h, Mathf.RoundToInt(cw * 3f / 4f));
             var desc = new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 24) { sRGB = true, msaaSamples = 4 };
             var rt = U.RenderTexture.GetTemporary(desc);
+            U.RenderTexture resolved = null;
             var prevTarget = cam.targetTexture;
             try
             {
                 cam.aspect = aspect;
                 Render.UrpSettings.RenderTo(cam, rt);
-                var photo = new Texture2D(cw, ch, TextureFormat.RGB24, false, false) { wrapMode = TextureWrapMode.Clamp };
-                var prev = U.RenderTexture.active;
-                U.RenderTexture.active = rt;
-                photo.ReadPixels(new Rect((w - cw) / 2, (h - ch) / 2, cw, ch), 0, 0);
+                // the multisampled picture resolved into a plain one, which the GPU can hand back
+                resolved = U.RenderTexture.GetTemporary(new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 0) { sRGB = true, msaaSamples = 1 });
+                Graphics.Blit(rt, resolved);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("Could not take a photo: " + e.Message);
+                if (resolved != null) U.RenderTexture.ReleaseTemporary(resolved);
+                done(null);
+                return;
+            }
+            finally
+            {
+                cam.targetTexture = prevTarget;
+                cam.ResetAspect();
+                U.RenderTexture.ReleaseTemporary(rt);
+            }
+            bool finished = false;
+            void finish(AsyncGPUReadbackRequest r)
+            {
+                if (finished) return;
+                finished = true;
+                U.RenderTexture.ReleaseTemporary(resolved);
+                if (r.hasError)
+                {
+                    Debug.LogWarning("Could not take a photo: the picture did not come back from the GPU");
+                    done(null);
+                    return;
+                }
+                var src = r.GetData<byte>().ToArray();
+                var px = new byte[cw * ch * 3];
+                for (int i = 0, o = 0; o < px.Length; i += 4, o += 3)
+                {
+                    px[o] = src[i];
+                    px[o + 1] = src[i + 1];
+                    px[o + 2] = src[i + 2];
+                }
                 if (tint.HasValue && tintAmount > 0)
                 {
                     // a colour the page lays over the view (the blue of being underwater), mixed in the way the page mixes it
-                    var px = photo.GetRawTextureData<byte>();
                     int keep = Mathf.RoundToInt((1 - tintAmount) * 256), add = 256 - keep;
                     int tr = tint.Value.r * add, tg = tint.Value.g * add, tb = tint.Value.b * add;
                     for (int i = 0; i + 2 < px.Length; i += 3)
@@ -245,20 +284,16 @@ namespace THREE
                         px[i + 2] = (byte)((px[i + 2] * keep + tb) >> 8);
                     }
                 }
+                var photo = new Texture2D(cw, ch, TextureFormat.RGB24, false, false) { wrapMode = TextureWrapMode.Clamp };
+                photo.LoadRawTextureData(px);
                 photo.Apply();
-                U.RenderTexture.active = prev;
-                return photo;
+                done(photo);
             }
-            catch (Exception e)
+            var req = AsyncGPUReadback.Request(resolved, 0, (w - cw) / 2, cw, (h - ch) / 2, ch, 0, 1, TextureFormat.RGBA32, finish);
+            if (TestClock.Fixed)
             {
-                Debug.LogWarning("Could not take a photo: " + e.Message);
-                return null;
-            }
-            finally
-            {
-                cam.targetTexture = prevTarget;
-                cam.ResetAspect();
-                U.RenderTexture.ReleaseTemporary(rt);
+                req.WaitForCompletion();
+                finish(req);
             }
         }
 

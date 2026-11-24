@@ -160,3 +160,15 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Checked: a full pass, against `refU360` by structure only, since nearly every picture changes by design: all 39 runs
   exit cleanly, scene dumps identical, logs as before (the pad log differs only in the settings rows it reaches),
   selfcheck 8 of 8, mouse and keyboard 0 failed, the layout run without complaints.
+
+## B2 (part): photos come back from the GPU without a stall (2026-11-24)
+
+- `CapturePhoto` resolves the camera's picture into a plain texture and asks for it with `AsyncGPUReadback`, instead of
+  `ReadPixels`, which made the game wait for the GPU. The photo arrives a frame or two later; the shutter, the flash and
+  the album entry come with it, and the caption is written as the shutter goes. In the smoke tests it waits at once, so
+  a run is the same every time.
+- Comparing pictures after D3: the tests run with `-osfonts`, which gives the old look, so `refU360` still applies.
+- Checked (items and under suites, with `-osfonts`, against `refU360`): shots, logs and dumps all pass; the saved photos
+  decode to the reference's pixels (mean difference 0.001 of 255 or less, not flipped, the underwater tint as before).
+- Still not done in B2: the renderer front itself (`renderer.render(scene, camera)` is what copies the Three-shaped scene
+  onto the GameObjects, so it goes with B1).
