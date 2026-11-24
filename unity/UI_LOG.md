@@ -147,3 +147,16 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   in front). Same monitor, so the display the run reports and the reference stay the same; checked on 10 runs.
 - Checked against `refU360`: nothing new apart from `crust/14-crust-pocket_watch.png`, where every pixel is off by 1 or 2
   of 255. That is noise between runs of the same build: a run in front differs as much.
+
+## D3: the bundled fonts everywhere (2026-11-24)
+
+- The UI (`UiRoot.BuildTextSettings`) and the text drawn into the world (`CanvasFonts.Bundled`: signs, the map) use the
+  game's own faces on every machine: Fira Sans for body text, PT Serif for headings and serif text (both SIL OFL). Before,
+  a Windows PC used its own Trebuchet MS and Georgia and only a Steam Deck the bundled ones. Now PC and Deck look alike.
+- `-osfonts` brings back Windows' fonts where installed (the look before), for comparison and as an escape hatch.
+- Not done: the plan's font assets made at build time; the faces are still made from the .ttf files at start-up.
+- Before and after: `unity/Docs/fonts-d3/` (left the old fonts, right the new), taken from one build with and without
+  `-osfonts`. Body text is a little lighter and wider, so some cards grow by a few pixels.
+- Checked: a full pass, against `refU360` by structure only, since nearly every picture changes by design: all 39 runs
+  exit cleanly, scene dumps identical, logs as before (the pad log differs only in the settings rows it reaches),
+  selfcheck 8 of 8, mouse and keyboard 0 failed, the layout run without complaints.

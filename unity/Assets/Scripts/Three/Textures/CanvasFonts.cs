@@ -131,15 +131,16 @@ public static class CanvasFonts
     private static HashSet<string> installed;
 
     /// <summary>
-    /// The game's own font (Resources/UI/Fonts) when none of the wanted ones is installed, as under Proton on a Steam Deck.
-    /// Null while the system has one of them, so a Windows PC keeps drawing with its own.
+    /// The game's own font (Resources/UI/Fonts): serif faces get PT Serif, the rest Fira Sans, on every machine (D3). Only
+    /// with "-osfonts" is it null while the system has one of the wanted fonts, so that PC draws with its own.
     /// </summary>
     private static Font Bundled(List<string> names, string css)
     {
         try
         {
             if (installed == null) installed = new HashSet<string>(Font.GetOSInstalledFontNames(), StringComparer.OrdinalIgnoreCase);
-            if (!Platform.IsSteamDeck)
+            // the bundled faces everywhere (D3); with "-osfonts" Windows' own where installed, as before
+            if (!Platform.IsSteamDeck && UiRoot.OsFontsWanted)
                 foreach (var n in names)
                     if (installed.Contains(n)) return null;
             bool serif = css.IndexOf("serif", StringComparison.OrdinalIgnoreCase) >= 0 && css.IndexOf("sans", StringComparison.OrdinalIgnoreCase) < 0

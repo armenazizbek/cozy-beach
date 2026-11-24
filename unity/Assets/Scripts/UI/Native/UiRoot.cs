@@ -177,10 +177,10 @@ public static class UiRoot
 
             // Body text: a friendly sans. Headings and the title: a bold serif (see DisplayFont). A font file dropped into
             // Resources/UI/Fonts (Body, BodyBold, Display) is used ahead of the system's, which is what a console will need.
-            // The bundled faces (Fira Sans, PT Serif, both SIL OFL) are used where Windows' own fonts cannot be counted on:
-            // on a Steam Deck (Proton ships no Trebuchet, Georgia or Segoe) and wherever Trebuchet MS is not installed.
-            // On a normal Windows PC the look stays as it was.
-            bool bundled = Platform.IsSteamDeck || !HasOsFont("Trebuchet MS");
+            // The bundled faces (Fira Sans, PT Serif, both SIL OFL) are used everywhere, so the game looks the same on every
+            // PC and on a Steam Deck (UI_PLAN.md decision D3). "-osfonts" brings back Windows' own Trebuchet MS and Georgia,
+            // the look before, where they are installed.
+            bool bundled = !OsFontsWanted || Platform.IsSteamDeck || !HasOsFont("Trebuchet MS");
             FontAsset mainFont = (bundled ? LoadFontAsset("UI/Fonts/Body") : null)
                               ?? CreateOsFontAsset("Trebuchet MS", "Regular")
                               ?? CreateOsFontAsset("Segoe UI", "Regular")
@@ -262,6 +262,9 @@ public static class UiRoot
 
     /// <summary>The face of the game's name (the loading screen and the main menu). Null until the text settings are built.</summary>
     public static FontAsset TitleFont { get; private set; }
+
+    /// <summary>True when the game was started with "-osfonts": Windows' own fonts where installed, as before D3.</summary>
+    internal static readonly bool OsFontsWanted = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-osfonts") >= 0;
 
     private static bool HasOsFont(string family)
     {
