@@ -515,3 +515,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - The island map and the minimap tinted higher ground olive green, but the dunes behind the beach are plain sand in the
   world (World/Beach.cs colours every height the same). The mainland now only deepens to a darker sand as it rises; the
   green island out at sea keeps its grass, which it really has (World/Island.cs).
+
+## The keys get a window of their own
+
+- Settings no longer lists every key at the bottom. Its Controls section has one row, **Keyboard keys** ("Change ›"),
+  which opens the new Keys window (Resources/UI/Screens/Keys.uxml, `UIManager.openKeys`): one row per action, "Put every
+  key back", and Back. Back (Esc, B on a controller) returns to Settings with Keyboard keys chosen again.
+- The keyboard test goes through it: Settings has no key rows; Down reaches Keyboard keys; Enter opens the window; rebinding,
+  Esc keeping the old key and the reset work there; Esc goes back to Settings on the same row; Esc again closes Settings.
+  keyboard, mouse, pad and settings runs: 0 failed.

@@ -703,6 +703,11 @@ public class UIManager
         slider("Mouse look speed", "sensitivity", 0.4, 2.5, 0.05, v => $"{JS.ToFixed(v, 2)}x");
         toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
         toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
+        // the keys have a window of their own (openKeys), so Settings stays short
+        var keysRow = rowEl("Keyboard keys", "which key does what");
+        keysRow.AddClass("open-row");
+        keysRow.Add(node("span", "set-val", "Change ›"));
+        keysRow.OnClick = () => this.openKeys(settings, onChange, onClose);
         rows.Add(node("h3", "caps", "Display"));
         choice("Text and menu size", new[]
         {
@@ -744,8 +749,34 @@ public class UIManager
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);
-        // the keys (Core/Controls.cs): pressing a row waits for the next key, Esc keeps the old one
-        rows.Add(node("h3", "caps", "Keys"));
+        wrap.Must("done").OnClick = () =>
+        {
+            this.closeSettings();
+            onClose?.Invoke();
+        };
+        this.settingsEl = wrap;
+        wrap.MountIn(this.root.ve);
+    }
+
+    /// <summary>
+    /// The keyboard's keys, a window of its own opened from Settings (Core/Controls.cs): pressing a row waits for the next
+    /// key, Esc keeps the old one. Back (Esc, or B on a controller) returns to Settings, on the row that opened this.
+    /// </summary>
+    public void openKeys(GameSettings settings, Action<GameSettings> onChange, Action onClose)
+    {
+        this.closeSettings();
+        var wrap = Ux.Load("Keys");
+        var rows = wrap.Must("rows");
+        UiNode rowEl(string label, string hintText)
+        {
+            var row = Ux.Load("SettingRow");
+            row.Must("label").Markup = label;
+            var hint = row.Must("hint");
+            if (!string.IsNullOrEmpty(hintText)) hint.Markup = hintText;
+            else hint.Remove();
+            rows.Add(row);
+            return row;
+        }
         var keyRows = new List<(Act act, UiNode row, UiNode val)>();
         void showKeys()
         {
@@ -780,10 +811,11 @@ public class UIManager
             Controls.ResetAll();
             showKeys();
         };
-        wrap.Must("done").OnClick = () =>
+        wrap.Must("back").OnClick = () =>
         {
-            this.closeSettings();
-            onClose?.Invoke();
+            this.openSettings(settings, onChange, onClose);
+            // back on the row that opened the keys
+            if (this.settingsEl != null) (UnityEngine.UIElements.UQueryExtensions.Q(this.settingsEl.ve, className: "open-row") as UiNode)?.Focus();
         };
         this.settingsEl = wrap;
         wrap.MountIn(this.root.ve);

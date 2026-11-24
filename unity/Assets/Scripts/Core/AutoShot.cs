@@ -323,7 +323,7 @@ public class AutoShot : MonoBehaviour
             yield return Wait(0.8f);
             Check("Enter opens settings", Open("settings-card"));
             yield return Shot("1k-keys-settings.png");
-            // the Keys section, as a player uses it: down to a row, Enter, then the new key (Esc keeps the old one)
+            // the keys, in their own window, as a player uses it: down to a row, Enter, then the new key (Esc keeps the old one)
             IEnumerator DownTo(string label)
             {
                 for (int i = 0; i < 60 && !Chosen().StartsWith(label); i++)
@@ -332,6 +332,13 @@ public class AutoShot : MonoBehaviour
                     yield return Wait(0.05f);
                 }
             }
+            Check("Settings lists no keys of its own", MenuNav.Find(UiRoot.Root, v => v.ClassListContains("key-row")).Count == 0);
+            yield return DownTo("Keyboard keys");
+            Check($"Down reaches Keyboard keys ({Chosen()})", Chosen().StartsWith("Keyboard keys"));
+            yield return Tap(UnityEngine.InputSystem.Key.Enter);
+            yield return Wait(0.6f);
+            Check("Enter opens the keys window", Open("keys-card"));
+            yield return Shot("1k-keys-window.png");
             yield return DownTo("Walk forward");
             Check($"Down reaches the Walk forward key ({Chosen()})", Chosen().StartsWith("Walk forward"));
             yield return Tap(UnityEngine.InputSystem.Key.Enter);
@@ -348,13 +355,16 @@ public class AutoShot : MonoBehaviour
             yield return Wait(0.3f);
             yield return Tap(UnityEngine.InputSystem.Key.Escape);
             yield return Wait(0.4f);
-            Check($"Esc keeps the old Use key ({Controls.KeyName(Act.Use)}) and settings stays open",
-                Controls.KeyName(Act.Use) == "F" && Open("settings-card"));
+            Check($"Esc keeps the old Use key ({Controls.KeyName(Act.Use)}) and the keys window stays open",
+                Controls.KeyName(Act.Use) == "F" && Open("keys-card"));
             yield return DownTo("Put every key back");
             yield return Tap(UnityEngine.InputSystem.Key.Enter);
             yield return Wait(0.3f);
             Check($"Put every key back gives Walk forward W again ({Controls.KeyName(Act.Forward)})", Controls.KeyName(Act.Forward) == "W");
             yield return Shot("1k-keys-reset.png");
+            yield return Tap(UnityEngine.InputSystem.Key.Escape);
+            yield return Wait(0.6f);
+            Check($"Esc goes back to Settings, on Keyboard keys ({Chosen()})", !Open("keys-card") && Open("settings-card") && Chosen().StartsWith("Keyboard keys"));
             yield return Tap(UnityEngine.InputSystem.Key.Escape);
             yield return Wait(0.6f);
             Check("Esc closes settings", !Open("settings-card"));
