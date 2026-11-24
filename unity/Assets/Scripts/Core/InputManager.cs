@@ -5,8 +5,9 @@ using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 
 // Port of src/core/InputManager.ts. The browser's pointer and key events become a poll of the Input System each frame that
-// raises the same handlers with the same values: DOM key codes ("KeyW", "ShiftLeft"), mouse buttons 0 / 1 / 2, movement in
-// CSS pixels with y pointing down.
+// raises the same handlers with the same values: mouse buttons 0 / 1 / 2, movement in CSS pixels with y pointing down. Keys
+// are read by what they do (Act, bound in Controls.Map): a press carries every action of its key, and Held(act) says whether
+// any key of that action is down. The keys themselves are still known by their codes ("KeyW", "ShiftLeft").
 
 public class InputHandlers
 {
@@ -16,7 +17,7 @@ public class InputHandlers
     public Action<double, double, int> onPointerMove;
     public Action<int> onClick;
     public Action<double> onWheel;
-    public Action<string> onKey;
+    public Action<Press> onKey;
 }
 
 public class InputManager
@@ -24,7 +25,10 @@ public class InputManager
     private const double DRAG_THRESHOLD = 5;
 
     public readonly THREE.Vector2 pointer = new THREE.Vector2(0, 0);
-    public readonly HashSet<string> keys = new HashSet<string>();
+    /// <summary>The keys held on the keyboard, by code; a key counts from its press (Clear forgets it until pressed again).</summary>
+    private readonly HashSet<string> keys = new HashSet<string>();
+    /// <summary>Virtual keys the controller holds (Game.setPadKey), which carry the default bindings.</summary>
+    private readonly HashSet<string> injected = new HashSet<string>();
     /// <summary>Keys held down by the -autoshot smoke test (Core/AutoShot.cs) as if pressed, even when the window has no focus.</summary>
     internal readonly HashSet<string> held = new HashSet<string>();
     public InputHandlers handlers = new InputHandlers();
@@ -45,6 +49,33 @@ public class InputManager
 
     /// <summary>Whether the mouse is captured, as document.pointerLockElement was.</summary>
     public bool locked => Cursor.lockState == CursorLockMode.Locked;
+
+    /// <summary>Whether a key that does this is held: on the keyboard as bound now, or a virtual key by its default.</summary>
+    public bool Held(Act a)
+    {
+        foreach (var c in keys)
+            if (Controls.Bound(c).Is(a)) return true;
+        foreach (var c in injected)
+            if (Controls.Default(c).Is(a)) return true;
+        return false;
+    }
+
+    /// <summary>Whether any key is held, on the keyboard or virtual.</summary>
+    public bool anyKey => keys.Count > 0 || injected.Count > 0;
+
+    /// <summary>Forgets the held keys: a key still down counts again only once it is pressed again.</summary>
+    public void clearKeys()
+    {
+        keys.Clear();
+        injected.Clear();
+    }
+
+    /// <summary>Holds or lets go of a virtual key for the controller.</summary>
+    public void inject(string code, bool on)
+    {
+        if (on) injected.Add(code);
+        else injected.Remove(code);
+    }
 
     public void requestPointerLock()
     {
@@ -82,7 +113,7 @@ public class InputManager
                 if (code == null) continue;
                 if (k.wasPressedThisFrame && !block)
                 {
-                    if (keys.Add(code)) handlers.onKey?.Invoke(code);
+                    if (keys.Add(code)) handlers.onKey?.Invoke(Controls.Bound(code));
                 }
                 else if (!k.isPressed && keys.Contains(code)) keys.Remove(code);
             }

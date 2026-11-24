@@ -358,6 +358,24 @@ public class AutoShot : MonoBehaviour
             yield return Tap(UnityEngine.InputSystem.Key.M);
             yield return Wait(0.6f);
             Check("M again closes it", !game.smokeTestKeyState().map);
+            // rebinding (Core/Controls.cs): Forward moved to I walks on I and no longer on W; then the defaults come back
+            UnityEngine.InputSystem.InputActionRebindingExtensions.ApplyBindingOverride(Controls.Map["Forward"], 0, "<Keyboard>/i");
+            Controls.Rebound();
+            var r0 = game.smokeTestKeyState();
+            Hold(UnityEngine.InputSystem.Key.W);
+            yield return Wait(0.6f);
+            Hold();
+            yield return Wait(0.3f);
+            var r1 = game.smokeTestKeyState();
+            Hold(UnityEngine.InputSystem.Key.I);
+            yield return Wait(0.6f);
+            Hold();
+            yield return Wait(0.3f);
+            var r2 = game.smokeTestKeyState();
+            double onW = JS.Hypot(r1.x - r0.x, r1.z - r0.z), onI = JS.Hypot(r2.x - r1.x, r2.z - r1.z);
+            Check($"Forward rebound to I: W no longer walks ({onW:0.00} m)", onW < 0.05);
+            Check($"Forward rebound to I: I walks ({onI:0.00} m)", onI > 0.3);
+            Controls.Load(defaultsOnly: true);
             Debug.Log($"[AutoShot] keys: {failures} check(s) failed");
             UnityEngine.InputSystem.InputSystem.RemoveDevice(kb);
             Quit(failures == 0 ? 0 : 2);

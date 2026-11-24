@@ -85,3 +85,26 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   hides the table's own `.Keys`.
 - Checked: 0 of 14 failed; the `ui` suite against `refU` has no FAIL, logs and dumps identical, the mouse run 0 failed.
   B3 can now be gated on this run.
+
+## B3: the keys are actions (2026-11-24)
+
+- `Core/Controls.cs`: every key the game reads is an action with a meaning (`Act`: Forward, Use, Pause, Confirm, ZoomIn,
+  ...) in an Input System action map, `Controls.Map`, bound by default to the keys the game always used. One key carries
+  several actions, as before (E is Use 2, next tab, zoom in and rotate right).
+- A key press is still handled once, as a `Press` carrying every action of its key, so the game's checks run in the same
+  order; `Game.onKey` and `menuKey` ask `p.Is(Act.X)` instead of comparing key codes, and held keys are
+  `input.Held(Act.X)`. The key switch at the end of `onKey` became an if chain in the same order.
+- The controller and the smoke tests still hold the game's virtual keys ("KeyW"); those mean the default bindings, so a
+  rebound keyboard does not change the controller.
+- Rebinding: `Controls.Load` reads the player's overrides from PlayerPrefs (`tidefinder-controls-v1`, apart from the
+  settings), `Controls.Save` keeps them. The smoke tests always use the defaults. There is no rebinding screen yet, and the
+  key pictures in prompts still show the default keys.
+- Kept as it was: NumpadAdd and NumpadSubtract were checked for zooming but never reported by the key reader, so they did
+  nothing; they are still not bound.
+- The keyboard test gained 2 checks: Forward rebound to I walks on I and no longer on W.
+- A mistake on the way: a static table was declared after the field whose initialiser fills it, so the first build
+  stopped on the loading screen. The build-and-test commands now stop when the build fails or did not replace the game.
+- Checked: the display changed from the night before (360 Hz at 100% instead of 60 Hz at 150%), so a new reference was
+  taken from the same main build on this display (`refU360`). Against it: no FAIL apart from the `keyboard` and `mouse`
+  runs, which the reference build does not have; logs and dumps identical; keyboard 16 of 16, mouse 0 failed, selfcheck
+  8 of 8.

@@ -390,6 +390,8 @@ public class Game
         camera.near = 0.05;
         camera.updateProjectionMatrix();
 
+        // the keys as the player bound them (Core/Controls.cs); the smoke tests always play with the defaults
+        Controls.Load(defaultsOnly: AutoShot.Active);
         input = new InputManager();
         input.overUI = () => Page.IsPointerOverUI();
         input.typing = () => Page.IsTyping();
@@ -1926,7 +1928,7 @@ public class Game
         mapOpen = on;
         paused = on;
         if (on) discover("map_first");
-        input.keys.Clear();
+        input.clearKeys();
         if (on)
         {
             Page.ExitPointerLock();
@@ -2001,45 +2003,45 @@ public class Game
         audio.setMusicLevel(on ? 0.08 : 0, 1);
         if (on) Page.ExitPointerLock();
         else grabMouse();
-        input.keys.Clear();
+        input.clearKeys();
     }
 
-    private void onKey(string code)
+    private void onKey(Press p)
     {
-        if (menuKey(code)) return;
+        if (menuKey(p)) return;
         if (!started) return;
 
         if (islands[2].lighthouse?.introActive == true)
         {
-            if (code == "KeyN") audio.toggleMute();
+            if (p.Is(Act.Mute)) audio.toggleMute();
             else if (lighthouseIntroArmed > 0.3) endLighthouseIntro();
             return;
         }
         if (hammock != null)
         {
-            if (code != "KeyN") leaveHammock(false);
+            if (!p.Is(Act.Mute)) leaveHammock(false);
             return;
         }
         if (scopeOpen)
         {
-            if (code == "KeyN") audio.toggleMute();
-            else if (code == "Escape" || code == "KeyF") closeScope();
-            else if (code == "KeyH") scopeHint = true;
-            else if (code == "Space" || code == "Enter" || code == "NumpadEnter") scopeSelect = true;
+            if (p.Is(Act.Mute)) audio.toggleMute();
+            else if (p.Is(Act.Pause, Act.Use)) closeScope();
+            else if (p.Is(Act.ScopeHint)) scopeHint = true;
+            else if (p.Is(Act.Confirm)) scopeSelect = true;
             return;
         }
-        if (code == "KeyN")
+        if (p.Is(Act.Mute))
         {
             audio.toggleMute();
             return;
         }
-        if (code == "KeyM")
+        if (p.Is(Act.Map))
         {
             if (mapOpen) setMap(false);
             else if (!paused && !alt && gameState == "EXPLORE" && !transitioning) setMap(true);
             return;
         }
-        if (code == "Escape")
+        if (p.Is(Act.Pause))
         {
             if (bookOpen) closeBook();
             else if (mapOpen) setMap(false);
@@ -2049,78 +2051,78 @@ public class Game
             else if (gameState == "INSPECT") exitInspect();
             return;
         }
-        if (mapOpen && code == "KeyT")
+        if (mapOpen && p.Is(Act.MapSwitch))
         {
             ui.toggleMap();
             return;
         }
         if (bookOpen)
         {
-            if (code == "ArrowLeft" || code == "KeyA") ui.bookTurn(-1);
-            else if (code == "ArrowRight" || code == "KeyD") ui.bookTurn(1);
+            if (p.Is(Act.PagePrev)) ui.bookTurn(-1);
+            else if (p.Is(Act.PageNext)) ui.bookTurn(1);
             return;
         }
         if (paused) return;
         if (gameState == "INSPECT")
         {
-            if (code == "Escape") exitInspect();
-            else if (code == "Space" && ui.isResultOpen()) exitInspect();
+            if (p.Is(Act.Pause)) exitInspect();
+            else if (p.Is(Act.Continue) && ui.isResultOpen()) exitInspect();
             return;
         }
         if (underground)
         {
-            if (code == "KeyF") interaction?.run?.Invoke();
-            else if (code == "Digit3") setAltCamera(!altCamera);
-            else if (code.StartsWith("Digit")) ui.toast("There is nothing to dig or shoot down here. Only the camera (3) works.");
+            if (p.Is(Act.Use)) interaction?.run?.Invoke();
+            else if (p.Is(Act.Slot3)) setAltCamera(!altCamera);
+            else if (p.IsSlot) ui.toast("There is nothing to dig or shoot down here. Only the camera (3) works.");
             return;
         }
         if (diving)
         {
             // Q swims back up; F picks up what is in reach
-            if (code == "KeyQ") leaveDive();
-            else if (code == "KeyF") interaction?.run?.Invoke();
-            else if (code == "Digit1") setAltTool(0);
-            else if (code == "Digit2") setAltTool(altTool == 11 ? 0 : 11);
-            else if (code == "Digit3") setAltCamera(!altCamera);
-            else if (code.StartsWith("Digit")) ui.toast("Down here you have the harpoon (1), the net (2) and the camera (3).");
+            if (p.Is(Act.Surface)) leaveDive();
+            else if (p.Is(Act.Use)) interaction?.run?.Invoke();
+            else if (p.Is(Act.Slot1)) setAltTool(0);
+            else if (p.Is(Act.Slot2)) setAltTool(altTool == 11 ? 0 : 11);
+            else if (p.Is(Act.Slot3)) setAltCamera(!altCamera);
+            else if (p.IsSlot) ui.toast("Down here you have the harpoon (1), the net (2) and the camera (3).");
             return;
         }
         if (seated)
         {
             // on the bench only getting up is left on the keys; the mouse does the fishing
-            if ((code == "KeyF" || code == "KeyE") && gameState == "EXPLORE" && !transitioning) standUp();
+            if (p.Is(Act.Use, Act.Use2) && gameState == "EXPLORE" && !transitioning) standUp();
             return;
         }
-        if (driving && code != "KeyF" && code != "KeyE") return;
-        switch (code)
+        if (driving && !p.Is(Act.Use, Act.Use2)) return;
+        if (p.Is(Act.Use))
         {
-            case "KeyF":
-                if (gameState == "EXPLORE" && !transitioning) interaction?.run?.Invoke();
-                break;
-            case "KeyE":
-                if (gameState != "EXPLORE" || transitioning) break;
-                if (interaction2 != null) interaction2.run();
-                else if (vehicle == "boat")
-                {
-                    audio.error();
-                    ui.toast("You cannot leave the boat out here. Park it right at the beach first, so you can climb back aboard.");
-                }
-                break;
-            case "Digit1": selectSlot(1); break;
-            case "Digit2": selectSlot(2); break;
-            case "Digit3": selectSlot(3); break;
-            case "Digit4": selectSlot(4); break;
-            case "Digit5": selectSlot(5); break;
-            case "Digit6": selectSlot(6); break;
-            case "Digit7": selectSlot(7); break;
-            case "Digit8": selectSlot(8); break;
-            case "Space":
-                if (gameState == "CAMP") break;
-                selectSlot(tool == 1 ? 2 : 1);
-                break;
-            case "Escape":
-                if (gameState == "CAMP") closeCamp();
-                break;
+            if (gameState == "EXPLORE" && !transitioning) interaction?.run?.Invoke();
+        }
+        else if (p.Is(Act.Use2))
+        {
+            if (gameState != "EXPLORE" || transitioning) return;
+            if (interaction2 != null) interaction2.run();
+            else if (vehicle == "boat")
+            {
+                audio.error();
+                ui.toast("You cannot leave the boat out here. Park it right at the beach first, so you can climb back aboard.");
+            }
+        }
+        else if (p.Is(Act.Slot1)) selectSlot(1);
+        else if (p.Is(Act.Slot2)) selectSlot(2);
+        else if (p.Is(Act.Slot3)) selectSlot(3);
+        else if (p.Is(Act.Slot4)) selectSlot(4);
+        else if (p.Is(Act.Slot5)) selectSlot(5);
+        else if (p.Is(Act.Slot6)) selectSlot(6);
+        else if (p.Is(Act.Slot7)) selectSlot(7);
+        else if (p.Is(Act.Slot8)) selectSlot(8);
+        else if (p.Is(Act.ToolSwap))
+        {
+            if (gameState != "CAMP") selectSlot(tool == 1 ? 2 : 1);
+        }
+        else if (p.Is(Act.Pause))
+        {
+            if (gameState == "CAMP") closeCamp();
         }
     }
 
@@ -2851,7 +2853,7 @@ public class Game
             sky.setTime(dayTime);
             ocean.setNight(sky.starAmount);
             lighthouseIntroArmed = 0;
-            input.keys.Clear();
+            input.clearKeys();
             ui.setCaption(true, lh.introCaption, "Press any key to skip");
             audio.setOceanLevel(0.06);
             GameTimers.After(350, () => transitioning = false);
@@ -2866,7 +2868,7 @@ public class Game
         sky.update(0, camera.position.x, camera.position.z);
         ui.setCaption(true, lh.introCaption);
         lighthouseIntroArmed += dt;
-        bool pressed = input.keys.Count > 0 || (input.buttons & 1) == 1 || pad.anyDown;
+        bool pressed = input.anyKey || (input.buttons & 1) == 1 || pad.anyDown;
         if (lh.introDone || (lighthouseIntroArmed > 0.8 && pressed)) endLighthouseIntro();
     }
 
@@ -2928,7 +2930,7 @@ public class Game
             paused = true;
             scopeSelect = scopeHint = false;
             scopeFoundNow = 0;
-            input.keys.Clear();
+            input.clearKeys();
             state.data.constellations ??= new List<string>();
             ui.setPrompt(null);
             ui.setPrompt2(null);
@@ -2953,7 +2955,7 @@ public class Game
             scope.hide();
             scopeOpen = false;
             paused = false;
-            input.keys.Clear();
+            input.clearKeys();
             ui.setMenuBar(null);
             audio.setOceanLevel(0.06);
             if (scopeFoundNow > 0) autoSave();
@@ -2983,10 +2985,9 @@ public class Game
     private void updateScope(double dt)
     {
         var c = new TelescopeView.Controls();
-        bool k(string a, string b) => input.keys.Contains(a) || input.keys.Contains(b);
-        c.panX = (k("KeyD", "ArrowRight") ? 1 : 0) - (k("KeyA", "ArrowLeft") ? 1 : 0);
-        c.panY = (k("KeyW", "ArrowUp") ? 1 : 0) - (k("KeyS", "ArrowDown") ? 1 : 0);
-        c.zoom = (k("KeyE", "Equal") || input.keys.Contains("NumpadAdd") ? 1 : 0) - (k("KeyQ", "Minus") || input.keys.Contains("NumpadSubtract") ? 1 : 0);
+        c.panX = (input.Held(Act.PanRight) ? 1 : 0) - (input.Held(Act.PanLeft) ? 1 : 0);
+        c.panY = (input.Held(Act.PanUp) ? 1 : 0) - (input.Held(Act.PanDown) ? 1 : 0);
+        c.zoom = (input.Held(Act.ZoomIn) ? 1 : 0) - (input.Held(Act.ZoomOut) ? 1 : 0);
         if (pad.connected && usingPad)
         {
             c.panX += pad.move.x + pad.look.x * 0.6;
@@ -3255,22 +3256,17 @@ public class Game
         }
     }
 
-    /// <summary>Holds a virtual key for the controller, without disturbing a key the keyboard is already holding.</summary>
+    /// <summary>Holds a virtual key for the controller (it means the key's default actions, Controls.Default).</summary>
     private void setPadKey(string code, bool on)
     {
-        var keys = input.keys;
         if (on)
         {
-            if (!keys.Contains(code))
-            {
-                keys.Add(code);
-                padKeys.Add(code);
-            }
+            input.inject(code, true);
+            padKeys.Add(code);
         }
-        else if (padKeys.Contains(code))
+        else if (padKeys.Remove(code))
         {
-            keys.Remove(code);
-            padKeys.Remove(code);
+            input.inject(code, false);
         }
     }
 
@@ -3279,7 +3275,7 @@ public class Game
         padCalling = true;
         try
         {
-            input.handlers.onKey?.Invoke(code);
+            input.handlers.onKey?.Invoke(Controls.Default(code));
         }
         finally
         {
@@ -3455,14 +3451,14 @@ public class Game
     /// The keyboard in a menu: the arrows or W A S D move the highlight, Enter or Space presses it, Q and E turn the pages of
     /// the camp and of Help, Esc closes a card. True when the key was used up here.
     /// </summary>
-    private bool menuKey(string code)
+    private bool menuKey(Press p)
     {
         var root = overlayRoot();
         if (root == null) return false;
-        string dir = code == "ArrowUp" || code == "KeyW" ? "up"
-            : code == "ArrowDown" || code == "KeyS" ? "down"
-            : code == "ArrowLeft" || code == "KeyA" ? "left"
-            : code == "ArrowRight" || code == "KeyD" ? "right" : null;
+        string dir = p.Is(Act.MenuUp) ? "up"
+            : p.Is(Act.MenuDown) ? "down"
+            : p.Is(Act.MenuLeft) ? "left"
+            : p.Is(Act.MenuRight) ? "right" : null;
         if (dir != null)
         {
             // left and right turn the pages of the journal and of letters (onKey)
@@ -3470,19 +3466,19 @@ public class Game
             padNav(dir);
             return true;
         }
-        if (code == "Enter" || code == "NumpadEnter" || code == "Space")
+        if (p.Is(Act.Confirm))
         {
             menuAccept(root);
             return true;
         }
-        if (code == "KeyQ" || code == "KeyE")
+        if (p.Is(Act.TabPrev, Act.TabNext))
         {
-            int step = code == "KeyE" ? 1 : -1;
+            int step = p.Is(Act.TabNext) ? 1 : -1;
             if (campModal.isOpen && root.ClassListContains("camp")) campModal.stepTab(step);
             else if (ui.helpStep(step)) audio.ui();
             return true;
         }
-        if (code == "Escape")
+        if (p.Is(Act.Pause))
         {
             // the pause screen, the camp and the journal keep their own Esc (onKey)
             if (started && !isDialog(root)) return false;
@@ -3964,7 +3960,7 @@ public class Game
         openingLive = LiveTree.Place(opening.group, World.Land);
         openingDayTime = dayTime;
         openingArmed = 0;
-        input.keys.Clear();
+        input.clearKeys();
         ui.setCaption(true, null, "Press any key to skip");
     }
 
@@ -4000,7 +3996,7 @@ public class Game
         rain.gale = opening.gale;
         // any key, click or controller button skips it, once it has been up long enough not to be skipped by the press that started it
         openingArmed += dt;
-        bool pressed = input.keys.Count > 0 || (input.buttons & 1) == 1 || pad.anyDown;
+        bool pressed = input.anyKey || (input.buttons & 1) == 1 || pad.anyDown;
         if (opening.done || (openingArmed > 0.8 && pressed)) endOpening();
     }
 
@@ -4425,15 +4421,15 @@ public class Game
         }
         if (started && gameState == "EXPLORE")
         {
-            var k = input.keys;
+            var k = input;
             var pm = pad.move;
-            double f = Math.Max(-1, Math.Min(1, (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0) - pm.y));
-            double s = Math.Max(-1, Math.Min(1, (k.Contains("KeyD") ? 1 : 0) - (k.Contains("KeyA") ? 1 : 0) + pm.x));
+            double f = Math.Max(-1, Math.Min(1, (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0) - pm.y));
+            double s = Math.Max(-1, Math.Min(1, (k.Held(Act.Right) ? 1 : 0) - (k.Held(Act.Left) ? 1 : 0) + pm.x));
             if (f != 0 || s != 0)
             {
                 walkTo = null;
                 double len = Math.Max(1, JS.Hypot(f, s));
-                double sp = (k.Contains("ShiftLeft") ? 5.2 : 3.2) * dt;
+                double sp = (k.Held(Act.Run) ? 5.2 : 3.2) * dt;
                 // three's rotation.y: forward is (-sin, -cos), right is (cos, -sin)
                 double fx = -Math.Sin(p.yaw);
                 double fz = -Math.Cos(p.yaw);
@@ -4693,10 +4689,10 @@ public class Game
         moving = false;
         if (started && gameState == "EXPLORE")
         {
-            var k = input.keys;
+            var k = input;
             var pm = pad.move;
-            double f = Math.Max(-1, Math.Min(1, (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0) - pm.y));
-            double s = Math.Max(-1, Math.Min(1, (k.Contains("KeyD") ? 1 : 0) - (k.Contains("KeyA") ? 1 : 0) + pm.x));
+            double f = Math.Max(-1, Math.Min(1, (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0) - pm.y));
+            double s = Math.Max(-1, Math.Min(1, (k.Held(Act.Right) ? 1 : 0) - (k.Held(Act.Left) ? 1 : 0) + pm.x));
             // facing the ladder, forward and back climb it instead of walking
             bool climbing = cellar.onLadder(p.x, p.z) && (ladderY > 0.02 || (f > 0 && -Math.Sin(p.yaw) > 0.3));
             if (climbing)
@@ -4708,7 +4704,7 @@ public class Game
             if (fw != 0 || s != 0)
             {
                 double len = Math.Max(1, JS.Hypot(fw, s));
-                double sp = (k.Contains("ShiftLeft") ? 5.2 : 3.2) * dt;
+                double sp = (k.Held(Act.Run) ? 5.2 : 3.2) * dt;
                 p.x += ((-Math.Sin(p.yaw) * fw + Math.Cos(p.yaw) * s) / len) * sp;
                 p.z += ((-Math.Cos(p.yaw) * fw - Math.Sin(p.yaw) * s) / len) * sp;
                 moving = true;
@@ -4921,11 +4917,11 @@ public class Game
         var p = player;
         if (started && gameState == "EXPLORE")
         {
-            var k = input.keys;
+            var k = input;
             var pm = pad.move;
-            double f = Math.Max(-1, Math.Min(1, (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0) - pm.y));
-            double s = Math.Max(-1, Math.Min(1, (k.Contains("KeyD") ? 1 : 0) - (k.Contains("KeyA") ? 1 : 0) + pm.x));
-            double v = (k.Contains("Space") || lift.up ? 1 : 0) - (k.Contains("KeyC") || k.Contains("ControlLeft") || lift.down ? 1 : 0);
+            double f = Math.Max(-1, Math.Min(1, (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0) - pm.y));
+            double s = Math.Max(-1, Math.Min(1, (k.Held(Act.Right) ? 1 : 0) - (k.Held(Act.Left) ? 1 : 0) + pm.x));
+            double v = (k.Held(Act.Ascend) || lift.up ? 1 : 0) - (k.Held(Act.Descend) || lift.down ? 1 : 0);
             double cp = Math.Cos(p.pitch);
             var want = new THREE.Vector3(
                 -Math.Sin(p.yaw) * cp * f + Math.Cos(p.yaw) * s,
@@ -4933,7 +4929,7 @@ public class Game
                 -Math.Cos(p.yaw) * cp * f - Math.Sin(p.yaw) * s
             );
             if (want.length() > 1) want.normalize();
-            want.multiplyScalar(k.Contains("ShiftLeft") ? 3.8 : 2.4);
+            want.multiplyScalar(k.Held(Act.Run) ? 3.8 : 2.4);
             diveVel.lerp(want, Math.Min(1, dt * 2.5));
         }
         else
@@ -4999,7 +4995,7 @@ public class Game
         last.z = p.z;
         if (d > 2 || d < 1e-4) return; // a teleport or no movement
         stepDist += d;
-        double stride = input.keys.Contains("ShiftLeft") ? 1.0 : 0.78;
+        double stride = input.Held(Act.Run) ? 1.0 : 0.78;
         if (stepDist >= stride)
         {
             stepDist = 0;
@@ -5141,7 +5137,7 @@ public class Game
 
     private void updateBoating(double dt)
     {
-        var k = input.keys;
+        var k = input;
         var b = boat;
         if (cursorSteer)
         {
@@ -5153,9 +5149,9 @@ public class Game
             time,
             new DriveInput
             {
-                throttle = (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0),
-                steer = (k.Contains("KeyA") ? 1 : 0) - (k.Contains("KeyD") ? 1 : 0),
-                brake = k.Contains("Space"),
+                throttle = (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0),
+                steer = (k.Held(Act.Left) ? 1 : 0) - (k.Held(Act.Right) ? 1 : 0),
+                brake = k.Held(Act.Brake),
             },
             ocean.heightAt(b.x, b.z),
             (x, z) =>
@@ -5188,7 +5184,7 @@ public class Game
     {
         var p = player;
         var b = boat;
-        var k = input.keys;
+        var k = input;
         if (started && cursorSteer)
         {
             double x = input.pointer.x;
@@ -5199,8 +5195,8 @@ public class Game
             p.pitch = Math.Min(1.45, Math.Max(-1.45, p.pitch + dz(y, 0.2) * 1.5 * dt * zk * settings.sensitivity * (settings.invertMouse ? -1 : 1)));
         }
         // a few steps around the deck, relative to where the player is looking
-        double f = Math.Max(-1, Math.Min(1, (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0) - pad.move.y));
-        double sd = Math.Max(-1, Math.Min(1, (k.Contains("KeyD") ? 1 : 0) - (k.Contains("KeyA") ? 1 : 0) + pad.move.x));
+        double f = Math.Max(-1, Math.Min(1, (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0) - pad.move.y));
+        double sd = Math.Max(-1, Math.Min(1, (k.Held(Act.Right) ? 1 : 0) - (k.Held(Act.Left) ? 1 : 0) + pad.move.x));
         moving = f != 0 || sd != 0;
         if (moving)
         {
@@ -5289,7 +5285,7 @@ public class Game
             updateBoating(dt);
             return;
         }
-        var k = input.keys;
+        var k = input;
         var c = cart;
         // with the cursor free, holding it near a screen edge glances left or right
         if (!locked)
@@ -5301,9 +5297,9 @@ public class Game
             dt,
             new DriveInput
             {
-                throttle = (k.Contains("KeyW") ? 1 : 0) - (k.Contains("KeyS") ? 1 : 0),
-                steer = (k.Contains("KeyA") ? 1 : 0) - (k.Contains("KeyD") ? 1 : 0),
-                brake = k.Contains("Space"),
+                throttle = (k.Held(Act.Forward) ? 1 : 0) - (k.Held(Act.Backward) ? 1 : 0),
+                steer = (k.Held(Act.Left) ? 1 : 0) - (k.Held(Act.Right) ? 1 : 0),
+                brake = k.Held(Act.Brake),
             },
             (x, z) =>
             {
@@ -5532,7 +5528,7 @@ public class Game
         bookOpen = true;
         readerKind = "book";
         paused = true;
-        input.keys.Clear();
+        input.clearKeys();
         Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.02);
@@ -5561,7 +5557,7 @@ public class Game
         bookOpen = true;
         readerKind = "mail";
         paused = true;
-        input.keys.Clear();
+        input.clearKeys();
         Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.02);
@@ -5632,7 +5628,7 @@ public class Game
         bookOpen = true;
         readerKind = "story";
         paused = true;
-        input.keys.Clear();
+        input.clearKeys();
         Page.ExitPointerLock();
         audio.discover();
         audio.setEnding(true);
@@ -5671,7 +5667,7 @@ public class Game
         bookOpen = true;
         readerKind = "story";
         paused = true;
-        input.keys.Clear();
+        input.clearKeys();
         Page.ExitPointerLock();
         audio.ui();
         audio.setOceanLevel(0.006);
@@ -5696,7 +5692,7 @@ public class Game
         else if (readerKind == "book") state.markPagesRead();
         audio.ui();
         audio.setOceanLevel(underground ? 0.006 : 0.06);
-        input.keys.Clear();
+        input.clearKeys();
         grabMouse();
     }
 
@@ -6860,9 +6856,9 @@ public class Game
         audio.detectorEnabled = false;
         if (gameState == "INSPECT")
         {
-            var k = input.keys;
-            double yaw = ((k.Contains("KeyE") || k.Contains("ArrowRight") ? 1 : 0) - (k.Contains("KeyQ") || k.Contains("ArrowLeft") ? 1 : 0)) * dt * 2.2;
-            double pitch = ((k.Contains("ArrowDown") ? 1 : 0) - (k.Contains("ArrowUp") ? 1 : 0)) * dt * 1.8;
+            var k = input;
+            double yaw = ((k.Held(Act.RotateRight) ? 1 : 0) - (k.Held(Act.RotateLeft) ? 1 : 0)) * dt * 2.2;
+            double pitch = ((k.Held(Act.TiltDown) ? 1 : 0) - (k.Held(Act.TiltUp) ? 1 : 0)) * dt * 1.8;
             if (yaw != 0 || pitch != 0) station.rotate(yaw, pitch);
             bool scrubbing = (input.buttons & 1) == 1;
             bool painted = station.pointer(input.pointer, scrubbing && input.speed > 15, input.speed);
