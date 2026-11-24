@@ -475,3 +475,11 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Quick check against `refB` (base, ui, tour, settings, saves, pad, layout, mouse, keyboard, shop, newgame, photo, dive,
   land, fish, house): every scene dump pairs exactly, logs pass, mouse and keyboard 0 failed; shots flagged only for the
   animated loading screen and the known 0.02-0.04% tab-outline flicker.
+
+## Final full pass (after U10 step 3, 0c196cf)
+
+- All 39 runs against `refB`: every run exited cleanly, 38 logs pass, every scene dump pairs exactly (dumpdiff2: 0
+  differing, 0 unmatched groups), mouse and keyboard 0 failed. Shots: 409 pass; the 39 flagged are the 38 animated
+  loading screens (review-only) and the known 0.03% camp-tab outline flicker in shop/28-shop-upgrades-1.
+- Not done here: the IL2CPP perf measurement the plan lists for U10, and the 15-minute play with controller, keyboard and
+  mouse at the phase boundary.
