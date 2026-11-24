@@ -78,13 +78,14 @@ public class CleaningStation
 
         // what the bench draws is native, on the bench's own layer under its scene's root; the parts stay in the bench's
         // description, claimed (so the scene's own view does not draw them again). Each is kept in line by name
-        // (unity/UI_PLAN.md B1): the bench and the cloth do not move; the pivot turns the find (a find swapped in or out
-        // changes its shape, which makes it again); the dust and sparkles rewrite their points; the brush shows and follows.
+        // (unity/UI_PLAN.md B1): the bench and the cloth do not move; the pivot turns the find and everything on it is
+        // kept in line (a find swapped in or out changes its shape, which makes it again; its crust goes once it is clean); the dust and sparkles rewrite their points; the brush shows and follows.
         var root = World.RootOf(scene);
         IEnumerable<THREE.Object3D> none() { yield break; }
         Tracked.Place(bench, root, none, claim: true, layer: scene.unityLayer);
         Tracked.Place(cloth, root, none, claim: true, layer: scene.unityLayer);
-        Tracked.Place(pivot, root, none, claim: true, layer: scene.unityLayer);
+        // the find on the pivot changes inside too (its crust is switched off once it is clean): all of it is kept in line
+        Tracked.PlaceAll(pivot, root, claim: true, layer: scene.unityLayer);
         Tracked.Place(particles.points, root, none, () => new THREE.Object3D[] { particles.points }, claim: true, layer: scene.unityLayer);
         Tracked.Place(sparkles.points, root, none, () => new THREE.Object3D[] { sparkles.points }, claim: true, layer: scene.unityLayer);
         Tracked.Place(brushMesh, root, none, claim: true, layer: scene.unityLayer);

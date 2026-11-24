@@ -414,3 +414,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   their siblings and left the item-photo scene empty on its first frame. Tracked does as LiveTree did.
 - Checked against `refB` (base, gear, birds, smash, sweep, crust, photo, opening, fish, dolphins, dive, selfcheck): logs
   pass, selfcheck 9 of 9, every top-level group pairs up, dumps within 0.00001 m.
+
+## Full pass after LiveTree's removal; fix: the bench's crust (2026-11-24)
+
+- Full pass against `refB` at e78a067: all 39 runs clean, selfcheck 9 of 9, mouse and keyboard 0 failed, 38 logs pass,
+  no shot FAIL. Dumps paired by top-level group (`dumpdiff2.py`, now splitting every scene's root, not only Main): all
+  within 0.00001 m except one group, the cleaning bench's pivot after the telescope is cleaned, with one renderer too
+  many: the find's crust, which is switched off once clean, stayed on, because the pivot's tree was kept in line by its
+  root only. The pivot is now tracked whole (`Tracked.PlaceAll`). Rechecked (telescope, crust, islands, lighthouse): all
+  groups pair, within 0.00001 m.
