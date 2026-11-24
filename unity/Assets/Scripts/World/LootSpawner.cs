@@ -45,17 +45,61 @@ public class LootSpawner
     public readonly THREE.Group group = new THREE.Group();
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S21: the buried and sunken finds (models from LootGenerator) are a LiveTree under the
-    /// world root (the dive keeps them: sea-floor finds show under water), kept in line with the description at draw time:
-    /// finds laid, dug up, swapped, shown on land or under the sea. The descriptions stay up to date for the aim's raycasts.
+    /// The buried and sunken finds (models from LootGenerator), under the world root (the dive keeps them: sea-floor finds show
+    /// under water). Each find is realised when it is uncovered and its GameObjects destroyed when it goes (unity/UI_PLAN.md
+    /// B1); at draw time each one is shown or hidden and posed (popping up, swelling when looked at). Nothing else is compared.
+    /// The descriptions stay up to date for picking them up.
     /// </summary>
-    private LiveTree live;
+    private UnityEngine.Transform root;
+    private readonly Dictionary<THREE.Object3D, UnityEngine.Transform> made = new Dictionary<THREE.Object3D, UnityEngine.Transform>();
 
     /// <summary>Puts the finds into the world as native objects.</summary>
-    public void Place()
+    public void Place() => NativeFrame.BeforeDraw += Sync;
+
+    /// <summary>
+    /// Realised at the first draw, as the whole-tree copy did, so its GameObjects take the same place among the world root's
+    /// children (the scene dumps compare them by place).
+    /// </summary>
+    private void Realise()
     {
-        live = new LiveTree(group, World.Root);
-        NativeFrame.BeforeDraw += live.Sync;
+        var live = Realizer.Realize(group, World.Root, World.Layer);
+        root = live.root;
+        foreach (var it in items)
+            if (it.mesh != null && live[it.mesh] != null) made[it.mesh] = live[it.mesh];
+    }
+
+    /// <summary>Realises a find added to the group after it was placed.</summary>
+    private void Made(THREE.Object3D mesh)
+    {
+        if (root == null) return;
+        made[mesh] = Realizer.Realize(mesh, root, World.Layer).root;
+    }
+
+    /// <summary>Takes away a find's GameObjects.</summary>
+    private void Unmade(THREE.Object3D mesh)
+    {
+        if (mesh == null || !made.TryGetValue(mesh, out var t)) return;
+        made.Remove(mesh);
+        if (t != null)
+        {
+            t.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(t.gameObject);
+        }
+    }
+
+    private void Sync()
+    {
+        if (root == null) Realise();
+        if (root.gameObject.activeSelf != group.visible) root.gameObject.SetActive(group.visible);
+        if (!group.visible) return;
+        foreach (var kv in made)
+        {
+            var o = kv.Key;
+            var t = kv.Value;
+            if (t == null) continue;
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
     }
     public List<BuriedItem> items = new List<BuriedItem>();
     private int nextId = 1;
@@ -288,6 +332,7 @@ public class LootSpawner
         if (it.mesh != null)
         {
             group.remove(it.mesh);
+            Unmade(it.mesh);
             it.mesh = null;
         }
     }
@@ -339,6 +384,7 @@ public class LootSpawner
                 mesh.syncStatic = true;
                 it.mesh = mesh;
                 group.add(mesh);
+                Made(mesh);
                 fresh.Add(it);
             }
         }
@@ -361,9 +407,11 @@ public class LootSpawner
         mesh.userData["item"] = it;
         mesh.syncStatic = true;
         group.remove(old);
+        Unmade(old);
         it.mesh = mesh;
         it.opened = true;
         group.add(mesh);
+        Made(mesh);
     }
 
     /// <summary>Meshes the player can click on right now.</summary>

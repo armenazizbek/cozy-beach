@@ -357,3 +357,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   castle and every part's pivot are shown or hidden and posed (rising, flying off, sliding, sinking, squashing as it
   washes away) and its sand's colour pushed. A removed castle's GameObjects are destroyed. Quick check against `refB`
   (smash, rain, holes, saves): logs pass, dumps within 0.00001 m.
+
+## B1: dug-up items without the whole-tree copy (2026-11-24)
+
+- `LootSpawner`: a find's GameObjects are made when it is uncovered (or swapped for the open hatch) and destroyed when it
+  is collected, swapped or cleared; at draw time the group follows its visibility and each find is shown or hidden (land
+  or sea floor) and posed (popping up, swelling when looked at). The group is realised at the first draw, as the
+  whole-tree copy did, so its GameObjects keep their place among the world root's children: realised earlier, every dump
+  path under it moved (`Group[2]` for `Group[5]`), which the first try showed.
+- Quick check against `refB` (base, crust, gear, sweep, dive, holes, cove, saves): logs pass, dumps within 0.00001 m.
