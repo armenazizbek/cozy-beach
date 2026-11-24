@@ -172,3 +172,18 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   decode to the reference's pixels (mean difference 0.001 of 255 or less, not flipped, the underwater tint as before).
 - Still not done in B2: the renderer front itself (`renderer.render(scene, camera)` is what copies the Three-shaped scene
   onto the GameObjects, so it goes with B1).
+
+## B1 begins: Dolphins makes and moves its own GameObjects (2026-11-24)
+
+- `Dolphins` keeps no description: `Place` builds each dolphin as GameObjects with `Draw` (body, flukes in their own
+  group, eyes, in the description's order, so the object tree and its names are as the Realizer made them), and `Swim`
+  sets their positions and rotations directly. The per-frame `Realized.Apply` for the pod is gone. The splashes stay a
+  particle pool (LiveTree) until the particles are native. 19 `THREE.` uses down to 13 (the shapes are still made with
+  the Three-shaped generators, which is fine: MeshKit turns them into meshes once).
+- Checked with `-osfonts` against `refU360` (base, dolphins, ships, island, islands): logs and all 68 scene dumps
+  identical. One shot, `dolphins/21-dolphins-2.png`, differs only in the toast at the top: toasts fade with a UI Toolkit
+  transition, which runs on real time, not on the test's fixed clock, so its fade at the moment of the shot varies from
+  run to run (two repeats differed from each other too). The dolphins are pixel for pixel the same.
+- Note on the rest of B1: the S34 perf pass already found the game faster than the reference everywhere but
+  underground, so the remaining modules are mostly a code clean-up; the moving ones (Birds, Rain, Ecology, Boat,
+  SeaTreasure, CoveNets, Scenery) are next, then the static ones.

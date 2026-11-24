@@ -18,7 +18,8 @@ public class Dolphins
 
     private class Dolphin
     {
-        public THREE.Group root, flukes;
+        /// <summary>the dolphin and its flukes as GameObjects, once placed</summary>
+        public UnityEngine.Transform root, flukes;
         /// <summary>where it likes to swim: metres to the right of the boat and ahead of it</summary>
         public double side, ahead;
         /// <summary>0..1 through its rise and dive, how long one takes, and how high this one goes</summary>
@@ -30,12 +31,17 @@ public class Dolphins
         public Dolphin mother;
     }
 
-    /// <summary>The pod as built (a description); <see cref="Place"/> turns it into GameObjects.</summary>
-    public readonly THREE.Group group = new THREE.Group();
-    /// <summary>The module's GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
-    private Realized live;
+    /// <summary>
+    /// The pod's GameObjects under the world root, once placed. They are made and moved directly (unity/UI_PLAN.md B1): no
+    /// description is kept and copied over each frame.
+    /// </summary>
+    private UnityEngine.Transform root;
 
-    public UnityEngine.Transform Root => live?.root;
+    public UnityEngine.Transform Root => root;
+    /// <summary>the shapes and materials, made in the constructor and turned into GameObjects by Place</summary>
+    private readonly THREE.BufferGeometry bodyGeo, flukesGeo, eyeGeo = new THREE.SphereGeometry(0.024, 10, 8);
+    private readonly THREE.MeshStandardMaterial skin = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.28, metalness = 0.05 };
+    private readonly THREE.MeshStandardMaterial eyeMat = new THREE.MeshStandardMaterial { color = 0x0b0e12, roughness = 0.1, metalness = 0.3 };
     private readonly List<Dolphin> pod = new List<Dolphin>();
     private readonly ParticleSystem splashes = new ParticleSystem(240, 0.13, 7, false);
     private readonly THREE.Color white = new THREE.Color(0xeaf7ff);
@@ -55,37 +61,12 @@ public class Dolphins
 
     public Dolphins()
     {
-        var (body, flukes) = buildShapes();
-        var skin = new THREE.MeshStandardMaterial { vertexColors = true, roughness = 0.28, metalness = 0.05 };
-        var eyeMat = new THREE.MeshStandardMaterial { color = 0x0b0e12, roughness = 0.1, metalness = 0.3 };
+        (bodyGeo, flukesGeo) = buildShapes();
         // two at the bow, two further back and wider, and a calf tucked in beside the first
         var places = new (double side, double ahead, double size)[] { (-3.6, 8.5, 1.0), (3.9, 7.0, 1.06), (-6.4, 2.5, 0.94), (6.6, 1.0, 1.0), (-5.0, 9.3, 0.6) };
         foreach (var (side, ahead, size) in places)
-        {
-            var root = new THREE.Group();
-            root.rotation.order = "YXZ";
-            var mesh = new THREE.Mesh(body, skin);
-            mesh.castShadow = true;
-            root.add(mesh);
-            var tail = new THREE.Group();
-            tail.position.set(0, 0, LEN / 2 - 0.07);
-            var blades = new THREE.Mesh(flukes, skin);
-            blades.castShadow = true;
-            tail.add(blades);
-            root.add(tail);
-            foreach (var s in new[] { -1, 1 })
-            {
-                var eye = new THREE.Mesh(new THREE.SphereGeometry(0.024, 10, 8), eyeMat);
-                eye.position.set(s * W(0.175) * 0.93, 0.025, zAt(0.175));
-                root.add(eye);
-            }
-            root.scale.setScalar(size);
-            group.add(root);
-            pod.Add(new Dolphin { root = root, flukes = tail, side = side, ahead = ahead, size = size, cycle = JS.Random(), period = 2.4 + JS.Random() * 0.7, leap = 1.1, wobble = JS.Random() * 6 });
-        }
+            pod.Add(new Dolphin { side = side, ahead = ahead, size = size, cycle = JS.Random(), period = 2.4 + JS.Random() * 0.7, leap = 1.1, wobble = JS.Random() * 6 });
         pod[4].mother = pod[0];
-        group.add(splashes.points);
-        group.visible = false;
     }
 
     // ---------------------------------------------------------------- shape
@@ -160,31 +141,41 @@ public class Dolphins
     /// Moves the pod. `sailing` is true while the player is aboard the boat; `ground` gives the height of the sea bed.
     /// Returns true once, at the moment the pod first comes up beside the boat.
     /// </summary>
-    /// <summary>
-    /// Puts the pod into the world as native objects, following each dolphin and its flukes. The splashes stay a particle pool
-    /// the scene draws until particles are native (S24).
-    /// </summary>
+    /// <summary>The splashes: a particle pool in its own group, which shows and hides with the pod.</summary>
     private readonly THREE.Group loose = new THREE.Group();
 
+    /// <summary>
+    /// Puts the pod into the world as GameObjects: each dolphin a group with its body, its flukes (in a group of their own, which
+    /// beats) and its eyes, in the order the description had them. The splashes stay a particle pool (LiveTree).
+    /// </summary>
     public void Place(THREE.Scene scene)
     {
-        group.remove(splashes.points);
         loose.add(splashes.points);
         LiveTree.Place(loose, World.Land);
-        loose.visible = group.visible && World.Land.gameObject.activeSelf;
-        live = Realizer.Realize(group, World.Land, World.Layer);
-        live.Follow(group);
-        foreach (var d in pod) live.Follow(d.root, d.flukes);
-        live.Apply();
+        root = Draw.Group(World.Land);
+        var body = MeshKit.ToMesh(bodyGeo);
+        var blades = MeshKit.ToMesh(flukesGeo);
+        var eye = MeshKit.ToMesh(eyeGeo);
+        var skinMat = MaterialKit.Get(skin);
+        var eyeM = MaterialKit.Get(eyeMat);
+        foreach (var d in pod)
+        {
+            d.root = Draw.Group(root);
+            Draw.Mesh(d.root, body, skinMat, cast: true);
+            d.flukes = Draw.Group(d.root);
+            d.flukes.localPosition = GameSpace.V(0, 0, LEN / 2 - 0.07);
+            Draw.Mesh(d.flukes, blades, skinMat, cast: true);
+            foreach (var s in new[] { -1, 1 })
+                Draw.Mesh(d.root, eye, eyeM).transform.localPosition = GameSpace.V(s * W(0.175) * 0.93, 0.025, zAt(0.175));
+            d.root.localScale = UnityEngine.Vector3.one * (float)d.size;
+        }
+        root.gameObject.SetActive(false);
+        loose.visible = false;
     }
 
     public bool update(double dt, double t, bool sailing, double bx, double bz, double heading, double speed, double level,
-        Func<double, double, double> swell, Func<double, double, double> ground, Action<double> splashSound)
-    {
-        bool r = Swim(dt, t, sailing, bx, bz, heading, speed, level, swell, ground, splashSound);
-        live?.Apply();
-        return r;
-    }
+        Func<double, double, double> swell, Func<double, double, double> ground, Action<double> splashSound) =>
+        Swim(dt, t, sailing, bx, bz, heading, speed, level, swell, ground, splashSound);
 
     private bool Swim(double dt, double t, bool sailing, double bx, double bz, double heading, double speed, double level,
         Func<double, double, double> swell, Func<double, double, double> ground, Action<double> splashSound)
@@ -215,9 +206,10 @@ public class Dolphins
             }
         }
         presence = Math.Min(1, Math.Max(0, presence + (escorting ? dt / 4.5 : -dt / 3.5)));
-        group.visible = presence > 0;
-        // the splashes left the group for the scene (Place): their own group shows and hides with the pod
-        loose.visible = group.visible && World.Land.gameObject.activeSelf;
+        bool shown = presence > 0;
+        if (root != null && root.gameObject.activeSelf != shown) root.gameObject.SetActive(shown);
+        // the splashes are in their own group (Place), which shows and hides with the pod
+        loose.visible = shown && World.Land.gameObject.activeSelf;
         splashes.update(dt);
         if (presence <= 0) return false;
 
@@ -267,11 +259,12 @@ public class Dolphins
             var (y, dy) = arc(d.cycle, d.leap * d.size);
             double vy = dy / d.period;
             double surface = level + swell(d.x, d.z);
-            d.root.position.set(d.x, surface + y - sunk, d.z);
-            d.root.rotation.y = d.heading;
-            d.root.rotation.x = Math.Max(-1.0, Math.Min(1.0, Math.Atan2(vy, pace) * 1.8));
-            d.root.rotation.z = Math.Sin(t * 0.8 + d.wobble) * 0.07;
-            d.flukes.rotation.x = Math.Sin(t * 9 + d.wobble) * 0.38;
+            if (d.root != null)
+            {
+                d.root.localPosition = GameSpace.V(d.x, surface + y - sunk, d.z);
+                d.root.localRotation = GameSpace.Euler(Math.Max(-1.0, Math.Min(1.0, Math.Atan2(vy, pace) * 1.8)), d.heading, Math.Sin(t * 0.8 + d.wobble) * 0.07, "YXZ");
+                d.flukes.localRotation = GameSpace.Euler(Math.Sin(t * 9 + d.wobble) * 0.38, 0, 0);
+            }
 
             // spray where it breaks the surface, going up and coming down
             if (sunk < 0.3 && d.leap > 0.5 && d.lastY > -0.99 && (d.lastY < 0) != (y < 0))
