@@ -6512,7 +6512,7 @@ public class Game
     /// <summary>The GameObjects the binoculars' range can land on: the same modules as <see cref="RangeTargets"/>.</summary>
     internal UnityEngine.Transform[] RangeRoots() => new[] { camp.Root, scenery.Root, boat.Root, cart.Root, sea.Root, birds.Root, ecology.Root, treasure.Root };
 
-    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group };
+    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, cart.group, sea.group };
 
     private void updateRange()
     {

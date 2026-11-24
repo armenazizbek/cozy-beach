@@ -260,3 +260,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - `SeaTreasure`: each chest's bob, roll and flag swing are fields on the Chest, and `Pose` sets its GameObjects; a taken
   chest is hidden. No per-frame copy. Quick check against `refB` (islands, ships, saves, selfcheck): logs and shots
   pass, selfcheck 9 of 9, dumps differ only by 0.00001 m in some bounds.
+
+## B1: the boat poses itself from its numbers (2026-11-24)
+
+- `Boat`: the hull's height, the wheel's and outboard's turn and the propeller's spin are fields; `Pose` sets the hull,
+  wheel, outboard, propeller and nameplate GameObjects from them and from the boat's own place, heading, pitch and roll.
+  `seat` (the helmsman's eyes) is worked out from the same numbers (before the boat first moves it stands at the origin,
+  as the description did). No per-frame copy, no description posed.
+- Quick check against `refB` (dolphins, pier, ships, saves, selfcheck): logs pass, selfcheck 9 of 9, dumps differ only
+  by 0.00001 m in some bounds, three sea shots flagged with 0% of pixels changed.

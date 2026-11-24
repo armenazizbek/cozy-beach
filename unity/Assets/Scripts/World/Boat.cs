@@ -326,22 +326,48 @@ public class Boat
     }
 
     /// <summary>
-    /// The boat's GameObjects (native since unity/NATIVE_PLAN.md S12); it moves its hull, wheel, outboard and propeller itself. The
-    /// wake stays a particle pool the scene draws until S24. The description stays up to date for the binoculars' raycast.
+    /// The boat's GameObjects. The boat is built as a description and realised once; after that its hull, wheel, outboard and
+    /// propeller are posed from the boat's own numbers (Pose; unity/UI_PLAN.md B1). The wake stays a particle pool.
     /// </summary>
-    private Realized live;
+    private UnityEngine.Transform hullT, wheelT, motorT, propT, plateT;
 
     /// <summary>The boat's GameObjects under the world root, once placed.</summary>
-    public UnityEngine.Transform Root => live?.root;
+    public UnityEngine.Transform Root => hullT;
+
+    /// <summary>the hull's height, the wheel's and the outboard's turn and the propeller's spin, set by update</summary>
+    private double bobY, wheelTurn, motorTurn, propSpin;
+    /// <summary>false until the boat has been moved once: until then it stands where it was built, at the origin</summary>
+    private bool moved;
+    private bool named;
 
     /// <summary>Puts the boat into the world as native objects; the wake goes to the scene.</summary>
     public void Place(THREE.Scene scene)
     {
-        live = Realizer.Realize(group, World.Land, World.Layer).Follow(group, wheel, motor, prop, nameplate);
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        hullT = live.root;
+        wheelT = live[wheel];
+        motorT = live[motor];
+        propT = live[prop];
+        plateT = live[nameplate];
         // the wake: a particle pool, native since S24
         LiveTree.Place(wake.points, World.Land);
-        live.Apply();
     }
+
+    /// <summary>Sets the boat's GameObjects from its numbers.</summary>
+    private void Pose()
+    {
+        if (hullT == null) return;
+        if (plateT.gameObject.activeSelf != named) plateT.gameObject.SetActive(named);
+        if (!moved) return;
+        hullT.localPosition = GameSpace.V(x, bobY, z);
+        hullT.localRotation = GameSpace.Euler(pitch, heading, roll, "YXZ");
+        wheelT.localRotation = GameSpace.Euler(WHEEL_TILT, 0, wheelTurn);
+        motorT.localRotation = GameSpace.Euler(0, motorTurn, 0);
+        propT.localRotation = GameSpace.Euler(0, 0, propSpin);
+    }
+
+    /// <summary>how far the wheel leans back towards the helmsman</summary>
+    private static readonly double WHEEL_TILT = -(Math.PI / 2 - 0.6);
 
     /// <summary>The captain's colours and the name on the stern, from the Luxury shop.</summary>
     public void setMarigold()
@@ -349,18 +375,25 @@ public class Boat
         stripe.color.set(0xe0a92e);
         rail.color.set(0xd9ab45);
         rail.metalness = 0.5;
-        nameplate.visible = true;
+        named = true;
         MaterialKit.Push(stripe);
         MaterialKit.Push(rail);
-        live?.Apply();
+        Pose();
     }
+
+    private readonly THREE.Quaternion seatQ = new THREE.Quaternion();
+    private readonly THREE.Euler seatE = new THREE.Euler();
+    private readonly THREE.Vector3 seatP = new THREE.Vector3();
 
     /// <summary>World position of the helmsman's eyes.</summary>
     public THREE.Vector3 seat(THREE.Vector3 o = null)
     {
         o ??= tmp;
-        group.updateWorldMatrix(true, false);
-        return group.localToWorld(o.set(0, 1.85, 1.0));
+        o.set(0, 1.85, 1.0);
+        if (!moved) return o;
+        // the hull's pose from the boat's numbers (it stands straight in the scene, unscaled)
+        seatQ.setFromEuler(seatE.set(pitch, heading, roll, "YXZ"));
+        return o.applyQuaternion(seatQ).add(seatP.set(x, bobY, z));
     }
 
     /// <summary>Moves and bobs the boat on the water. `level` is the surface height.</summary>
@@ -401,11 +434,11 @@ public class Boat
         double targetRoll = -steerAngle * speed * 0.012 + Math.Sin(t * 0.9 + 1) * 0.025;
         pitch += (targetPitch - pitch) * Math.Min(1, dt * 3);
         roll += (targetRoll - roll) * Math.Min(1, dt * 3);
-        group.position.set(x, level + Math.Sin(t * 1.7) * 0.04 + 0.05, z);
-        group.rotation.set(pitch, heading, roll, "YXZ");
-        wheel.rotation.z = steerAngle * 2.4;
-        motor.rotation.y = -steerAngle * 0.45;
-        prop.rotation.z += speed * dt * 6;
+        bobY = level + Math.Sin(t * 1.7) * 0.04 + 0.05;
+        wheelTurn = steerAngle * 2.4;
+        motorTurn = -steerAngle * 0.45;
+        propSpin += speed * dt * 6;
+        moved = true;
 
         // wake: foam fanning out behind the stern, and bow spray when it is going fast
         foamTimer -= dt;
@@ -427,6 +460,6 @@ public class Boat
             }
         }
         wake.update(dt);
-        live?.Apply();
+        Pose();
     }
 }
