@@ -916,9 +916,10 @@ public class Game
     /// </summary>
     internal string smokeTestShootBird(bool flying)
     {
-        var hit = birds.targets().Select(t => (THREE.Object3D)t.owner).FirstOrDefault(o => birds.standing(o) != flying);
+        var hit = birds.targets().FirstOrDefault(t => birds.standing(t.owner) != flying);
         if (hit == null) return $"no {(flying ? "flying" : "standing")} gull around";
-        var at = hit.getWorldPosition(new THREE.Vector3());
+        var at = new THREE.Vector3();
+        hit.Where(at);
         var from = at.clone().add(new THREE.Vector3(0.5, flying ? -2.5 : 1.5, -4));
         bullets.spawn(from, at.clone().sub(from).normalize());
         return $"shot at a {(flying ? "flying" : "standing")} gull; coins before: {state.data.coins}";
@@ -2516,7 +2517,7 @@ public class Game
     private void onBulletHit(Target target, THREE.Vector3 impact = null, double power = 0.14)
     {
         // the target's kind says whose it is (Core/Target.cs); the module gets its own handle back
-        var obj = (THREE.Object3D)target.owner;
+        var obj = target.owner as THREE.Object3D;
         if (target.kind == TargetKind.Castle)
         {
             if (castles.castleOf(obj) != null) hitCastle(obj, impact, power);
@@ -2562,7 +2563,7 @@ public class Game
         // shot at a gull ever counted
         if (target.kind == TargetKind.Gull)
         {
-            var atBird = birds.shoot(obj);
+            var atBird = birds.shoot(target.owner);
             if (atBird != null)
             {
                 dig.particles.burst(atBird, 40, 2.4, 1.2, 1.6, new THREE.Color(0xf6f4ee));
@@ -6507,7 +6508,7 @@ public class Game
     /// <summary>The GameObjects the binoculars' range can land on: the same modules as <see cref="RangeTargets"/>.</summary>
     internal UnityEngine.Transform[] RangeRoots() => new[] { camp.Root, scenery.Root, boat.Root, cart.Root, sea.Root, birds.Root, ecology.Root, treasure.Root };
 
-    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, birds.group, ecology.group, treasure.group };
+    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, ecology.group, treasure.group };
 
     private void updateRange()
     {

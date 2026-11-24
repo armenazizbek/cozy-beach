@@ -233,3 +233,14 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   2 rays differ: the old check hit a mesh inside a hidden group (not drawn), the new one does not. It caught two bugs on
   the way: ray directions not mirrored like their origins (`TransformDirection` ignores the root's -1 z scale;
   `TransformVector` does not) and back faces skipped.
+
+## B1: gulls keep their state in numbers (2026-11-24)
+
+- `Birds`: the gulls are still built as descriptions and realised once, but after that each gull's place, turn (with
+  Three's rotation order: XYZ until it first flies, then YXZ), wing angle and visibility are fields on the Gull, and
+  `Pose` sets its GameObjects from them (a hidden gull is left where it was, as the scene copy left it). The gull's
+  `Target` is its own position (radius 1). No `Realized.Follow`, no description posed any more; `standing` and `shoot`
+  take the gull itself. The binoculars' self-check leaves the gulls out of its description comparison.
+- Quick check against `refB` (birds, gullshadow, selfcheck): logs pass, shots pass, selfcheck 9 of 9; five dumps differ
+  only in the fifth decimal of some bounds (27.37288 against 27.37287 m: the rotation worked out by `GameSpace.Euler`),
+  vertex hashes identical.

@@ -12,9 +12,19 @@ public class Birds
 
     private class Gull
     {
+        /// <summary>the gull's parts as built (descriptions), turned into GameObjects once by Place</summary>
         public THREE.Group root, legs, left, right;
         /// <summary>the wings tucked along the body, for a bird that is standing</summary>
         public THREE.Group folded;
+        /// <summary>its GameObjects, posed from the numbers below each frame (unity/UI_PLAN.md B1)</summary>
+        public UnityEngine.Transform rootT, legsT, foldedT, leftT, rightT;
+        /// <summary>where it is and how it is turned, in the game's world; `yxz` once it has flown (Three's rotation order)</summary>
+        public double x, y, z, rx, ry, rz;
+        public bool yxz, shown = true;
+        /// <summary>the wings' angle, and whether it stands (legs and folded wings) or flies (open wings)</summary>
+        public double wing;
+        public bool grounded;
+        public Target target;
         /// <summary>'fly' | 'ground' | 'flee' | 'away'</summary>
         public string mode;
         // circling flight
@@ -30,20 +40,47 @@ public class Birds
     private readonly List<Gull> gulls = new List<Gull>();
 
     /// <summary>
-    /// The flock's GameObjects (native since unity/NATIVE_PLAN.md S11). Each gull follows its body, wings, folded wings and legs;
-    /// the descriptions stay up to date for the aim and the binoculars' raycasts.
+    /// The flock's GameObjects. The gulls are built as descriptions and realised once; after that each gull's place, turn,
+    /// wings and visibility are numbers on the Gull, and Pose sets its GameObjects from them (unity/UI_PLAN.md B1). The aim
+    /// (Target) and the binoculars (Picking.NearestDrawn) no longer look at the descriptions.
     /// </summary>
-    private Realized live;
+    private UnityEngine.Transform root;
 
     /// <summary>The gulls' GameObjects under the world root, once placed.</summary>
-    public UnityEngine.Transform Root => live?.root;
+    public UnityEngine.Transform Root => root;
 
     /// <summary>Puts the flock into the world as native objects.</summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Land, World.Layer);
-        foreach (var g in gulls) live.Follow(g.root, g.legs, g.folded, g.left, g.right);
-        live.Apply();
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        root = live.root;
+        foreach (var g in gulls)
+        {
+            g.rootT = live[g.root];
+            g.legsT = live[g.legs];
+            g.foldedT = live[g.folded];
+            g.leftT = live[g.left];
+            g.rightT = live[g.right];
+        }
+    }
+
+    /// <summary>Sets a gull's GameObjects from its numbers. A hidden gull is left where it was, as the scene copy left it.</summary>
+    private static void Pose(Gull g)
+    {
+        if (g.rootT == null) return;
+        if (g.rootT.gameObject.activeSelf != g.shown) g.rootT.gameObject.SetActive(g.shown);
+        if (!g.shown) return;
+        g.rootT.localPosition = GameSpace.V(g.x, g.y, g.z);
+        g.rootT.localRotation = GameSpace.Euler(g.rx, g.ry, g.rz, g.yxz ? "YXZ" : "XYZ");
+        if (g.legsT.gameObject.activeSelf != g.grounded) g.legsT.gameObject.SetActive(g.grounded);
+        if (g.foldedT.gameObject.activeSelf != g.grounded) g.foldedT.gameObject.SetActive(g.grounded);
+        if (g.rightT.gameObject.activeSelf == g.grounded) g.rightT.gameObject.SetActive(!g.grounded);
+        if (g.leftT.gameObject.activeSelf == g.grounded) g.leftT.gameObject.SetActive(!g.grounded);
+        if (!g.grounded)
+        {
+            g.rightT.localRotation = GameSpace.Euler(0, 0, g.wing);
+            g.leftT.localRotation = GameSpace.Euler(0, 0, -g.wing);
+        }
     }
     private readonly THREE.BufferGeometry wingGeo;
     private readonly THREE.MeshStandardMaterial white = new THREE.MeshStandardMaterial { color = 0xf6f4ee, roughness = 0.8 };
@@ -164,6 +201,8 @@ public class Birds
         g.phase = JS.Random() * 6;
         g.alert = rand(10, 15);
         hit.userData["gull"] = g;
+        // the hit sphere sits at the gull's middle: the target is where the gull is
+        g.target = new Target(TargetKind.Gull, g, 1.0, v => v.set(g.x, g.y, g.z));
         return g;
     }
 
@@ -183,11 +222,13 @@ public class Birds
     {
         double x = rand(-62, 62);
         double z = rand(WET_Z + 1, SHORE_Z - 3);
-        g.root.position.set(x, beach.heightAt(x, z) + 0.2, z);
+        g.x = x;
+        g.y = beach.heightAt(x, z) + 0.2;
+        g.z = z;
         g.mode = "ground";
         g.timer = rand(1, 4);
         g.vx = g.vz = 0;
-        g.root.visible = true;
+        g.shown = true;
     }
 
     private void addGround()
@@ -208,42 +249,38 @@ public class Birds
         held.r = 0.01;
         held.alt = alt;
         held.omega = 0.0001;
-        return held.root.position.clone();
+        return new THREE.Vector3(held.x, held.y, held.z);
     }
 
-    /// <summary>Hit spheres of every gull that is currently around.</summary>
-    public List<Target> targets() => gulls.Where(g => g.mode != "away" && g.root.visible).Select(g => Target.Of(TargetKind.Gull, g.hit)).ToList();
+    /// <summary>Every gull that is currently around, to aim at.</summary>
+    public List<Target> targets() => gulls.Where(g => g.mode != "away" && g.shown).Select(g => g.target).ToList();
 
-    /// <summary>Whether the gull this hit sphere belongs to is on the sand (and not in the air).</summary>
-    public bool standing(THREE.Object3D hit) => hit.userData.Get<Gull>("gull")?.mode == "ground";
+    /// <summary>Whether the gull a target stands for is on the sand (and not in the air).</summary>
+    public bool standing(object gull) => (gull as Gull)?.mode == "ground";
 
     /// <summary>whether the gull that was last shot was in the air, which is the harder shot</summary>
     public bool lastShotAirborne = false;
 
     /// <summary>A gull is startled right out of sight for a good while. Returns where it was.</summary>
-    public THREE.Vector3 shoot(THREE.Object3D obj)
+    public THREE.Vector3 shoot(object gull)
     {
-        var g = obj.userData.Get<Gull>("gull");
+        var g = gull as Gull;
         if (g == null || g.mode == "away") return null;
-        var at = g.root.getWorldPosition(new THREE.Vector3());
+        var at = new THREE.Vector3(g.x, g.y, g.z);
         lastShotAirborne = g.mode == "fly" || g.mode == "flee";
         g.mode = "away";
         g.timer = rand(40, 70);
-        g.root.visible = false;
-        g.root.rotation.x = 0;
-        live?.Apply();
+        g.shown = false;
+        g.rx = 0;
+        Pose(g);
         return at;
     }
 
     /// <summary>Wing angle in radians; positive lifts the tips.</summary>
     private void setWings(Gull g, double a)
     {
-        bool ground = g.mode == "ground";
-        g.legs.visible = ground;
-        g.folded.visible = ground;
-        g.right.visible = g.left.visible = !ground;
-        g.right.rotation.z = a;
-        g.left.rotation.z = -a;
+        g.grounded = g.mode == "ground";
+        g.wing = a;
     }
 
     /// <summary>onCry(distance) is called when a gull squawks so the sound can be placed.</summary>
@@ -251,7 +288,6 @@ public class Birds
     {
         foreach (var g in gulls)
         {
-            var r = g.root;
             if (g.mode == "fly")
             {
                 g.ang += g.omega * dt;
@@ -259,10 +295,12 @@ public class Birds
                 double x = g.cx + Math.Cos(g.ang) * g.r;
                 double z = g.cz + Math.Sin(g.ang) * g.r;
                 double y = g.alt + Math.Sin(t * 0.5 + g.phase) * 1.4;
-                r.rotation.order = "YXZ";
-                r.rotation.y = Math.Atan2(-Math.Sin(g.ang) * dir, Math.Cos(g.ang) * dir);
-                r.rotation.z = -dir * 0.3;
-                r.position.set(x, y, z);
+                g.yxz = true;
+                g.ry = Math.Atan2(-Math.Sin(g.ang) * dir, Math.Cos(g.ang) * dir);
+                g.rz = -dir * 0.3;
+                g.x = x;
+                g.y = y;
+                g.z = z;
                 // flap, then glide, then flap again
                 double flapAmt = Math.Max(0, Math.Sin(t * 0.35 + g.phase));
                 setWings(g, 0.12 + Math.Sin(t * 6.5 + g.phase) * 0.5 * flapAmt);
@@ -281,24 +319,26 @@ public class Birds
                         g.vz = Math.Sin(a) * 0.45;
                     }
                 }
-                double nx = r.position.x + g.vx * dt, nz = r.position.z + g.vz * dt;
+                double nx = g.x + g.vx * dt, nz = g.z + g.vz * dt;
                 if (nz < WET_Z || nz > SHORE_Z - 2 || Math.Abs(nx) > 64)
                 {
                     g.vx *= -1;
                     g.vz *= -1;
-                    nx = r.position.x;
-                    nz = r.position.z;
+                    nx = g.x;
+                    nz = g.z;
                 }
                 bool moving = g.vx != 0 || g.vz != 0;
-                r.position.set(nx, beach.heightAt(nx, nz) + 0.42 + (moving ? Math.Abs(Math.Sin(t * 8 + g.phase)) * 0.02 : 0), nz);
+                g.x = nx;
+                g.y = beach.heightAt(nx, nz) + 0.42 + (moving ? Math.Abs(Math.Sin(t * 8 + g.phase)) * 0.02 : 0);
+                g.z = nz;
                 if (moving)
                 {
                     double target = Math.Atan2(g.vx, g.vz);
-                    double d0 = target - r.rotation.y;
+                    double d0 = target - g.ry;
                     d0 = Math.Atan2(Math.Sin(d0), Math.Cos(d0));
-                    r.rotation.y += d0 * Math.Min(1, dt * 4);
+                    g.ry += d0 * Math.Min(1, dt * 4);
                 }
-                r.rotation.z = 0;
+                g.rz = 0;
                 setWings(g, -1.15);
                 // startled by a visitor
                 double d = JS.Hypot(px - nx, pz - nz);
@@ -309,24 +349,24 @@ public class Birds
                     double away = Math.Atan2(nx - px, nz - pz);
                     g.vx = Math.Sin(away) * 5.5;
                     g.vz = Math.Cos(away) * 5.5;
-                    r.rotation.y = away;
+                    g.ry = away;
                     onCry(d);
                 }
             }
             else if (g.mode == "flee")
             {
                 g.climb += dt * 4;
-                r.position.x += g.vx * dt;
-                r.position.z += g.vz * dt;
-                r.position.y += Math.Min(6, g.climb) * dt;
-                r.rotation.x = -0.35;
+                g.x += g.vx * dt;
+                g.z += g.vz * dt;
+                g.y += Math.Min(6, g.climb) * dt;
+                g.rx = -0.35;
                 setWings(g, Math.Sin(t * 16 + g.phase) * 0.8);
-                if (r.position.y > 16)
+                if (g.y > 16)
                 {
                     g.mode = "away";
                     g.timer = rand(25, 45);
-                    r.visible = false;
-                    r.rotation.x = 0;
+                    g.shown = false;
+                    g.rx = 0;
                 }
             }
             else
@@ -345,11 +385,11 @@ public class Birds
             if (flyers.Count > 0)
             {
                 var g = flyers[(int)Math.Floor(JS.Random() * flyers.Count)];
-                onCry(JS.Hypot(g.root.position.x - px, g.root.position.z - pz));
+                onCry(JS.Hypot(g.x - px, g.z - pz));
             }
         }
         // gulls too far away to make out are not drawn
-        foreach (var g in gulls) if (g.mode != "away") g.root.visible = JS.Hypot(g.root.position.x - px, g.root.position.z - pz) < 140;
-        live?.Apply();
+        foreach (var g in gulls) if (g.mode != "away") g.shown = JS.Hypot(g.x - px, g.z - pz) < 140;
+        foreach (var g in gulls) Pose(g);
     }
 }
