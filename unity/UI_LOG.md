@@ -187,3 +187,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Note on the rest of B1: the S34 perf pass already found the game faster than the reference everywhere but
   underground, so the remaining modules are mostly a code clean-up; the moving ones (Birds, Rain, Ecology, Boat,
   SeaTreasure, CoveNets, Scenery) are next, then the static ones.
+
+## Steady UI pictures in tests; the Keys section names shared keys (2026-11-24)
+
+- UI Toolkit's transitions (toasts, cards) run on real time, not on the test's fixed clock, so a picture taken during one
+  depended on how long frames really took. In a test run (`TestClock.Fixed`) every element is made with a transition
+  time of 0 (`UiNode`), so transitions end at once. Two runs of the same build now give the same pictures (ui, keyboard,
+  dolphins: only the review-only loading shots differ). Players are not affected.
+- The Keys section names a key that another row now shares ("G (also Map)", in red), unless both rows still have the
+  game's own keys: Space swaps tools, swims up and brakes on purpose. `Controls.SharedWith`; two keyboard-test checks.

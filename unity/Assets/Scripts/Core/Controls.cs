@@ -220,6 +220,23 @@ public static class Controls
         (Act.Brake, "Brake the cart or boat"),
     };
 
+    /// <summary>
+    /// The names (as the Settings rows call them) of the other rebindable actions on the same key as `a`, where at least one
+    /// of the two has been rebound: the game's own shared keys are meant to be shared.
+    /// </summary>
+    public static List<string> SharedWith(Act a)
+    {
+        var found = new List<string>();
+        string mine = KeyName(a);
+        bool mineMoved = KeyName(a) != DefaultName(a);
+        foreach (var (other, label) in Rebindable)
+        {
+            if (other == a || KeyName(other) != mine) continue;
+            if (mineMoved || KeyName(other) != DefaultName(other)) found.Add(label);
+        }
+        return found;
+    }
+
     /// <summary>Raised when the bindings change (a rebind, a reset or a load), so key pictures can follow.</summary>
     public static event Action Changed;
 

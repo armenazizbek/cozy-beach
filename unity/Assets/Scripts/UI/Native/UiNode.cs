@@ -112,6 +112,9 @@ public class UiNode
         // the element a VisualElement stands for (the menu navigation finds native elements by it, NavEl.Of)
         ve.userData = this;
         ve.AddToClassList("t-" + this.tag);
+        // UI Toolkit's transitions (a toast fading in, a card sliding) run on real time, not on the smoke test's fixed clock,
+        // so a picture taken during one depended on how long frames really took. In a test run they end at once.
+        if (TestClock.Fixed) ve.style.transitionDuration = new StyleList<TimeValue>(new System.Collections.Generic.List<TimeValue> { new TimeValue(0) });
         ve.RegisterCallback<GeometryChangedEvent>(FitPill);
         // the highlight follows UI Toolkit's focus, as the page's activeElement did: an element hidden or taken away while
         // chosen lets go of it (the camp closing must not keep its last button chosen for the next visit)

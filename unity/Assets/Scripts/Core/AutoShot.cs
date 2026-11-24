@@ -424,6 +424,10 @@ public class AutoShot : MonoBehaviour
             Check($"WASD names the four keys as bound ({walk})", walk == "I / A / S / D swim · Space up");
             game.ui.setPadMode(false);
             Check($"the prompt's key picture follows the binding ({game.ui.smokeKeyF})", game.ui.smokeKeyF == "G");
+            UnityEngine.InputSystem.InputActionRebindingExtensions.ApplyBindingOverride(Controls.Map["Map"], 0, "<Keyboard>/g");
+            Controls.Rebound();
+            Check($"a key two actions now share is named ({string.Join(", ", Controls.SharedWith(Act.Use))})", Controls.SharedWith(Act.Use).Contains("Map"));
+            Check($"keys shared from the start are not ({string.Join(", ", Controls.SharedWith(Act.ToolSwap))})", Controls.SharedWith(Act.ToolSwap).Count == 0);
             Controls.Load(defaultsOnly: true);
             Check($"with the game's own keys the words are as written ({Controls.Say("F gets out", Act.Use)})", Controls.Say("F gets out", Act.Use) == "F gets out");
             Debug.Log($"[AutoShot] keys: {failures} check(s) failed");

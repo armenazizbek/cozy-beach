@@ -2233,6 +2233,11 @@
   opacity: 0.6;
 }
 
+/* a key another row uses too (UIManager.openSettings names it) */
+.set-row.clash .set-key {
+  color: #b5452b;
+}
+
 .set-range {
   flex-grow: 1;
   flex-shrink: 1;

@@ -752,7 +752,11 @@ public class UIManager
             foreach (var (act, row, val) in keyRows)
             {
                 row.RemoveClass("listening");
-                val.Text = Controls.KeyNames(act);
+                // a key another row uses too is named there, unless both still have the game's own keys (Space swaps the
+                // tools, swims up and brakes on purpose)
+                var also = Controls.SharedWith(act);
+                row.Toggle("clash", also.Count > 0);
+                val.Text = also.Count > 0 ? $"{Controls.KeyNames(act)} (also {string.Join(", ", also)})" : Controls.KeyNames(act);
             }
         }
         foreach (var (act, label) in Controls.Rebindable)
