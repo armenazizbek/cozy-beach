@@ -149,9 +149,10 @@ the port brings a small part of Three.js across to C#, so each TypeScript file b
 extrude, shape, polyhedra, capsule...), curves and shapes, materials, textures, a software 2D canvas for `CanvasTexture`, and a
 raycaster. The geometry generators follow Three.js's own source, so vertices come out identical.
 
-`THREE.WebGLRenderer` is the bridge to Unity. Every frame it walks the scene graph and copies each object's transform, visibility,
-geometry and material into a matching Unity `GameObject` with a `MeshRenderer`. Game code never touches Unity transforms directly;
-it moves `THREE.Object3D`s exactly as the TypeScript did.
+The world is drawn natively (`NATIVE_PLAN.md`, `UI_PLAN.md` B1 and B2): each module realises its description once as Unity
+`GameObject`s (`Native/Realizer.cs`) and then poses its named parts directly; what still changes shape or material is kept in
+line by `Native/Tracked.cs`. `NativeRender.GameRenderer` draws the scenes with Unity cameras and runs the game's frame. The
+`THREE` types remain as the description and math layer the modules build from.
 
 ### Coordinates
 

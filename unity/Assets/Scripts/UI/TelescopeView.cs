@@ -18,7 +18,7 @@ using UnityEngine.UIElements;
 /// Nothing is timed and nothing can be failed.
 ///
 /// The sky is drawn by the GPU as one UI Toolkit layer (generateVisualContent): soft textured quads for the stars, the glow of
-/// the Milky Way and the lines; the eyepiece's black surround and brass rim are meshes on top. The words are DOM elements.
+/// the Milky Way and the lines; the eyepiece's black surround and brass rim are meshes on top. The words are UI elements.
 /// </summary>
 public class TelescopeView
 {

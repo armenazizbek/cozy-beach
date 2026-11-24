@@ -1,9 +1,9 @@
 /* ==========================================================================
    The game's UI: menus, cards and the HUD (UI Toolkit, USS)
    ==========================================================================
-   The UI began as a port of the browser game's style.css. The screens are built natively in C# (Assets/Scripts/UI and
-   UI/Native: UiNode makes each element with the tag class and class names the old page gave it), so this sheet still
-   reads like the page's; unity/UI_PLAN.md moves the screens to UXML and splits it per screen.
+   The screens are UXML (Resources/UI/Screens) and code (Assets/Scripts/UI); each element is a UiNode, which carries a
+   role class (.t-h1, .t-p, .t-b, ...: the text's kind, for the type scale below) and the screen's own classes. The page's
+   root (.page) carries the game's state as classes (diving, underground, usingpad, menu-open, ...).
    1. THE PAGE. Everything is laid out on a 1920 x 1080 page that UiRoot scales to the screen (a wider or taller screen
       sees more page). Sizes here are in those page pixels, so the UI takes up the same share of a 720p window and a 4K TV.
    2. THE SKIN. Panels, buttons, key caps, controller buttons, meters and frames are pictures in Resources/UI/Skin, drawn by
@@ -19,7 +19,7 @@
       - pointer-events: none (the element itself only): UiNode.PointerNone
            #ui, .gone, .prompt, .hud, .result, .fade, .binoc, .map-cursor, .padtools, .padbar, .sleepveil, .dive-tint
       - overflow-y: auto: a ScrollView, for .camp-body, .save-list, .ach-list, .help-body, .set-rows
-      - tag selectors: .t-<tag>; :disabled: .disabled; :checked: .checked
+      - text roles: .t-<role> (UiNode's tag); :disabled: .disabled; :checked: .checked
       - .note:nth-child(even): .note.even; .pt-center i:nth-child(n): .t-i.nth-n; ::before / ::after: real elements
       - text-transform: uppercase: UiNode's uppercase rules
       - @keyframes: UiAnim.cs
@@ -34,8 +34,7 @@
   --gold: #ffc84a;
 }
 
-.t-html,
-.t-body {
+.page {
   margin: 0;
   width: 100%;
   height: 100%;
@@ -50,7 +49,7 @@
 /* An element's text is drawn by a Unity Label inside it, and Unity's default theme gives labels a white-space of their own,
    which beats the white-space they would inherit from the page: every paragraph ran on as one long line out of its box.
    Text wraps again here; the page's nowrap rules repeat themselves for labels at the end of this file. */
-.t-html .unity-label {
+.page .unity-label {
   white-space: normal;
 }
 
@@ -941,12 +940,12 @@
 }
 
 /* the d-pad picker is taller than the badge, so the mini-map moves up above it */
-.t-body.usingpad .minimap,
+.page.usingpad .minimap,
 .usingpad .minimap {
   bottom: 256px;
 }
 
-.t-body.usingpad .minimap-ring,
+.page.usingpad .minimap-ring,
 .usingpad .minimap-ring {
   bottom: 240px;
 }
@@ -2893,40 +2892,40 @@
   opacity: 1;
 }
 
-.t-body.diving .minimap,
+.page.diving .minimap,
 .diving .minimap,
 .diving .minimap-ring {
   display: none;
 }
 
-.t-body.underground .minimap,
+.page.underground .minimap,
 .underground .minimap,
 .underground .minimap-ring {
   display: none;
 }
 
-/* ---------- labels inside the page's nowrap rules (see ".t-html .unity-label" near the top) ---------- */
-.t-html .prompt .unity-label,
-.t-html .chip .unity-label,
-.t-html .hint .unity-label,
-.t-html .btn .unity-label,
-.t-html .mm-btn .unity-label,
-.t-html .kc .unity-label,
-.t-html .pb-item .unity-label,
-.t-html .step-val .unity-label,
-.t-html .card .cat .unity-label,
-.t-html .camp-head .t-h2 .unity-label,
-.t-html .intro-card > .t-h1 .unity-label,
-.t-html .krow .t-b .unity-label {
+/* ---------- labels inside the page's nowrap rules (see ".page .unity-label" near the top) ---------- */
+.page .prompt .unity-label,
+.page .chip .unity-label,
+.page .hint .unity-label,
+.page .btn .unity-label,
+.page .mm-btn .unity-label,
+.page .kc .unity-label,
+.page .pb-item .unity-label,
+.page .step-val .unity-label,
+.page .card .cat .unity-label,
+.page .camp-head .t-h2 .unity-label,
+.page .intro-card > .t-h1 .unity-label,
+.page .krow .t-b .unity-label {
   white-space: nowrap;
 }
 
 /* the loading line stays on one line in the title face, which runs wider than the body font */
-.t-html #boot .t-p .unity-label {
+.page #boot .t-p .unity-label {
   white-space: nowrap;
 }
 
-.t-html .save-row .si .t-b .unity-label {
+.page .save-row .si .t-b .unity-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2935,7 +2934,7 @@
 
 /* ---------- scrollbars ----------
    A slim rounded thumb in the page's ink colour on a faint track, with no arrow buttons, instead of Unity's grey default. */
-.t-html .unity-scroll-view .unity-scroller--vertical {
+.page .unity-scroll-view .unity-scroller--vertical {
   width: 12px;
   min-width: 12px;
   margin-left: 4px;
@@ -2943,27 +2942,27 @@
   background-color: rgba(0, 0, 0, 0);
 }
 
-.t-html .unity-scroll-view .unity-scroller--horizontal {
+.page .unity-scroll-view .unity-scroller--horizontal {
   display: none;
 }
 
-.t-html .unity-scroll-view .unity-scroller .unity-scroller__low-button,
-.t-html .unity-scroll-view .unity-scroller .unity-scroller__high-button {
+.page .unity-scroll-view .unity-scroller .unity-scroller__low-button,
+.page .unity-scroll-view .unity-scroller .unity-scroller__high-button {
   display: none;
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-scroller__slider {
+.page .unity-scroll-view .unity-scroller--vertical .unity-scroller__slider {
   margin: 0;
   padding: 0;
   flex-grow: 1;
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__input {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__input {
   margin: 0;
   padding: 0;
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__tracker {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__tracker {
   left: 2px;
   right: 2px;
   width: auto;
@@ -2973,11 +2972,11 @@
   background-color: rgba(42, 28, 20, 0.1);
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger-border {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger-border {
   display: none;
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger {
   left: 1px;
   width: 10px;
   margin: 0;
@@ -2986,11 +2985,11 @@
   background-color: rgba(42, 28, 20, 0.42);
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:hover {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:hover {
   background-color: rgba(42, 28, 20, 0.6);
 }
 
-.t-html .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:active {
+.page .unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:active {
   background-color: #ea6a47;
 }
 

@@ -4,11 +4,10 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// The UI's page, native (unity/NATIVE_PLAN.md 2.7, S33): what the DOM layer's document and window gave the game.
+/// The UI's page: the root every screen hangs from, and the screen-wide state the UI needs.
 /// <list type="bullet">
-/// <item>the same element tree as index.html built (`.t-html` &gt; `.t-body` &gt; `#scene`, `#ui`, `#boot`), so every
-/// Style.uss selector still matches, and the body's classes (`diving`, `menu-open`, `scope-on`, ...) for the rules that
-/// depend on the game's state;</item>
+/// <item>the page's root (`.page` &gt; `#scene`, `#ui`, `#boot`) and its classes (`diving`, `menu-open`, `scope-on`,
+/// ...) for the stylesheet's rules that depend on the game's state;</item>
 /// <item>pointer lock and its change, the screen's resize, the page's size and pixel ratios (UiRoot), and the
 /// once-a-frame tick (metrics, timers, canvases);</item>
 /// <item>whether the pointer is over the UI and whether the player is typing.</item>
@@ -16,11 +15,11 @@ using UnityEngine.UIElements;
 /// </summary>
 public static class Page
 {
-    private static UiNode html, body, scene, ui;
+    private static UiNode page, scene, ui;
     private static bool wasLocked;
 
-    /// <summary>The body (its classes carry the game's state for the stylesheet).</summary>
-    public static UiNode Body => body;
+    /// <summary>The page's root (its classes carry the game's state for the stylesheet).</summary>
+    public static UiNode Body => page;
 
     /// <summary>The page's #ui, where every screen hangs.</summary>
     public static UiNode Ui => ui;
@@ -40,7 +39,7 @@ public static class Page
     /// <summary>Makes the page once (again after a scene reload).</summary>
     public static void Ensure()
     {
-        if (UiRoot.Ready && body != null && body.ve.panel != null) return;
+        if (UiRoot.Ready && page != null && page.ve.panel != null) return;
         GameTimers.Clear();
         OnPointerLockChange = null;
         OnResize = null;
@@ -51,26 +50,23 @@ public static class Page
 
         UiRoot.Ensure();
         var root = UiRoot.Root;
-        html = new UiNode("html");
-        body = new UiNode("body");
-        html.Add(body);
+        page = new UiNode("div", "page");
         if (root != null)
         {
             root.Clear();
-            root.Add(html.ve);
+            root.Add(page.ve);
         }
         // <canvas id="scene"></canvas> and <div id="ui"></div>
         scene = new UiNode("canvas");
         scene.ve.name = "scene";
         ui = new UiNode("div");
         ui.ve.name = "ui";
-        body.Add(scene, ui);
+        page.Add(scene, ui);
         scene.ve.pickingMode = PickingMode.Ignore;
         ui.ve.pickingMode = PickingMode.Ignore;
-        html.ve.pickingMode = PickingMode.Ignore;
-        body.ve.pickingMode = PickingMode.Ignore;
+        page.ve.pickingMode = PickingMode.Ignore;
         // the loading screen, on top of the page
-        body.ve.Add(LoadingScreen.Build());
+        page.ve.Add(LoadingScreen.Build());
         wasLocked = PointerLocked;
     }
 
@@ -171,7 +167,7 @@ public static class Page
         {
             if (picked.ClassListContains(LoadingScreen.NATIVE)) return true;
             if (picked.userData is UiNode n && n.ve == picked)
-                return n != html && n != body && n != ui && n != scene;
+                return n != page && n != ui && n != scene;
         }
         return false;
     }

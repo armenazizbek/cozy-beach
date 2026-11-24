@@ -54,7 +54,7 @@ public static class UiRoot
         panel.scaleMode = PanelScaleMode.ConstantPixelSize;
         panel.scale = scale;
         panel.sortingOrder = 100;
-        // Unity's default runtime theme styles the built-in controls the DOM layer uses (ScrollView scrollers,
+        // Unity's default runtime theme styles the built-in controls the UI uses (ScrollView scrollers,
         // TextField caret and selection); without one UI Toolkit warns that the UI will not render properly.
         var theme = Resources.Load<ThemeStyleSheet>("UI/CozyRuntimeTheme");
         if (theme != null) panel.themeStyleSheet = theme;

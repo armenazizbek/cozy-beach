@@ -460,3 +460,18 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - `UiX` deleted: its last user, `LoadingScreen`, builds its boxes with a small helper of its own.
 - Quick check against `refB` (base, newgame, ui, shop, gear, pad): logs pass, every scene dump pairs exactly
   (dumpdiff2: 0 differing), shots pass except the animated loading screen (review-only) and the known camp-tab outline.
+
+## U10 step 3: TextMarkup goes; one page root; the DOM-era notes
+
+- `TextMarkup` deleted: no game text uses markup or entities any more (checked in code, UXML and data), so `UiNode.Markup`
+  sets plain words and the toast no longer decodes entities.
+- `Page`: the `html` > `body` pair is one root, `.page`, which carries the game's state classes. `.t-html` and `.t-body` in
+  Style.uss became `.page` (same specificity, so no rule changes winner).
+- Notes: the Style.uss header, UiNode, UiAnim, Page, UiRoot and the docs (MIGRATION.md, PORT_STATUS.md) no longer describe a
+  DOM layer, a bridge or files that are gone.
+- Kept, on purpose: the `.t-<tag>` classes are the text roles (h1, h2, p, b, small...) the type scale is written against;
+  renaming them would change no picture and touch every screen. `UiAnim` stays as the clock-driven keyframe animations
+  (USS transitions run on real time, which the test pictures cannot follow); only its DOM-era wording went.
+- Quick check against `refB` (base, ui, tour, settings, saves, pad, layout, mouse, keyboard, shop, newgame, photo, dive,
+  land, fish, house): every scene dump pairs exactly, logs pass, mouse and keyboard 0 failed; shots flagged only for the
+  animated loading screen and the known 0.02-0.04% tab-outline flicker.

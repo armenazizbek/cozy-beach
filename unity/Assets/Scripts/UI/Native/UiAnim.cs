@@ -4,10 +4,11 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// The page's CSS animations, run on the test clock (unity/NATIVE_PLAN.md 2.7, S28): the key holder's bob (.kbd), cards
-/// popping in (.card), camp screens sliding in (.camp), the main menu and the sleep veil fading in, and the sleeping z's.
-/// Matched by the element's classes, so DOM elements and native ones animate alike. Also the helper classes for the CSS
-/// selectors USS lacks (:nth-child, :has(), ::before). Moved out of the old DOM layer's CssAnimations (deleted in S33).
+/// The UI's keyframe animations, run on the game's clock (TestClock) so a test run's pictures do not depend on how long
+/// frames took (USS transitions cannot do that): the key holder's bob (.kbd), cards popping in (.card), camp screens
+/// sliding in (.camp), the main menu and the sleep veil fading in, and the sleeping z's. An element starts its animation
+/// when it joins the page or gets the class. Also the helper classes for what USS selectors cannot say (an even note, the
+/// first two words of a centred prompt, a settings row holding a check box) and the polaroid's pin.
 /// </summary>
 public static class UiAnim
 {

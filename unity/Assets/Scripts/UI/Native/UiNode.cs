@@ -4,11 +4,10 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// A native UI element (unity/NATIVE_PLAN.md 2.7, S28): a VisualElement built exactly as the DOM layer built one for the
-/// same tag and classes, so Style.uss draws it the same, without the page emulation around it (no HTML parsing, selectors,
-/// CSS strings or event objects). What it keeps from the DOM layer is only what shows:
+/// A UI element: a VisualElement (made in code, or by a screen's UXML as an <see cref="El"/>) with what Style.uss and the
+/// menus expect of it:
 /// <list type="bullet">
-/// <item>the tag class (`t-div`, `t-span`, ...) and the classes;</item>
+/// <item>its text role as a class (`t-div`, `t-span`, `t-h2`, ...: its tag) and its classes;</item>
 /// <item>its own text in a label with no margins or padding, first among its children, emoji drawn as sprites and
 /// uppercased under the page's uppercase rules;</item>
 /// <item>the heading face for h1, h2 and `.display`, the title face for the main menu's and loading screen's classes;</item>
@@ -235,16 +234,13 @@ public class UiNode : VisualElement
         }
     }
 
-    /// <summary>
-    /// Sets what an innerHTML of text set on the page: plain words (entities decoded) or inline formatting as rich text.
-    /// </summary>
+    /// <summary>Replaces the element's children with these words (the game's text is plain: no markup, no entities).</summary>
     public string Markup
     {
         set
         {
-            if (!TextMarkup.TryText(value, out var t)) throw new ArgumentException("native elements take text, not markup: " + value);
             Clear();
-            SetText(t);
+            SetText(value);
         }
     }
 
@@ -318,7 +314,7 @@ public class UiNode : VisualElement
         n.Attached();
     }
 
-    /// <summary>Puts `n` just before this element in its parent (DOM before()).</summary>
+    /// <summary>Puts `n` just before this element in its parent.</summary>
     public void Before(UiNode n)
     {
         if (Parent == null) return;

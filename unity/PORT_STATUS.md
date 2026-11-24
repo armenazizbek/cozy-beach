@@ -2,10 +2,12 @@
 
 > **Paths moved (2026-11-24).** This document was written before the native rewrite (`NATIVE_PLAN.md`, `NATIVE_LOG.md`).
 > Its file and line references point at code that has since moved or gone: `Three/Bridge/UrpSettings.cs`, `MaterialCache.cs`,
-> `TextureCache.cs` and `WebGLRenderer.cs` are in `Assets/Scripts/Native/Render/`; `SceneSync.cs` and `MeshCache.cs` are
-> deleted (the world is drawn natively by `Native/Realizer.cs`, `LiveTree.cs` and `NativeView.cs`); the `Dom/` layer is
-> deleted (`DomHost` became `UI/Native/UiRoot.cs` and `Page.cs`, `CssAnimations` became `UI/Native/UiAnim.cs`, elements are
-> `UI/Native/UiNode.cs`). `BridgeStats` is `FrameStats`. Line numbers are from then.
+> `TextureCache.cs` and `WebGLRenderer.cs` are in `Assets/Scripts/Native/Render/` (namespace `NativeRender`; the renderer
+> is `GameRenderer.cs` since UI_PLAN.md B2); `SceneSync.cs` and `MeshCache.cs` are deleted (the world is drawn natively by
+> `Native/Realizer.cs`, `Tracked.cs` and `NativeView.cs`; `LiveTree.cs` went in B1); the `Dom/` layer is deleted
+> (`DomHost` became `UI/Native/UiRoot.cs` and `Page.cs`, `CssAnimations` became `UI/Native/UiAnim.cs`, elements are
+> `UI/Native/UiNode.cs`, a VisualElement since U10; `TextMarkup` and `UiX` are gone and `SvgRasterizer` is editor-only).
+> `BridgeStats` is `FrameStats`. Line numbers are from then.
 
 Each TypeScript file and where it stands in the Unity port (`6000.3.28f1`, URP). All files are translated line-for-line to C# 9.0 (`.NET Standard 2.1`) and verified with zero compile errors via the Roslyn C# compiler.
 

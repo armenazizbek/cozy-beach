@@ -1720,7 +1720,7 @@ public class UIManager
     public void toast(string msg)
     {
         // the words as the page took them (entities decoded; text with markup never comes here)
-        var t = new UiNode("div", "toast", TextMarkup.DecodeEntities(padText(msg)));
+        var t = new UiNode("div", "toast", padText(msg));
         this.toasts.Add(t);
         GameTimers.NextFrame(_ => t.AddClass("in"));
         GameTimers.After(3200, () =>
@@ -1761,7 +1761,7 @@ public class UIManager
         this.progText.Text = $"{JS.Round(p * 100)}%";
     }
 
-    /// <summary>An element whose words are set as the page's innerHTML set them.</summary>
+    /// <summary>A new element holding these words.</summary>
     private static UiNode node(string tag, string cls, string html)
     {
         var n = new UiNode(tag, cls);
