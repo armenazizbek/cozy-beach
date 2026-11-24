@@ -350,3 +350,10 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   heavens, dome, stars, sun and moon discs and each cloud are shown or hidden and posed, and every sky material pushed
   (the dome's colours, the stars' fading, the clouds' tint). Quick check against `refB` (base, lighthouse, rain, opening,
   dive): logs pass, dumps within 0.00001 m.
+
+## B1: sandcastles without the whole-tree copy (2026-11-24)
+
+- `Sandcastles`: each castle is realised once (its parts are all built up front as hidden pivots); at draw time the
+  castle and every part's pivot are shown or hidden and posed (rising, flying off, sliding, sinking, squashing as it
+  washes away) and its sand's colour pushed. A removed castle's GameObjects are destroyed. Quick check against `refB`
+  (smash, rain, holes, saves): logs pass, dumps within 0.00001 m.

@@ -26,8 +26,12 @@ public class Castle
     public double wet;
     /// <summary>run over by the golf cart: its pieces are flying off and it is gone once they have landed</summary>
     public bool smashed;
-    /// <summary>the castle's GameObjects (native since unity/NATIVE_PLAN.md S11)</summary>
-    public LiveTree native;
+    /// <summary>
+    /// the castle's GameObjects, realised once, and what of it moves: the castle (it squashes as it washes away) and every
+    /// part's pivot (it rises, flies off, slides and sinks). Its parts are all built up front, so nothing is added later.
+    /// </summary>
+    public Realized native;
+    public List<(THREE.Object3D o, UnityEngine.Transform t)> moving;
 
     public class Rising { public THREE.Group pivot; public double t; }
     public class Falling
@@ -103,17 +107,43 @@ public class Sandcastles
     private UnityEngine.Transform root;
 
     /// <summary>
-    /// Puts the castles into the world as native objects. Each castle is a LiveTree, brought in line with its description at
-    /// draw time (NativeFrame), after everything that grows, crumbles, smashes or washes them this frame.
+    /// Puts the castles into the world as native objects, each realised once. At draw time (after everything that grows,
+    /// crumbles, smashes or washes them this frame) each castle's moving parts are posed, and its sand's colour pushed
+    /// (unity/UI_PLAN.md B1); nothing else is compared.
     /// </summary>
     public void Place()
     {
         root = Draw.Group(World.Land);
-        foreach (var c in castles) c.native = new LiveTree(c.group, root);
+        foreach (var c in castles) Realise(c);
         NativeFrame.BeforeDraw += () =>
         {
-            foreach (var c in castles) c.native?.Sync();
+            if (root.parent != null && !root.parent.gameObject.activeInHierarchy) return;
+            foreach (var c in castles) Sync(c);
         };
+    }
+
+    private void Realise(Castle c)
+    {
+        c.native = Realizer.Realize(c.group, root, World.Layer);
+        c.moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+        var parts = new List<THREE.Object3D> { c.group };
+        foreach (var stage in c.parts) parts.AddRange(stage);
+        foreach (var o in parts)
+        {
+            var t = c.native[o];
+            if (t != null) c.moving.Add((o, t));
+        }
+    }
+
+    private static void Sync(Castle c)
+    {
+        if (c.native == null) return;
+        foreach (var (o, t) in c.moving)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        foreach (var m in c.mats) MaterialKit.PushOnce(m);
     }
 
     public Castle nearest(double x, double z, double reach)
@@ -301,7 +331,7 @@ public class Sandcastles
         c.group.add(c.target);
         group.add(c.group);
         castles.Add(c);
-        if (root != null) c.native = new LiveTree(c.group, root);
+        if (root != null) Realise(c);
         for (int s = 1; s <= stage; s++) raise(c, s, hp == 1 && stage == 1);
         refreshColliders();
         return c;
@@ -334,7 +364,11 @@ public class Sandcastles
     public void remove(Castle c)
     {
         group.remove(c.group);
-        c.native?.Destroy();
+        if (c.native?.root != null)
+        {
+            c.native.root.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(c.native.root.gameObject);
+        }
         c.native = null;
         castles = castles.Where(k => k != c).ToList();
         refreshColliders();
