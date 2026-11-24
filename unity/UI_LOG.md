@@ -524,3 +524,10 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - The keyboard test goes through it: Settings has no key rows; Down reaches Keyboard keys; Enter opens the window; rebinding,
   Esc keeping the old key and the reset work there; Esc goes back to Settings on the same row; Esc again closes Settings.
   keyboard, mouse, pad and settings runs: 0 failed.
+
+## The map: no open sand behind the mountains
+
+- The island map (and the minimap, which uses the same picture) showed plain sand in its top corners and down the sides,
+  behind the range: land no one can reach. The range now carries on to the map's edge there (MapView: past 250 metres
+  out, behind the shore, the relief rises, faded in over 30 metres so it has no edge of its own). The sea, the islands and
+  the beach inside the range are unchanged; nothing changes in the world itself.

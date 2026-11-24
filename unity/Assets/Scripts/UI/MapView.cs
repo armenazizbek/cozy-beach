@@ -82,7 +82,8 @@ public class MapView
         // The mountains are drawn as shaded relief, like the hills on an old map. Their heights are blended into one range (a soft
         // maximum, so neighbouring peaks run together into ridges instead of standing as separate cones) with a little
         // roughness over it, on a coarse grid that each pixel reads between; then each pixel is lit from the top left.
-        const double CELL = 2, BLEND = 0.12;
+        // BEHIND: how far out from the camp the range stands (Scenery.buildMountains: its rows at 235 and 265 metres)
+        const double CELL = 2, BLEND = 0.12, BEHIND = 250;
         int gw = (int)(EXT / CELL) + 2;
         var range = new float[gw * gw];
         for (int j = 0; j < gw; j++)
@@ -101,6 +102,16 @@ public class MapView
                         double e = mt.footY + mt.height * (1 - d / mt.radius);
                         sum += Math.Exp(BLEND * e);
                         up = Math.Max(up, 1 - d / mt.radius);
+                    }
+                    // the land behind the range is never reached, so the map does not show it as open sand: the range
+                    // carries on to the map's edge behind the shore (the islands out at sea, and the sea itself, stay as they are)
+                    double past = JS.Hypot(x, z) - BEHIND;
+                    // faded in over the first 30 metres out and toward the shore, so it has no edge of its own
+                    double fade = Math.Min(1, Math.Max(0, past / 30)) * Math.Min(1, Math.Max(0, (30 - z) / 30));
+                    if (fade > 0)
+                    {
+                        sum += fade * Math.Exp(BLEND * (22 + past * 0.35));
+                        up = Math.Max(up, fade);
                     }
                     if (sum > 0)
                     {
