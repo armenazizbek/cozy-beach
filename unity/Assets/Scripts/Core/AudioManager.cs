@@ -12,6 +12,8 @@ public class AudioManager
 {
     private SynthHost host;
     private bool muted = false;
+    /// <summary>Whether N has muted the game (for the -autoshot-keys test).</summary>
+    internal bool isMuted => muted;
     private double masterVol = 1, musicScale = 1, ambScale = 1;
     private double lastOcean = 0.06;
     private double rainLevel = 0;

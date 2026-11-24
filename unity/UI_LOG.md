@@ -71,3 +71,17 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   path B3 replaces, so no suite would see a broken keyboard. It needs a virtual keyboard in AutoShot first, as the mouse
   got in U0.
 - D3 (bundled fonts on PC) is the one visible change and is left for you to see first.
+
+## Before B3: a virtual keyboard test (2026-11-24)
+
+- New run `keyboard` in the `ui` suite (`-autoshot-keys`): a virtual Input System keyboard ("AutoShotKeyboard", left on
+  by `TestClock.Isolate` like the mouse) presses keys through the real path, Input System, `InputManager.poll`, then the
+  game's key handling. The other runs press keys through `InputManager.held`, below that path.
+- 14 checks: on the title menu Down and Up move the highlight, Down reaches Settings, Enter opens it, Esc closes it; in
+  play holding W walks, 2 takes the trowel, Space swaps back, N mutes and unmutes, Esc pauses and resumes, M opens and
+  closes the map. It quits with 2 if any fails. Shots `1k-keys-settings.png` and `1k-keys-map.png`.
+- Game code gained read-only readouts for it (`Game.smokeTestKeyState`, `AudioManager.isMuted`); nothing else changed.
+- The run is named `keyboard`, not `keys`: run_suites keeps its runs in a PowerShell table, where a run called "keys"
+  hides the table's own `.Keys`.
+- Checked: 0 of 14 failed; the `ui` suite against `refU` has no FAIL, logs and dumps identical, the mouse run 0 failed.
+  B3 can now be gated on this run.

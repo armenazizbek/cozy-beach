@@ -46,7 +46,8 @@
       "pad": ["-autoshot-pad"],
       "settings": ["-autoshot-settings"],
       "layout": ["-autoshot-layout"],
-      "mouse": ["-autoshot-mouse"]
+      "mouse": ["-autoshot-mouse"],
+      "keyboard": ["-autoshot-keys"]
     },
     "saves": {
       "saves": ["-autoshot-saves"]

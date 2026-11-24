@@ -270,6 +270,100 @@ public class AutoShot : MonoBehaviour
             yield break;
         }
 
+        // -autoshot-keys: the title menu, settings and play driven by a virtual keyboard through the real input path (Input
+        // System, then InputManager.poll and the game's key handling). The other runs press keys through InputManager.held,
+        // below that path, so only this run sees a broken keyboard; each check logs ok or FAIL (unity/UI_PLAN.md B3)
+        if (Array.IndexOf(args, "-autoshot-keys") >= 0)
+        {
+            var kb = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>("AutoShotKeyboard");
+            kb.MakeCurrent();
+            int failures = 0;
+            void Check(string what, bool ok)
+            {
+                Debug.Log($"[AutoShot] keys: {what}: {(ok ? "ok" : "FAIL")}");
+                if (!ok) failures++;
+            }
+            void Hold(params UnityEngine.InputSystem.Key[] down) =>
+                UnityEngine.InputSystem.InputSystem.QueueStateEvent(kb, new UnityEngine.InputSystem.LowLevel.KeyboardState(down));
+            IEnumerator Tap(UnityEngine.InputSystem.Key k)
+            {
+                Hold(k);
+                yield return null;
+                yield return null;
+                Hold();
+                yield return null;
+                yield return null;
+            }
+            bool Open(string cls) => MenuNav.Find(UiRoot.Root, v => v.ClassListContains(cls)).Count > 0;
+            string Chosen() => MenuNav.Current.IsNull ? "nothing" : (MenuNav.Current.Text ?? "").Trim();
+
+            // the title menu: arrows move the highlight, Enter presses it, Esc backs out of settings
+            yield return Wait(0.5f);
+            string first = Chosen();
+            yield return Tap(UnityEngine.InputSystem.Key.DownArrow);
+            yield return Wait(0.2f);
+            string second = Chosen();
+            Check($"Down moves the highlight ({first} -> {second})", second != first);
+            yield return Tap(UnityEngine.InputSystem.Key.UpArrow);
+            yield return Wait(0.2f);
+            Check($"Up moves it back ({second} -> {Chosen()})", Chosen() == first);
+            for (int i = 0; i < 8 && !Chosen().Contains("Settings"); i++)
+            {
+                yield return Tap(UnityEngine.InputSystem.Key.DownArrow);
+                yield return Wait(0.15f);
+            }
+            Check("Down reaches Settings", Chosen().Contains("Settings"));
+            yield return Tap(UnityEngine.InputSystem.Key.Enter);
+            yield return Wait(0.8f);
+            Check("Enter opens settings", Open("settings-card"));
+            yield return Shot("1k-keys-settings.png");
+            yield return Tap(UnityEngine.InputSystem.Key.Escape);
+            yield return Wait(0.6f);
+            Check("Esc closes settings", !Open("settings-card"));
+
+            // play: walking, the tools, mute, pause and the map
+            game.smokeTestBegin();
+            yield return Wait(2f);
+            var s0 = game.smokeTestKeyState();
+            Hold(UnityEngine.InputSystem.Key.W);
+            yield return Wait(1f);
+            Hold();
+            yield return Wait(0.3f);
+            var s1 = game.smokeTestKeyState();
+            double walked = JS.Hypot(s1.x - s0.x, s1.z - s0.z);
+            Check($"holding W walks ({walked:0.00} m)", walked > 0.5);
+            yield return Tap(UnityEngine.InputSystem.Key.Digit2);
+            yield return Wait(0.4f);
+            Check($"2 takes the trowel (tool {game.smokeTestKeyState().tool})", game.smokeTestKeyState().tool == 2);
+            yield return Tap(UnityEngine.InputSystem.Key.Space);
+            yield return Wait(0.4f);
+            Check($"Space swaps back to the detector (tool {game.smokeTestKeyState().tool})", game.smokeTestKeyState().tool == 1);
+            bool wasMuted = game.smokeTestKeyState().muted;
+            yield return Tap(UnityEngine.InputSystem.Key.N);
+            yield return Wait(0.2f);
+            Check("N mutes", game.smokeTestKeyState().muted != wasMuted);
+            yield return Tap(UnityEngine.InputSystem.Key.N);
+            yield return Wait(0.2f);
+            Check("N again unmutes", game.smokeTestKeyState().muted == wasMuted);
+            yield return Tap(UnityEngine.InputSystem.Key.Escape);
+            yield return Wait(0.6f);
+            Check("Esc pauses", game.smokeTestKeyState().paused);
+            yield return Tap(UnityEngine.InputSystem.Key.Escape);
+            yield return Wait(0.6f);
+            Check("Esc again resumes", !game.smokeTestKeyState().paused);
+            yield return Tap(UnityEngine.InputSystem.Key.M);
+            yield return Wait(0.6f);
+            Check("M opens the map", game.smokeTestKeyState().map);
+            yield return Shot("1k-keys-map.png");
+            yield return Tap(UnityEngine.InputSystem.Key.M);
+            yield return Wait(0.6f);
+            Check("M again closes it", !game.smokeTestKeyState().map);
+            Debug.Log($"[AutoShot] keys: {failures} check(s) failed");
+            UnityEngine.InputSystem.InputSystem.RemoveDevice(kb);
+            Quit(failures == 0 ? 0 : 2);
+            yield break;
+        }
+
         // -autoshot-opening: New Game, then the opening at a moment in each of its four shots, and the card that follows it
         if (Array.IndexOf(args, "-autoshot-opening") >= 0)
         {

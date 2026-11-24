@@ -1265,6 +1265,10 @@ public class Game
 
     internal bool smokeTestStarted => started;
 
+    /// <summary>For the -autoshot-keys test: what the keys it presses change.</summary>
+    internal (double x, double z, int tool, bool paused, bool map, bool muted) smokeTestKeyState() =>
+        (player.x, player.z, tool, paused, mapOpen, audio.isMuted);
+
     /// <summary>For the -autoshot-saves test: autosaves now, whatever the timer says.</summary>
     internal void smokeTestAutosave()
     {
