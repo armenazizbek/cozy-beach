@@ -509,3 +509,9 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   rise and start again. The fish's lanes and the creatures' homes are unchanged.
 - The fish test takes two more pictures, close up with nothing in hand: `7-aquarium-close` and `7-aquarium-corner`.
 - Intended change: camp pictures and scene dumps that show the aquarium differ from `refB` from here on.
+
+## The map's dunes are sand
+
+- The island map and the minimap tinted higher ground olive green, but the dunes behind the beach are plain sand in the
+  world (World/Beach.cs colours every height the same). The mainland now only deepens to a darker sand as it rises; the
+  green island out at sea keeps its grass, which it really has (World/Island.cs).

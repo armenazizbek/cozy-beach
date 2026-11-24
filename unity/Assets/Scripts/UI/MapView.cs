@@ -184,7 +184,16 @@ public class MapView
                 {
                     var wet = Math.Min(1, Math.Max(0, (z - (WET_Z - 3)) / 6));
                     var hill = Math.Min(1, Math.Max(0, (h - 1.6) / 1.4));
-                    r = 232 - wet * 50 - hill * 70; gr = 206 - wet * 55 - hill * 36; b = 170 - wet * 40 - hill * 62;
+                    if (isle != null)
+                    {
+                        // the green island: grass on its hill (World/Island.cs)
+                        r = 232 - wet * 50 - hill * 70; gr = 206 - wet * 55 - hill * 36; b = 170 - wet * 40 - hill * 62;
+                    }
+                    else
+                    {
+                        // the dunes inland are the same sand as the beach (World/Beach.cs: no grass), a shade deeper as they rise
+                        r = 232 - wet * 50 - hill * 20; gr = 206 - wet * 55 - hill * 24; b = 170 - wet * 40 - hill * 28;
+                    }
                     if (isle != null && isle.kind == 1)
                     {
                         // the cay: pale sand, a little green along the crest
