@@ -545,3 +545,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   just raised fps 814 -> 1021 (+25%), game time 0.64 -> 0.43 ms, 90th percentile frame 2.04 -> 1.40 ms; held fps 917 ->
   1085 (+18%), game time 0.53 -> 0.38 ms. Other places within the run-to-run spread; no regressions over the limits.
 - The self-check's drawn range (400 aimed rays) reads the same: 0 different, 9 of 9 ok.
+
+## The boat's windscreen frame; the opening ship's stern lantern (2026-11-24)
+
+- The boat's windscreen frame was three tubes (the top and the two posts) that met at the upper corners at different
+  angles with open ends, so each corner showed a notch. It is one tube now: up the left post, round the corner, along the
+  top and down the right post (World/Boat.cs).
+- The Marigold's spanker (the opening's ship) hung from a boom 1.15 m over the quarterdeck, right through the great stern
+  lantern on the centre line. The boom now rides 2.75 m up, over the lantern, so the sail hangs above it
+  (World/OldShip.cs). Checked in every opening shot and from the boat's helm.

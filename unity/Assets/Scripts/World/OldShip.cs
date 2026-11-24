@@ -494,8 +494,9 @@ public static class OldShip
             iron.cyl(0.14, 0.14, 0.05, 8, 0, foot + 0.4, mz, IRON);
             wood.box(0.9, 0.06, 0.8, 0, foot + 0.62 * H, mz, 0x4a3322);
             lamp(ship, lamps, 0, foot + H + 0.1, mz, 0.1);
-            // the boom, reaching aft over the stern, and the gaff above it
-            double bY = foot + 1.15, gY = foot + 0.66 * H;
+            // the boom, reaching aft over the stern, and the gaff above it. The boom rides high enough to swing over the great
+            // stern lantern (its roof is about 2.2 m above the quarterdeck), so the spanker hangs above the lantern, not through it
+            double bY = foot + 2.75, gY = foot + 0.66 * H;
             double boomEnd = mz + 3.7, gaffEndZ = mz + 2.6, gaffEndY = gY + 1.5;
             wood.spar(0, bY, mz + 0.1, 0, bY - 0.1, boomEnd, 0.07, 0.045, 0x3a2a1e, 6);
             wood.spar(0, gY, mz + 0.1, 0, gaffEndY, gaffEndZ, 0.06, 0.035, 0x3a2a1e, 6);

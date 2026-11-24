@@ -254,9 +254,12 @@ public class Boat
         var glass = new THREE.MeshLambertMaterial { color = 0xcfe8f5, transparent = true, opacity = 0.2, side = THREE.Side.DoubleSide, depthWrite = false };
         THREE.Vector3 glassAt(double s, double h) => new THREE.Vector3(s * 0.6, 1.1 + 0.42 * h, -0.86 + 0.2 * s * s + 0.17 * h);
         group.add(new THREE.Mesh(sheet(16, 2, (a, b) => glassAt(a * 2 - 1, b)), glass));
-        List<THREE.Vector3> span(double h) => Enumerable.Range(0, 9).Select(i => glassAt(i / 4.0 - 1, h)).ToList();
-        add(pipe(span(1), 0.013), dark);
-        foreach (var s in new[] { -1, 1 }) add(pipe(new[] { glassAt(s, -0.05), glassAt(s, 0.5), glassAt(s, 1) }, 0.013), dark);
+        // the frame is one tube: up the left post, round the corner, along the top and down the right post, so the corners
+        // are joined (three tubes meeting there left a notch at each upper corner)
+        var frame = new List<THREE.Vector3> { glassAt(-1, -0.05), glassAt(-1, 0.45), glassAt(-1, 0.86), glassAt(-0.975, 0.975), glassAt(-0.92, 1) };
+        for (int i = -3; i <= 3; i++) frame.Add(glassAt(i * 0.25, 1));
+        frame.AddRange(new[] { glassAt(0.92, 1), glassAt(0.975, 0.975), glassAt(1, 0.86), glassAt(1, 0.45), glassAt(1, -0.05) });
+        add(pipe(frame, 0.013), dark);
 
         // ---- two helm seats on pedestals
         foreach (var sx in new[] { -0.42, 0.42 })
