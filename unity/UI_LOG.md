@@ -52,3 +52,22 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   gain the player can see. Small parts made per row from data (tab buttons, toasts, the step control's arrows, page heads)
   stay made in code. `UiNode` stays as the element every screen is adopted into, so U10's deletion of `UiNode`, `UiX` and
   `TextMarkup` is not done.
+
+## B2 (part): photos are encoded off the main thread (2026-11-24)
+
+- `Photos.save` copies the pixels and makes the JPG on a worker (`ImageConversion.EncodeArrayToJPG`), where before only
+  the disk write was off the main thread. The texture is in the album at once, as before.
+- Checked: the items suite (photo, photo-alt and the rest) has no FAIL, logs and dumps identical; the saved JPGs decode to
+  the same pixels as the reference's (mean difference 0.001 of 255 or less).
+- Not done: `AsyncGPUReadback` for the read itself (the underwater tint is applied on the CPU to the read pixels, so it
+  would need a shader first), and the rest of B2 (the renderer front). B3 and B1 are not started: see the note below.
+
+## Where this stops (2026-11-24)
+
+- Part A's screens are all UXML (U0 to U9). U10's deletions are not done because `UiNode` is what the UXML is adopted
+  into; deleting it means rebuilding every screen on raw VisualElements, which D2 allows but which needs your sign-off
+  on shots, not an overnight run.
+- B3 (input actions) is not started on purpose: the smoke tests press keys through `InputManager.held`, below the input
+  path B3 replaces, so no suite would see a broken keyboard. It needs a virtual keyboard in AutoShot first, as the mouse
+  got in U0.
+- D3 (bundled fonts on PC) is the one visible change and is left for you to see first.

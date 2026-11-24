@@ -50,15 +50,18 @@ public static class Photos
         try
         {
             string id = "photo-" + DateTime.Now.ToString("yyyyMMdd-HHmmss-fff");
-            byte[] jpg = tex.EncodeToJPG(90);
+            // the pixels are copied here; the JPG is made and written on a worker, so the game does not stop for either
+            // (EncodeArrayToJPG is safe off the main thread, EncodeToJPG is not)
+            byte[] raw = tex.GetRawTextureData();
+            var format = tex.graphicsFormat;
+            uint w = (uint)tex.width, h = (uint)tex.height;
             string path = FileFor(id);
             cache[id] = tex;
-            // the game does not stop to wait for the disk
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try
                 {
-                    File.WriteAllBytes(path, jpg);
+                    File.WriteAllBytes(path, ImageConversion.EncodeArrayToJPG(raw, format, w, h, 0, 90));
                 }
                 catch (Exception e)
                 {
