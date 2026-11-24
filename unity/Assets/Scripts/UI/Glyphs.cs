@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using static PadText;
@@ -65,7 +66,7 @@ public static class Glyphs
                 continue;
             }
             int at = 0;
-            foreach (Match m in (onPad ? PAD_KEYS : KB_KEYS).Matches(part))
+            foreach (Match m in (onPad ? PAD_KEYS : KbKeys).Matches(part))
             {
                 var before = part.Substring(at, m.Index - at).TrimEnd();
                 if (before.Length > 0) seg.Add(Words(before));
@@ -152,6 +153,35 @@ public static class Glyphs
 
     private static readonly Regex PAD_KEYS = new Regex(
         @"RT / LT|LB / RB|\bRT\b|\bLT\b|\bRB\b|\bLB\b|D-pad left|D-pad|[Ll]eft stick|[Rr]ight stick|(?<=[Pp]ress )[ABXY]\b|\b[ABXY]\b(?= (?:" + VERBS + @")\b)");
+
+    /// <summary>
+    /// KB_KEYS, plus the keys the player rebound (Core/Controls.cs): "G gets out", "I / K drive", "Press R". With the game's
+    /// own keys it is KB_KEYS itself, so the hints read exactly as before.
+    /// </summary>
+    private static Regex KbKeys
+    {
+        get
+        {
+            if (Controls.AllDefault) return KB_KEYS;
+            if (kbKeysVersion != Controls.Version)
+            {
+                kbKeysVersion = Controls.Version;
+                var names = new List<string>();
+                foreach (var (act, _) in Controls.Rebindable)
+                {
+                    string n = Controls.KeyName(act);
+                    if (Regex.IsMatch(n, "^[A-Za-z0-9]+$") && !names.Contains(n)) names.Add(n);
+                }
+                string k = string.Join("|", names.Select(Regex.Escape));
+                string one = $"(?:{k}|[WASD])";
+                kbKeysRebound = new Regex($@"\b{one}(?: / {one})+\b|(?<=[Pp]ress )(?:{k})\b|\b(?:{k})\b(?= (?:{VERBS})\b)|" + KB_KEYS);
+            }
+            return kbKeysRebound;
+        }
+    }
+
+    private static Regex kbKeysRebound;
+    private static int kbKeysVersion = -1;
 
     private static readonly Regex KB_KEYS = new Regex(
         @"W / S|A / D|\bWASD\b|\bSpace\b|[Rr]ight-click|\b[Cc]lick\b|(?<=[Pp]ress )[A-Z]\b|\b[FEQC]\b(?= (?:" + VERBS + @")\b)|^\d(?= )");

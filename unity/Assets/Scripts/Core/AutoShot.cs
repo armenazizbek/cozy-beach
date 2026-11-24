@@ -413,7 +413,19 @@ public class AutoShot : MonoBehaviour
             double onW = JS.Hypot(r1.x - r0.x, r1.z - r0.z), onI = JS.Hypot(r2.x - r1.x, r2.z - r1.z);
             Check($"Forward rebound to I: W no longer walks ({onW:0.00} m)", onW < 0.05);
             Check($"Forward rebound to I: I walks ({onI:0.00} m)", onI > 0.3);
+            // the words that name keys follow the bindings, only for the actions they are about (Controls.Say)
+            UnityEngine.InputSystem.InputActionRebindingExtensions.ApplyBindingOverride(Controls.Map["Use"], 0, "<Keyboard>/g");
+            Controls.Rebound();
+            string said = Controls.Say("W / S drive and reverse · A / D steer · Space brakes · F gets out", Act.Use, Act.Forward);
+            Check($"hints name the rebound keys ({said})", said == "I / S drive and reverse · A / D steer · Space brakes · G gets out");
+            string other = Controls.Say("Q swims back up · F picks up a find", Act.Surface);
+            Check($"a hint keeps keys it is not about ({other})", other == "Q swims back up · F picks up a find");
+            string walk = Controls.Say("WASD swim · Space up", Act.Forward, Act.Left, Act.Backward, Act.Right, Act.Ascend);
+            Check($"WASD names the four keys as bound ({walk})", walk == "I / A / S / D swim · Space up");
+            game.ui.setPadMode(false);
+            Check($"the prompt's key picture follows the binding ({game.ui.smokeKeyF})", game.ui.smokeKeyF == "G");
             Controls.Load(defaultsOnly: true);
+            Check($"with the game's own keys the words are as written ({Controls.Say("F gets out", Act.Use)})", Controls.Say("F gets out", Act.Use) == "F gets out");
             Debug.Log($"[AutoShot] keys: {failures} check(s) failed");
             UnityEngine.InputSystem.InputSystem.RemoveDevice(kb);
             Quit(failures == 0 ? 0 : 2);

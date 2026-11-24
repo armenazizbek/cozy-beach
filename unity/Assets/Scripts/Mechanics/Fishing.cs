@@ -334,10 +334,10 @@ public class Fishing
     {
         switch (phase)
         {
-            case "idle": return pad ? "RT casts toward where you are looking · A stands up" : "Click to cast toward where you are looking · F stands up";
+            case "idle": return pad ? "RT casts toward where you are looking · A stands up" : Controls.Say("Click to cast toward where you are looking · F stands up", Act.Use);
             case "wait":
                 return missedT > 0 ? "It got away. Wait for the next bite"
-                    : pad ? "Wait for the float to go under · RT reels in to cast again · A stands up" : "Wait for the float to go under · click to reel in and cast again · F stands up";
+                    : pad ? "Wait for the float to go under · RT reels in to cast again · A stands up" : Controls.Say("Wait for the float to go under · click to reel in and cast again · F stands up", Act.Use);
             case "bite": return pad ? "A bite! Press RT!" : "A bite! Click!";
             case "reel": return pad ? "Hold RT to reel it in" : "Hold click to reel it in";
             default: return null;

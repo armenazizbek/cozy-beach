@@ -793,6 +793,23 @@ public class UIManager
         this.settingsEl = null;
     }
 
+    /// <summary>The actions whose keys Help's paragraphs and lists name (Use, Second use, the map, swimming up).</summary>
+    private static readonly Act[] HELP_ACTS = { Act.Use, Act.Use2, Act.Map, Act.Surface };
+
+    /// <summary>The actions a row of Help's key table is about, by its key column.</summary>
+    private static Act[] HelpKeyActs(string keys)
+    {
+        switch (keys)
+        {
+            case "W A S D": return new[] { Act.Forward, Act.Left, Act.Backward, Act.Right, Act.Run };
+            case "F": return new[] { Act.Use };
+            case "E": return new[] { Act.Use2 };
+            case "1 and 2": return new[] { Act.ToolSwap };
+            case "Space / C": return new[] { Act.Ascend, Act.Descend };
+            default: return new Act[0];
+        }
+    }
+
     private Func<int, bool> helpStepFn = null;
 
     /// <summary>Moves to the next Help topic along (Q and E, or a controller's bumpers). False when Help is not open.</summary>
@@ -831,11 +848,12 @@ public class UIManager
                 if (blk.h == "Keyboard and mouse" && PadText.pad.on) continue;
                 if (blk.h == "Controller" && !PadText.pad.on) continue;
                 if (!string.IsNullOrEmpty(blk.h)) body.Add(node("h3", "", blk.h));
-                if (!string.IsNullOrEmpty(blk.p)) body.Add(node("p", "help-p", padText(blk.p)));
+                // the keys as the player bound them (Core/Controls.cs); the words of Help only name these
+                if (!string.IsNullOrEmpty(blk.p)) body.Add(node("p", "help-p", padText(Controls.Say(blk.p, HELP_ACTS))));
                 if (blk.list != null)
                 {
                     var ul = new UiNode("ul", "help-list");
-                    foreach (var item in blk.list) ul.Add(node("li", "", padText(item)));
+                    foreach (var item in blk.list) ul.Add(node("li", "", padText(Controls.Say(item, HELP_ACTS))));
                     body.Add(ul);
                 }
                 if (blk.keys != null)
@@ -844,7 +862,8 @@ public class UIManager
                     foreach (var kv in blk.keys)
                     {
                         var row = new UiNode("div", "krow");
-                        row.Add(node("b", "", kv[0]), node("span", "", kv[1]));
+                        var acts = HelpKeyActs(kv[0]);
+                        row.Add(node("b", "", Controls.Say(kv[0], acts)), node("span", "", Controls.Say(kv[1], acts)));
                         keys.Add(row);
                     }
                     body.Add(keys);
@@ -1631,6 +1650,8 @@ public class UIManager
     }
 
     private UiNode kbdF = null;
+    /// <summary>For the -autoshot-keys test: the key the "use" prompt shows.</summary>
+    internal string smokeKeyF => this.kbdF?.FullText ?? "";
     private UiNode kbdE = null;
 
     /// <summary>Switches prompts and hints between keyboard and controller wording.</summary>

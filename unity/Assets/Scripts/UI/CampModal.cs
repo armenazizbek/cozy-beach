@@ -581,7 +581,7 @@ public class CampModal
         keyCell.ClassName = $"ucell {(this.state.data.ownsCartKey ? "owned" : "")}";
         var keyName = new UiNode("b");
         keyName.Text = "Golf Cart Key";
-        keyCell.Add(keyName, this.p("The golf cart will not start without it. Press F beside the cart to drive it.", "faint"));
+        keyCell.Add(keyName, this.p(Controls.Say("The golf cart will not start without it. Press F beside the cart to drive it.", Act.Use), "faint"));
         if (this.state.data.ownsCartKey)
         {
             keyCell.Add(this.p("Owned", "tag"));
@@ -593,7 +593,7 @@ public class CampModal
                 if (this.state.buyCartKey())
                 {
                     this.audio.discover();
-                    this.hooks.toast("You bought the golf cart key! Press F beside the cart.");
+                    this.hooks.toast(Controls.Say("You bought the golf cart key! Press F beside the cart.", Act.Use));
                 }
                 else
                 {
@@ -606,7 +606,7 @@ public class CampModal
         boatCell.ClassName = $"ucell {(this.state.data.ownsBoatKey ? "owned" : "")}";
         var boatName = new UiNode("b");
         boatName.Text = "Boat Key";
-        boatCell.Add(boatName, this.p("The boat will not start without it. Press F beside the boat, down at the shore, to take the helm.", "faint"));
+        boatCell.Add(boatName, this.p(Controls.Say("The boat will not start without it. Press F beside the boat, down at the shore, to take the helm.", Act.Use), "faint"));
         if (this.state.data.ownsBoatKey)
         {
             boatCell.Add(this.p("Owned", "tag"));
@@ -658,7 +658,7 @@ public class CampModal
         flagName.Text = "Marker Flags";
         flagCell.Add(
             flagName,
-            this.p($"A pack of {FLAG_PACK_SIZE} flags to plant wherever you like. They show on the mini-map and the island map. Press 7 or scroll to take them out; F beside a flag picks it up again.", "faint"),
+            this.p(Controls.Say($"A pack of {FLAG_PACK_SIZE} flags to plant wherever you like. They show on the mini-map and the island map. Press 7 or scroll to take them out; F beside a flag picks it up again.", Act.Use), "faint"),
             this.p($"In your bag: {this.state.data.flags}", "tag")
         );
         flagCell.Add(this.btn($"Buy {FLAG_PACK_SIZE} flags · {FLAG_PACK_COST}g", () =>
@@ -680,7 +680,7 @@ public class CampModal
         diveName.Text = "Diving Gear";
         diveCell.Add(
             diveName,
-            this.p("A mask, snorkel and fins, and a harpoon gun. Stand near the water and press F to dive in, and Q to come up. Down there you can find starfish, shipwreck pieces and gold, and spear fish for 1g each. Only the harpoon works underwater.", "faint")
+            this.p(Controls.Say("A mask, snorkel and fins, and a harpoon gun. Stand near the water and press F to dive in, and Q to come up. Down there you can find starfish, shipwreck pieces and gold, and spear fish for 1g each. Only the harpoon works underwater.", Act.Use, Act.Surface), "faint")
         );
         if (this.state.data.ownsDiveGear)
         {
@@ -693,7 +693,7 @@ public class CampModal
                 if (this.state.buyDiveGear())
                 {
                     this.audio.discover();
-                    this.hooks.toast("You bought the diving gear! Wade to the water\u2019s edge and press F to dive in.");
+                    this.hooks.toast(Controls.Say("You bought the diving gear! Wade to the water\u2019s edge and press F to dive in.", Act.Use));
                 }
                 else
                 {
@@ -797,7 +797,7 @@ public class CampModal
         boneName.Text = "Dog Bone";
         boneCell.Add(
             boneName,
-            this.p($"Give a bone to the camp dog (F beside it) and it runs off to sniff out a buried coin or piece of trash, then barks until you dig it up. Without a bone the dog will not go. One bone per trip. The shop only has {BONE_STOCK} bones to sell in a whole game, so use them wisely.", "faint"),
+            this.p(Controls.Say($"Give a bone to the camp dog (F beside it) and it runs off to sniff out a buried coin or piece of trash, then barks until you dig it up. Without a bone the dog will not go. One bone per trip. The shop only has {BONE_STOCK} bones to sell in a whole game, so use them wisely.", Act.Use), "faint"),
             this.p($"In your bag: {this.state.data.bones} · Left in the shop: {this.state.bonesLeft} of {BONE_STOCK}", "tag")
         );
         var soldOut = this.state.bonesLeft <= 0;

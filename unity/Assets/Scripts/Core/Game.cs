@@ -2763,7 +2763,7 @@ public class Game
             // the bottle itself is not kept: what matters is the map rolled up inside
             spawner.markCollected(item);
             takeBottleMap();
-            ui.showResult(def.name, def.lore, "A map is tucked inside. Open the map (M) and press T to read it.", "Message in a bottle");
+            ui.showResult(def.name, def.lore, Controls.Say("A map is tucked inside. Open the map (M) and press T to read it.", Act.Map), "Message in a bottle");
             return;
         }
         var res = state.addFound(def.id);
@@ -5929,7 +5929,7 @@ public class Game
         spawner.checkReveals();
         audio.discover();
         discover("map_taken");
-        ui.toast("You take an old map from the altar. Open the map (M) and press T to read it.");
+        ui.toast(Controls.Say("You take an old map from the altar. Open the map (M) and press T to read it.", Act.Map));
     }
 
     /// <summary>The islands' own finds lie in the open from the start. Added once, and again for older saves that never had them.</summary>
@@ -6554,12 +6554,12 @@ public class Game
         {
             if (vehicle == "boat")
             {
-                ui.setHint("W / S throttle and reverse · A / D steer · Space slows · F leaves the wheel (to use a weapon) · E steps off when parked at the beach");
+                ui.setHint(Controls.Say("W / S throttle and reverse · A / D steer · Space slows · F leaves the wheel (to use a weapon) · E steps off when parked at the beach", Act.Forward, Act.Backward, Act.Left, Act.Right, Act.Brake, Act.Use, Act.Use2));
                 ui.setBadgeText("🚤", "Boat");
             }
             else
             {
-                ui.setHint("W / S drive and reverse · A / D steer · Space brakes · F gets out");
+                ui.setHint(Controls.Say("W / S drive and reverse · A / D steer · Space brakes · F gets out", Act.Forward, Act.Backward, Act.Left, Act.Right, Act.Brake, Act.Use));
                 ui.setBadgeText("🛺", "Golf cart");
             }
             ui.setCrosshair(false);
@@ -6582,9 +6582,10 @@ public class Game
                 return;
             }
             string camKey = usingPad ? "D-pad left" : "3";
-            ui.setHint(gameState == "INSPECT" ? null
+            // the keys as the player bound them (Core/Controls.cs)
+            ui.setHint(Controls.Say(gameState == "INSPECT" ? null
                 : altCamera ? $"Click to raise the camera · {camKey} puts it away"
-                : $"Climb the stairs and the ladder, then press F at the top to go back out · {camKey} takes out the camera");
+                : $"Climb the stairs and the ladder, then press F at the top to go back out · {camKey} takes out the camera", Act.Use));
             ui.setCrosshair(gameState == "EXPLORE");
             return;
         }
@@ -6601,7 +6602,8 @@ public class Game
             else if (altTool == 11) ui.setBadgeText("🐠", "Net");
             else ui.setBadgeText("🔱", "Harpoon");
             string camKey = usingPad ? "D-pad left" : "3";
-            ui.setHint(
+            // the keys as the player bound them (Core/Controls.cs)
+            ui.setHint(Controls.Say(
                 gameState == "INSPECT" ? null
                     : altTool == 11 ? (usingPad
                         ? "Press RT to sweep the net at a creature close in front of you · D-pad left changes tool · X swims back up"
@@ -6613,8 +6615,8 @@ public class Game
                     : under.reloading ? "Reloading..."
                     : usingPad ? "RT fires the harpoon · A picks up a find · X swims back up · left stick swims · RB up · LB down · D-pad left changes tool"
                     : state.data.ownsNet ? "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · 2 net · 3 camera"
-                    : "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · 3 camera"
-            );
+                    : "Click to fire the harpoon · F picks up a find · Q swims back up · WASD swim · Space up · C down · 3 camera",
+                Act.Use, Act.Surface, Act.Forward, Act.Left, Act.Backward, Act.Right, Act.Ascend, Act.Descend));
             ui.setCrosshair(gameState == "EXPLORE");
             return;
         }
@@ -6629,9 +6631,9 @@ public class Game
         }
         string hint = null;
         if (hoveredItem != null) hint = hoveredItem.def.id == "captain_chest" ? (hoveredItem.opened ? "Click to climb down the ladder" : "Click to open the hatch") : "Click to take it to the workbench";
-        else if (hoveredLighthouse) hint = "Click to take and clean the lighthouse lamp (or press F)";
-        else if (hoveredScope && islands[1].telescope?.cleaned != true) hint = "Click to take the telescope and clean it (or press F)";
-        else if (hoveredScope) hint = scopeDark ? "Click to look through the telescope (or press F)" : "The stars only come out after dark. Come back after dusk.";
+        else if (hoveredLighthouse) hint = Controls.Say("Click to take and clean the lighthouse lamp (or press F)", Act.Use);
+        else if (hoveredScope && islands[1].telescope?.cleaned != true) hint = Controls.Say("Click to take the telescope and clean it (or press F)", Act.Use);
+        else if (hoveredScope) hint = scopeDark ? Controls.Say("Click to look through the telescope (or press F)", Act.Use) : "The stars only come out after dark. Come back after dusk.";
         else if (hoveredCamp != null)
         {
             hint = campHint(hoveredCamp);
@@ -6651,7 +6653,7 @@ public class Game
         }
         else if (gameState == "EXPLORE" && tool == 7)
         {
-            hint = $"Click to plant a flag ({state.data.flags} in your bag) · F beside a flag picks it up";
+            hint = Controls.Say($"Click to plant a flag ({state.data.flags} in your bag) · F beside a flag picks it up", Act.Use);
         }
         else if (gameState == "EXPLORE" && tool == 6)
         {

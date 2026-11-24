@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Text.RegularExpressions;
 
 // The game's keyboard controls as an Input System action map (unity/UI_PLAN.md B3). Each thing a key does is an action with
 // a meaning (Forward, Use, Pause, Confirm...), bound by default to the keys the game always used. One key can carry several
@@ -182,6 +184,7 @@ public static class Controls
             }
         }
         bound = null;
+        Version++;
         Changed?.Invoke();
     }
 
@@ -194,6 +197,7 @@ public static class Controls
             PlayerPrefs.Save();
         }
         bound = null;
+        Version++;
         Changed?.Invoke();
     }
 
@@ -218,6 +222,78 @@ public static class Controls
 
     /// <summary>Raised when the bindings change (a rebind, a reset or a load), so key pictures can follow.</summary>
     public static event Action Changed;
+
+    /// <summary>Counts binding changes, so what is worked out from the bindings can tell when to work it out again.</summary>
+    public static int Version { get; private set; }
+
+    /// <summary>True while every key is the game's own.</summary>
+    public static bool AllDefault
+    {
+        get
+        {
+            foreach (var b in Map.bindings)
+                if (!string.IsNullOrEmpty(b.overridePath)) return false;
+            return true;
+        }
+    }
+
+    private static readonly Dictionary<Act, string> defaultNames = new Dictionary<Act, string>();
+
+    private static string DefaultName(Act a)
+    {
+        if (!defaultNames.TryGetValue(a, out var n))
+        {
+            n = "";
+            foreach (var (act, keys) in Defaults)
+                if (act == a) n = NameOf(Path(keys[0]));
+            defaultNames[a] = n;
+        }
+        return n;
+    }
+
+    private static readonly Dictionary<string, string> said = new Dictionary<string, string>();
+    private static int saidVersion = -1;
+
+    /// <summary>
+    /// A text that names keys, with the keys of these actions as the player bound them ("F gets out" reads "G gets out"
+    /// once Use is on G). Only the listed actions change, because one key means different things in different places (Q
+    /// swims up in the sea and turns the page in the camp). With the game's own keys, or on a controller (whose words
+    /// PadText writes), the text comes back as it was.
+    /// </summary>
+    public static string Say(string text, params Act[] acts)
+    {
+        if (string.IsNullOrEmpty(text) || PadText.pad.on || AllDefault) return text;
+        if (saidVersion != Version)
+        {
+            said.Clear();
+            saidVersion = Version;
+        }
+        ulong mask = 0;
+        foreach (var a in acts) mask |= Bit(a);
+        string cacheKey = mask + "|" + text;
+        if (said.TryGetValue(cacheKey, out var hit)) return hit;
+        var swap = new Dictionary<string, string>();
+        foreach (var a in acts)
+        {
+            string d = DefaultName(a), n = KeyName(a);
+            if (d.Length > 0 && n.Length > 0 && d != n) swap[d] = n;
+        }
+        string result = text;
+        // "WASD" and "W A S D" become the four keys as bound; set aside first so the single keys below do not touch them
+        bool walk = Array.IndexOf(acts, Act.Forward) >= 0 || Array.IndexOf(acts, Act.Left) >= 0;
+        bool walkChanged = walk && (KeyName(Act.Forward) != "W" || KeyName(Act.Left) != "A" || KeyName(Act.Backward) != "S" || KeyName(Act.Right) != "D");
+        if (walkChanged) result = result.Replace("WASD", "\u0001").Replace("W A S D", "\u0001");
+        if (swap.Count > 0)
+        {
+            var alt = string.Join("|", swap.Keys.Select(Regex.Escape));
+            result = Regex.Replace(result, @"(?<![A-Za-z0-9])(" + alt + @")(?![A-Za-z0-9])", m => swap[m.Value]);
+        }
+        if (walkChanged)
+            result = result.Replace("\u0001", $"{KeyName(Act.Forward)} / {KeyName(Act.Left)} / {KeyName(Act.Backward)} / {KeyName(Act.Right)}");
+        if (said.Count > 500) said.Clear();
+        said[cacheKey] = result;
+        return result;
+    }
 
     private static InputActionRebindingExtensions.RebindingOperation rebinding;
     private static int quietUntil = -1;
@@ -329,7 +405,11 @@ public static class Controls
     }
 
     /// <summary>Makes binding overrides applied to Map directly (a rebind in progress) take effect.</summary>
-    public static void Rebound() => bound = null;
+    public static void Rebound()
+    {
+        bound = null;
+        Version++;
+    }
 
     /// <summary>The actions a key carries as bound now (a key on the keyboard).</summary>
     public static Press Bound(string code)

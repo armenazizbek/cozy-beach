@@ -131,3 +131,19 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Checked against `refU360`: no FAIL apart from the runs the reference build does not have; the pad log differs only in
   the settings rows it can reach (32 instead of 17); logs and dumps otherwise identical; selfcheck 8 of 8, mouse 0 failed,
   keyboard 0 failed.
+
+## Key names in words follow the bindings; test windows stay behind (2026-11-24)
+
+- `Controls.Say(text, acts)`: a text that names keys reads with the keys as bound, for the listed actions only (Q swims
+  up in the sea but turns the page in the camp, so only the dive hints list Surface). With the game's own keys, or on a
+  controller, the text is returned as written, so nothing on screen moves. Used by the in-play hints (cart, boat, diving,
+  under the dunes, telescope, lighthouse, flags, fishing), the shop's words, two toasts and Help (its paragraphs name
+  Use, Second use, the map and the surface; its key table goes by each row's key).
+- `Glyphs`: rebound key names are drawn as key caps in hints too ("G gets out", "I / A / S / D swim"); with the game's
+  own keys the pattern is the old one.
+- The keyboard test checks the words (a rebound hint, a hint that keeps a key it is not about, WASD, the prompt's key
+  picture, and the words as written once the keys are back): 0 failed.
+- Harness: each test window opens behind the other windows and the focus goes back to where it was (`-Front` to keep it
+  in front). Same monitor, so the display the run reports and the reference stay the same; checked on 10 runs.
+- Checked against `refU360`: nothing new apart from `crust/14-crust-pocket_watch.png`, where every pixel is off by 1 or 2
+  of 255. That is noise between runs of the same build: a run in front differs as much.
