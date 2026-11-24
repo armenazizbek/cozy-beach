@@ -6504,6 +6504,9 @@ public class Game
 
     /// <summary>Distance to whatever is under the binocular reticle. Measured every few frames.</summary>
     /// <summary>What the binoculars' rangefinder measures to (besides the sand and the sea).</summary>
+    /// <summary>The GameObjects the binoculars' range can land on: the same modules as <see cref="RangeTargets"/>.</summary>
+    internal UnityEngine.Transform[] RangeRoots() => new[] { camp.Root, scenery.Root, boat.Root, cart.Root, sea.Root, birds.Root, ecology.Root, treasure.Root };
+
     internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, birds.group, ecology.group, treasure.group };
 
     private void updateRange()
@@ -6521,8 +6524,9 @@ public class Game
             double t = (ocean.surfaceY - ray.origin.y) / ray.direction.y;
             if (t > 0 && t < best) best = t;
         }
-        var hit = Picking.Intersect(rayCaster, RangeTargets()).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
-        if (hit != null && hit.distance < best) best = hit.distance;
+        // what is drawn there: the GameObjects themselves (Picking.NearestDrawn), not the modules' descriptions
+        var hit = Picking.NearestDrawn(GameSpace.V(ray.origin.x, ray.origin.y, ray.origin.z), GameSpace.V(ray.direction.x, ray.direction.y, ray.direction.z), RangeRoots(), 0.5);
+        if (hit != null && hit.Value < best) best = hit.Value;
         rangeText = best < 900 ? $"{Math.Round(best)} m" : "—";
     }
 

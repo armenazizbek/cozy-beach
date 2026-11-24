@@ -12,6 +12,7 @@ internal static class SelfCheckPicking
     {
         yield return ("Picking matches Raycaster on the camp's clickables", Camp);
         yield return ("Picking matches Raycaster on the rangefinder's targets", Range);
+        yield return ("The rangefinder reads the same off the drawn GameObjects", DrawnRange);
     }
 
     private static Game G => GameHost.Instance != null ? GameHost.Instance.game : null;
@@ -52,6 +53,37 @@ internal static class SelfCheckPicking
             rays.Add((from, d));
         }
         return Compare(rays, targets, 0.5);
+    }
+
+    /// <summary>
+    /// The binoculars' range from the GameObjects themselves (Picking.NearestDrawn) against the descriptions' (as before B1),
+    /// as the player reads it: in whole metres. A few rays may differ where the description is hit inside a hidden group
+    /// (a gull that has flown away) or on a back face, which the drawn objects do not count.
+    /// </summary>
+    private static string DrawnRange()
+    {
+        var g = G;
+        if (g == null) return "no game";
+        var targets = g.RangeTargets();
+        var roots = g.RangeRoots();
+        int hits = 0, bad = 0, n = 400;
+        string first = null;
+        for (int i = 0; i < n; i++)
+        {
+            var o = new THREE.Vector3(R(70), 1.5 + rnd.NextDouble() * 12, R(90));
+            var d = new THREE.Vector3(R(1), -0.05 - rnd.NextDouble() * 0.3, R(1)).normalize();
+            var rc = new THREE.Raycaster(o, d);
+            var before = Picking.Intersect(rc, targets).FirstOrDefault(h => h.@object.visible && h.distance > 0.5);
+            var now = Picking.NearestDrawn(GameSpace.V(o.x, o.y, o.z), GameSpace.V(d.x, d.y, d.z), roots, 0.5);
+            double? a = before?.distance;
+            if (a != null) hits++;
+            bool same = (a == null && now == null) || (a != null && now != null && Math.Round(a.Value) == Math.Round(now.Value));
+            if (same) continue;
+            bad++;
+            first ??= $"ray from {o.x:0.##},{o.y:0.##},{o.z:0.##}: before {(a == null ? "nothing" : $"{Name(before.@object)} at {a:0.##}")}, now {(now == null ? "nothing" : $"{now:0.##}")}";
+        }
+        UnityEngine.Debug.Log($"[SelfCheck] drawn range: {n} rays, {hits} hits, {bad} different" + (first != null ? $", first: {first}" : ""));
+        return bad <= n / 100 ? (hits < n / 10 ? $"only {hits} of {n} rays hit anything" : null) : $"{bad} of {n} rays differ, first: {first}";
     }
 
     private static string Compare(List<(THREE.Vector3 o, THREE.Vector3 d)> rays, List<THREE.Object3D> targets, double near)

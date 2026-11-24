@@ -51,6 +51,9 @@ public class Camp
     /// stay a particle pool the scene draws until S24, in a group standing where the camp stands (they are emitted in its frame).
     /// </summary>
     private LiveTree live;
+
+    /// <summary>The camp's GameObjects under the world root, once placed and drawn.</summary>
+    public UnityEngine.Transform Root => live?.Live?.root;
     private readonly THREE.Group loose = new THREE.Group();
 
     /// <summary>Puts the camp into the world as native objects.</summary>

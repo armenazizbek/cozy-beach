@@ -221,3 +221,15 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   (`Target.Of`, made once per mesh, the same radius and position as before), so each can now drop its descriptions
   without the shooting code changing.
 - Quick check against `refB` (birds, smash, fish, sealife, gear): logs and dumps identical, no FAIL.
+
+## B1 hub, step 2: the binoculars' range reads the GameObjects (2026-11-24)
+
+- `Picking.NearestDrawn`: the nearest drawn mesh along a ray under some GameObject roots, with a MeshCollider per shown
+  mesh on the pick layer (under its own root, posed as its renderer each time, so nothing is added inside the game's
+  objects). Back faces count, as most surfaces are double-sided. `Game.updateRange` uses it on the eight modules' roots
+  (`Root` on Camp, Scenery, Boat, Birds, Ecology, SeaLife, GolfCart, SeaTreasure), so the range no longer needs their
+  descriptions.
+- New self-check (9 now): 400 rays, the range in whole metres from the GameObjects against the descriptions as before.
+  2 rays differ: the old check hit a mesh inside a hidden group (not drawn), the new one does not. It caught two bugs on
+  the way: ray directions not mirrored like their origins (`TransformDirection` ignores the root's -1 z scale;
+  `TransformVector` does not) and back faces skipped.

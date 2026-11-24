@@ -584,6 +584,9 @@ public class SeaLife
     /// </summary>
     private LiveTree live;
 
+    /// <summary>The sea creatures' GameObjects under the world root, once placed and drawn.</summary>
+    public UnityEngine.Transform Root => live?.Live?.root;
+
     /// <summary>the particle pools' own group in the scene, shown with the sea life (the pools keep their own visibility)</summary>
     private readonly THREE.Group loose = new THREE.Group();
 

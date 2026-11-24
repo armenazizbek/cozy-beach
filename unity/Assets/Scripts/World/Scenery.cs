@@ -127,6 +127,9 @@ public class Scenery
     /// </summary>
     private Realized live;
 
+    /// <summary>The scenery's GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => live?.root;
+
     /// <summary>Puts the scenery into the world as native objects.</summary>
     public void Place()
     {

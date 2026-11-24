@@ -331,6 +331,9 @@ public class Boat
     /// </summary>
     private Realized live;
 
+    /// <summary>The boat's GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => live?.root;
+
     /// <summary>Puts the boat into the world as native objects; the wake goes to the scene.</summary>
     public void Place(THREE.Scene scene)
     {

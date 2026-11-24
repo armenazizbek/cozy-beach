@@ -130,6 +130,9 @@ public class Ecology
     /// own GameObjects (Realized.Follow). The descriptions stay up to date, for the aim and the binoculars' raycasts.
     /// </summary>
     private UnityEngine.Transform root;
+
+    /// <summary>The crabs' and tufts' GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => root;
     private readonly List<Realized> crabLives = new List<Realized>();
 
     /// <summary>Puts what exists so far into the world; everything added later goes in as it is made.</summary>

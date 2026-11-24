@@ -35,6 +35,9 @@ public class Birds
     /// </summary>
     private Realized live;
 
+    /// <summary>The gulls' GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => live?.root;
+
     /// <summary>Puts the flock into the world as native objects.</summary>
     public void Place()
     {

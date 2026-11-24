@@ -59,6 +59,10 @@ public static class Picking
         shapes.Clear();
         if (root != null) UnityEngine.Object.Destroy(root.gameObject);
         root = null;
+        drawnColliders.Clear();
+        drawnOf.Clear();
+        if (drawnRoot != null) UnityEngine.Object.Destroy(drawnRoot.gameObject);
+        drawnRoot = null;
     }
 
     /// <summary>What intersectObject(o, true) answered: the hits on a tree, nearest first.</summary>
@@ -223,4 +227,72 @@ public static class Picking
             if (e.go != null) UnityEngine.Object.Destroy(e.go);
         }
     }
+
+    // ---------------------------------------------------------------- picking GameObjects (unity/UI_PLAN.md B1)
+
+    /// <summary>The colliders made for drawn meshes, by renderer, and the other way round.</summary>
+    private static readonly Dictionary<MeshRenderer, MeshCollider> drawnColliders = new Dictionary<MeshRenderer, MeshCollider>();
+    private static readonly Dictionary<Collider, MeshRenderer> drawnOf = new Dictionary<Collider, MeshRenderer>();
+    private static readonly List<MeshRenderer> drawnScratch = new List<MeshRenderer>();
+    private static readonly HashSet<MeshRenderer> drawnWanted = new HashSet<MeshRenderer>();
+    private static Transform drawnRoot;
+
+    /// <summary>
+    /// How far along a ray (in the game's world) the nearest drawn mesh under `roots` is, past `near` metres; null when none
+    /// is hit. It looks at the GameObjects themselves, with a collider on the <see cref="Layer"/> layer for each shown mesh
+    /// (made on first use, following the renderer as it moves), so it needs no description. Hidden objects are not hit.
+    /// </summary>
+    public static double? NearestDrawn(Vector3 originGame, Vector3 dirGame, IEnumerable<Transform> roots, double near, double far = 2000)
+    {
+        var world = World.Root;
+        if (world == null) return null;
+        drawnWanted.Clear();
+        foreach (var r in roots)
+        {
+            if (r == null || !r.gameObject.activeInHierarchy) continue;
+            r.GetComponentsInChildren(false, drawnScratch);
+            foreach (var mr in drawnScratch)
+            {
+                if (!mr.enabled) continue;
+                var mf = mr.GetComponent<MeshFilter>();
+                var mesh = mf != null ? mf.sharedMesh : null;
+                if (mesh == null || mesh.GetTopology(0) != MeshTopology.Triangles) continue;
+                if (!drawnColliders.TryGetValue(mr, out var col) || col == null)
+                {
+                    // under the pickers' own root, not inside the game's objects (that would shift their children)
+                    if (drawnRoot == null) drawnRoot = new GameObject("Picking (drawn)").transform;
+                    var go = new GameObject("pick");
+                    go.layer = Layer;
+                    go.transform.SetParent(drawnRoot, false);
+                    col = go.AddComponent<MeshCollider>();
+                    col.sharedMesh = mesh;
+                    drawnColliders[mr] = col;
+                    drawnOf[col] = mr;
+                }
+                else if (col.sharedMesh != mesh) col.sharedMesh = mesh;
+                // posed as the renderer is now
+                var src = mr.transform;
+                col.transform.SetPositionAndRotation(src.position, src.rotation);
+                col.transform.localScale = src.lossyScale;
+                drawnWanted.Add(mr);
+            }
+        }
+        // colliders that were just moved count for the ray only once physics has taken them in
+        Physics.SyncTransforms();
+        var origin = world.TransformPoint(originGame);
+        var dir = world.TransformVector(dirGame).normalized; // TransformVector: the root mirrors z through its scale, which TransformDirection ignores
+        // many of the game's surfaces are drawn from both sides (Three's DoubleSide), so the ray takes back faces too
+        bool backs = Physics.queriesHitBackfaces;
+        Physics.queriesHitBackfaces = true;
+        int n = Physics.RaycastNonAlloc(new Ray(origin, dir), buf, (float)far, 1 << Layer, QueryTriggerInteraction.Collide);
+        Physics.queriesHitBackfaces = backs;
+        double best = double.PositiveInfinity;
+        for (int i = 0; i < n; i++)
+        {
+            if (!drawnOf.TryGetValue(buf[i].collider, out var mr) || mr == null || !drawnWanted.Contains(mr)) continue;
+            if (buf[i].distance > near && buf[i].distance < best) best = buf[i].distance;
+        }
+        return double.IsPositiveInfinity(best) ? (double?)null : best;
+    }
+
 }
