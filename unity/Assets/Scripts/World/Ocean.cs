@@ -304,18 +304,35 @@ public class Ocean
     /// draw time (the surface following the viewer, the foam's scrolling texture and its opacity, the shaders' time). A refresh
     /// of the sea-floor depth rewrites only that vertex channel of the surface mesh.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
+    private UnityEngine.Transform waterT, foamT;
     private UnityEngine.Mesh waterMesh;
     private bool depthDirty;
 
-    /// <summary>Puts the sea into the world as native objects.</summary>
+    /// <summary>
+    /// Puts the sea into the world as native objects, once (unity/UI_PLAN.md B1). At draw time the surface grid is moved
+    /// under the viewer and shown or hidden, the shaders' clocks and the foam's values are pushed, and the sea-bed depth is
+    /// rewritten into its own vertex channel when it changed; nothing else is compared.
+    /// </summary>
     public void Place()
     {
-        live = new LiveTree(group, World.Land);
-        waterMesh = live.Live[water]?.GetComponent<UnityEngine.MeshFilter>()?.sharedMesh;
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        waterT = live[water];
+        foamT = live[foam];
+        waterMesh = waterT?.GetComponent<UnityEngine.MeshFilter>()?.sharedMesh;
         NativeFrame.BeforeDraw += () =>
         {
-            live.Sync();
+            if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+            if (live.root.gameObject.activeSelf != group.visible) live.root.gameObject.SetActive(group.visible);
+            if (!group.visible) return;
+            foreach (var (o, t) in new[] { (water as THREE.Object3D, waterT), (foam, foamT) })
+            {
+                if (t == null) continue;
+                if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+                if (o.visible) Realizer.Pose(o, t);
+            }
+            MaterialKit.PushOnce(water.material);
+            MaterialKit.PushOnce(foam.material);
             if (depthDirty && waterMesh != null) MeshKit.RefillExtra(waterMesh, water.geometry, "aDepth");
             depthDirty = false;
         };

@@ -337,3 +337,9 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   paintings' texture can come later); the rain brings in line, by name, its group (switched off while hidden), the
   puddle, the damp patch, the rings and the drip lines, refills the drips' mesh as they are rewritten, and pushes the
   fading. Quick check against `refB` (base, house, dograin, rain): logs pass, dumps within 0.00001 m.
+
+## B1: the ocean without the whole-tree copy (2026-11-24)
+
+- `Ocean` is realised once; at draw time the surface grid is moved under the viewer and shown or hidden, the foam band
+  likewise, both materials pushed (the clocks, the foam's values) and the sea-bed depth channel rewritten when it changed.
+  Quick check against `refB` (base, pier, island, dive): logs pass, dumps within 0.00001 m.
