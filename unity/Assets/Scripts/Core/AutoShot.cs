@@ -29,6 +29,12 @@ public class AutoShot : MonoBehaviour
         if (Active) Debug.Log($"[AutoShot] {Time.realtimeSinceStartup:0.00}s {what}");
     }
 
+    /// <summary>The same from a worker thread (Unity's clock may only be read on the main thread).</summary>
+    internal static void TraceOff(string what)
+    {
+        if (Active) Debug.Log($"[AutoShot] (worker) {what}");
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Init()
     {
@@ -1703,12 +1709,16 @@ public class AutoShot : MonoBehaviour
         double gcSum = 0;
         bool gcValid = false;
         int gc0 = GC.CollectionCount(0);
-        var times = new System.Collections.Generic.List<float>();
+        long allocLast = NativeRender.FrameStats.Allocated(), allocBytes = 0;
+        var times = new System.Collections.Generic.List<float>(4096);
         double refreshMs = 1000.0 / Math.Max(30, Screen.currentResolution.refreshRateRatio.value);
         while (Now - start < 3)
         {
             yield return null;
             frames++;
+            long allocNow = NativeRender.FrameStats.Allocated();
+            if (allocNow > allocLast) allocBytes += allocNow - allocLast;
+            allocLast = allocNow;
             worst = Mathf.Max(worst, Time.unscaledDeltaTime);
             times.Add(Time.unscaledDeltaTime * 1000f);
             gcValid |= gcRec.Valid && gcRec.Count > 0;
@@ -1729,6 +1739,8 @@ public class AutoShot : MonoBehaviour
                   $"Unity main thread {mainMs / n:0.00} ms, render thread {renderMs / n:0.00} ms, GPU {gpuMs / n:0.00} ms; " +
                   NativeRender.FrameStats.Report());
         Debug.Log($"[AutoShot] {label} slowest parts (ms/frame): {NativeRender.FrameStats.SectionReport()}");
+        // the garbage the main thread made, by .NET's own count (in any build), and which parts made it
+        Debug.Log($"[AutoShot] {label} garbage: {(allocBytes > 0 ? $"{allocBytes / Math.Max(1, frames)} bytes/frame on the main thread" : "not counted by this runtime")}; by part (bytes/frame): {NativeRender.FrameStats.GarbageReport()}");
         times.Sort();
         int fr = Math.Max(1, frames);
         float P(double q) => times.Count > 0 ? times[Math.Min(times.Count - 1, (int)(q * times.Count))] : 0;

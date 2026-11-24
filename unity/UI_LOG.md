@@ -566,3 +566,22 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   It now goes 1.0 m up (eye at 7.0 m, 0.35 m under the rim); "Climb out through the hatch" still comes up at the top.
 - photo-alt test: checks the lowered hint has no "puts it away", and stands at the ladder's top (picture
   `5-underground-5-ladder-top`, its height and the F prompt in the log).
+
+## Less garbage, faster loading (2026-11-25)
+
+- **Garbage.** The perf tour now counts the garbage each part of the frame makes (`FrameStats.GarbageReport`; .NET's
+  count where the runtime has one, the heap's growth otherwise). About 200 KB a frame came almost all from point clouds
+  refilled with new lists every frame (`MeshKit.RefillPoints`), and the minimap's 2D drawing made about 1.7 MB per redraw
+  (new point lists for every path, dash, stroke joint and fill). Now: RefillPoints, Fill, RefillExtra and Bake reuse their
+  buffers and only resend what changed; the canvas pools its point lists (a path's go back at beginPath, a fill's or
+  stroke's once drawn) and reuses its rasteriser lists; the ocean's per-frame array is gone. About 12 KB a frame now.
+- **Loading.** The world's pieces (Prebuilt) are made all at the same time on the thread pool instead of one after another
+  (the map waits for the scenery). For that the 3D library's scratch objects are per thread (42 `[ThreadStatic]` fields
+  in Three), its id counters and structure stamp are atomic, the skull cache is locked, and each piece has its own random
+  numbers (the test seed's per-piece sequence under -autoshot-seed, as before). The hands' and skull's implicit surfaces
+  and the map picture are also worked out on all cores (`Hand.solidSurface`, `MapView`). Scene dumps are the same as
+  before (the only differences are the aquarium and the boat's windscreen, changed earlier on purpose).
+- **IL2CPP, 3 rounds, against the build before (binoc-before):** ready to play 5.53 -> 4.40 s (-20%; the world's pieces
+  4.78 -> 3.40 s, the rest is Unity's own start). Garbage collections per 3-second window 26-43 -> 1-3. Frames: fps up
+  6-12% in most places (binoculars +22-25%, which includes the earlier range-finder fix), 99th percentile frames down
+  12-23%, late frames down 37-77%; underground unchanged. No regressions over the limits.

@@ -258,7 +258,8 @@ namespace THREE
             return this;
         }
 
-        private static readonly Matrix4 _m = new Matrix4();
+        [System.ThreadStatic] private static Matrix4 ___m;
+        private static Matrix4 _m => ___m ??= new Matrix4();
 
         public Euler setFromQuaternion(Quaternion q, string order = null, bool update = true)
         {

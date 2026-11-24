@@ -5,7 +5,8 @@ namespace THREE
     /// <summary>three/examples/jsm/geometries/RoundedBoxGeometry.js (r170).</summary>
     public class RoundedBoxGeometry : BoxGeometry
     {
-        private static readonly Vector3 _tempNormal = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___tempNormal;
+        private static Vector3 _tempNormal => ___tempNormal ??= new Vector3();
 
         private static double Comp(Vector3 v, char a) => a == 'x' ? v.x : a == 'y' ? v.y : v.z;
 

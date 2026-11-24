@@ -172,7 +172,8 @@ namespace THREE
         public bool closed;
         public string curveType;
         public double tension;
-        private static readonly Vector3 tmp = new Vector3();
+        [System.ThreadStatic] private static Vector3 __tmp;
+        private static Vector3 tmp => __tmp ??= new Vector3();
 
         public CatmullRomCurve3(IList<Vector3> points = null, bool closed = false, string curveType = "centripetal", double tension = 0.5)
         {

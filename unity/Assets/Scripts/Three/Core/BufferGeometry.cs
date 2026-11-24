@@ -94,7 +94,8 @@ namespace THREE
             return a;
         }
 
-        private static readonly Vector3 _v = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v;
+        private static Vector3 _v => ___v ??= new Vector3();
 
         public BufferAttribute applyMatrix4(Matrix4 m)
         {
@@ -183,7 +184,7 @@ namespace THREE
     public class BufferGeometry
     {
         private static int _nextId;
-        public readonly int id = _nextId++;
+        public readonly int id = System.Threading.Interlocked.Increment(ref _nextId) - 1; // pieces of the world are built on several threads at once (Prebuilt)
         public string uuid = MathUtils.generateUUID();
         public string name = "";
         public string type = "BufferGeometry";

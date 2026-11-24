@@ -86,7 +86,8 @@ public class MapView
         const double CELL = 2, BLEND = 0.12, BEHIND = 250;
         int gw = (int)(EXT / CELL) + 2;
         var range = new float[gw * gw];
-        for (int j = 0; j < gw; j++)
+        // a row of the grid at a time on each core (each writes only its own cells)
+        System.Threading.Tasks.Parallel.For(0, gw, j =>
         {
             for (int i = 0; i < gw; i++)
             {
@@ -124,7 +125,7 @@ public class MapView
                 }
                 range[j * gw + i] = val;
             }
-        }
+        });
         double rangeAt(double x, double z)
         {
             double fx = Math.Max(0, Math.Min(gw - 1.001, (x - EXT_X0) / CELL)), fz = Math.Max(0, Math.Min(gw - 1.001, (z - EXT_Z0) / CELL));
@@ -137,7 +138,9 @@ public class MapView
         }
         // the light, from the top left of the map and well up in the sky
         double lx = -0.55, ly = 0.62, lz = -0.55;
-        for (int v = 0; v < BASE_PX; v++)
+        // the rows are worked out on all the CPU's cores at once: each writes only its own pixels, and the heights it reads
+        // are plain arithmetic, so the picture is the same as one thread's (it was the slowest part of the map's making)
+        System.Threading.Tasks.Parallel.For(0, BASE_PX, v =>
         {
             var z = EXT_Z0 + (v + 0.5) * m;
             // rows of nothing but open sea are filled in one go; the mountains at the sides reach well out into the water
@@ -151,7 +154,7 @@ public class MapView
                     var i = rowBase + u * 4;
                     data[i] = 30; data[i + 1] = 95; data[i + 2] = 155; data[i + 3] = 255;
                 }
-                continue;
+                return;
             }
             for (int u = 0; u < BASE_PX; u++)
             {
@@ -222,7 +225,7 @@ public class MapView
                 var i = (v * BASE_PX + u) * 4;
                 data[i] = (byte)r; data[i + 1] = (byte)gr; data[i + 2] = (byte)b; data[i + 3] = 255;
             }
-        }
+        });
         g.putImageData(img, 0, 0);
         // the nets round the treasure cove, painted in once: the little map redraws often, and this costs it nothing
         g.save();

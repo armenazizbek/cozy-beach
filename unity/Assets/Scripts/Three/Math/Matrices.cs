@@ -91,7 +91,8 @@ namespace THREE
         public Matrix4 makeBasis(Vector3 xAxis, Vector3 yAxis, Vector3 zAxis) =>
             set(xAxis.x, yAxis.x, zAxis.x, 0, xAxis.y, yAxis.y, zAxis.y, 0, xAxis.z, yAxis.z, zAxis.z, 0, 0, 0, 0, 1);
 
-        private static readonly Vector3 _v1 = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v1;
+        private static Vector3 _v1 => ___v1 ??= new Vector3();
 
         public Matrix4 extractRotation(Matrix4 m)
         {
@@ -112,7 +113,12 @@ namespace THREE
         public Matrix4 makeRotationFromQuaternion(Quaternion q) => compose(_zero, q, _one);
         private static readonly Vector3 _zero = new Vector3(0, 0, 0);
         private static readonly Vector3 _one = new Vector3(1, 1, 1);
-        private static readonly Vector3 _x = new Vector3(), _y = new Vector3(), _z = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___x;
+        private static Vector3 _x => ___x ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___y;
+        private static Vector3 _y => ___y ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___z;
+        private static Vector3 _z => ___z ??= new Vector3();
 
         /// <summary>Points the matrix's +z from target toward eye (what Object3D.lookAt and cameras build on).</summary>
         public Matrix4 lookAt(Vector3 eye, Vector3 target, Vector3 up)
@@ -308,7 +314,8 @@ namespace THREE
             return this;
         }
 
-        private static readonly Matrix4 _m1 = new Matrix4();
+        [System.ThreadStatic] private static Matrix4 ___m1;
+        private static Matrix4 _m1 => ___m1 ??= new Matrix4();
 
         public Matrix4 decompose(Vector3 position, Quaternion quaternion, Vector3 scale)
         {

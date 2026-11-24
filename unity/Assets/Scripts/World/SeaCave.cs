@@ -149,9 +149,16 @@ public class SeaCave
     private static double sq(double v) => v * v;
 
     /// <summary>The sculpted parts of the skull, made once and shared by the cave and the trophy at camp.</summary>
+    private static readonly object skullLock = new object();
+
     private static SkullGeo skullParts()
     {
-        if (skullGeo != null) return skullGeo;
+        // the camp's trophy and the cave share it, and the world's pieces are made on several threads at once (Prebuilt)
+        lock (skullLock) return skullGeo ??= makeSkullParts();
+    }
+
+    private static SkullGeo makeSkullParts()
+    {
         THREE.Vector3 V(double x, double y, double z) => new THREE.Vector3(x, y, z);
         double head(double x, double yy, double z)
         {

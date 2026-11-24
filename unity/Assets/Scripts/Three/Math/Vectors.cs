@@ -112,7 +112,8 @@ namespace THREE
 
         public Vector3 applyEuler(Euler e) => applyQuaternion(_q.setFromEuler(e));
         public Vector3 applyAxisAngle(Vector3 axis, double angle) => applyQuaternion(_q.setFromAxisAngle(axis, angle));
-        private static readonly Quaternion _q = new Quaternion();
+        [System.ThreadStatic] private static Quaternion ___q;
+        private static Quaternion _q => ___q ??= new Quaternion();
 
         public Vector3 applyMatrix3(Matrix3 m)
         {
@@ -219,7 +220,8 @@ namespace THREE
             return copy(v).multiplyScalar(s);
         }
         public Vector3 projectOnPlane(Vector3 n) { _v.copy(this).projectOnVector(n); return sub(_v); }
-        private static readonly Vector3 _v = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v;
+        private static Vector3 _v => ___v ??= new Vector3();
         public Vector3 reflect(Vector3 n) => sub(_v.copy(n).multiplyScalar(2 * dot(n)));
         public double angleTo(Vector3 v)
         {

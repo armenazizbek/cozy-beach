@@ -36,7 +36,7 @@ namespace THREE
         internal int nativeKind, nativeGen;
 
         private static int _nextId;
-        public readonly int id = _nextId++;
+        public readonly int id = System.Threading.Interlocked.Increment(ref _nextId) - 1; // pieces of the world are built on several threads at once (Prebuilt)
         public string uuid = MathUtils.generateUUID();
         public string name = "";
         public virtual string type => "Material";
@@ -80,7 +80,7 @@ namespace THREE
 
         protected virtual void CloneInto(Material m)
         {
-            typeof(Material).GetField("id").SetValue(m, _nextId++);
+            typeof(Material).GetField("id").SetValue(m, System.Threading.Interlocked.Increment(ref _nextId) - 1);
             m.uuid = MathUtils.generateUUID();
             m.userData = new Dictionary<string, object>(userData);
             m.customUniforms = new Dictionary<string, Uniform>();

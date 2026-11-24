@@ -60,17 +60,24 @@ public static class Hand
         // blocks that a coarse sample shows are nowhere near the surface are filled in without asking the function about every point
         const int B = 4;
         double reach = Math.Sqrt(3) * B * step / 2 + 0.01;
-        for (int bk = 0; bk < nz; bk += B)
-        for (int bj = 0; bj < ny; bj += B)
-        for (int bi = 0; bi < nx; bi += B)
+        // the slabs of blocks along z are filled at the same time on the CPU's cores: each writes only its own samples, and the
+        // function is plain arithmetic over shapes that do not change, so the result is exactly what one thread made (the
+        // hands on every tool are made this way, and were the longest part of loading)
+        double lx = lo.x, ly = lo.y, lz = lo.z;
+        System.Threading.Tasks.Parallel.For(0, (nz + B - 1) / B, slab =>
         {
-            double mid = f(lo.x + (bi + B / 2.0) * step, lo.y + (bj + B / 2.0) * step, lo.z + (bk + B / 2.0) * step);
-            bool far = Math.Abs(mid) > reach;
-            for (int k = bk; k < Math.Min(nz, bk + B); k++)
-            for (int j = bj; j < Math.Min(ny, bj + B); j++)
-            for (int i = bi; i < Math.Min(nx, bi + B); i++)
-                field[at(i, j, k)] = (float)(far ? mid : f(lo.x + i * step, lo.y + j * step, lo.z + k * step));
-        }
+            int bk = slab * B;
+            for (int bj = 0; bj < ny; bj += B)
+            for (int bi = 0; bi < nx; bi += B)
+            {
+                double mid = f(lx + (bi + B / 2.0) * step, ly + (bj + B / 2.0) * step, lz + (bk + B / 2.0) * step);
+                bool far = Math.Abs(mid) > reach;
+                for (int k = bk; k < Math.Min(nz, bk + B); k++)
+                for (int j = bj; j < Math.Min(ny, bj + B); j++)
+                for (int i = bi; i < Math.Min(nx, bi + B); i++)
+                    field[i + nx * (j + ny * k)] = (float)(far ? mid : f(lx + i * step, ly + j * step, lz + k * step));
+            }
+        });
         // one vertex in every cell the surface passes through, at the average of where it crosses the cell's edges
         var cell = new int[field.Length];
         for (int i = 0; i < cell.Length; i++) cell[i] = -1;
@@ -125,8 +132,10 @@ public static class Hand
         }
         var nor = new float[pos.Count];
         const double e = 0.001;
-        for (int i = 0; i < pos.Count; i += 3)
+        // each vertex's normal on its own, so they are worked out on all the cores at once too
+        System.Threading.Tasks.Parallel.For(0, pos.Count / 3, vi =>
         {
+            int i = vi * 3;
             double x = pos[i], y = pos[i + 1], z = pos[i + 2];
             // four samples at the corners of a little tetrahedron give the same slope as six along the axes
             double a = f(x + e, y - e, z - e), b = f(x - e, y - e, z + e), c = f(x - e, y + e, z - e), d = f(x + e, y + e, z + e);
@@ -135,7 +144,7 @@ public static class Hand
             nor[i] = (float)(gx * inv);
             nor[i + 1] = (float)(gy * inv);
             nor[i + 2] = (float)(gz * inv);
-        }
+        });
         var geo = new THREE.BufferGeometry();
         geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
         geo.setAttribute("normal", new THREE.BufferAttribute(nor, 3));

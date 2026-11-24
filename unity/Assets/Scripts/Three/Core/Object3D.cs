@@ -21,7 +21,7 @@ namespace THREE
     public class Object3D
     {
         private static int _nextId;
-        public readonly int id = _nextId++;
+        public readonly int id = System.Threading.Interlocked.Increment(ref _nextId) - 1; // pieces of the world are built on several threads at once (Prebuilt)
         public string uuid = MathUtils.generateUUID();
         public string name = "";
         public virtual string type => "Object3D";
@@ -96,7 +96,8 @@ namespace THREE
         public void setRotationFromMatrix(Matrix4 m) => quaternion.setFromRotationMatrix(m);
         public void setRotationFromQuaternion(Quaternion q) => quaternion.copy(q);
 
-        private static readonly Quaternion _q1 = new Quaternion();
+        [System.ThreadStatic] private static Quaternion ___q1;
+        private static Quaternion _q1 => ___q1 ??= new Quaternion();
         private static readonly Vector3 _xAxis = new Vector3(1, 0, 0), _yAxis = new Vector3(0, 1, 0), _zAxis = new Vector3(0, 0, 1);
 
         public Object3D rotateOnAxis(Vector3 axis, double angle) { _q1.setFromAxisAngle(axis, angle); quaternion.multiply(_q1); return this; }
@@ -105,7 +106,8 @@ namespace THREE
         public Object3D rotateY(double a) => rotateOnAxis(_yAxis, a);
         public Object3D rotateZ(double a) => rotateOnAxis(_zAxis, a);
 
-        private static readonly Vector3 _v1 = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v1;
+        private static Vector3 _v1 => ___v1 ??= new Vector3();
 
         public Object3D translateOnAxis(Vector3 axis, double distance)
         {
@@ -117,7 +119,8 @@ namespace THREE
         public Object3D translateY(double d) => translateOnAxis(_yAxis, d);
         public Object3D translateZ(double d) => translateOnAxis(_zAxis, d);
 
-        private static readonly Matrix4 _m1 = new Matrix4();
+        [System.ThreadStatic] private static Matrix4 ___m1;
+        private static Matrix4 _m1 => ___m1 ??= new Matrix4();
 
         public Vector3 localToWorld(Vector3 v)
         {
@@ -131,8 +134,12 @@ namespace THREE
             return v.applyMatrix4(_m1.copy(matrixWorld).invert());
         }
 
-        private static readonly Vector3 _target = new Vector3(), _position = new Vector3();
-        private static readonly Quaternion _q2 = new Quaternion();
+        [System.ThreadStatic] private static Vector3 ___target;
+        private static Vector3 _target => ___target ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___position;
+        private static Vector3 _position => ___position ??= new Vector3();
+        [System.ThreadStatic] private static Quaternion ___q2;
+        private static Quaternion _q2 => ___q2 ??= new Quaternion();
 
         public void lookAt(double x, double y, double z) => lookAt(_target.set(x, y, z));
 
@@ -162,7 +169,7 @@ namespace THREE
 
         private void TreeChanged()
         {
-            StructureStamp++;
+            System.Threading.Interlocked.Increment(ref StructureStamp);
             for (var o = this; o != null; o = o.parent) o.treeVersion++;
         }
 
@@ -254,8 +261,12 @@ namespace THREE
             return target.setFromMatrixPosition(matrixWorld);
         }
 
-        private static readonly Vector3 _scaleTmp = new Vector3(), _posTmp = new Vector3();
-        private static readonly Quaternion _quatTmp = new Quaternion();
+        [System.ThreadStatic] private static Vector3 ___scaleTmp;
+        private static Vector3 _scaleTmp => ___scaleTmp ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___posTmp;
+        private static Vector3 _posTmp => ___posTmp ??= new Vector3();
+        [System.ThreadStatic] private static Quaternion ___quatTmp;
+        private static Quaternion _quatTmp => ___quatTmp ??= new Quaternion();
 
         public Quaternion getWorldQuaternion(Quaternion target)
         {

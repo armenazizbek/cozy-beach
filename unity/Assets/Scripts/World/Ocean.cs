@@ -325,17 +325,21 @@ public class Ocean
             if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
             if (live.root.gameObject.activeSelf != group.visible) live.root.gameObject.SetActive(group.visible);
             if (!group.visible) return;
-            foreach (var (o, t) in new[] { (water as THREE.Object3D, waterT), (foam, foamT) })
-            {
-                if (t == null) continue;
-                if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
-                if (o.visible) Realizer.Pose(o, t);
-            }
+            // (two calls, not a loop over a new array: this runs every frame)
+            PoseIfShown(water, waterT);
+            PoseIfShown(foam, foamT);
             MaterialKit.PushOnce(water.material);
             MaterialKit.PushOnce(foam.material);
             if (depthDirty && waterMesh != null) MeshKit.RefillExtra(waterMesh, water.geometry, "aDepth");
             depthDirty = false;
         };
+    }
+
+    private static void PoseIfShown(THREE.Object3D o, UnityEngine.Transform t)
+    {
+        if (t == null) return;
+        if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+        if (o.visible) Realizer.Pose(o, t);
     }
 
     public void update(double t, double camX = 0, double camZ = 0)

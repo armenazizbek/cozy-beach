@@ -115,10 +115,20 @@ namespace THREE
 
         public override Object3D clone(bool recursive = true) => new Mesh(geometry, material).copy(this, recursive);
 
-        private static readonly Matrix4 _inverse = new Matrix4();
-        private static readonly Ray _ray = new Ray();
-        private static readonly Sphere _sphere = new Sphere();
-        private static readonly Vector3 _vA = new Vector3(), _vB = new Vector3(), _vC = new Vector3(), _hit = new Vector3();
+        [System.ThreadStatic] private static Matrix4 ___inverse;
+        private static Matrix4 _inverse => ___inverse ??= new Matrix4();
+        [System.ThreadStatic] private static Ray ___ray;
+        private static Ray _ray => ___ray ??= new Ray();
+        [System.ThreadStatic] private static Sphere ___sphere;
+        private static Sphere _sphere => ___sphere ??= new Sphere();
+        [System.ThreadStatic] private static Vector3 ___vA;
+        private static Vector3 _vA => ___vA ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___vB;
+        private static Vector3 _vB => ___vB ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___vC;
+        private static Vector3 _vC => ___vC ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___hit;
+        private static Vector3 _hit => ___hit ??= new Vector3();
 
         public override void raycast(Raycaster raycaster, List<Intersection> intersects)
         {
@@ -290,9 +300,16 @@ namespace THREE
 
         public void dispose() { }
 
-        private static readonly Matrix4 _inst = new Matrix4(), _world = new Matrix4(), _inv = new Matrix4();
-        private static readonly Ray _r = new Ray();
-        private static readonly Sphere _s = new Sphere();
+        [System.ThreadStatic] private static Matrix4 ___inst;
+        private static Matrix4 _inst => ___inst ??= new Matrix4();
+        [System.ThreadStatic] private static Matrix4 ___world;
+        private static Matrix4 _world => ___world ??= new Matrix4();
+        [System.ThreadStatic] private static Matrix4 ___inv;
+        private static Matrix4 _inv => ___inv ??= new Matrix4();
+        [System.ThreadStatic] private static Ray ___r;
+        private static Ray _r => ___r ??= new Ray();
+        [System.ThreadStatic] private static Sphere ___s;
+        private static Sphere _s => ___s ??= new Sphere();
 
         public override void raycast(Raycaster raycaster, List<Intersection> intersects)
         {
@@ -423,7 +440,10 @@ namespace THREE
 
         public override Object3D clone(bool recursive = true) => new Sprite(material).copy(this, recursive);
 
-        private static readonly Vector3 _wp = new Vector3(), _ws = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___wp;
+        private static Vector3 _wp => ___wp ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___ws;
+        private static Vector3 _ws => ___ws ??= new Vector3();
 
         public override void raycast(Raycaster raycaster, List<Intersection> intersects)
         {

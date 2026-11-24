@@ -204,6 +204,37 @@ public class CanvasRenderingContext2D
     private readonly Stack<State> stack = new Stack<State>();
     // the current path, in device pixels
     private readonly List<List<(double x, double y)>> subs = new List<List<(double, double)>>();
+
+    // Point lists are pooled, so a canvas redrawn many times a second (the minimap's markers, 30 a second) makes no
+    // garbage: a path's own lists go back at the next beginPath, and the lists a fill or stroke works with go back once it
+    // has drawn.
+    private readonly Stack<List<(double x, double y)>> pool = new Stack<List<(double x, double y)>>();
+    private readonly List<List<(double x, double y)>> lent = new List<List<(double x, double y)>>();
+    private List<(double x, double y)> Rent()
+    {
+        var l = pool.Count > 0 ? pool.Pop() : new List<(double x, double y)>();
+        l.Clear();
+        return l;
+    }
+    /// <summary>A list for the fill or stroke being drawn; it goes back to the pool when that is done.</summary>
+    private List<(double x, double y)> Temp()
+    {
+        var l = Rent();
+        lent.Add(l);
+        return l;
+    }
+    private void ReturnTemps()
+    {
+        foreach (var l in lent) pool.Push(l);
+        lent.Clear();
+    }
+    private void ReturnSubs()
+    {
+        foreach (var l in subs) pool.Push(l);
+        subs.Clear();
+    }
+    private readonly List<List<(double x, double y)>> polysScratch = new List<List<(double x, double y)>>();
+    private readonly List<List<(double x, double y)>> piecesScratch = new List<List<(double x, double y)>>();
     private readonly List<bool> closedSubs = new List<bool>();
     private List<(double x, double y)> cur;
     private double lastX, lastY;
@@ -271,7 +302,9 @@ public class CanvasRenderingContext2D
 
     public void beginPath()
     {
-        subs.Clear();
+        // while a path is saved (fillRect, strokeRect, clearRect) its lists are still wanted: RestorePath returns the rest
+        if (saving) subs.Clear();
+        else ReturnSubs();
         closedSubs.Clear();
         cur = null;
     }
@@ -291,7 +324,7 @@ public class CanvasRenderingContext2D
 
     public void moveTo(double x, double y)
     {
-        cur = new List<(double, double)>();
+        cur = Rent();
         subs.Add(cur);
         closedSubs.Add(false);
         AddDev(x, y);
@@ -311,7 +344,8 @@ public class CanvasRenderingContext2D
         // a new subpath starts at the same point
         var inv = st.xf.Inverse();
         var (ux, uy) = inv.Apply(first.x, first.y);
-        cur = new List<(double, double)> { first };
+        cur = Rent();
+        cur.Add(first);
         subs.Add(cur);
         closedSubs.Add(false);
         lastX = ux;
@@ -425,9 +459,17 @@ public class CanvasRenderingContext2D
 
     // ------------------------------------------------------------------ painting
 
-    public void fill(string rule = "nonzero") => FillPolys(CollectPolys(true), st.fillStyle, rule == "evenodd");
+    public void fill(string rule = "nonzero")
+    {
+        FillPolys(CollectPolys(true), st.fillStyle, rule == "evenodd");
+        ReturnTemps();
+    }
 
-    public void stroke() => FillPolys(StrokePolys(), st.strokeStyle, false);
+    public void stroke()
+    {
+        FillPolys(StrokePolys(), st.strokeStyle, false);
+        ReturnTemps();
+    }
 
     public void fillRect(double x, double y, double w, double h)
     {
@@ -460,27 +502,47 @@ public class CanvasRenderingContext2D
         beginPath();
         rect(x, y, w, h);
         FillPolys(CollectPolys(true), "#000", false);
+        ReturnTemps();
         st.globalCompositeOperation = savedOp;
         st.globalAlpha = savedAlpha;
         st.shadowBlur = savedShadow;
         RestorePath(saved);
     }
 
-    private (List<List<(double, double)>>, List<bool>, List<(double, double)>) SavePath() =>
-        (new List<List<(double, double)>>(subs), new List<bool>(closedSubs), cur);
+    // the path put aside by fillRect, strokeRect and clearRect while they draw their rectangle (never nested)
+    private bool saving;
+    private readonly List<List<(double x, double y)>> savedSubs = new List<List<(double x, double y)>>();
+    private readonly List<bool> savedClosed = new List<bool>();
+    private List<(double x, double y)> savedCur;
 
-    private void RestorePath((List<List<(double, double)>> s, List<bool> c, List<(double, double)> cu) p)
+    private int SavePath()
     {
-        subs.Clear();
-        subs.AddRange(p.s);
+        savedSubs.Clear();
+        savedSubs.AddRange(subs);
+        savedClosed.Clear();
+        savedClosed.AddRange(closedSubs);
+        savedCur = cur;
+        saving = true;
+        return 0;
+    }
+
+    private void RestorePath(int _)
+    {
+        // the rectangle's own lists go back to the pool; the saved path comes back
+        saving = false;
+        ReturnSubs();
+        subs.AddRange(savedSubs);
+        savedSubs.Clear();
         closedSubs.Clear();
-        closedSubs.AddRange(p.c);
-        cur = p.cu;
+        closedSubs.AddRange(savedClosed);
+        cur = savedCur;
+        savedCur = null;
     }
 
     private List<List<(double x, double y)>> CollectPolys(bool forFill)
     {
-        var res = new List<List<(double x, double y)>>();
+        var res = polysScratch;
+        res.Clear();
         foreach (var s in subs) if (s.Count >= (forFill ? 3 : 2)) res.Add(s);
         return res;
     }
@@ -489,7 +551,8 @@ public class CanvasRenderingContext2D
 
     private List<List<(double x, double y)>> StrokePolys()
     {
-        var res = new List<List<(double x, double y)>>();
+        var res = polysScratch;
+        res.Clear();
         var inv = st.xf.Inverse();
         double hw = st.lineWidth / 2;
         for (int si = 0; si < subs.Count; si++)
@@ -497,7 +560,7 @@ public class CanvasRenderingContext2D
             var dev = subs[si];
             if (dev.Count < 2) continue;
             // stroke in user space, then back to device pixels
-            var pts = new List<(double x, double y)>();
+            var pts = Temp();
             foreach (var p in dev)
             {
                 var u = inv.Apply(p.x, p.y);
@@ -506,7 +569,10 @@ public class CanvasRenderingContext2D
             bool closed = closedSubs[si];
             if (closed && pts.Count > 2 && JS.Hypot(pts[0].x - pts[pts.Count - 1].x, pts[0].y - pts[pts.Count - 1].y) > 1e-9) pts.Add(pts[0]);
             if (pts.Count < 2) continue;
-            var pieces = st.lineDash.Length > 0 ? Dash(pts) : new List<List<(double x, double y)>> { pts };
+            var pieces = piecesScratch;
+            pieces.Clear();
+            if (st.lineDash.Length > 0) Dash(pts, pieces);
+            else pieces.Add(pts);
             foreach (var piece in pieces)
             {
                 bool loop = closed && st.lineDash.Length == 0;
@@ -522,13 +588,16 @@ public class CanvasRenderingContext2D
         return res;
     }
 
-    private List<List<(double x, double y)>> Dash(List<(double x, double y)> pts)
+    private void Dash(List<(double x, double y)> pts, List<List<(double x, double y)>> res)
     {
-        var res = new List<List<(double x, double y)>>();
         var dash = st.lineDash;
         double total = 0;
         foreach (var d in dash) total += d;
-        if (total <= 0) return new List<List<(double, double)>> { pts };
+        if (total <= 0)
+        {
+            res.Add(pts);
+            return;
+        }
         int di = 0;
         double left = dash[0];
         double off = st.lineDashOffset % total;
@@ -538,7 +607,12 @@ public class CanvasRenderingContext2D
             else { left -= off; off = 0; }
         }
         bool on = di % 2 == 0;
-        List<(double, double)> curDash = on ? new List<(double, double)> { pts[0] } : null;
+        List<(double x, double y)> curDash = null;
+        if (on)
+        {
+            curDash = Temp();
+            curDash.Add(pts[0]);
+        }
         for (int i = 1; i < pts.Count; i++)
         {
             double ax = pts[i - 1].x, ay = pts[i - 1].y, bx = pts[i].x, by = pts[i].y;
@@ -549,7 +623,11 @@ public class CanvasRenderingContext2D
                 double t = pos / segLen;
                 var p = (ax + (bx - ax) * t, ay + (by - ay) * t);
                 if (on) { curDash.Add(p); res.Add(curDash); curDash = null; }
-                else curDash = new List<(double, double)> { p };
+                else
+                {
+                    curDash = Temp();
+                    curDash.Add(p);
+                }
                 on = !on;
                 di = (di + 1) % dash.Length;
                 left = dash[di];
@@ -558,13 +636,12 @@ public class CanvasRenderingContext2D
             if (on) curDash.Add((bx, by));
         }
         if (on && curDash != null && curDash.Count > 1) res.Add(curDash);
-        return res;
     }
 
-    private static void AddCircle(List<List<(double x, double y)>> res, double cx, double cy, double r)
+    private void AddCircle(List<List<(double x, double y)>> res, double cx, double cy, double r)
     {
         int n = Math.Max(8, Math.Min(64, (int)Math.Ceiling(r * 2)));
-        var c = new List<(double, double)>(n);
+        var c = Temp();
         for (int i = 0; i < n; i++)
         {
             double a = Math.PI * 2 * i / n;
@@ -588,17 +665,15 @@ public class CanvasRenderingContext2D
                 if (i == 0 && !loop) { sx = -dx / len * hw; sy = -dy / len * hw; }
                 if (i == n - 2 && !loop) { ex = dx / len * hw; ey = dy / len * hw; }
             }
-            res.Add(new List<(double, double)>
-            {
-                (ax + sx + nx, ay + sy + ny), (bx + ex + nx, by + ey + ny), (bx + ex - nx, by + ey - ny), (ax + sx - nx, ay + sy - ny),
-            });
+            var quad = Temp();
+            quad.Add((ax + sx + nx, ay + sy + ny)); quad.Add((bx + ex + nx, by + ey + ny)); quad.Add((bx + ex - nx, by + ey - ny)); quad.Add((ax + sx - nx, ay + sy - ny));
+            res.Add(quad);
         }
         // joins
-        var joints = new List<((double x, double y) a, (double x, double y) p, (double x, double y) b)>();
-        for (int i = 1; i < n - 1; i++) joints.Add((pts[i - 1], pts[i], pts[i + 1]));
-        if (loop && n > 2) joints.Add((pts[n - 2], pts[n - 1], pts[1]));
-        foreach (var (a, p, b) in joints)
+        int joins = n - 2 + (loop && n > 2 ? 1 : 0);
+        for (int j = 0; j < joins; j++)
         {
+            var (a, p, b) = j < n - 2 ? (pts[j], pts[j + 1], pts[j + 2]) : (pts[n - 2], pts[n - 1], pts[1]);
             if (st.lineJoin == "round") { AddCircle(res, p.x, p.y, hw); continue; }
             double d1x = p.x - a.x, d1y = p.y - a.y, d2x = b.x - p.x, d2y = b.y - p.y;
             double l1 = JS.Hypot(d1x, d1y), l2 = JS.Hypot(d2x, d2y);
@@ -609,7 +684,8 @@ public class CanvasRenderingContext2D
             double sgn = cross > 0 ? -1 : 1;
             var o1 = (p.x + n1x * hw * sgn, p.y + n1y * hw * sgn);
             var o2 = (p.x + n2x * hw * sgn, p.y + n2y * hw * sgn);
-            var tri = new List<(double, double)> { p, o1, o2 };
+            var tri = Temp();
+            tri.Add(p); tri.Add(o1); tri.Add(o2);
             if (st.lineJoin == "miter")
             {
                 double mx = n1x + n2x, my = n1y + n2y, ml = JS.Hypot(mx, my);
@@ -620,7 +696,8 @@ public class CanvasRenderingContext2D
                     if (miterLen <= st.miterLimit)
                     {
                         var tip = (p.x + mx / ml * hw * miterLen * sgn, p.y + my / ml * hw * miterLen * sgn);
-                        tri = new List<(double, double)> { p, o1, tip, o2 };
+                        tri.Clear();
+                        tri.Add(p); tri.Add(o1); tri.Add(tip); tri.Add(o2);
                     }
                 }
             }
@@ -649,13 +726,23 @@ public class CanvasRenderingContext2D
 
     private float[] covBuf;
     private float[] blurBuf, blurTmp;
+    private readonly List<(double x0, double y0, double x1, double y1, int dir)> edgesScratch = new List<(double x0, double y0, double x1, double y1, int dir)>();
+    private readonly List<(double x, int dir)> xsScratch = new List<(double x, int dir)>(32);
+    private readonly List<int> activeScratch = new List<int>(32);
+    /// <summary>orders edges by their top (one shared comparer: a lambda here was wrapped in a new one on every fill)</summary>
+    private sealed class ByTop : IComparer<(double x0, double y0, double x1, double y1, int dir)>
+    {
+        public static readonly ByTop Instance = new ByTop();
+        public int Compare((double x0, double y0, double x1, double y1, int dir) p, (double x0, double y0, double x1, double y1, int dir) q) => p.y0.CompareTo(q.y0);
+    }
 
     /// <summary>Coverage (0..1) for each pixel of the polygons, inside a bounding box. Four sub-scanlines per row, exact across x.</summary>
     private float[] Rasterize(List<List<(double x, double y)>> polys, bool evenOdd, out int bx0, out int by0, out int bw, out int bh)
     {
         int W = canvas.width, H = canvas.height;
         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
-        var edges = new List<(double x0, double y0, double x1, double y1, int dir)>();
+        var edges = edgesScratch;
+        edges.Clear();
         foreach (var poly in polys)
         {
             for (int i = 0; i < poly.Count; i++)
@@ -679,12 +766,14 @@ public class CanvasRenderingContext2D
         int need = bw * bh;
         if (covBuf == null || covBuf.Length < need) covBuf = new float[need];
         else Array.Clear(covBuf, 0, need);
-        var xs = new List<(double x, int dir)>(32);
+        var xs = xsScratch;
+        xs.Clear();
         const int SS = 4;
         // active edge list: edges sorted by their top, so each scanline only looks at the edges that cross it (a stroked
         // waveform or a map full of holes has hundreds of edges, and testing all of them on every scanline was the slow part)
-        edges.Sort((p, q) => p.y0.CompareTo(q.y0));
-        var active = new List<int>(32);
+        edges.Sort(ByTop.Instance);
+        var active = activeScratch;
+        active.Clear();
         int nextEdge = 0;
         for (int py = by0; py < by1; py++)
         {
@@ -754,7 +843,7 @@ public class CanvasRenderingContext2D
                 var shifted = new List<List<(double x, double y)>>();
                 foreach (var p in polys)
                 {
-                    var q = new List<(double, double)>(p.Count);
+                    var q = Temp();
                     foreach (var v in p) q.Add((v.x + st.shadowOffsetX, v.y + st.shadowOffsetY));
                     shifted.Add(q);
                 }

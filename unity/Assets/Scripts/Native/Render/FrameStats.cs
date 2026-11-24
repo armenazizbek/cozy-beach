@@ -62,7 +62,16 @@ namespace NativeRender
             verts = objects = drawables = composed = pushed = staticSkipped = staticSynced = 0;
             byMesh.Clear();
             sections.Clear();
+            garbage.Clear();
         }
+        /// <summary>the bytes each named part allocated on the main thread (the garbage collector's later work)</summary>
+        private static readonly Dictionary<string, long> garbage = new Dictionary<string, long>();
+        /// <summary>
+        /// Bytes allocated so far: .NET's own count where the runtime keeps one; otherwise (Unity's Mono) the heap in use,
+        /// which grows as garbage is made, in steps of a few KB, and drops at a collection (only rises are counted).
+        /// </summary>
+        public static long Allocated() => exact ? System.GC.GetAllocatedBytesForCurrentThread() : System.GC.GetTotalMemory(false);
+        private static readonly bool exact = System.GC.GetAllocatedBytesForCurrentThread() > 0;
 
         private static readonly Dictionary<string, double> sections = new Dictionary<string, double>();
 
@@ -72,13 +81,26 @@ namespace NativeRender
         public readonly struct Section : System.IDisposable
         {
             private readonly string name;
-            private readonly long t0;
-            public Section(string name) { this.name = name; t0 = Ticks(); }
+            private readonly long t0, a0;
+            public Section(string name) { this.name = name; t0 = Ticks(); a0 = Allocated(); }
             public void Dispose()
             {
+                long bytes = Allocated() - a0;
+                if (bytes > 0)
+                {
+                    garbage.TryGetValue(name, out var b);
+                    garbage[name] = b + bytes;
+                }
                 sections.TryGetValue(name, out var ms);
                 sections[name] = ms + Ms(t0);
             }
+        }
+
+        /// <summary>The named parts of the frame that allocate the most, in bytes per frame (empty where nothing is counted).</summary>
+        public static string GarbageReport(int count = 14)
+        {
+            int f = System.Math.Max(1, frames);
+            return string.Join(", ", garbage.OrderByDescending(kv => kv.Value).Take(count).Select(kv => $"{kv.Key} {kv.Value / f}"));
         }
 
         /// <summary>The slowest named parts of the game's frame, per frame.</summary>

@@ -20,12 +20,15 @@ public static class MeshKit
     private static readonly HashSet<string> STANDARD = new HashSet<string> { "position", "normal", "uv", "color", "skinIndex", "skinWeight" };
 
     /// <summary>Names of the extra attributes, in the order they go into TEXCOORD2 onwards (as the bridge orders them).</summary>
-    public static List<string> ExtraNames(THREE.BufferGeometry g)
+    public static List<string> ExtraNames(THREE.BufferGeometry g) => ExtraNames(g, new List<string>());
+
+    /// <summary>The same, into a list the caller keeps (no garbage).</summary>
+    public static List<string> ExtraNames(THREE.BufferGeometry g, List<string> into)
     {
-        var names = new List<string>();
-        foreach (var k in g.attributes.Keys) if (!STANDARD.Contains(k)) names.Add(k);
-        names.Sort(StringComparer.Ordinal);
-        return names;
+        into.Clear();
+        foreach (var k in g.attributes.Keys) if (!STANDARD.Contains(k)) into.Add(k);
+        if (into.Count > 1) into.Sort(StringComparer.Ordinal);
+        return into;
     }
 
     /// <summary>
@@ -69,14 +72,15 @@ public static class MeshKit
     {
         int slot = 2;
         int n = g.attributes.position?.count ?? 0;
-        foreach (var attrName in ExtraNames(g))
+        foreach (var attrName in ExtraNames(g, fNames))
         {
             if (slot > 7) return false;
             var a = g.attributes[attrName];
             if (a.isInstanced || a.count != n) continue;
             if (attrName == attribute)
             {
-                var v4 = new List<Vector4>(n);
+                var v4 = fExtra;
+                v4.Clear();
                 int s = a.itemSize;
                 for (int i = 0; i < n; i++)
                     v4.Add(new Vector4(a.array[i * s], s > 1 ? a.array[i * s + 1] : 0, s > 2 ? a.array[i * s + 2] : 0, s > 3 ? a.array[i * s + 3] : 0));
@@ -90,13 +94,22 @@ public static class MeshKit
 
     private enum Topology { Triangles, Groups, Lines, LineStrip }
 
+    // Fill's buffers, kept between calls (it makes Unity meshes, so it only ever runs on the main thread): refilling the
+    // ocean, the tracks and the decals as they change makes no garbage
+    private static readonly List<Vector3> fPos = new List<Vector3>();
+    private static readonly List<Vector2> fUv = new List<Vector2>();
+    private static readonly List<Color> fCol = new List<Color>();
+    private static readonly List<Vector4> fExtra = new List<Vector4>();
+    private static readonly List<int> fTris = new List<int>();
+    private static readonly List<string> fNames = new List<string>();
+
     private static void Fill(Mesh mesh, THREE.BufferGeometry g, Topology topo)
     {
         var pos = g.attributes.position;
         int n = pos?.count ?? 0;
         if (n == 0) return;
         mesh.indexFormat = n > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-        var v3 = new List<Vector3>(n);
+        var v3 = fPos; v3.Clear();
         for (int i = 0; i < n; i++) v3.Add(new Vector3(pos.array[i * 3], pos.array[i * 3 + 1], pos.array[i * 3 + 2]));
         mesh.SetVertices(v3);
         var nor = g.attributes.normal;
@@ -109,25 +122,25 @@ public static class MeshKit
         var uv = g.attributes.uv;
         if (uv != null && uv.count == n)
         {
-            var v2 = new List<Vector2>(n);
+            var v2 = fUv; v2.Clear();
             for (int i = 0; i < n; i++) v2.Add(new Vector2(uv.array[i * 2], uv.array[i * 2 + 1]));
             mesh.SetUVs(0, v2);
         }
         var col = g.attributes.color;
         if (col != null && col.count == n)
         {
-            var cols = new List<Color>(n);
+            var cols = fCol; cols.Clear();
             int s = col.itemSize;
             for (int i = 0; i < n; i++) cols.Add(new Color(col.array[i * s], col.array[i * s + 1], col.array[i * s + 2], s > 3 ? col.array[i * s + 3] : 1));
             mesh.SetColors(cols);
         }
         int slot = 2;
-        foreach (var attrName in ExtraNames(g))
+        foreach (var attrName in ExtraNames(g, fNames))
         {
             if (slot > 7) break;
             var a = g.attributes[attrName];
             if (a.isInstanced || a.count != n) continue;
-            var v4 = new List<Vector4>(n);
+            var v4 = fExtra; v4.Clear();
             int s = a.itemSize;
             for (int i = 0; i < n; i++)
                 v4.Add(new Vector4(a.array[i * s], s > 1 ? a.array[i * s + 1] : 0, s > 2 ? a.array[i * s + 2] : 0, s > 3 ? a.array[i * s + 3] : 0));
@@ -149,7 +162,7 @@ public static class MeshKit
             }
             mesh.boneWeights = bw;
         }
-        var tris = new List<int>();
+        var tris = fTris; tris.Clear();
         if (topo == Topology.Lines || topo == Topology.LineStrip)
         {
             int total = g.index != null ? g.index.count : n;
@@ -203,6 +216,16 @@ public static class MeshKit
         return mesh;
     }
 
+    // Bake's buffers, kept between calls
+    private static readonly List<Vector3> bPos = new List<Vector3>(), bNor = new List<Vector3>();
+    private static readonly List<Vector2> bUv = new List<Vector2>();
+    private static readonly List<Color> bCol = new List<Color>();
+    private static readonly List<Vector4> bB1 = new List<Vector4>(), bB2 = new List<Vector4>(), bB3 = new List<Vector4>(), bB4 = new List<Vector4>(), bB5 = new List<Vector4>(), bB6 = new List<Vector4>();
+    private static readonly List<int> bTris = new List<int>();
+    private static readonly THREE.Matrix4 bM = new THREE.Matrix4();
+    private static readonly THREE.Matrix3 bNm = new THREE.Matrix3();
+    private static readonly THREE.Vector3 bP = new THREE.Vector3();
+
     /// <summary>Re-bakes a mesh from <see cref="BakeInstances"/> after its instances changed.</summary>
     public static void Bake(Mesh mesh, THREE.BufferGeometry g, float[] matrices, int count, float[] colors = null, THREE.BufferAttribute instanced = null)
     {
@@ -214,13 +237,14 @@ public static class MeshKit
         mesh.Clear();
         int total = n * count;
         mesh.indexFormat = total > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-        var v3 = new List<Vector3>(total); var bn = new List<Vector3>(total); var v2 = new List<Vector2>(total); var cols = new List<Color>(total);
-        var b1 = new List<Vector4>(total); var b2 = new List<Vector4>(total); var b3 = new List<Vector4>(total);
-        var b4 = new List<Vector4>(total); var b5 = new List<Vector4>(total); var b6 = new List<Vector4>(total);
-        var tris = new List<int>();
-        var m = new THREE.Matrix4();
-        var nm = new THREE.Matrix3();
-        var p = new THREE.Vector3();
+        // kept between bakes (main thread only): the tracks rebake each time a footprint or a tyre mark is added
+        var v3 = bPos; var bn = bNor; var v2 = bUv; var cols = bCol;
+        var b1 = bB1; var b2 = bB2; var b3 = bB3; var b4 = bB4; var b5 = bB5; var b6 = bB6;
+        var tris = bTris;
+        v3.Clear(); bn.Clear(); v2.Clear(); cols.Clear(); b1.Clear(); b2.Clear(); b3.Clear(); b4.Clear(); b5.Clear(); b6.Clear(); tris.Clear();
+        var m = bM;
+        var nm = bNm;
+        var p = bP;
         for (int k = 0; k < count; k++)
         {
             for (int q = 0; q < 16; q++) m.elements[q] = matrices[k * 16 + q];
@@ -298,56 +322,83 @@ public static class MeshKit
     }
 
     /// <summary>Refills a mesh from <see cref="PointQuads"/> from its geometry's draw range.</summary>
+    // RefillPoints' buffers: kept between calls (main thread only), so refilling a point cloud every frame (spray, sparkles,
+    // rain) makes no garbage. It made about 200 KB a frame, the game's garbage nearly all told.
+    private static readonly List<Vector3> pPos = new List<Vector3>();
+    private static readonly List<Vector2> pUv = new List<Vector2>();
+    private static readonly List<Color> pCol = new List<Color>();
+    private static readonly List<Vector4> pExtra = new List<Vector4>();
+    private static readonly List<int> pTris = new List<int>();
+    private static readonly List<string> pNames = new List<string>();
+
     public static void RefillPoints(Mesh mesh, THREE.BufferGeometry g)
     {
         var pos = g.attributes.position;
         int n = pos?.count ?? 0;
         int start = Math.Max(0, g.drawRange.start), end = (int)Math.Min(n, (long)g.drawRange.start + g.drawRange.count);
         int cnt = Math.Max(0, end - start);
-        mesh.Clear();
-        if (cnt == 0) return;
-        mesh.indexFormat = cnt * 4 > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
-        var v3 = new List<Vector3>(cnt * 4); var v2 = new List<Vector2>(cnt * 4); var cols = new List<Color>(cnt * 4);
+        if (cnt == 0)
+        {
+            mesh.Clear();
+            return;
+        }
+        // the same number of points as last time: the corners' UVs and the triangles stay as they are, only what moves is sent
+        bool same = mesh.vertexCount == cnt * 4;
+        if (!same)
+        {
+            mesh.Clear();
+            mesh.indexFormat = cnt * 4 > 65000 ? IndexFormat.UInt32 : IndexFormat.UInt16;
+        }
+        pPos.Clear();
+        pCol.Clear();
         var col = g.attributes.color;
         for (int i = start; i < end; i++)
         {
             var p = new Vector3(pos.array[i * 3], pos.array[i * 3 + 1], pos.array[i * 3 + 2]);
-            v3.Add(p); v3.Add(p); v3.Add(p); v3.Add(p);
-            v2.Add(new Vector2(0, 0)); v2.Add(new Vector2(1, 0)); v2.Add(new Vector2(1, 1)); v2.Add(new Vector2(0, 1));
+            pPos.Add(p); pPos.Add(p); pPos.Add(p); pPos.Add(p);
             if (col != null)
             {
                 int s = col.itemSize;
                 var c = new Color(col.array[i * s], col.array[i * s + 1], col.array[i * s + 2], s > 3 ? col.array[i * s + 3] : 1);
-                cols.Add(c); cols.Add(c); cols.Add(c); cols.Add(c);
+                pCol.Add(c); pCol.Add(c); pCol.Add(c); pCol.Add(c);
             }
         }
-        mesh.SetVertices(v3);
-        mesh.SetUVs(0, v2);
-        if (cols.Count == v3.Count) mesh.SetColors(cols);
+        mesh.SetVertices(pPos);
+        if (!same)
+        {
+            pUv.Clear();
+            for (int i = 0; i < cnt; i++) { pUv.Add(new Vector2(0, 0)); pUv.Add(new Vector2(1, 0)); pUv.Add(new Vector2(1, 1)); pUv.Add(new Vector2(0, 1)); }
+            mesh.SetUVs(0, pUv);
+        }
+        if (pCol.Count == pPos.Count) mesh.SetColors(pCol);
         int slot = 2;
-        foreach (var attrName in ExtraNames(g))
+        ExtraNames(g, pNames);
+        foreach (var attrName in pNames)
         {
             if (slot > 7) break;
             var a = g.attributes[attrName];
             if (a.count != n) continue;
-            var v4 = new List<Vector4>(cnt * 4);
+            pExtra.Clear();
             int s = a.itemSize;
             for (int i = start; i < end; i++)
             {
                 var q = new Vector4(a.array[i * s], s > 1 ? a.array[i * s + 1] : 0, s > 2 ? a.array[i * s + 2] : 0, s > 3 ? a.array[i * s + 3] : 0);
-                v4.Add(q); v4.Add(q); v4.Add(q); v4.Add(q);
+                pExtra.Add(q); pExtra.Add(q); pExtra.Add(q); pExtra.Add(q);
             }
-            mesh.SetUVs(slot, v4);
+            mesh.SetUVs(slot, pExtra);
             slot++;
         }
-        var tris = new List<int>(cnt * 6);
-        for (int i = 0; i < cnt; i++)
+        if (!same)
         {
-            int b = i * 4;
-            tris.Add(b); tris.Add(b + 2); tris.Add(b + 1);
-            tris.Add(b); tris.Add(b + 3); tris.Add(b + 2);
+            pTris.Clear();
+            for (int i = 0; i < cnt; i++)
+            {
+                int b = i * 4;
+                pTris.Add(b); pTris.Add(b + 2); pTris.Add(b + 1);
+                pTris.Add(b); pTris.Add(b + 3); pTris.Add(b + 2);
+            }
+            mesh.SetTriangles(pTris, 0, false);
         }
-        mesh.SetTriangles(tris, 0, false);
         mesh.RecalculateBounds();
         var bounds = mesh.bounds;
         bounds.Expand(4f);

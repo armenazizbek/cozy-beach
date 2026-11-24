@@ -5,7 +5,7 @@ namespace THREE
     public class Texture
     {
         private static int _nextId;
-        public readonly int id = _nextId++;
+        public readonly int id = System.Threading.Interlocked.Increment(ref _nextId) - 1; // pieces of the world are built on several threads at once (Prebuilt)
         public string uuid = MathUtils.generateUUID();
         public string name = "";
         /// <summary>A TexturePainter, an ImageData, or null.</summary>

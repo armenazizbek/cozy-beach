@@ -34,7 +34,8 @@ namespace THREE
             return this;
         }
 
-        private static readonly Vector3 _v = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v;
+        private static Vector3 _v => ___v ??= new Vector3();
 
         public Box3 setFromObject(Object3D o, bool precise = false) { makeEmpty(); return expandByObject(o, precise); }
 
@@ -143,7 +144,10 @@ namespace THREE
         public double distanceSq() => start.distanceToSquared(end);
         public Vector3 at(double t, Vector3 target) => delta(target).multiplyScalar(t).add(start);
 
-        private static readonly Vector3 _a = new Vector3(), _b = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___a;
+        private static Vector3 _a => ___a ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___b;
+        private static Vector3 _b => ___b ??= new Vector3();
 
         public double closestPointToPointParameter(Vector3 p, bool clampToLine)
         {
@@ -172,7 +176,8 @@ namespace THREE
         public Vector3 at(double t, Vector3 target) => target.copy(origin).addScaledVector(direction, t);
         public Ray applyMatrix4(Matrix4 m) { origin.applyMatrix4(m); direction.transformDirection(m); return this; }
 
-        private static readonly Vector3 _v = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___v;
+        private static Vector3 _v => ___v ??= new Vector3();
 
         public double distanceSqToPoint(Vector3 p)
         {
@@ -244,7 +249,14 @@ namespace THREE
 
         public bool intersectsBox(Box3 b) => intersectBox(b, _v) != null;
 
-        private static readonly Vector3 _diff = new Vector3(), _edge1 = new Vector3(), _edge2 = new Vector3(), _normal = new Vector3();
+        [System.ThreadStatic] private static Vector3 ___diff;
+        private static Vector3 _diff => ___diff ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___edge1;
+        private static Vector3 _edge1 => ___edge1 ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___edge2;
+        private static Vector3 _edge2 => ___edge2 ??= new Vector3();
+        [System.ThreadStatic] private static Vector3 ___normal;
+        private static Vector3 _normal => ___normal ??= new Vector3();
 
         /// <summary>Möller-Trumbore as Three.js writes it; backfaceCulling skips triangles seen from behind.</summary>
         public Vector3 intersectTriangle(Vector3 a, Vector3 b, Vector3 c, bool backfaceCulling, Vector3 target)
