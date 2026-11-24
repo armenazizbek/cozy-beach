@@ -7,7 +7,13 @@ using static Beach;
 
 public class Crab
 {
+    /// <summary>the crab as built (a description), realised once; its GameObjects are posed from the numbers below</summary>
     public THREE.Group mesh;
+    public UnityEngine.Transform meshT, bodyT;
+    /// <summary>where it is, which way it faces, how its body rocks, its size, and whether it is drawn (unity/UI_PLAN.md B1)</summary>
+    public double x, y, z, ry, rock, size;
+    public bool shown = true;
+    public Target target;
     public double vx, vz, timer, phase;
     public bool alive;
     public double respawn;
@@ -126,14 +132,13 @@ public class Ecology
     public Ecology(Beach beach) { this.beach = beach; }
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S11: tufts and crabs are realized as they are added, under one root; crabs move their
-    /// own GameObjects (Realized.Follow). The descriptions stay up to date, for the aim and the binoculars' raycasts.
+    /// Tufts and crabs are realised as they are added, under one root. A crab's place, turn and rock are numbers on the Crab,
+    /// and Pose sets its GameObjects from them (unity/UI_PLAN.md B1); the aim and the binoculars do not need the descriptions.
     /// </summary>
     private UnityEngine.Transform root;
 
     /// <summary>The crabs' and tufts' GameObjects under the world root, once placed.</summary>
     public UnityEngine.Transform Root => root;
-    private readonly List<Realized> crabLives = new List<Realized>();
 
     /// <summary>Puts what exists so far into the world; everything added later goes in as it is made.</summary>
     public void Place()
@@ -143,11 +148,23 @@ public class Ecology
         foreach (var c in crabs) PlaceCrab(c);
     }
 
-    private void PlaceCrab(Crab c) => crabLives.Add(Realizer.Realize(c.mesh, root, World.Layer).Follow(c.mesh, c.body));
-
-    private void Apply()
+    private void PlaceCrab(Crab c)
     {
-        foreach (var l in crabLives) l.Apply();
+        var live = Realizer.Realize(c.mesh, root, World.Layer);
+        c.meshT = live.root;
+        c.bodyT = live[c.body];
+    }
+
+    /// <summary>Sets a crab's GameObjects from its numbers. A hidden crab is left where it was, as the scene copy left it.</summary>
+    private static void Pose(Crab c)
+    {
+        if (c.meshT == null) return;
+        if (c.meshT.gameObject.activeSelf != c.shown) c.meshT.gameObject.SetActive(c.shown);
+        // the body rocks whether or not the crab is drawn (it was posed by itself); the crab moves only while drawn
+        c.bodyT.localRotation = GameSpace.Euler(0, 0, c.rock);
+        if (!c.shown) return;
+        c.meshT.localPosition = GameSpace.V(c.x, c.y, c.z);
+        c.meshT.localRotation = GameSpace.Euler(0, c.ry, 0);
     }
 
     public void setScore(double score)
@@ -187,7 +204,8 @@ public class Ecology
         var g = new THREE.Group();
         var body = new THREE.Mesh(CRAB_LOOKS[(int)Math.Floor(JS.Random() * CRAB_LOOKS.Length)], crabMat);
         body.castShadow = true;
-        g.scale.setScalar(rand(0.85, 1.25));
+        double size = rand(0.85, 1.25);
+        g.scale.setScalar(size);
         g.add(body);
         double x = rand(-60, 60);
         double z = rand(DIG_MIN_Z + 3, WET_Z - 1);
@@ -196,25 +214,28 @@ public class Ecology
         var hit = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), new THREE.MeshBasicMaterial { visible = false });
         hit.position.y = 0.12;
         g.add(hit);
-        var crab = new Crab { mesh = g, vx = 0, vz = 0, timer = 0, phase = JS.Random() * 6, alive = true, respawn = 0, hit = hit, body = body };
+        var crab = new Crab { mesh = g, vx = 0, vz = 0, timer = 0, phase = JS.Random() * 6, alive = true, respawn = 0, hit = hit, body = body,
+            x = g.position.x, y = g.position.y, z = g.position.z, size = size };
         hit.userData["crab"] = crab;
+        // the hit sphere sits 0.12 up the crab's middle, scaled with it
+        crab.target = new Target(TargetKind.Crab, crab, 0.42, v => v.set(crab.x, crab.y + 0.12 * crab.size, crab.z));
         crabs.Add(crab);
         if (root != null) PlaceCrab(crab);
     }
 
     /// <summary>Invisible hit spheres of the crabs that are still alive.</summary>
-    public List<Target> crabTargets() => crabs.Where(c => c.alive && c.mesh.visible).Select(c => Target.Of(TargetKind.Crab, c.hit)).ToList();
+    public List<Target> crabTargets() => crabs.Where(c => c.alive && c.shown).Select(c => c.target).ToList();
 
     /// <summary>Removes a crab for a while; returns where it was.</summary>
-    public THREE.Vector3 shoot(THREE.Object3D obj)
+    public THREE.Vector3 shoot(object who)
     {
-        var crab = obj.userData.TryGetValue("crab", out var o) ? o as Crab : null;
+        var crab = who as Crab;
         if (crab == null || !crab.alive) return null;
         crab.alive = false;
         crab.respawn = 25;
-        crab.mesh.visible = false;
-        Apply();
-        return crab.mesh.position.clone();
+        crab.shown = false;
+        Pose(crab);
+        return new THREE.Vector3(crab.x, crab.y, crab.z);
     }
 
     public void update(double dt, double px = 1e9, double pz = 1e9)
@@ -228,14 +249,16 @@ public class Ecology
                 {
                     double x = rand(-60, 60);
                     double z = rand(DIG_MIN_Z + 3, WET_Z - 1);
-                    c.mesh.position.set(x, beach.heightAt(x, z), z);
-                    c.mesh.visible = true;
+                    c.x = x;
+                    c.y = beach.heightAt(x, z);
+                    c.z = z;
+                    c.shown = true;
                     c.alive = true;
                 }
                 continue;
             }
             // scuttle away from a player who comes too close
-            double dxp = c.mesh.position.x - px, dzp = c.mesh.position.z - pz;
+            double dxp = c.x - px, dzp = c.z - pz;
             double dp = JS.Hypot(dxp, dzp);
             if (dp < 5)
             {
@@ -260,28 +283,29 @@ public class Ecology
                     c.vz = Math.Sin(a) * s * 0.5;
                 }
             }
-            var m = c.mesh;
-            double nx = m.position.x + c.vx * dt, nz = m.position.z + c.vz * dt;
+            double nx = c.x + c.vx * dt, nz = c.z + c.vz * dt;
             if (nz > WET_Z + 1.5 || nz < DIG_MIN_Z + 1 || Math.Abs(nx) > 66)
             {
                 c.vx *= -1;
                 c.vz *= -1;
-                nx = m.position.x;
-                nz = m.position.z;
+                nx = c.x;
+                nz = c.z;
             }
-            m.position.set(nx, beach.heightAt(nx, nz), nz);
+            c.x = nx;
+            c.y = beach.heightAt(nx, nz);
+            c.z = nz;
             // a crab this far off is a speck: do not draw it
-            m.visible = dp < 70;
+            c.shown = dp < 70;
             bool moving = Math.Abs(c.vx) + Math.Abs(c.vz) > 0.01;
             if (moving)
             {
                 c.phase += dt * 22;
-                m.position.y += Math.Abs(Math.Sin(c.phase)) * 0.012;
-                c.body.rotation.z = Math.Sin(c.phase) * 0.05;
-                m.rotation.y += (Math.Atan2(c.vx, c.vz) - Math.PI / 2 - m.rotation.y) * Math.Min(1, dt * 4);
+                c.y += Math.Abs(Math.Sin(c.phase)) * 0.012;
+                c.rock = Math.Sin(c.phase) * 0.05;
+                c.ry += (Math.Atan2(c.vx, c.vz) - Math.PI / 2 - c.ry) * Math.Min(1, dt * 4);
             }
         }
         // crabs ignore terrain edits except sinking into holes; keep them from clipping
-        Apply();
+        foreach (var c in crabs) Pose(c);
     }
 }

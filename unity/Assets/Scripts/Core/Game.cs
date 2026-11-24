@@ -138,7 +138,8 @@ public class Game
     private double menuT = 0;
     private int menuShot = 0;
     private bool menuSwitching = false;
-    private THREE.Object3D menuTarget = null;
+    /// <summary>where the title camera's subject is now (a crab, a shark), or null for none</summary>
+    private Action<THREE.Vector3> menuTarget = null;
     private THREE.Vector3 menuFocus = new THREE.Vector3();
     private bool menuCamReady = false;
     public int tool = 1;
@@ -2575,7 +2576,7 @@ public class Game
             }
             return;
         }
-        var at = ecology.shoot(obj);
+        var at = ecology.shoot(target.owner);
         if (at == null) return;
         at.y += 0.15;
         dig.particles.burst(at, 28, 2.2, 3, 0.9, new THREE.Color(0xe8704f));
@@ -4042,8 +4043,9 @@ public class Game
             var crabs = ecology.crabs.Where(c => c.alive).ToList();
             if (crabs.Count > 0)
             {
-                menuTarget = crabs[(int)Math.Floor(JS.Random() * crabs.Count)].mesh;
-                menuFocus.copy(menuTarget.getWorldPosition(new THREE.Vector3()));
+                var crab = crabs[(int)Math.Floor(JS.Random() * crabs.Count)];
+                menuTarget = v => v.set(crab.x, crab.y, crab.z);
+                menuTarget(menuFocus);
             }
         }
         else if (menuShot == 2)
@@ -4055,8 +4057,8 @@ public class Game
                 shark.x = (JS.Random() - 0.5) * 24;
                 shark.z = SHORE_Z + 20;
                 shark.heading = Math.PI / 2 + (JS.Random() - 0.5) * 0.6;
-                menuTarget = shark.root;
-                menuFocus.copy(shark.root.getWorldPosition(new THREE.Vector3()));
+                menuTarget = v => shark.root.getWorldPosition(v);
+                menuTarget(menuFocus);
             }
         }
     }
@@ -4092,7 +4094,8 @@ public class Game
         else if (menuShot == 1)
         {
             // low and close, drifting along behind a crab: it is the smoothed focus, not the crab, that the camera tracks
-            var tp = menuTarget.getWorldPosition(new THREE.Vector3());
+            var tp = new THREE.Vector3();
+            menuTarget(tp);
             menuFocus.lerp(tp, 1 - Math.Exp(-dt * 1.6));
             double a = t * 0.12;
             var f = menuFocus;
@@ -4103,7 +4106,8 @@ public class Game
         else
         {
             // from the water's edge, watching a shark swim by
-            var tp = menuTarget.getWorldPosition(new THREE.Vector3());
+            var tp = new THREE.Vector3();
+            menuTarget(tp);
             menuFocus.lerp(tp, 1 - Math.Exp(-dt * 1.2));
             var f = menuFocus;
             double cx = Math.Max(-18, Math.Min(18, f.x * 0.35));
@@ -6508,7 +6512,7 @@ public class Game
     /// <summary>The GameObjects the binoculars' range can land on: the same modules as <see cref="RangeTargets"/>.</summary>
     internal UnityEngine.Transform[] RangeRoots() => new[] { camp.Root, scenery.Root, boat.Root, cart.Root, sea.Root, birds.Root, ecology.Root, treasure.Root };
 
-    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, ecology.group, treasure.group };
+    internal List<THREE.Object3D> RangeTargets() => new List<THREE.Object3D> { camp.group, scenery.group, boat.group, cart.group, sea.group, treasure.group };
 
     private void updateRange()
     {

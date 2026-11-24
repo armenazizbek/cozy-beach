@@ -65,8 +65,8 @@ internal static class SelfCheckPicking
         var g = G;
         if (g == null) return "no game";
         var targets = g.RangeTargets();
-        // the modules that still keep descriptions: the gulls are posed from numbers now (no description to compare with)
-        var roots = g.RangeRoots().Where(r => r != g.birds.Root).ToArray();
+        // the modules that still keep descriptions: gulls and crabs are posed from numbers now (no description to compare with)
+        var roots = g.RangeRoots().Where(r => r != g.birds.Root && r != g.ecology.Root).ToArray();
         int hits = 0, bad = 0, n = 400;
         string first = null;
         for (int i = 0; i < n; i++)

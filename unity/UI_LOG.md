@@ -244,3 +244,13 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Quick check against `refB` (birds, gullshadow, selfcheck): logs pass, shots pass, selfcheck 9 of 9; five dumps differ
   only in the fifth decimal of some bounds (27.37288 against 27.37287 m: the rotation worked out by `GameSpace.Euler`),
   vertex hashes identical.
+
+## B1: crabs keep their state in numbers (2026-11-24)
+
+- `Ecology`: a crab's place, turn, body rock and visibility are fields on the Crab; `Pose` sets its GameObjects (the body
+  rocks even while the crab is hidden, as before). Its `Target` is 0.12 up its middle, scaled with it. `shoot` takes the
+  crab. The title menu's camera follows a position source (`menuTarget`) instead of a description, so it follows the
+  crab's numbers (and still the shark's description). The binoculars' self-check leaves crabs out of its description
+  comparison too.
+- Quick check against `refB` (base, ui, gear, selfcheck, dograin): logs and shots pass, selfcheck 9 of 9; 2 to 4
+  renderers per dump differ by 0.00001 m in their bounds (vertex hashes rounded to a millimetre flip with them).
