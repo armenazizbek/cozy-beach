@@ -108,3 +108,26 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   taken from the same main build on this display (`refU360`). Against it: no FAIL apart from the `keyboard` and `mouse`
   runs, which the reference build does not have; logs and dumps identical; keyboard 16 of 16, mouse 0 failed, selfcheck
   8 of 8.
+
+## The Keys section in Settings (2026-11-24)
+
+- At the end of Settings: one row per key a player would want to move (`Controls.Rebindable`: walking, running, Use,
+  Second use, the tool swap, map, mute, swimming, the surface, braking). Pressing a row waits for the next key
+  (`Controls.Rebind`, the Input System's interactive rebinding, keyboard only); Esc keeps the old key, and so does
+  waiting eight seconds or closing Settings. "Put every key back" removes every override. The choice is kept at once.
+- The key pressed for a rebind is the binding, not a command: `Controls.Quiet` makes InputManager treat it as typing.
+- The F and E key pictures in the HUD prompts follow the bindings (`Controls.KeyName`, `Controls.Changed`). Hints that name
+  a key in their words, and the other menus' key pictures, still show the defaults.
+- No automatic swapping when two actions share a key: several share one on purpose (Space swaps tools, swims up, brakes
+  and confirms).
+- Fixed on the way: Esc in a menu presses the first button whose name starts with "back", "done", "leave" and so on, and
+  the row "Leave the water" matched it. Settings rows are never taken for the way back now, and that row is "Swim to the
+  surface".
+- Tests: the keyboard run now uses the screen as a player would (down to the row, Enter, I; Esc keeps a key; the reset)
+  and then checks play still works: 22 of 22. A rebind in a test run never reaches the player's own saved keys.
+- Harness: the Input System turns keyboards and mice off while the window is not in front, the virtual ones too, so the
+  mouse and keyboard runs failed whenever someone used the PC during a pass. The runs' devices ignore focus now
+  (test runs only).
+- Checked against `refU360`: no FAIL apart from the runs the reference build does not have; the pad log differs only in
+  the settings rows it can reach (32 instead of 17); logs and dumps otherwise identical; selfcheck 8 of 8, mouse 0 failed,
+  keyboard 0 failed.

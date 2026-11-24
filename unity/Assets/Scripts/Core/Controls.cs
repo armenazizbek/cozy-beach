@@ -54,6 +54,9 @@ public static class Controls
     /// <summary>Where the player's own bindings are kept, apart from the settings.</summary>
     private const string PREFS_KEY = "tidefinder-controls-v1";
 
+    /// <summary>False in the smoke tests: a rebind there changes this run only, never the player's own keys.</summary>
+    private static bool persist;
+
     /// <summary>The default keys of each action, as the game's key codes (InputManager.DomCode).</summary>
     private static readonly (Act act, Key[] keys)[] Defaults =
     {
@@ -163,6 +166,7 @@ public static class Controls
     /// <summary>Loads the player's own bindings, if any. The smoke tests always play with the defaults.</summary>
     public static void Load(bool defaultsOnly)
     {
+        persist = !defaultsOnly;
         Map.RemoveAllBindingOverrides();
         if (!defaultsOnly)
         {
@@ -178,14 +182,150 @@ public static class Controls
             }
         }
         bound = null;
+        Changed?.Invoke();
     }
 
     /// <summary>Keeps the player's bindings (after a rebind) and makes them take effect.</summary>
     public static void Save()
     {
-        PlayerPrefs.SetString(PREFS_KEY, Map.SaveBindingOverridesAsJson());
-        PlayerPrefs.Save();
+        if (persist)
+        {
+            PlayerPrefs.SetString(PREFS_KEY, Map.SaveBindingOverridesAsJson());
+            PlayerPrefs.Save();
+        }
         bound = null;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The actions the Settings screen lets the player rebind, with their names there.</summary>
+    public static readonly (Act act, string label)[] Rebindable =
+    {
+        (Act.Forward, "Walk forward"),
+        (Act.Backward, "Walk back"),
+        (Act.Left, "Step left"),
+        (Act.Right, "Step right"),
+        (Act.Run, "Run"),
+        (Act.Use, "Use: dig, pick up, talk"),
+        (Act.Use2, "Second use"),
+        (Act.ToolSwap, "Swap detector and trowel"),
+        (Act.Map, "Map"),
+        (Act.Mute, "Mute"),
+        (Act.Ascend, "Swim up"),
+        (Act.Descend, "Swim down"),
+        (Act.Surface, "Swim to the surface"),
+        (Act.Brake, "Brake the cart or boat"),
+    };
+
+    /// <summary>Raised when the bindings change (a rebind, a reset or a load), so key pictures can follow.</summary>
+    public static event Action Changed;
+
+    private static InputActionRebindingExtensions.RebindingOperation rebinding;
+    private static int quietUntil = -1;
+
+    /// <summary>
+    /// True while a rebind waits for its key, and on the frame it ends: that key press is the new binding, not a command to
+    /// the game (InputManager treats it as typing).
+    /// </summary>
+    public static bool Quiet => rebinding != null || Time.frameCount <= quietUntil;
+
+    /// <summary>The name of an action's key as the player sees it ("F", "Shift", "Space"); its first binding.</summary>
+    public static string KeyName(Act a)
+    {
+        var action = Map[a.ToString()];
+        return action.bindings.Count > 0 ? NameOf(action.bindings[0].effectivePath) : "";
+    }
+
+    /// <summary>All of an action's keys, for the Settings row ("C / Ctrl").</summary>
+    public static string KeyNames(Act a)
+    {
+        var names = new List<string>();
+        foreach (var b in Map[a.ToString()].bindings)
+        {
+            string n = NameOf(b.effectivePath);
+            if (n.Length > 0 && !names.Contains(n)) names.Add(n);
+        }
+        return string.Join(" / ", names);
+    }
+
+    private static string NameOf(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return "";
+        int slash = path.LastIndexOf('/');
+        string c = slash >= 0 ? path.Substring(slash + 1) : path;
+        if (c.Length == 1) return c.ToUpperInvariant();
+        switch (c)
+        {
+            case "leftShift": case "rightShift": return "Shift";
+            case "leftCtrl": case "rightCtrl": return "Ctrl";
+            case "leftAlt": case "rightAlt": return "Alt";
+            case "space": return "Space";
+            case "enter": return "Enter";
+            case "numpadEnter": return "Num Enter";
+            case "tab": return "Tab";
+            case "backspace": return "Backspace";
+            case "upArrow": return "Up";
+            case "downArrow": return "Down";
+            case "leftArrow": return "Left";
+            case "rightArrow": return "Right";
+            case "equals": return "=";
+            case "minus": return "-";
+            case "comma": return ",";
+            case "period": return ".";
+            case "slash": return "/";
+            case "semicolon": return ";";
+            case "quote": return "'";
+            case "backquote": return "`";
+            case "leftBracket": return "[";
+            case "rightBracket": return "]";
+            case "backslash": return "\\";
+        }
+        return InputControlPath.ToHumanReadableString(path, InputControlPath.HumanReadableStringOptions.OmitDevice);
+    }
+
+    /// <summary>
+    /// Waits for the next key on the keyboard and binds the action's first binding to it, then keeps it. Esc cancels; so
+    /// does waiting more than eight seconds. `done` runs either way.
+    /// </summary>
+    public static void Rebind(Act a, Action done)
+    {
+        Cancel();
+        var action = Map[a.ToString()];
+        rebinding = action.PerformInteractiveRebinding(0)
+            .WithControlsHavingToMatchPath("<Keyboard>")
+            .WithControlsExcluding("<Keyboard>/anyKey")
+            .WithCancelingThrough("<Keyboard>/escape")
+            .WithTimeout(8f)
+            .OnComplete(_ =>
+            {
+                Finish();
+                Save();
+                done?.Invoke();
+            })
+            .OnCancel(_ =>
+            {
+                Finish();
+                done?.Invoke();
+            });
+        rebinding.Start();
+    }
+
+    /// <summary>Stops a rebind that is waiting (the Settings screen closing), keeping the old key.</summary>
+    public static void Cancel() => rebinding?.Cancel();
+
+    private static void Finish()
+    {
+        var op = rebinding;
+        rebinding = null;
+        quietUntil = Time.frameCount + 1;
+        op?.Dispose();
+    }
+
+    /// <summary>Puts every key back to the game's own, and keeps that.</summary>
+    public static void ResetAll()
+    {
+        Cancel();
+        Map.RemoveAllBindingOverrides();
+        Save();
     }
 
     /// <summary>Makes binding overrides applied to Map directly (a rebind in progress) take effect.</summary>

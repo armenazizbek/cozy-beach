@@ -2221,6 +2221,18 @@
   -unity-text-align: middle-right;
 }
 
+/* a key in the Keys section (UIManager.openSettings): as wide as its name; dimmed while it waits for the new key */
+.set-key {
+  width: auto;
+  min-width: 76px;
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+
+.set-row.listening .set-key {
+  opacity: 0.6;
+}
+
 .set-range {
   flex-grow: 1;
   flex-shrink: 1;

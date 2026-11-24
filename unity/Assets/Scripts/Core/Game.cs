@@ -394,7 +394,8 @@ public class Game
         Controls.Load(defaultsOnly: AutoShot.Active);
         input = new InputManager();
         input.overUI = () => Page.IsPointerOverUI();
-        input.typing = () => Page.IsTyping();
+        // a key pressed for a rebind in Settings is the new binding, not a command (Core/Controls.cs)
+        input.typing = () => Page.IsTyping() || Controls.Quiet;
         input.handlers = new InputHandlers
         {
             onClick = b => onClick(b),
@@ -3411,7 +3412,8 @@ public class Game
         // a big photo in the album: B closes the photo, not the whole camp behind it
         var photoClose = firstWith(root, v => v.ClassListContains("t-button") && v.ClassListContains("ghost") && within(v, "photo-btns", root));
         if (!photoClose.IsNull && !photoClose.Disabled) return photoClose;
-        var back = MenuNav.Find(root, v => v.ClassListContains("t-button")).FirstOrDefault(b => BACK_RE.IsMatch(b.Text ?? ""));
+        // a setting's row is never the way back, whatever its name starts with (the key for "Leave the water")
+        var back = MenuNav.Find(root, v => v.ClassListContains("t-button") && !v.ClassListContains("set-row")).FirstOrDefault(b => BACK_RE.IsMatch(b.Text ?? ""));
         return !back.IsNull && !back.Disabled ? back : default;
     }
 

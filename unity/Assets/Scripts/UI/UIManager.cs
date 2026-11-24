@@ -277,8 +277,10 @@ public class UIManager
         Ux.Replace(find("minimapSlot"), this.miniCanvas);
         Ux.Replace(find("waveSlot"), this.waveCanvas);
         // the key to press is a picture (a key cap, or the controller's button), in a holder that bobs gently
-        this.kbdF = Glyphs.Make("F", false);
-        this.kbdE = Glyphs.Make("E", false);
+        // the keys as bound (Core/Controls.cs); they follow a rebind
+        this.kbdF = Glyphs.Make(Controls.KeyName(Act.Use), false);
+        this.kbdE = Glyphs.Make(Controls.KeyName(Act.Use2), false);
+        Controls.Changed += () => this.setPadMode(pad.on);
         find("holdF").Add(this.kbdF);
         find("holdE").Add(this.kbdE);
         // the binocular and viewfinder canvases first, then the HUD's parts, in the page's order
@@ -742,6 +744,38 @@ public class UIManager
         toggle("Shadows", "turn off for a smoother game on slower computers", "shadows");
         toggle("Sharp picture", "full screen resolution, heavier to draw", "sharp");
         slider("Render scale", "renderScale", 0.5, 1, 0.05, pct);
+        // the keys (Core/Controls.cs): pressing a row waits for the next key, Esc keeps the old one
+        rows.Add(node("h3", "caps", "Keys"));
+        var keyRows = new List<(Act act, UiNode row, UiNode val)>();
+        void showKeys()
+        {
+            foreach (var (act, row, val) in keyRows)
+            {
+                row.RemoveClass("listening");
+                val.Text = Controls.KeyNames(act);
+            }
+        }
+        foreach (var (act, label) in Controls.Rebindable)
+        {
+            var row = rowEl(label, null);
+            row.AddClass("key-row");
+            var val = node("span", "set-val set-key", Controls.KeyNames(act));
+            row.Add(val);
+            keyRows.Add((act, row, val));
+            row.OnClick = () =>
+            {
+                showKeys();
+                row.AddClass("listening");
+                val.Text = "Press a key (Esc keeps it)";
+                Controls.Rebind(act, showKeys);
+            };
+        }
+        var resetKeys = rowEl("Put every key back", "the keys the game came with");
+        resetKeys.OnClick = () =>
+        {
+            Controls.ResetAll();
+            showKeys();
+        };
         wrap.Must("done").OnClick = () =>
         {
             this.closeSettings();
@@ -753,6 +787,8 @@ public class UIManager
 
     public void closeSettings()
     {
+        // a rebind still waiting for its key keeps the old key
+        Controls.Cancel();
         this.settingsEl?.Remove();
         this.settingsEl = null;
     }
@@ -1603,8 +1639,8 @@ public class UIManager
         pad.on = on;
         this.badge.Toggle("hidden", this.curTool == 0 || (on && !this.badgeOverride));
         this.updatePadTools();
-        if (this.kbdF != null) Glyphs.Set(this.kbdF, on ? "A" : "F", on);
-        if (this.kbdE != null) Glyphs.Set(this.kbdE, on ? "X" : "E", on);
+        if (this.kbdF != null) Glyphs.Set(this.kbdF, on ? "A" : Controls.KeyName(Act.Use), on);
+        if (this.kbdE != null) Glyphs.Set(this.kbdE, on ? "X" : Controls.KeyName(Act.Use2), on);
         // every other key drawn on screen follows
         Glyphs.refresh(on);
         this.hintKey = null;

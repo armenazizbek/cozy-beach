@@ -172,6 +172,9 @@ public class AutoShot : MonoBehaviour
         // the panel, picking, hover and click), which the other runs never use; each check logs ok or FAIL (unity/UI_PLAN.md 3)
         if (Array.IndexOf(args, "-autoshot-mouse") >= 0)
         {
+            // by default the Input System turns keyboards and mice off while the window is not in front, which would switch
+            // this virtual one off too whenever someone uses the PC during a test run; the run's devices ignore focus
+            UnityEngine.InputSystem.InputSystem.settings.backgroundBehavior = UnityEngine.InputSystem.InputSettings.BackgroundBehavior.IgnoreFocus;
             var mouse = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Mouse>("AutoShotMouse");
             mouse.MakeCurrent();
             int failures = 0;
@@ -275,6 +278,9 @@ public class AutoShot : MonoBehaviour
         // below that path, so only this run sees a broken keyboard; each check logs ok or FAIL (unity/UI_PLAN.md B3)
         if (Array.IndexOf(args, "-autoshot-keys") >= 0)
         {
+            // by default the Input System turns keyboards and mice off while the window is not in front, which would switch
+            // this virtual one off too whenever someone uses the PC during a test run; the run's devices ignore focus
+            UnityEngine.InputSystem.InputSystem.settings.backgroundBehavior = UnityEngine.InputSystem.InputSettings.BackgroundBehavior.IgnoreFocus;
             var kb = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>("AutoShotKeyboard");
             kb.MakeCurrent();
             int failures = 0;
@@ -317,6 +323,38 @@ public class AutoShot : MonoBehaviour
             yield return Wait(0.8f);
             Check("Enter opens settings", Open("settings-card"));
             yield return Shot("1k-keys-settings.png");
+            // the Keys section, as a player uses it: down to a row, Enter, then the new key (Esc keeps the old one)
+            IEnumerator DownTo(string label)
+            {
+                for (int i = 0; i < 60 && !Chosen().StartsWith(label); i++)
+                {
+                    yield return Tap(UnityEngine.InputSystem.Key.DownArrow);
+                    yield return Wait(0.05f);
+                }
+            }
+            yield return DownTo("Walk forward");
+            Check($"Down reaches the Walk forward key ({Chosen()})", Chosen().StartsWith("Walk forward"));
+            yield return Tap(UnityEngine.InputSystem.Key.Enter);
+            yield return Wait(0.3f);
+            Check($"Enter waits for the new key ({Chosen()})", Chosen().Contains("Press a key"));
+            yield return Shot("1k-keys-listening.png");
+            yield return Tap(UnityEngine.InputSystem.Key.I);
+            yield return Wait(0.3f);
+            Check($"pressing I binds Walk forward to it ({Controls.KeyName(Act.Forward)}; row: {Chosen()})",
+                Controls.KeyName(Act.Forward) == "I" && Chosen().EndsWith("I"));
+            Check("that I did not move the highlight", Chosen().StartsWith("Walk forward"));
+            yield return DownTo("Use");
+            yield return Tap(UnityEngine.InputSystem.Key.Enter);
+            yield return Wait(0.3f);
+            yield return Tap(UnityEngine.InputSystem.Key.Escape);
+            yield return Wait(0.4f);
+            Check($"Esc keeps the old Use key ({Controls.KeyName(Act.Use)}) and settings stays open",
+                Controls.KeyName(Act.Use) == "F" && Open("settings-card"));
+            yield return DownTo("Put every key back");
+            yield return Tap(UnityEngine.InputSystem.Key.Enter);
+            yield return Wait(0.3f);
+            Check($"Put every key back gives Walk forward W again ({Controls.KeyName(Act.Forward)})", Controls.KeyName(Act.Forward) == "W");
+            yield return Shot("1k-keys-reset.png");
             yield return Tap(UnityEngine.InputSystem.Key.Escape);
             yield return Wait(0.6f);
             Check("Esc closes settings", !Open("settings-card"));
