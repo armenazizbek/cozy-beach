@@ -57,6 +57,22 @@ public class SeaCreatures
 
     public readonly THREE.Group group = new THREE.Group();
     public readonly List<Animal> animals = new List<Animal>();
+
+    /// <summary>
+    /// What of the creatures moves, for the world under the sea to keep their GameObjects in line (unity/UI_PLAN.md B1). An
+    /// animal's tick only ever turns, moves and scales the parts of its own tree (its body, fins, segments, flippers), and
+    /// none are added later, so its moving parts are its own tree, collected once.
+    /// </summary>
+    internal IEnumerable<THREE.Object3D> Moving()
+    {
+        foreach (var a in animals)
+        {
+            if (a.root == null) continue;
+            var parts = new List<THREE.Object3D>();
+            a.root.traverse(o => parts.Add(o));
+            foreach (var o in parts) yield return o;
+        }
+    }
     private readonly Func<double, double, double> floor;
 
     public SeaCreatures(Func<double, double, double> floor)

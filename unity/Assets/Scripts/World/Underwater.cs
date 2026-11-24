@@ -756,7 +756,7 @@ public class Underwater
     /// decor) is a LiveTree under the world root (it stays while the land is hidden), synced at draw time and idle while it is
     /// hidden. The bubbles and motes stay particle pools the scene draws until S24, shown with the group by hand.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
 
     /// <summary>The particle pools that left the group for the scene (the dive keeps them, as it keeps the group).</summary>
     public THREE.Object3D[] loosePoints => new THREE.Object3D[] { loose };
@@ -770,12 +770,88 @@ public class Underwater
         group.remove(bubbles.points, motes.points);
         loose.add(bubbles.points, motes.points);
         LiveTree.Place(loose, World.Root);
-        live = new LiveTree(group, World.Root);
         NativeFrame.BeforeDraw += () =>
         {
-            live.Sync();
+            Sync();
             loose.visible = group.visible;
         };
+    }
+
+    private int stamp = int.MinValue;
+    private long shape;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
+
+    /// <summary>
+    /// Realised at the first draw and again only when the tree's shape changed, as the whole-tree copy did; otherwise only
+    /// what moves is brought in line, by name (unity/UI_PLAN.md B1): the surface, the kelp, the fish and their tails, the
+    /// spears, the decoration's moving parts and every creature's own parts; and the materials are pushed.
+    /// </summary>
+    private void Realise()
+    {
+        if (live?.root != null)
+        {
+            live.root.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(live.root.gameObject);
+        }
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        stamp = group.treeVersion;
+        shape = LiveTree.Shape(group);
+        moving.Clear();
+        mats.Clear();
+        var parts = new List<THREE.Object3D> { group, surface };
+        foreach (var (o, _, _) in kelp) parts.Add(o);
+        foreach (var f in fish)
+        {
+            parts.Add(f.root);
+            parts.Add(f.tail);
+        }
+        foreach (var sp in spears) parts.Add(sp.mesh);
+        parts.AddRange(decor.Moving());
+        parts.AddRange(creatures.Moving());
+        var seen = new HashSet<THREE.Object3D>();
+        foreach (var o in parts)
+        {
+            if (o == null || !seen.Add(o)) continue;
+            var t = live[o];
+            if (t != null) moving.Add((o, t));
+        }
+        foreach (var kv in live.map)
+        {
+            THREE.Material m = null;
+            var on = MaterialKit.On.Mesh;
+            switch (kv.Key)
+            {
+                case THREE.InstancedMesh im: m = im.material; on = MaterialKit.On.Instanced; break;
+                case THREE.Mesh mesh: m = mesh.material; break;
+                case THREE.Points pts: m = pts.material; on = MaterialKit.On.Points; break;
+                case THREE.Line line: m = line.material; on = MaterialKit.On.Line; break;
+                case THREE.Sprite sp: m = sp.material; on = MaterialKit.On.Sprite; break;
+            }
+            if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+        }
+    }
+
+    private void Sync()
+    {
+        // hidden (on land): nothing but switching it off, as the whole-tree copy did
+        if (live != null && !group.visible)
+        {
+            if (live.root.gameObject.activeSelf) live.root.gameObject.SetActive(false);
+            return;
+        }
+        if (live == null) Realise();
+        else if (group.treeVersion != stamp)
+        {
+            stamp = group.treeVersion;
+            if (LiveTree.Shape(group) != shape) Realise();
+        }
+        foreach (var (o, t) in moving)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
     }
 
     public void update(double dt, double t, THREE.Vector3 cam)

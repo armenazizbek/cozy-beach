@@ -34,6 +34,20 @@ public class UnderwaterDecor
     private class Jelly { public THREE.Group root; public double x, y, z, phase, drift, baseY; }
     private readonly List<Jelly> jellies = new List<Jelly>();
 
+    /// <summary>
+    /// What of the decoration moves, for the world under the sea to keep its GameObjects in line (unity/UI_PLAN.md B1): the
+    /// shimmer and the sun patch (with the diver), the light rays, the shoals' fish and the jellyfish.
+    /// </summary>
+    internal IEnumerable<THREE.Object3D> Moving()
+    {
+        yield return shimmer;
+        yield return sunPatch;
+        foreach (var r in rays) yield return r.mesh;
+        foreach (var s in shoals)
+            foreach (var (mesh, _, _, _, _) in s.fish) yield return mesh;
+        foreach (var j in jellies) yield return j.root;
+    }
+
     public UnderwaterDecor(THREE.Group group, Func<double, double, double> floorAt, (double x, double z) wreck, Action<THREE.Object3D, double, double> sway)
     {
         this.group = group;

@@ -389,3 +389,13 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   parts to keep in line (`Camp.follow`; the aquarium gives its fish and tails and each creature's wrapper and parts,
   `Aquarium.Moving`). Checked against `refB` (fish, dive, shop, tour): renderer counts equal, logs pass, dumps within
   0.00001 m once the world root's top-level groups are paired by what they hold.
+
+## B1: the world under the sea without the whole-tree copy (2026-11-24)
+
+- `Underwater` is realised at the first draw and again only on a change of shape; otherwise it brings in line, by name,
+  the surface, the kelp, its fish and tails, the spears, the decoration's moving parts (`UnderwaterDecor.Moving`:
+  shimmer, sun patch, light rays, the shoals' fish, the jellyfish) and every creature's own tree (`SeaCreatures.Moving`:
+  an animal's tick only moves parts of its own tree), and pushes every material. Hidden (on land) it is only switched off.
+- Accepted difference: the world root's top-level groups are numbered differently in the dumps (each is made at a
+  different moment from before). Paired by what they hold, every renderer matches, within 0.00001 m (dive, sealife,
+  fish, photo-alt, base). `dumpdiff2.py` in the scratchpad does that pairing; the final pass uses it.
