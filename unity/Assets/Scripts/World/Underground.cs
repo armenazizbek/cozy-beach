@@ -120,17 +120,94 @@ public class Underground
     public readonly THREE.Group group = new THREE.Group();
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S20: the cellar, the passage and the cave behind the door are a LiveTree under the world
-    /// root (not World.Land: it stays while the land is hidden), kept in line with the description at draw time: the torches'
-    /// flicker, which side's lights are on, the beam, the door's seal and glow.
+    /// The cellar, the passage and the cave behind the door, under the world root (not World.Land: it stays while the land is
+    /// hidden). Realised at the first draw and again whenever parts were added (the cave's shark, sea and clouds come after it
+    /// is placed); otherwise only what moves or changes is brought in line, by name (unity/UI_PLAN.md B1): the torches' flames
+    /// and lights, the beam, the door's leaves and seal, the cave's clouds, shark, hoard and lights, and the materials.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
+    private int stamp = int.MinValue;
+    private long shape;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.PointLight l, UnityEngine.Light u)> lit = new List<(THREE.PointLight, UnityEngine.Light)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
 
     /// <summary>Puts the underground into the world as native objects.</summary>
-    public void Place()
+    public void Place() => NativeFrame.BeforeDraw += Sync;
+
+    private void Realise()
     {
-        live = new LiveTree(group, World.Root);
-        NativeFrame.BeforeDraw += live.Sync;
+        if (live?.root != null)
+        {
+            live.root.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(live.root.gameObject);
+        }
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        stamp = group.treeVersion;
+        shape = LiveTree.Shape(group);
+        moving.Clear();
+        lit.Clear();
+        mats.Clear();
+        var parts = new List<THREE.Object3D> { group, beam, seal };
+        foreach (var tc in torches)
+        {
+            parts.AddRange(tc.flames);
+            parts.Add(tc.light);
+        }
+        foreach (var l in leaves) parts.Add(l.pivot);
+        parts.AddRange(cave.Moving());
+        foreach (var o in parts)
+        {
+            var t = o != null ? live[o] : null;
+            if (t == null) continue;
+            moving.Add((o, t));
+            if (o is THREE.PointLight pl && t.GetComponent<UnityEngine.Light>() is UnityEngine.Light u) lit.Add((pl, u));
+        }
+        foreach (var kv in live.map)
+        {
+            THREE.Material m = null;
+            var on = MaterialKit.On.Mesh;
+            switch (kv.Key)
+            {
+                case THREE.InstancedMesh im: m = im.material; on = MaterialKit.On.Instanced; break;
+                case THREE.Mesh mesh: m = mesh.material; break;
+                case THREE.Points pts: m = pts.material; on = MaterialKit.On.Points; break;
+                case THREE.Sprite sp: m = sp.material; on = MaterialKit.On.Sprite; break;
+            }
+            if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+        }
+    }
+
+    private void Sync()
+    {
+        // hidden (above ground): nothing but switching it off, as the whole-tree copy did
+        if (live != null && !group.visible)
+        {
+            if (live.root.gameObject.activeSelf) live.root.gameObject.SetActive(false);
+            return;
+        }
+        // made again only when the tree's shape changed (the cave's shark, sea and clouds came), as the whole-tree copy did: a
+        // change of pose alone keeps the GameObjects (and their place among the world root's children)
+        if (live == null) Realise();
+        else if (group.treeVersion != stamp)
+        {
+            stamp = group.treeVersion;
+            if (LiveTree.Shape(group) != shape) Realise();
+        }
+        foreach (var (o, t) in moving)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        foreach (var (l, u) in lit)
+        {
+            if (!l.visible) continue;
+            Lights.Set(u, new UnityEngine.Color((float)l.color.r, (float)l.color.g, (float)l.color.b), (float)l.intensity, u.gameObject.layer);
+            float range = l.distance > 0 ? (float)l.distance : 1000f;
+            if (u.range != range) u.range = range;
+            Lights.Shadows(u, l.castShadow);
+        }
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
     }
     public readonly List<Solid> colliders = new List<Solid>();
     /// <summary>where you stand after coming down, and which way you face</summary>

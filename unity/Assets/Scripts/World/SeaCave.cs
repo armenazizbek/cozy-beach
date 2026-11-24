@@ -286,6 +286,19 @@ public class SeaCave
     private readonly List<(THREE.Sprite sprite, double speed)> clouds = new List<(THREE.Sprite, double)>();
     private THREE.Object3D shark;
 
+    /// <summary>
+    /// What of the cave moves or changes once built, for the cellar to keep its GameObjects in line (unity/UI_PLAN.md B1):
+    /// the drifting clouds, the shark out in the bay, the hoard's heap and its bell, and the lights.
+    /// </summary>
+    internal IEnumerable<THREE.Object3D> Moving()
+    {
+        foreach (var (sprite, _) in clouds) yield return sprite;
+        if (shark != null) yield return shark;
+        yield return heap;
+        if (bell != null) yield return bell;
+        foreach (var l in lights) yield return l;
+    }
+
     public SeaCave()
     {
         buildRock();

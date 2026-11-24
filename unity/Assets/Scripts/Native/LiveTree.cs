@@ -174,7 +174,8 @@ public sealed class LiveTree
     }
 
     /// <summary>A number that changes when any part is added, removed or moved to another parent.</summary>
-    private static long Shape(THREE.Object3D o)
+    /// <summary>A hash of a tree's shape (which objects hang where), so a change of shape can be told from a change of pose.</summary>
+    internal static long Shape(THREE.Object3D o)
     {
         long h = RuntimeHelpers.GetHashCode(o);
         foreach (var c in o.children) h = unchecked(h * 1000003L + Shape(c));

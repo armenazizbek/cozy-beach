@@ -366,3 +366,16 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   whole-tree copy did, so its GameObjects keep their place among the world root's children: realised earlier, every dump
   path under it moved (`Group[2]` for `Group[5]`), which the first try showed.
 - Quick check against `refB` (base, crust, gear, sweep, dive, holes, cove, saves): logs pass, dumps within 0.00001 m.
+
+## B1: the cellar and the sea cave without the whole-tree copy (2026-11-24)
+
+- `Underground` is realised at the first draw and again only when the tree's shape changed (`LiveTree.Shape`, now
+  internal; the cave's shark, sea and clouds come after it is placed); otherwise it brings in line, by name, the torches'
+  flames and lights, the beam, the door's leaves and seal, and the cave's moving parts (`SeaCave.Moving`: clouds, the
+  shark in the bay, the hoard's heap and bell, the lights), with the lights' strength, reach and shadows, and pushes every
+  material. Hidden (above ground) it is only switched off.
+- Accepted difference: the dumps' paths under the world root are numbered one lower or higher from here (items
+  `Group[4]` for `Group[5]`, the camera `PerspectiveCamera[6]` for `[5]` later on). The whole-tree copy rebuilt the
+  cellar's root once more during loading, which moved it among the world root's children; it is now made once. The same
+  objects, renderer counts and poses (bounds within 0.00001 m); only sibling numbers differ. Quick check against `refB`
+  (base, photo-alt, saves): logs and shots pass.
