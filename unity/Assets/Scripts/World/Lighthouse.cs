@@ -86,6 +86,24 @@ public class Lighthouse
 
     public readonly THREE.Group shipsGroup = new THREE.Group();
     public readonly List<HorizonShip> ships = new List<HorizonShip>();
+
+    /// <summary>
+    /// What of the lighthouse moves or switches on and off once built, for the island to keep its GameObjects in line
+    /// (unity/UI_PLAN.md B1): the door, the dirt, the beams, the night ships and each ship and its hull.
+    /// </summary>
+    internal IEnumerable<THREE.Object3D> Moving()
+    {
+        if (doorPivot != null) yield return doorPivot;
+        yield return dirtGroup;
+        if (beams != null) yield return beams;
+        yield return shipsGroup;
+        foreach (var s in ships)
+        {
+            yield return s.root;
+            yield return s.vessel;
+            foreach (var l in s.lamps) yield return l;
+        }
+    }
     private double shipTime = 0;
 
     private static readonly double[] INTRO_CUTS = { 4.2, 8.4 };

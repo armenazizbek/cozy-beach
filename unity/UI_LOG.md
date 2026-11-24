@@ -320,3 +320,13 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - `Dog` is realised once; at draw time it poses itself, its body and head, jaw, tongue (shown or not), ears and every leg
   and tail bone by name. The Golden Bone is realised in the jaw's GameObject when bought. No LiveTree. Quick check
   against `refB` (base, dograin, house, tour): logs pass, dumps within 0.00001 m.
+
+## B1: the islands, lighthouse and telescope without the whole-tree copy (2026-11-24)
+
+- `Island` is realised once; at draw time it brings in line, by name, the palms' crowns, the map on the altar, the
+  pennant, the foam, the lighthouse's moving parts (`Lighthouse.Moving`: door, dirt, beams, the night ships, each ship's
+  hull and its pulsing lamps) and the telescope's dirt (`Telescope.Dirt`), and pushes every material of the island (the
+  haze, the foam, the lamp, the beams, the ships' lights). One listed part on Lagoon Cay and one on Ember Rock were welded
+  into merged meshes and have no GameObject of their own; the whole-tree copy could not move them either.
+- Found on the way: the first try left out the ships' lamps, and the night-ship dumps moved by up to 8 cm. With them in:
+  quick check against `refB` (islands, island, lighthouse, ships, telescope) logs pass, dumps within 0.00001 m.

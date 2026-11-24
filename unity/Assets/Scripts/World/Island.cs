@@ -63,17 +63,59 @@ public class Island
     public readonly THREE.Group group = new THREE.Group();
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S16/S17: the island with its landmark (Lagoon Cay's telescope, Ember Rock's lighthouse,
-    /// its lamp, beams and the ships on the night horizon) is a LiveTree under World.Land, kept in line with the description at
-    /// draw time: the palms swaying, the haze, the beams turning, the ships sailing, the door and the dirt being cleaned.
+    /// The island with its landmark (Lagoon Cay's telescope, Ember Rock's lighthouse, its lamp, beams and the ships on the
+    /// night horizon), realised once under World.Land. At draw time only what moves or switches is brought in line, by name
+    /// (unity/UI_PLAN.md B1): the palms' crowns, the map on the altar, the pennant, the foam, the lighthouse's door, dirt,
+    /// beams and ships, the telescope's dirt; and the materials (the haze, the foam, the lamp, the beams, the ships' lights).
     /// </summary>
-    private LiveTree live;
+    private Realized live;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
 
     /// <summary>Puts the island into the world as native objects.</summary>
     public void Place()
     {
-        live = new LiveTree(group, World.Land);
-        NativeFrame.BeforeDraw += live.Sync;
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        var parts = new List<THREE.Object3D> { group, scroll };
+        if (pennant != null) parts.Add(pennant);
+        foreach (var p in palms) parts.Add(p.crown);
+        parts.AddRange(foam);
+        if (lighthouse != null) parts.AddRange(lighthouse.Moving());
+        if (telescope != null) parts.Add(telescope.Dirt);
+        foreach (var o in parts)
+        {
+            var t = live[o];
+            if (t != null) moving.Add((o, t));
+        }
+        // a part welded into a merged mesh has no GameObject of its own (one on Lagoon Cay and one on Ember Rock); the
+        // whole-tree copy could not move it either
+        foreach (var kv in live.map)
+        {
+            THREE.Material m = null;
+            var on = MaterialKit.On.Mesh;
+            switch (kv.Key)
+            {
+                case THREE.Mesh mesh: m = mesh.material; break;
+                case THREE.Points pts: m = pts.material; on = MaterialKit.On.Points; break;
+                case THREE.Line line: m = line.material; on = MaterialKit.On.Line; break;
+                case THREE.Sprite sp: m = sp.material; on = MaterialKit.On.Sprite; break;
+            }
+            if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+        }
+        NativeFrame.BeforeDraw += Sync;
+    }
+
+    /// <summary>Brings what moves or switches in line with the island, before the frame is drawn.</summary>
+    private void Sync()
+    {
+        if (live == null) return;
+        if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+        foreach (var (o, t) in moving)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
     }
     /// <summary>solid circles for walking around: trunks, boulders, ruin pillars, the wreck</summary>
     public readonly List<Spot> colliders = new List<Spot>();

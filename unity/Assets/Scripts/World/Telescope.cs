@@ -106,6 +106,9 @@ public class Telescope
     /// <summary>the sand and salt on the tube, until it has been brushed clean once</summary>
     private readonly THREE.Group dirt = new THREE.Group();
 
+    /// <summary>The sand caked on it, which goes once it is cleaned (the island keeps its GameObject in line).</summary>
+    internal THREE.Object3D Dirt => dirt;
+
     /// <summary>false until the player has taken the tube to the workbench and brushed it; it stays clean from then on</summary>
     public bool cleaned { get; private set; } = false;
     /// <summary>the sand crust used while brushing the tube on the workbench, kept so a half-brushed tube stays half brushed</summary>
