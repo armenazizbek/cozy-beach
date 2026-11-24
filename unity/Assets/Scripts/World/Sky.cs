@@ -197,8 +197,8 @@ public class Sky
     }
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S13: the sky's tree (dome, stars, sun and moon, clouds) is a LiveTree under the world
-    /// root (not under World.Land: the sky stays while diving), kept in line with the description at draw time. The sun is a
+    /// The sky's tree (dome, stars, sun and moon, clouds), realised once under the world root (not under World.Land: the sky
+    /// stays while diving); its moving parts are brought in line at draw time (see Place and Shine). The sun is a
     /// native directional light outside the root and the scene's RenderSettings.sun; the hemisphere light goes to the scene's
     /// Atmosphere. The fog stays the scene's setting.
     /// </summary>

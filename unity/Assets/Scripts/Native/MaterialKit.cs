@@ -20,7 +20,7 @@ public static class MaterialKit
     public static Material Get(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on);
 
     /// <summary>
-    /// The same, at most once a frame: for draw-time syncs (LiveTree), which run after the frame's material stamp moved
+    /// The same, at most once a frame: for draw-time syncs (Tracked and the modules' own), which run after the frame's material stamp moved
     /// on (NativeFrame.Run), so the first call of the frame sees every change and the rest have nothing left to do.
     /// </summary>
     public static Material PushOnce(THREE.Material m, On on = On.Mesh) => m == null ? null : B.MaterialCache.Get(m, (B.MaterialCache.Kind)on);

@@ -16,7 +16,7 @@ namespace THREE
 
     /// <summary>
     /// Three.js Object3D: a node in the game's description of the world, with a transform in Three's right-handed space. Native code
-    /// realizes it into GameObjects (Native/Realizer.cs, LiveTree) and keeps them in line.
+    /// realizes it into GameObjects (Native/Realizer.cs, Native/Tracked.cs) and keeps them in line.
     /// </summary>
     public class Object3D
     {
@@ -157,7 +157,7 @@ namespace THREE
         /// <summary>Goes up whenever any object anywhere gains or loses a child.</summary>
         public static int StructureStamp;
 
-        /// <summary>Goes up when this object or anything under it gains or loses a child (LiveTree re-checks its shape only then).</summary>
+        /// <summary>Goes up when this object or anything under it gains or loses a child (Tracked re-checks its shape only then).</summary>
         public int treeVersion;
 
         private void TreeChanged()

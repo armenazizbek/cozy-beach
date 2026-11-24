@@ -340,15 +340,15 @@ public class Game
         // native since unity/NATIVE_PLAN.md S22: the detector's overlays, the dig rings, the arrows and the shadow proxy hang
         // under World.Land (the dive hides them, as it hid them in the scene); bullets and the dig particles stay with the
         // bridge until particles are native (S24)
-        foreach (var ov in detector.overlays) LiveTree.Place(ov, World.Land);
-        LiveTree.Place(dig.ring, World.Land);
-        LiveTree.Place(dig.ringDark, World.Land);
-        LiveTree.Place(arrows.group, World.Land);
-        LiveTree.Place(view.proxy, World.Land);
+        foreach (var ov in detector.overlays) Tracked.PlaceAll(ov, World.Land);
+        Tracked.PlaceAll(dig.ring, World.Land);
+        Tracked.PlaceAll(dig.ringDark, World.Land);
+        Tracked.PlaceAll(arrows.group, World.Land);
+        Tracked.PlaceAll(view.proxy, World.Land);
         // particle pools and bullets, native since S24
-        LiveTree.Place(dig.particles.points, World.Land);
-        LiveTree.Place(bullets.group, World.Land);
-        LiveTree.Place(hearts.points, World.Land);
+        Tracked.PlaceAll(dig.particles.points, World.Land);
+        Tracked.PlaceAll(bullets.group, World.Land);
+        Tracked.PlaceAll(hearts.points, World.Land);
         scene.add(camera);
         cellar.Place();
         sea.Place(scene);
@@ -384,11 +384,11 @@ public class Game
             }
         );
         beam.visible = false;
-        LiveTree.Place(beam, World.Land);
+        Tracked.PlaceAll(beam, World.Land);
         camera.add(view.group);
         // the tools in hand stay the camera's child in the description; their native tree hangs from the camera's rig
         // (NativeView), claimed so the view does not draw them twice
-        LiveTree.Place(view.group, World.Root, claim: true);
+        Tracked.PlaceAll(view.group, World.Root, claim: true);
         camera.rotation.order = "YXZ";
         camera.near = 0.05;
         camera.updateProjectionMatrix();
@@ -472,7 +472,7 @@ public class Game
         showDecor();
         state.subscribe(refreshPhotoBoard);
         refreshPhotoBoard();
-        LiveTree.Place(fishing.group, World.Land);
+        Tracked.PlaceAll(fishing.group, World.Land);
         pier.Place();
         // the old house past the nets on the left of the beach
         oldHouse.Place();
@@ -1216,7 +1216,7 @@ public class Game
             m.rotation.order = "YXZ";
             m.rotation.y = player.yaw;
             m.rotation.x = 0.75;
-            LiveTree.Place(m, World.Land);
+            Tracked.PlaceAll(m, World.Land);
         }
     }
 
@@ -3962,14 +3962,14 @@ public class Game
     /// <summary>the opening while it plays, and the hour it interrupted</summary>
     private Opening opening = null;
     /// <summary>the opening's native objects (S24)</summary>
-    private LiveTree openingLive;
+    private Tracked openingLive;
     private double openingDayTime = 0;
     private double openingArmed = 0;
 
     private void startOpening()
     {
         opening = new Opening { volume = settings.master };
-        openingLive = LiveTree.Place(opening.group, World.Land);
+        openingLive = Tracked.PlaceAll(opening.group, World.Land);
         openingDayTime = dayTime;
         openingArmed = 0;
         input.clearKeys();
@@ -5901,7 +5901,7 @@ public class Game
         tidyGrateGround();
         var g = buildGrate();
         g.position.set(gx, beach.heightAt(gx, gz), gz);
-        LiveTree.Place(g, World.Land);
+        Tracked.PlaceAll(g, World.Land);
         camp.obstacles.Add(new Camp.Solid { x = gx, z = gz, r = 1.3 });
         // nothing lies buried under the stone, or close enough to it that digging it out would mean digging under the stone
         spawner.keepClear(gx, gz, GRATE_CLEAR);

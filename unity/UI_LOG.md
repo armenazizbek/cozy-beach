@@ -399,3 +399,18 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Accepted difference: the world root's top-level groups are numbered differently in the dumps (each is made at a
   different moment from before). Paired by what they hold, every renderer matches, within 0.00001 m (dive, sealife,
   fish, photo-alt, base). `dumpdiff2.py` in the scratchpad does that pairing; the final pass uses it.
+
+## B1: the whole-tree copy is gone (2026-11-24)
+
+- `Native/Tracked.cs` replaces `LiveTree`: a tree realised when it is made (as LiveTree was), made again only on a change
+  of shape, switched off while hidden, and each frame only the parts its owner names are posed and shown, their point
+  lights set, the named geometry refilled when rewritten, and the tree's materials pushed. `Tracked.PlaceAll` names every
+  part, for small trees whose parts all move or change: the detector's overlays, the dig rings and particles, arrows,
+  bullets, hearts, the shadow proxy, the binoculars' beam, the tools in hand (claimed, on the camera's rig), fishing,
+  the opening, the grate and the modules' particle pools. The cleaning bench names its pieces (the pivot turning the find,
+  the dust and sparkles refilled, the brush), the scene view (`NativeView`) tracks a small scene's loose parts (a find set
+  up for its photo). `LiveTree.cs` is deleted; its shape hash is `Tracked.Shape`.
+- Found on the way: LiveTree realised in its constructor, not at the first draw; realising later moved GameObjects among
+  their siblings and left the item-photo scene empty on its first frame. Tracked does as LiveTree did.
+- Checked against `refB` (base, gear, birds, smash, sweep, crust, photo, opening, fish, dolphins, dive, selfcheck): logs
+  pass, selfcheck 9 of 9, every top-level group pairs up, dumps within 0.00001 m.

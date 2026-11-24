@@ -350,7 +350,7 @@ public class Boat
         propT = live[prop];
         plateT = live[nameplate];
         // the wake: a particle pool, native since S24
-        LiveTree.Place(wake.points, World.Land);
+        Tracked.PlaceAll(wake.points, World.Land);
     }
 
     /// <summary>Sets the boat's GameObjects from its numbers.</summary>

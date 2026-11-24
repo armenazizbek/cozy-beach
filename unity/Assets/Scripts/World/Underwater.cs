@@ -752,9 +752,9 @@ public class Underwater
     }
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S19: the whole world under the sea (reef, kelp, wreck, fish, the creatures and the
-    /// decor) is a LiveTree under the world root (it stays while the land is hidden), synced at draw time and idle while it is
-    /// hidden. The bubbles and motes stay particle pools the scene draws until S24, shown with the group by hand.
+    /// The whole world under the sea (reef, kelp, wreck, fish, the creatures and the decor), under the world root (it stays
+    /// while the land is hidden); see Realise and Sync for what is kept in line. The bubbles and motes are particle pools in
+    /// a group of their own (Tracked), shown with the group by hand.
     /// </summary>
     private Realized live;
 
@@ -769,7 +769,7 @@ public class Underwater
     {
         group.remove(bubbles.points, motes.points);
         loose.add(bubbles.points, motes.points);
-        LiveTree.Place(loose, World.Root);
+        Tracked.PlaceAll(loose, World.Root);
         NativeFrame.BeforeDraw += () =>
         {
             Sync();
@@ -796,7 +796,7 @@ public class Underwater
         }
         live = Realizer.Realize(group, World.Root, World.Layer);
         stamp = group.treeVersion;
-        shape = LiveTree.Shape(group);
+        shape = Tracked.Shape(group);
         moving.Clear();
         mats.Clear();
         var parts = new List<THREE.Object3D> { group, surface };
@@ -844,7 +844,7 @@ public class Underwater
         else if (group.treeVersion != stamp)
         {
             stamp = group.treeVersion;
-            if (LiveTree.Shape(group) != shape) Realise();
+            if (Tracked.Shape(group) != shape) Realise();
         }
         foreach (var (o, t) in moving)
         {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Threading.Tasks;
 
@@ -75,11 +76,18 @@ public class CleaningStation
         brushMesh.visible = false;
         scene.add(brushMesh);
 
-        // native since unity/NATIVE_PLAN.md S23: what the bench draws is native, on the bench's own layer under its scene's root;
-        // the parts stay in the bench's description, claimed (the bridge hangs their roots and keeps only the bench's lights)
+        // what the bench draws is native, on the bench's own layer under its scene's root; the parts stay in the bench's
+        // description, claimed (so the scene's own view does not draw them again). Each is kept in line by name
+        // (unity/UI_PLAN.md B1): the bench and the cloth do not move; the pivot turns the find (a find swapped in or out
+        // changes its shape, which makes it again); the dust and sparkles rewrite their points; the brush shows and follows.
         var root = World.RootOf(scene);
-        foreach (var part in new THREE.Object3D[] { bench, cloth, pivot, particles.points, sparkles.points, brushMesh })
-            LiveTree.Place(part, root, claim: true, layer: scene.unityLayer);
+        IEnumerable<THREE.Object3D> none() { yield break; }
+        Tracked.Place(bench, root, none, claim: true, layer: scene.unityLayer);
+        Tracked.Place(cloth, root, none, claim: true, layer: scene.unityLayer);
+        Tracked.Place(pivot, root, none, claim: true, layer: scene.unityLayer);
+        Tracked.Place(particles.points, root, none, () => new THREE.Object3D[] { particles.points }, claim: true, layer: scene.unityLayer);
+        Tracked.Place(sparkles.points, root, none, () => new THREE.Object3D[] { sparkles.points }, claim: true, layer: scene.unityLayer);
+        Tracked.Place(brushMesh, root, none, claim: true, layer: scene.unityLayer);
 
         camera.position.set(0, 3.1, 4.6);
         camera.lookAt(0, -0.2, 0);

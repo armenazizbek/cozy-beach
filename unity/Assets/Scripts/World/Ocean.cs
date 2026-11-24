@@ -300,9 +300,9 @@ public class Ocean
     private int seaNext = int.MaxValue; // where the running refresh is; past the end when none is running
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S13: the sea's tree is a LiveTree under World.Land, kept in line with the description at
-    /// draw time (the surface following the viewer, the foam's scrolling texture and its opacity, the shaders' time). A refresh
-    /// of the sea-floor depth rewrites only that vertex channel of the surface mesh.
+    /// The sea's tree, realised once under World.Land (see Place): at draw time the surface follows the viewer and the foam's
+    /// texture, opacity and the shaders' time are pushed. A refresh of the sea-floor depth rewrites only that vertex channel
+    /// of the surface mesh.
     /// </summary>
     private Realized live;
     private UnityEngine.Transform waterT, foamT;

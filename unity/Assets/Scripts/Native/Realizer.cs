@@ -16,7 +16,7 @@ using UnityEngine;
 /// things afterwards. <see cref="RealizeSliced"/> spreads the work over frames within a time budget.
 ///
 /// Realized objects are the game's own from then on: the module that placed them keeps them in line with their
-/// descriptions (Realized.Follow and Apply, or a LiveTree).
+/// descriptions (Realized.Follow and Apply, or Tracked).
 /// </summary>
 public sealed class Realized
 {

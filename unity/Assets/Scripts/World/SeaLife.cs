@@ -584,7 +584,7 @@ public class SeaLife
     /// The sea's life above the reef (sharks, schools, the fish that leap at the pier), realised once under World.Land. At draw
     /// time only what moves is brought in line (unity/UI_PLAN.md B1): each shark and its tail, each school, each leaping fish,
     /// the shader values (the sharks' swimming wave, the schools' clock) and a school's fish data when one is caught or comes
-    /// back. Nothing else is compared, as the whole-tree copy (LiveTree) did. The splashes and wakes stay particle pools.
+    /// back. Nothing else is compared, as the whole-tree copy (LiveTree, now removed) did. The splashes and wakes stay particle pools.
     /// </summary>
     private Realized live;
 
@@ -604,7 +604,7 @@ public class SeaLife
     {
         group.remove(splashes.points, wakeParticles.points);
         loose.add(splashes.points, wakeParticles.points);
-        LiveTree.Place(loose, World.Land);
+        Tracked.PlaceAll(loose, World.Land);
         live = Realizer.Realize(group, World.Land, World.Layer);
         moving.Add((group, live.root));
         foreach (var s in sharks)

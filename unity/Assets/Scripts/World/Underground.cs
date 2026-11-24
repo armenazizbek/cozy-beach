@@ -144,7 +144,7 @@ public class Underground
         }
         live = Realizer.Realize(group, World.Root, World.Layer);
         stamp = group.treeVersion;
-        shape = LiveTree.Shape(group);
+        shape = Tracked.Shape(group);
         moving.Clear();
         lit.Clear();
         mats.Clear();
@@ -192,7 +192,7 @@ public class Underground
         else if (group.treeVersion != stamp)
         {
             stamp = group.treeVersion;
-            if (LiveTree.Shape(group) != shape) Realise();
+            if (Tracked.Shape(group) != shape) Realise();
         }
         foreach (var (o, t) in moving)
         {

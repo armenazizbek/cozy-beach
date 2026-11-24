@@ -146,12 +146,12 @@ public class Dolphins
 
     /// <summary>
     /// Puts the pod into the world as GameObjects: each dolphin a group with its body, its flukes (in a group of their own, which
-    /// beats) and its eyes, in the order the description had them. The splashes stay a particle pool (LiveTree).
+    /// beats) and its eyes, in the order the description had them. The splashes stay a particle pool (Tracked).
     /// </summary>
     public void Place(THREE.Scene scene)
     {
         loose.add(splashes.points);
-        LiveTree.Place(loose, World.Land);
+        Tracked.PlaceAll(loose, World.Land);
         root = Draw.Group(World.Land);
         var body = MeshKit.ToMesh(bodyGeo);
         var blades = MeshKit.ToMesh(flukesGeo);

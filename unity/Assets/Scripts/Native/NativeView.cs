@@ -118,13 +118,13 @@ public static class NativeView
 
     /// <summary>
     /// A small scene drawn natively as a whole (S25): each part hung straight in it that nobody drew yet becomes a claimed
-    /// LiveTree (a find set up for its photo, the bench's rim light), its sun is a Unity light outside the mirrored root,
+    /// Tracked tree (a find set up for its photo, the bench's rim light), its sun is a Unity light outside the mirrored root,
     /// and its ambient and hemisphere lights go into its Atmosphere, all as the bridge's scene copy did .
     /// </summary>
     private sealed class SceneParts
     {
         private readonly THREE.Scene scene;
-        private readonly Dictionary<THREE.Object3D, LiveTree> trees = new Dictionary<THREE.Object3D, LiveTree>();
+        private readonly Dictionary<THREE.Object3D, Tracked> trees = new Dictionary<THREE.Object3D, Tracked>();
         private readonly Dictionary<THREE.DirectionalLight, Light> suns = new Dictionary<THREE.DirectionalLight, Light>();
         private readonly List<THREE.Object3D> gone = new List<THREE.Object3D>();
 
@@ -175,7 +175,7 @@ public static class NativeView
                     default:
                         // a part some module already draws natively (the bench's claimed trees) is left to it
                         if (c.native != null && !trees.ContainsKey(c)) break;
-                        if (!trees.TryGetValue(c, out var t)) trees[c] = t = new LiveTree(c, World.RootOf(scene), true, layer);
+                        if (!trees.TryGetValue(c, out var t)) trees[c] = t = Tracked.All(c, World.RootOf(scene), true, layer);
                         else t.Sync();
                         break;
                 }

@@ -19,7 +19,7 @@ public static class NativeFrame
         foreach (var d in all.GetInvocationList())
         {
             if (!names.TryGetValue(d, out var name))
-                names[d] = name = "draw:" + (d.Target is LiveTree t ? "tree " + t.Name : d.Method.DeclaringType?.Name ?? "?");
+                names[d] = name = "draw:" + (d.Target is Tracked t ? "tree " + t.Name : d.Method.DeclaringType?.Name ?? "?");
             using (THREE.Render.FrameStats.Time(name)) ((Action)d)();
         }
     }

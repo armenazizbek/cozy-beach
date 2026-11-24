@@ -71,7 +71,7 @@ public class Camp
         loose.quaternion.copy(group.quaternion);
         loose.scale.copy(group.scale);
         loose.add(embers.points);
-        LiveTree.Place(loose, World.Land);
+        Tracked.PlaceAll(loose, World.Land);
         Realise();
         NativeFrame.BeforeDraw += () =>
         {
@@ -109,7 +109,7 @@ public class Camp
         var live = Realizer.Realize(group, World.Land, World.Layer);
         root = live.root;
         stamp = group.treeVersion;
-        shape = LiveTree.Shape(group);
+        shape = Tracked.Shape(group);
         Took(live);
         foreach (var source in followed)
             foreach (var o in source())
@@ -169,7 +169,7 @@ public class Camp
         if (group.treeVersion != stamp)
         {
             stamp = group.treeVersion;
-            if (LiveTree.Shape(group) != shape) Realise();
+            if (Tracked.Shape(group) != shape) Realise();
         }
         if (!root.gameObject.activeSelf) root.gameObject.SetActive(true);
         if (root.parent != null && !root.parent.gameObject.activeInHierarchy) return;
