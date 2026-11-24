@@ -642,6 +642,15 @@ public class Game
 
     internal void smokeTestLowerCamera() => setBinocView(false);
 
+    /// <summary>For the -autoshot-perf tour: takes the binoculars and raises them (true), or lowers them (false).</summary>
+    internal void smokeTestBinoculars(bool on)
+    {
+        if (on) selectSlot(5);
+        setBinocView(on);
+        // lowered: the detector back in hand, as the tour began
+        if (!on) selectSlot(1);
+    }
+
     internal int smokeTestPhotoCount => state.photos.Count;
 
     /// <summary>For the -autoshot-photo test: stands a few steps from the dog, looking at it.</summary>

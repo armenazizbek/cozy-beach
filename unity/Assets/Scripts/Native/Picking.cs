@@ -61,6 +61,7 @@ public static class Picking
         root = null;
         drawnColliders.Clear();
         drawnOf.Clear();
+        drawnPose.Clear();
         if (drawnRoot != null) UnityEngine.Object.Destroy(drawnRoot.gameObject);
         drawnRoot = null;
     }
@@ -235,6 +236,8 @@ public static class Picking
     private static readonly Dictionary<Collider, MeshRenderer> drawnOf = new Dictionary<Collider, MeshRenderer>();
     private static readonly List<MeshRenderer> drawnScratch = new List<MeshRenderer>();
     private static readonly HashSet<MeshRenderer> drawnWanted = new HashSet<MeshRenderer>();
+    /// <summary>where each collider was last put, so one whose mesh has not moved is left alone (moving a mesh collider is costly)</summary>
+    private static readonly Dictionary<MeshRenderer, Matrix4x4> drawnPose = new Dictionary<MeshRenderer, Matrix4x4>();
     private static Transform drawnRoot;
 
     /// <summary>
@@ -246,6 +249,10 @@ public static class Picking
     {
         var world = World.Root;
         if (world == null) return null;
+        var origin = world.TransformPoint(originGame);
+        var dir = world.TransformVector(dirGame).normalized; // TransformVector: the root mirrors z through its scale, which TransformDirection ignores
+        var ray = new Ray(origin, dir);
+        bool moved = false;
         drawnWanted.Clear();
         foreach (var r in roots)
         {
@@ -254,6 +261,9 @@ public static class Picking
             foreach (var mr in drawnScratch)
             {
                 if (!mr.enabled) continue;
+                // only what the ray passes through its box can be hit: everything else needs no collider work at all (the
+                // binoculars ask every few frames, and moving every shown mesh's collider each time made the view stutter)
+                if (!mr.bounds.IntersectRay(ray, out float boxAt) || boxAt > far) continue;
                 var mf = mr.GetComponent<MeshFilter>();
                 var mesh = mf != null ? mf.sharedMesh : null;
                 if (mesh == null || mesh.GetTopology(0) != MeshTopology.Triangles) continue;
@@ -269,22 +279,30 @@ public static class Picking
                     drawnColliders[mr] = col;
                     drawnOf[col] = mr;
                 }
-                else if (col.sharedMesh != mesh) col.sharedMesh = mesh;
-                // posed as the renderer is now
+                else if (col.sharedMesh != mesh)
+                {
+                    col.sharedMesh = mesh;
+                    drawnPose.Remove(mr);
+                }
+                // posed as the renderer is now, when it has moved since
                 var src = mr.transform;
-                col.transform.SetPositionAndRotation(src.position, src.rotation);
-                col.transform.localScale = src.lossyScale;
+                var pose = src.localToWorldMatrix;
+                if (!drawnPose.TryGetValue(mr, out var was) || was != pose)
+                {
+                    col.transform.SetPositionAndRotation(src.position, src.rotation);
+                    col.transform.localScale = src.lossyScale;
+                    drawnPose[mr] = pose;
+                    moved = true;
+                }
                 drawnWanted.Add(mr);
             }
         }
         // colliders that were just moved count for the ray only once physics has taken them in
-        Physics.SyncTransforms();
-        var origin = world.TransformPoint(originGame);
-        var dir = world.TransformVector(dirGame).normalized; // TransformVector: the root mirrors z through its scale, which TransformDirection ignores
+        if (moved) Physics.SyncTransforms();
         // many of the game's surfaces are drawn from both sides (Three's DoubleSide), so the ray takes back faces too
         bool backs = Physics.queriesHitBackfaces;
         Physics.queriesHitBackfaces = true;
-        int n = Physics.RaycastNonAlloc(new Ray(origin, dir), buf, (float)far, 1 << Layer, QueryTriggerInteraction.Collide);
+        int n = Physics.RaycastNonAlloc(ray, buf, (float)far, 1 << Layer, QueryTriggerInteraction.Collide);
         Physics.queriesHitBackfaces = backs;
         double best = double.PositiveInfinity;
         for (int i = 0; i < n; i++)

@@ -519,6 +519,13 @@ public class AutoShot : MonoBehaviour
             game.input.held.Add("ShiftLeft");
             yield return Measure("perf: beach, running");
             game.input.held.Clear();
+            // looking along the beach through the binoculars: just raised (the range finder's first look), then held
+            game.smokeTestLook(Math.PI / 2, -0.05);
+            game.smokeTestBinoculars(true);
+            yield return Measure("perf: binoculars, just raised");
+            yield return Wait(2);
+            yield return Measure("perf: binoculars, held");
+            game.smokeTestBinoculars(false);
             // rain at the camp
             game.smokeTestDogRain("rain");
             yield return Wait(12);

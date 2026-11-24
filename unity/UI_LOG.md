@@ -534,3 +534,14 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Follow-up: the beach line still showed at the map's two edges beyond the range's arms, where the rock faded out toward
   the shore. It now stays full to 35 metres past the shore and fades out by 60 (the arms reach about 65 into the sea), so
   the rock meets the sea at both edges.
+
+## Binoculars: the range finder no longer stutters the view (2026-11-24)
+
+- `Picking.NearestDrawn` (the binoculars' distance, every 6th frame) moved a collider onto every shown mesh under the land,
+  camp and islands each time, scale included (which makes Unity re-take a mesh collider), and resynced physics. Now a
+  mesh whose bounding box the ray misses gets no collider work, a collider is moved only when its mesh moved, and physics
+  is resynced only then.
+- The perf tour has two new places: `binoculars, just raised` and `binoculars, held`. IL2CPP, 3 rounds, before vs after:
+  just raised fps 814 -> 1021 (+25%), game time 0.64 -> 0.43 ms, 90th percentile frame 2.04 -> 1.40 ms; held fps 917 ->
+  1085 (+18%), game time 0.53 -> 0.38 ms. Other places within the run-to-run spread; no regressions over the limits.
+- The self-check's drawn range (400 aimed rays) reads the same: 0 different, 9 of 9 ok.
