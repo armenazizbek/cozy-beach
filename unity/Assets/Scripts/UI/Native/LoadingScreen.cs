@@ -15,19 +15,19 @@ public static class LoadingScreen
     /// <summary>Makes the screen (once per page) and returns its root, to hang in the page's body.</summary>
     public static VisualElement Build()
     {
-        root = UiX.El("t-div " + NATIVE, "boot");
+        root = Box("t-div " + NATIVE, "boot");
         root.pickingMode = PickingMode.Position;
 
-        var h1 = UiX.El("t-h1 game-title");
+        var h1 = Box("t-h1 game-title");
         // an h1 is drawn in the heading face, and .game-title puts it in the title face (the old page's HTMLElement.UseTitleFont)
         var h1Font = UiRoot.TitleFont ?? UiRoot.DisplayFont;
         if (h1Font != null) h1.style.unityFontDefinition = FontDefinition.FromSDFFont(h1Font);
         h1.Add(Line("Tidefinder"));
-        var p = UiX.El("t-p title-face");
+        var p = Box("t-p title-face");
         if (UiRoot.TitleFont != null) p.style.unityFontDefinition = FontDefinition.FromSDFFont(UiRoot.TitleFont);
         p.Add(Line("Getting the beach ready…"));
-        var track = UiX.El("t-div", "boot-track");
-        bar = UiX.El("t-div", "boot-bar");
+        var track = Box("t-div", "boot-track");
+        bar = Box("t-div", "boot-bar");
         track.Add(bar);
         foreach (var ve in new[] { h1, p, track, bar }) ve.pickingMode = PickingMode.Position;
         root.Add(h1);
@@ -69,5 +69,15 @@ public static class LoadingScreen
         GameTimers.After(700, () => r.RemoveFromHierarchy());
         root = null;
         bar = null;
+    }
+
+    /// <summary>A plain element with classes ("a b c") and an optional name: the loading screen is up before the UI's nodes are.</summary>
+    private static VisualElement Box(string classes = null, string name = null)
+    {
+        var ve = new VisualElement();
+        if (!string.IsNullOrEmpty(name)) ve.name = name;
+        if (!string.IsNullOrEmpty(classes))
+            foreach (var c in classes.Split(' ', System.StringSplitOptions.RemoveEmptyEntries)) ve.AddToClassList(c);
+        return ve;
     }
 }

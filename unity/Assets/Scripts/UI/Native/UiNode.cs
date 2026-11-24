@@ -385,7 +385,7 @@ public class UiNode : VisualElement
     public void Svg(string markup)
     {
         Clear();
-        var tex = SvgRasterizer.Rasterize(markup, FontSize(), out float w, out float h);
+        var tex = SvgIcon.Get(markup, FontSize(), out float w, out float h);
         var svg = new UiNode("svg");
         if (tex != null)
         {

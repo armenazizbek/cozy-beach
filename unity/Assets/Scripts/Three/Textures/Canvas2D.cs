@@ -124,7 +124,7 @@ public class TexturePainter
     internal bool HasContext => ctx != null;
 
     /// <summary>Straight (not premultiplied) RGBA32 with the first row at the bottom, ready for Texture2D.SetPixelData.</summary>
-    internal byte[] ToUnityRGBA(bool flipY)
+    public byte[] ToUnityRGBA(bool flipY)
     {
         var o = new byte[_w * _h * 4];
         CopyUnityRGBA(flipY, o);

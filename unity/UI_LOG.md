@@ -451,3 +451,12 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   `Ux.Adopt` through `El.Adopted`, so a screen's elements are the nodes themselves, not copies adopted into wrappers.
 - Quick check against `refB` (base, ui, tour, settings, saves, pad, layout, mouse, keyboard, shop): all clean, logs and
   shots pass (one shot flagged with 0.03% changed on the camp tab's outline, as before), mouse and keyboard 0 failed.
+
+## U10 step 2: the SVG rasteriser leaves the game; UiX goes
+
+- `SvgRasterizer` moved to `Assets/Editor` (only `IconBaker` uses it now). At run time `UiNode.Svg` asks the new
+  `SvgIcon.Get`, which only works out the drawing's display size and returns the baked picture from `IconAtlas`
+  (warning once for a drawing that was not baked). `TexturePainter.ToUnityRGBA` is public so the editor can reach it.
+- `UiX` deleted: its last user, `LoadingScreen`, builds its boxes with a small helper of its own.
+- Quick check against `refB` (base, newgame, ui, shop, gear, pad): logs pass, every scene dump pairs exactly
+  (dumpdiff2: 0 differing), shots pass except the animated loading screen (review-only) and the known camp-tab outline.
