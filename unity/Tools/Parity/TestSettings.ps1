@@ -57,3 +57,39 @@ function Use-TestSettings {
     Set-ItemProperty -Path $script:SettingsPath -Name $script:SettingsValue -Type Binary -Value $bytes
     Write-Host "Test settings in place (silent, VSync on, windowed); the player's are backed up."
 }
+
+# ---- keeping test windows out of the way ----
+# A test run needs a real window (the pictures come from the GPU), but it need not be in front: each game window is sent
+# behind every other window, on the same monitor (so the display it reports, and the reference, stay the same), and the
+# window that was in front gets the focus back.
+if (-not ("TestWindow" -as [type])) {
+    Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class TestWindow {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+    public static readonly IntPtr Bottom = new IntPtr(1);
+    // SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE
+    public const uint Flags = 0x0001 | 0x0002 | 0x0010;
+}
+"@
+}
+
+function Get-FrontWindow { [TestWindow]::GetForegroundWindow() }
+
+# Waits (up to 20 s) for the process's window, sends it to the back and gives the focus back to $front.
+function Hide-GameWindow([System.Diagnostics.Process]$p, [IntPtr]$front) {
+    $deadline = (Get-Date).AddSeconds(20)
+    while ((Get-Date) -lt $deadline -and -not $p.HasExited) {
+        $p.Refresh()
+        if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+            [void][TestWindow]::SetWindowPos($p.MainWindowHandle, [TestWindow]::Bottom, 0, 0, 0, 0, [TestWindow]::Flags)
+            if ($front -ne [IntPtr]::Zero -and [TestWindow]::IsWindow($front)) { [void][TestWindow]::SetForegroundWindow($front) }
+            return
+        }
+        Start-Sleep -Milliseconds 50
+    }
+}

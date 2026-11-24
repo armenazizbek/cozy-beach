@@ -6,7 +6,9 @@ Runs smoke-test suites against one build, for picture-by-picture comparison (uni
 
 Each run is its own launch: -autoshot <Out>\<run> -autoshot-seed <Seed> -autoshot-fixedstep -autoshot-scenedump, a 1280x720
 window (1280x800 and -force-deck with -Deck), its own flags from suites.json, and its log in <Out>\<run>\Player.log.
-Keep the mouse off the game window while it runs: the pointer can light up whatever it rests on.
+Each game window opens behind your other windows and the focus goes back to where it was (-Front keeps it in front);
+the runs' own mouse and keyboard work without focus. Keep the mouse off the game window if you bring it forward: the
+pointer can light up whatever it rests on.
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Exe,
@@ -15,6 +17,8 @@ param(
     [int]$Seed = 1,
     [switch]$Deck,
     [switch]$NoDump,
+    # leave the game windows in front instead of behind the other windows
+    [switch]$Front,
     [int]$TimeoutMinutes = 8,
     [string[]]$Only,
     # extra flags for every run, e.g. -Extra "-spike-mirror" (space-separated)
@@ -63,7 +67,9 @@ foreach ($name in $runs.Keys) {
     $quoted = $argv | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }
     $t0 = Get-Date
     Write-Host ("[{0}] {1} {2}" -f $t0.ToString("HH:mm:ss"), $name, ($runs[$name] -join " "))
+    $focusWas = Get-FrontWindow
     $p = Start-Process -FilePath $exePath -ArgumentList $quoted -PassThru
+    if (-not $Front) { Hide-GameWindow $p $focusWas }
     if (-not $p.WaitForExit($TimeoutMinutes * 60 * 1000)) {
         Stop-Process -Id $p.Id -Force
         $code = "timeout"
