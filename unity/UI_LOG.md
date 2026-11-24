@@ -343,3 +343,10 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - `Ocean` is realised once; at draw time the surface grid is moved under the viewer and shown or hidden, the foam band
   likewise, both materials pushed (the clocks, the foam's values) and the sea-bed depth channel rewritten when it changed.
   Quick check against `refB` (base, pier, island, dive): logs pass, dumps within 0.00001 m.
+
+## B1: the sky without the whole-tree copy (2026-11-24)
+
+- `Sky` is realised once under the world root; at draw time (in `Shine`, before the sun and the hemisphere light) the
+  heavens, dome, stars, sun and moon discs and each cloud are shown or hidden and posed, and every sky material pushed
+  (the dome's colours, the stars' fading, the clouds' tint). Quick check against `refB` (base, lighthouse, rain, opening,
+  dive): logs pass, dumps within 0.00001 m.

@@ -202,13 +202,36 @@ public class Sky
     /// native directional light outside the root and the scene's RenderSettings.sun; the hemisphere light goes to the scene's
     /// Atmosphere. The fog stays the scene's setting.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
     private UnityEngine.Light sunLight;
+    /// <summary>what moves or switches: the heavens (round the viewer), the dome, stars, sun and moon, each cloud</summary>
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> moving = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
 
     /// <summary>Puts the sky into the world as native objects and lights.</summary>
     public void Place(THREE.Scene scene)
     {
-        live = new LiveTree(group, World.Root);
+        // realised once (unity/UI_PLAN.md B1); at draw time only what moves or switches is posed and the colours pushed
+        live = Realizer.Realize(group, World.Root, World.Layer);
+        var parts = new List<THREE.Object3D> { group, heavens, dome, stars, glow, core, moonGlow, moonCore };
+        foreach (var c in clouds) parts.Add(c.group);
+        foreach (var o in parts)
+        {
+            var t = o != null ? live[o] : null;
+            if (t != null) moving.Add((o, t));
+        }
+        foreach (var kv in live.map)
+        {
+            THREE.Material m = null;
+            var on = MaterialKit.On.Mesh;
+            switch (kv.Key)
+            {
+                case THREE.Mesh mesh: m = mesh.material; break;
+                case THREE.Points pts: m = pts.material; on = MaterialKit.On.Points; break;
+                case THREE.Sprite sp: m = sp.material; on = MaterialKit.On.Sprite; break;
+            }
+            if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+        }
         sunLight = Lights.Make(UnityEngine.LightType.Directional, null, "Sun");
         var at = Atmosphere.Of(scene);
         at.sun = sunLight;
@@ -227,7 +250,12 @@ public class Sky
     /// <summary>The sky's objects, sun and hemisphere light as the description has them now (at draw time).</summary>
     private void Shine(Atmosphere at)
     {
-        live.Sync();
+        foreach (var (o, t) in moving)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
         group.updateMatrixWorld(true);
         // the sun: from its position toward its target, as the bridge aimed it
         bool sunOn = Shown(sun);
