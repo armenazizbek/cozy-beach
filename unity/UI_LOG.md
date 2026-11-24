@@ -531,3 +531,6 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   behind the range: land no one can reach. The range now carries on to the map's edge there (MapView: past 250 metres
   out, behind the shore, the relief rises, faded in over 30 metres so it has no edge of its own). The sea, the islands and
   the beach inside the range are unchanged; nothing changes in the world itself.
+- Follow-up: the beach line still showed at the map's two edges beyond the range's arms, where the rock faded out toward
+  the shore. It now stays full to 35 metres past the shore and fades out by 60 (the arms reach about 65 into the sea), so
+  the rock meets the sea at both edges.
