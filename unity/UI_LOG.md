@@ -302,3 +302,15 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   comparison is gone for it. Its state stays in its descriptions for now, which the aim and the binoculars' self-check use.
 - Quick check against `refB` (ui, pier, dolphins, sealife, fish, selfcheck): logs pass, selfcheck 9 of 9, dumps within
   0.00001 m, one sea shot flagged with 0% of pixels changed.
+
+## B1: the camp without the whole-tree copy (2026-11-24)
+
+- `Camp` is realised once; at draw time only what changes is brought in line, each by name: the fire and tiki flames,
+  the mail flag, the hammock and the radio's aerial (posed); the fire's, lantern's and camper's lights (strength, reach,
+  shadows); what switches on and off (rug, string lights, sign, the extras, the drink on the stump, pinned photos, the
+  lights near or far); and the materials (glows, the sign's text, the photos). What is added after it is placed (the
+  aquarium, the skull, trophies) is realised under its parent's GameObject then (`Attach`). Parts welded into merged
+  meshes have no GameObject of their own and are skipped. No LiveTree.
+- Quick check against `refB` (base, ui, tour, shop, photo, rain, house, selfcheck): logs pass, selfcheck 9 of 9, dumps
+  within 0.00001 m; two shots differ in 0.02 to 0.03% of pixels, both on the camp panel's highlighted tab outline (UI,
+  not the camp's objects); to watch in the final pass.

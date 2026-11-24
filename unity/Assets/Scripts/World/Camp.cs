@@ -45,15 +45,22 @@ public class Camp
     public readonly THREE.Group group = new THREE.Group();
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S15: the camp (camper, fire, shop, boards, lanterns, the aquarium and every prop placed in
-    /// it) is a LiveTree under World.Land, kept in line with the description at draw time: lantern light and flicker, the radio,
-    /// windows, boards redrawn, props added. The descriptions stay up to date for the clickables' raycasts. The fire's embers
-    /// stay a particle pool the scene draws until S24, in a group standing where the camp stands (they are emitted in its frame).
+    /// The camp (camper, fire, shop, boards, lanterns, the aquarium and every prop placed in it), realised once under
+    /// World.Land. At draw time only what changes is brought in line (unity/UI_PLAN.md B1), each by name: the flames, the mail
+    /// flag, the hammock and the radio's aerial (posed), the fire's, lantern's and camper's lights, what switches on and off
+    /// (decorations, the drink on the stump, pinned photos, the lights near or far), and the materials' glow, sign and photos.
+    /// What is added later (the aquarium, the skull, trophies) is realised under its parent when it comes. No whole-tree copy.
+    /// The descriptions stay up to date for the clickables' raycasts. The fire's embers stay a particle pool.
     /// </summary>
-    private LiveTree live;
+    private readonly Dictionary<THREE.Object3D, UnityEngine.Transform> made = new Dictionary<THREE.Object3D, UnityEngine.Transform>();
+    private UnityEngine.Transform root;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> posed = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> switched = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.PointLight l, UnityEngine.Light u)> lit = new List<(THREE.PointLight, UnityEngine.Light)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
 
-    /// <summary>The camp's GameObjects under the world root, once placed and drawn.</summary>
-    public UnityEngine.Transform Root => live?.Live?.root;
+    /// <summary>The camp's GameObjects under the world root, once placed.</summary>
+    public UnityEngine.Transform Root => root;
     private readonly THREE.Group loose = new THREE.Group();
 
     /// <summary>Puts the camp into the world as native objects.</summary>
@@ -65,12 +72,85 @@ public class Camp
         loose.scale.copy(group.scale);
         loose.add(embers.points);
         LiveTree.Place(loose, World.Land);
-        live = new LiveTree(group, World.Land);
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        root = live.root;
+        Took(live);
+        // what moves each frame
+        foreach (var f in flames) posed.Add((f, Got(f)));
+        foreach (var f in tikiFlames) posed.Add((f, Got(f)));
+        foreach (var o in new THREE.Object3D[] { mailFlag, hammockCloth, radioAntenna, fireLight }) posed.Add((o, Got(o)));
+        // what switches on and off
+        foreach (var o in new THREE.Object3D[] { rugGroup, lightsGroup, signGroup, fireLight, lanternLight, camperLight })
+            switched.Add((o, Got(o)));
+        foreach (var kv in extras) switched.Add((kv.Value.group, Got(kv.Value.group)));
+        foreach (var g in gearModels) switched.Add((g, Got(g)));
+        foreach (var (slot, _) in photoSlots) switched.Add((slot, Got(slot)));
+        foreach (var l in new[] { fireLight, lanternLight, camperLight })
+        {
+            var u = Got(l)?.GetComponent<UnityEngine.Light>();
+            if (u != null) lit.Add((l, u));
+        }
         NativeFrame.BeforeDraw += () =>
         {
-            live.Sync();
+            Sync();
             loose.visible = group.visible && World.Land.gameObject.activeSelf;
         };
+    }
+
+    /// <summary>Takes in the GameObjects made for some of the camp: their descriptions, and the materials to keep pushing.</summary>
+    private void Took(Realized live)
+    {
+        foreach (var kv in live.map)
+        {
+            made[kv.Key] = kv.Value;
+            switch (kv.Key)
+            {
+                case THREE.Mesh m: AddMat(m.material, MaterialKit.On.Mesh); break;
+                case THREE.Points p: AddMat(p.material, MaterialKit.On.Points); break;
+                case THREE.Sprite sp: AddMat(sp.material, MaterialKit.On.Sprite); break;
+            }
+        }
+    }
+
+    /// <summary>The GameObject made for a description, or null (a part welded into a merged mesh has none of its own).</summary>
+    private UnityEngine.Transform Got(THREE.Object3D o) => o != null && made.TryGetValue(o, out var t) ? t : null;
+
+    private void AddMat(THREE.Material m, MaterialKit.On on)
+    {
+        if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+    }
+
+    /// <summary>Realises something added to the camp after it was placed, under its parent's GameObject.</summary>
+    private void Attach(THREE.Object3D o)
+    {
+        if (root == null || o.parent == null || !made.TryGetValue(o.parent, out var parentT)) return;
+        Took(Realizer.Realize(o, parentT, World.Layer));
+    }
+
+    /// <summary>Brings what changes in line with the camp, before the frame is drawn.</summary>
+    private void Sync()
+    {
+        if (root == null) return;
+        if (!group.visible)
+        {
+            if (root.gameObject.activeSelf) root.gameObject.SetActive(false);
+            return;
+        }
+        if (!root.gameObject.activeSelf) root.gameObject.SetActive(true);
+        if (root.parent != null && !root.parent.gameObject.activeInHierarchy) return;
+        foreach (var (o, t) in switched)
+            if (t != null && t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+        foreach (var (o, t) in posed)
+            if (t != null && o.visible) Realizer.Pose(o, t);
+        foreach (var (l, u) in lit)
+        {
+            if (!l.visible) continue;
+            Lights.Set(u, new UnityEngine.Color((float)l.color.r, (float)l.color.g, (float)l.color.b), (float)l.intensity, u.gameObject.layer);
+            float range = l.distance > 0 ? (float)l.distance : 1000f;
+            if (u.range != range) u.range = range;
+            Lights.Shadows(u, l.castShadow);
+        }
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
     }
     public readonly List<THREE.Object3D> clickables = new List<THREE.Object3D>();
     /// <summary>circular footprints in world space, for player collision</summary>
@@ -175,6 +255,7 @@ public class Camp
     {
         mark(obj, kind, hitRadius, 1.1);
         group.add(obj);
+        Attach(obj);
         obstacles.Add(new Solid { x = x, z = CAMP_Z + z, r = solidRadius });
     }
 
@@ -698,6 +779,7 @@ public class Camp
         g.position.set(x, 0, z);
         g.rotation.y = rot;
         group.add(g);
+        Attach(g);
         foreach (var s in new[] { -0.85, 0.85 })
             obstacles.Add(new Solid { x = x + Math.Sin(rot) * s, z = CAMP_Z + z + Math.Cos(rot) * s, r = 1.25 });
         skull = g;
@@ -1385,6 +1467,7 @@ public class Camp
         }
         trophies[setId] = t;
         shelf.add(t);
+        Attach(t);
     }
 
     public void update(double dt, double boost, bool lanternOn, double night = 0)
