@@ -282,3 +282,14 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   two ways the old range differed from what is drawn: it measured to the invisible hit spheres round the sharks and fish
   (made for the aim) and to parts inside hidden groups. The range now reads what is drawn; the check compares drawn
   parts only: 9 of 9, 0 of 400 rays differ.
+
+## Milestone pass (2026-11-24, at a1b3169)
+
+- Full pass against `refB`: all 39 runs exit cleanly, selfcheck 9 of 9, mouse and keyboard 0 failed; no FAIL; 38 logs
+  pass; the 38 flagged shots are all loading screens; 150 dumps flagged, all by 0.00001 m at most in some bounds (and the
+  millimetre-rounded vertex hashes with them), from rotations now worked out by `GameSpace.Euler`.
+- The golf cart is left as it is: it already poses its moving parts straight from its description with `Realizer.Pose`
+  each frame (no generic copy), and a test reads its height there.
+- Still copied every frame: the sea creatures and the camp (LiveTree, with lights, redrawn boards, shader values and the
+  fish schools' mesh data), the underwater world, the cleaning bench, the tools in hand, and the dug-up items (picked by
+  their descriptions).
