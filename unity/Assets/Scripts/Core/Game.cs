@@ -766,6 +766,25 @@ public class Game
         player.pitch = -0.2;
     }
 
+    /// <summary>
+    /// For the -autoshot-fish test: stands `dist` from the aquarium, `side` radians round from straight in front, looking at
+    /// the middle of the tank with nothing in hand (null: hands back and the view as it was).
+    /// </summary>
+    internal void smokeTestAquariumClose(double? dist, double side = 0)
+    {
+        if (dist == null)
+        {
+            view.group.visible = true;
+            return;
+        }
+        double a = Aquarium.AT.rot + side;
+        player.x = Aquarium.AT.x + Math.Sin(a) * dist.Value;
+        player.z = CAMP_Z + Aquarium.AT.z + Math.Cos(a) * dist.Value;
+        player.yaw = a;
+        player.pitch = -Math.Atan2(0.45, dist.Value);
+        view.group.visible = false;
+    }
+
     /// <summary>For the -autoshot-fish test: where the one golden fish is, and whether a net held a metre from it would take it.</summary>
     internal string smokeTestGold()
     {

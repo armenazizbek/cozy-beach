@@ -1554,6 +1554,16 @@ public class AutoShot : MonoBehaviour
             game.smokeTestAquarium(true);
             yield return Wait(3);
             yield return Shot("7-aquarium-full.png");
+            // close up, with nothing in hand: straight on and from a corner
+            game.smokeTestAquariumClose(1.45);
+            yield return Wait(1);
+            yield return Shot("7-aquarium-close.png");
+            game.smokeTestAquariumClose(1.5, 0.6);
+            yield return Wait(1);
+            yield return Shot("7-aquarium-corner.png");
+            game.smokeTestAquariumClose(null);
+            game.smokeTestAquarium(true);
+            yield return Wait(0.5f);
             game.smokeTestOpen("camp:aquarium");
             yield return Wait(1.5f);
             yield return Shot("7-aquarium-page.png");

@@ -498,3 +498,14 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   (`dog rest`).
 - Check against `refB` (photo, opening, newgame, dograin, saves): every scene dump pairs exactly; logs differ only by the
   two new check lines.
+
+## The aquarium, redone
+
+- The tank (World/Aquarium.cs): a cabinet stand with two doors and brass knobs; slim black rims, a hood with a lamp strip;
+  real glass panes with green edges; a painted sea (deep blue to light) on the back and end walls, so the water reads as
+  water instead of milky white; a waterline at the front; sand that banks up toward the back, with pebbles; plants as
+  curved ribbons that narrow to the tip (tall at the back corners, small tufts in front) and moss balls; a rock pile in
+  the octopus's corner; a driftwood log; a branching pink coral and a round orange one; shells; a bubbler whose bubbles
+  rise and start again. The fish's lanes and the creatures' homes are unchanged.
+- The fish test takes two more pictures, close up with nothing in hand: `7-aquarium-close` and `7-aquarium-corner`.
+- Intended change: camp pictures and scene dumps that show the aquarium differ from `refB` from here on.
