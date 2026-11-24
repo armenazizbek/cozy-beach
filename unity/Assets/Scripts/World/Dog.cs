@@ -171,17 +171,35 @@ public class Dog
     public readonly THREE.Group group = new THREE.Group();
 
     /// <summary>
-    /// The dog's GameObjects (native since unity/NATIVE_PLAN.md S12): its whole tree (body, head, jaw, tongue, ears, the skinned
-    /// legs and tail and their bones) is kept in line with the description at draw time, and re-made when a part is added (the
-    /// Golden Bone).
+    /// The dog's GameObjects, realised once (body, head, jaw, tongue, ears, the skinned legs and tail and their bones). At draw
+    /// time only what moves is posed, by name: the dog itself, its body and head, the jaw, the tongue (shown or not), the ears
+    /// and every leg and tail bone (unity/UI_PLAN.md B1). The Golden Bone is realised in the jaw when it is bought.
     /// </summary>
-    private LiveTree live;
+    private Realized live;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> posed = new List<(THREE.Object3D, UnityEngine.Transform)>();
 
     /// <summary>Puts the dog into the world as native objects.</summary>
     public void Place()
     {
-        live = new LiveTree(group, World.Land);
-        NativeFrame.BeforeDraw += live.Sync;
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        var parts = new List<THREE.Object3D> { group, bodyPivot, headPivot, jaw, tongue };
+        parts.AddRange(ears);
+        foreach (var leg in front.Concat(hind)) parts.AddRange(new THREE.Object3D[] { leg.top, leg.knee, leg.paw });
+        parts.AddRange(tail);
+        foreach (var o in parts) if (live[o] != null) posed.Add((o, live[o]));
+        NativeFrame.BeforeDraw += Sync;
+    }
+
+    /// <summary>Poses what moves, before the frame is drawn (a part that is hidden is switched off and left as it was).</summary>
+    private void Sync()
+    {
+        if (live == null) return;
+        if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+        foreach (var (o, t) in posed)
+        {
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
     }
     /// <summary>'rest' | 'run' | 'find' | 'return' | 'shelter' (off to the old house out of the rain) | 'sheltered' (lying
     /// in it) | 'unshelter' (the rain is over: on the way back)</summary>
@@ -451,6 +469,8 @@ public class Dog
         }
         bone.position.set(0, 0.01, -0.13);
         jaw.add(bone);
+        // bought after the dog was placed: its GameObjects go into the jaw's now
+        if (live?[jaw] != null) Realizer.Realize(bone, live[jaw], World.Layer);
     }
 
     public bool away => state != "rest";

@@ -314,3 +314,9 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - Quick check against `refB` (base, ui, tour, shop, photo, rain, house, selfcheck): logs pass, selfcheck 9 of 9, dumps
   within 0.00001 m; two shots differ in 0.02 to 0.03% of pixels, both on the camp panel's highlighted tab outline (UI,
   not the camp's objects); to watch in the final pass.
+
+## B1: the dog poses only what moves (2026-11-24)
+
+- `Dog` is realised once; at draw time it poses itself, its body and head, jaw, tongue (shown or not), ears and every leg
+  and tail bone by name. The Golden Bone is realised in the jaw's GameObject when bought. No LiveTree. Quick check
+  against `refB` (base, dograin, house, tour): logs pass, dumps within 0.00001 m.
