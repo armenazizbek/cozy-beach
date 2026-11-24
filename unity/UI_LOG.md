@@ -439,3 +439,15 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   `bridgeKind` and `bridgeGen` are `nativeEntry`, `nativeKind` and `nativeGen`.
 - Quick check against `refB` (base, ui, saves, newgame, photo, crust, keyboard, selfcheck): all runs clean, logs pass,
   selfcheck 9 of 9, keyboard 0 failed, dumps paired within 0.00001 m.
+
+## U10, step 1: a UiNode is a VisualElement (2026-11-24)
+
+- `UiNode` derives from `VisualElement` instead of wrapping one: one object per element, not two. `ve` stays as a
+  property returning the element itself, so calls through it reach UI Toolkit's own members (`ve.Add`, `ve.Clear`,
+  `ve.Focus`) and the same calls on the node reach the node's (`Clear`, `Focus`, `Blur` and `Children` are marked `new`;
+  C# prefers a derived class's method that fits, so `node.Add(child)` stays the node's). The constructor's body is
+  `Init`.
+- UXML: `El` is a `UiNode` now; its `tag` and `text` attributes (`elTag`, `elText` in code) are applied by
+  `Ux.Adopt` through `El.Adopted`, so a screen's elements are the nodes themselves, not copies adopted into wrappers.
+- Quick check against `refB` (base, ui, tour, settings, saves, pad, layout, mouse, keyboard, shop): all clean, logs and
+  shots pass (one shot flagged with 0.03% changed on the camp tab's outline, as before), mouse and keyboard 0 failed.

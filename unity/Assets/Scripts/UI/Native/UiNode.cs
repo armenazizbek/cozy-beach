@@ -19,10 +19,15 @@ using UnityEngine.UIElements;
 /// <item>tooltips, and the page's animations and helper classes (UiAnim).</item>
 /// </list>
 /// </summary>
-public class UiNode
+public class UiNode : VisualElement
 {
-    public readonly VisualElement ve;
-    public readonly string tag;
+    /// <summary>
+    /// The element itself (unity/UI_PLAN.md U10: a UiNode is a VisualElement now, not a wrapper holding one). Code that
+    /// reaches for UI Toolkit's own members goes through it, so `ve.Add`, `ve.Clear` and `ve.Focus` are UI Toolkit's, and
+    /// the same calls on the node are the node's (they keep its children, scroll box and highlight in order).
+    /// </summary>
+    public VisualElement ve => this;
+    public string tag { get; private set; }
     public UiNode Parent { get; private set; }
     private readonly List<UiNode> kids = new List<UiNode>();
     private Label label;
@@ -99,16 +104,18 @@ public class UiNode
         foreach (var e in all) e.v.BringToFront();
     }
 
-    public UiNode(string tag = "div", string classes = null, string text = null) : this(new VisualElement(), tag, classes, text) { }
+    public UiNode(string tag = "div", string classes = null, string text = null) => Init(tag, classes, text);
+
+    /// <summary>For an element made by UXML (an <see cref="El"/>): it calls <see cref="Init"/> once its attributes are set.</summary>
+    protected UiNode(bool fromUxml) { }
 
     /// <summary>
-    /// Gives an element made by UXML (an <see cref="El"/>) the same behaviour a built element has (UI/Native/Ux.cs adopts
-    /// whole trees): the structure comes from the screen's UXML, the look and behaviour stay what the harness checked.
+    /// Gives the element its tag, classes, text and behaviour. A built element does this when it is made; one made by UXML
+    /// once the screen's attributes are on it (UI/Native/Ux.cs adopts whole trees), so both behave alike.
     /// </summary>
-    internal UiNode(VisualElement existing, string tag, string classes, string text)
+    protected void Init(string tag, string classes, string text)
     {
         this.tag = string.IsNullOrEmpty(tag) ? "div" : tag.ToLowerInvariant();
-        ve = existing;
         // the element a VisualElement stands for (the menu navigation finds native elements by it, NavEl.Of)
         ve.userData = this;
         ve.AddToClassList("t-" + this.tag);
@@ -399,7 +406,7 @@ public class UiNode
     }
 
     /// <summary>Takes every child away and the words too (replaceChildren()).</summary>
-    public void Clear()
+    public new void Clear()
     {
         foreach (var k in kids)
         {
@@ -425,7 +432,7 @@ public class UiNode
         ve.RemoveFromHierarchy();
     }
 
-    public IReadOnlyList<UiNode> Children => kids;
+    public new IReadOnlyList<UiNode> Children => kids;
 
     /// <summary>Links a child made by UXML (already in place under this element) into the tree, without moving it.</summary>
     internal void AdoptChild(UiNode n)
@@ -542,7 +549,7 @@ public class UiNode
     public Action<int> OnStep;
 
     /// <summary>Takes the menu highlight (as a page element's focus()).</summary>
-    public virtual void Focus()
+    public new virtual void Focus()
     {
         if (!ve.enabledSelf) return;
         MenuNav.FocusNative(this);
@@ -557,7 +564,7 @@ public class UiNode
     }
 
     /// <summary>Lets go of the highlight (as a page element's blur()).</summary>
-    public void Blur()
+    public new void Blur()
     {
         if (MenuNav.Current.node == this) MenuNav.ForgetNative();
         ve.Blur();

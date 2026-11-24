@@ -10,10 +10,15 @@ using UnityEngine.UIElements;
 /// every element behaves as the ones built in code (UiNode) do.
 /// </summary>
 [UxmlElement]
-public partial class El : VisualElement
+public partial class El : UiNode
 {
-    [UxmlAttribute] public string tag { get; set; } = "div";
-    [UxmlAttribute] public string text { get; set; }
+    /// <summary>the UXML's `tag` and `text` attributes (the node's own tag and words are set from them by <see cref="Adopt"/>)</summary>
+    [UxmlAttribute("tag")] public string elTag { get; set; } = "div";
+    [UxmlAttribute("text")] public string elText { get; set; }
+
+    public El() : base(true) { }
+
+    internal void Adopted() => Init(elTag, null, elText);
 }
 
 /// <summary>
@@ -80,12 +85,13 @@ public static class Ux
     {
         if (!(v is El el)) throw new InvalidOperationException($"UXML element {v.GetType().Name} '{v.name}' is not an El");
         // the children first, as they are: adopting the parent may move them into a scroll box
-        var children = el.Children().ToList();
-        var node = new UiNode(el, el.tag, null, el.text);
+        var children = ((VisualElement)el).Children().ToList();
+        // the element is a UiNode already: it only takes on its tag, words and behaviour, and its children are kept
+        el.Adopted();
         foreach (var c in children)
         {
-            if (c is El) node.AdoptChild(Adopt(c));
+            if (c is El) el.AdoptChild(Adopt(c));
         }
-        return node;
+        return el;
     }
 }
