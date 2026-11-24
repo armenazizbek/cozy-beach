@@ -254,3 +254,9 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   comparison too.
 - Quick check against `refB` (base, ui, gear, selfcheck, dograin): logs and shots pass, selfcheck 9 of 9; 2 to 4
   renderers per dump differ by 0.00001 m in their bounds (vertex hashes rounded to a millimetre flip with them).
+
+## B1: the sea chests keep their state in numbers (2026-11-24)
+
+- `SeaTreasure`: each chest's bob, roll and flag swing are fields on the Chest, and `Pose` sets its GameObjects; a taken
+  chest is hidden. No per-frame copy. Quick check against `refB` (islands, ships, saves, selfcheck): logs and shots
+  pass, selfcheck 9 of 9, dumps differ only by 0.00001 m in some bounds.

@@ -6,9 +6,15 @@ using System.Linq;
 
 public class Chest
 {
+    /// <summary>the chest as built (a description), realised once; its GameObjects are posed from the numbers below</summary>
     public THREE.Group group;
+    public UnityEngine.Transform groupT, flagT;
+    /// <summary>how it bobs and rolls, how its flag swings (unity/UI_PLAN.md B1)</summary>
+    public double y, rx, ry, rz, flagRy;
     public double x, z;
     public bool taken;
+    /// <summary>false until it has bobbed once: before that its GameObjects keep the pose they were built with</summary>
+    public bool floated;
     public double phase;
 }
 
@@ -22,10 +28,10 @@ public class SeaTreasure
 
     /// <summary>The chests as built (a description); <see cref="Place"/> turns them into GameObjects.</summary>
     public readonly THREE.Group group = new THREE.Group();
-    /// <summary>The module's GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
-    private Realized live;
+    /// <summary>The chests' GameObjects under the world root, once placed; Pose moves them from the chests' numbers.</summary>
+    private UnityEngine.Transform root;
 
-    public UnityEngine.Transform Root => live?.root;
+    public UnityEngine.Transform Root => root;
     public readonly List<Chest> chests = new List<Chest>();
     private readonly ParticleSystem sparks = new ParticleSystem(120, 0.16, -0.3, true);
     private readonly THREE.Color gold = new THREE.Color(0xffd45a);
@@ -94,9 +100,26 @@ public class SeaTreasure
     {
         group.remove(sparks.points);
         LiveTree.Place(sparks.points, World.Land);
-        live = Realizer.Realize(group, World.Land, World.Layer);
-        foreach (var c in chests) live.Follow(c.group, c.group.getObjectByName("flag"));
-        live.Apply();
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        root = live.root;
+        foreach (var c in chests)
+        {
+            c.groupT = live[c.group];
+            c.flagT = live[c.group.getObjectByName("flag")];
+        }
+        foreach (var c in chests) Pose(c);
+    }
+
+    /// <summary>Sets a chest's GameObjects from its numbers; a chest that was taken is hidden and left where it was.</summary>
+    private static void Pose(Chest c)
+    {
+        if (c.groupT == null) return;
+        bool shown = !c.taken;
+        if (c.groupT.gameObject.activeSelf != shown) c.groupT.gameObject.SetActive(shown);
+        if (!shown || !c.floated) return;
+        c.groupT.localPosition = GameSpace.V(c.x, c.y, c.z);
+        c.groupT.localRotation = GameSpace.Euler(c.rx, c.ry, c.rz);
+        if (c.flagT != null) c.flagT.localRotation = GameSpace.Euler(0, c.flagRy, 0);
     }
 
     public void setTaken(List<bool> flags)
@@ -104,9 +127,8 @@ public class SeaTreasure
         for (int i = 0; i < chests.Count; i++)
         {
             chests[i].taken = flags != null && i < flags.Count && flags[i];
-            chests[i].group.visible = !chests[i].taken;
+            Pose(chests[i]);
         }
-        live?.Apply();
     }
 
     public List<bool> takenFlags() => chests.Select(c => c.taken).ToList();
@@ -118,7 +140,7 @@ public class SeaTreasure
     public Chest update(double dt, double t, double level, double? boatX, double? boatZ)
     {
         var got = Float(dt, t, level, boatX, boatZ);
-        live?.Apply();
+        foreach (var c in chests) Pose(c);
         return got;
     }
 
@@ -129,10 +151,12 @@ public class SeaTreasure
         foreach (var c in chests)
         {
             if (c.taken) continue;
-            c.group.position.set(c.x, level - 0.18 + Math.Sin(t * 1.4 + c.phase) * 0.07, c.z);
-            c.group.rotation.set(Math.Sin(t * 1.1 + c.phase) * 0.05, c.phase + Math.Sin(t * 0.25 + c.phase) * 0.3, Math.Cos(t * 0.9 + c.phase) * 0.06);
-            var flag = c.group.getObjectByName("flag");
-            if (flag != null) flag.rotation.y = Math.Sin(t * 3 + c.phase) * 0.25;
+            c.y = level - 0.18 + Math.Sin(t * 1.4 + c.phase) * 0.07;
+            c.rx = Math.Sin(t * 1.1 + c.phase) * 0.05;
+            c.ry = c.phase + Math.Sin(t * 0.25 + c.phase) * 0.3;
+            c.rz = Math.Cos(t * 0.9 + c.phase) * 0.06;
+            c.flagRy = Math.Sin(t * 3 + c.phase) * 0.25;
+            c.floated = true;
             if (sparkTimer <= 0)
             {
                 sparks.emit(
@@ -144,7 +168,6 @@ public class SeaTreasure
             if (boatX != null && JS.Hypot(boatX.Value - c.x, boatZ.Value - c.z) < 4)
             {
                 c.taken = true;
-                c.group.visible = false;
                 got = c;
             }
         }
