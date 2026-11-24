@@ -12,7 +12,7 @@ public static class NativeFrame
     internal static void Run()
     {
         // a new frame for the material cache (the bridge's scene copy used to start it; the main world no longer goes through it)
-        THREE.Render.MaterialCache.NextFrame();
+        NativeRender.MaterialCache.NextFrame();
         var all = BeforeDraw;
         if (all == null) return;
         // each hook timed under its own name (FrameStats: the perf runs list the slowest)
@@ -20,7 +20,7 @@ public static class NativeFrame
         {
             if (!names.TryGetValue(d, out var name))
                 names[d] = name = "draw:" + (d.Target is Tracked t ? "tree " + t.Name : d.Method.DeclaringType?.Name ?? "?");
-            using (THREE.Render.FrameStats.Time(name)) ((Action)d)();
+            using (NativeRender.FrameStats.Time(name)) ((Action)d)();
         }
     }
 

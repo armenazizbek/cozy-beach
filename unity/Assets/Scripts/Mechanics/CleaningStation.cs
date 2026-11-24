@@ -42,7 +42,7 @@ public class CleaningStation
     private readonly THREE.Group brushMesh;
     private double brushT = 0, time = 0, fadeAcc = 0;
 
-    public CleaningStation(THREE.WebGLRenderer renderer)
+    public CleaningStation(NativeRender.GameRenderer renderer)
     {
         // the bench is lit by Three's RoomEnvironment too; the shaders stand in for it (see NativeView.EnvironmentTuning)
         scene.environment = new THREE.Texture { name = "RoomEnvironment" };
@@ -107,7 +107,7 @@ public class CleaningStation
     }
 
     /// <summary>Readies the bench ahead of time (Unity compiles shaders on import, so this only builds a sample once).</summary>
-    public Task prepare(THREE.WebGLRenderer renderer, THREE.Object3D finds)
+    public Task prepare(NativeRender.GameRenderer renderer, THREE.Object3D finds)
     {
         var sample = LootGenerator.wrapWithCrust(LootGenerator.buildItem(Items.ITEM_DEFS[0].id), LootGenerator.newCrustCanvas());
         pivot.add(sample.root);

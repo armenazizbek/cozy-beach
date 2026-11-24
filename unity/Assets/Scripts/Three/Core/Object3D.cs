@@ -311,7 +311,7 @@ namespace THREE
         {
             matrix.compose(position, quaternion, scale);
             matrixWorldNeedsUpdate = true;
-            Render.FrameStats.composed++;
+            NativeRender.FrameStats.composed++;
             _cpx = position.x; _cpy = position.y; _cpz = position.z;
             _cqx = quaternion._x; _cqy = quaternion._y; _cqz = quaternion._z; _cqw = quaternion._w;
             _csx = scale.x; _csy = scale.y; _csz = scale.z;

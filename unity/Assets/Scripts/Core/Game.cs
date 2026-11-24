@@ -83,7 +83,7 @@ public class Game
     /// <summary>A new game asked for from the pause menu: the opening plays as soon as the world has loaded (finishStart).</summary>
     private bool openingAfterLoad;
 
-    public THREE.WebGLRenderer renderer;
+    public NativeRender.GameRenderer renderer;
     public readonly THREE.Scene scene = new THREE.Scene { name = "Main" };
     public readonly THREE.PerspectiveCamera camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
     public StateManager state;
@@ -290,11 +290,11 @@ public class Game
         grass = new Grass(beach);
         castles = new Sandcastles(beach);
 
-        renderer = new THREE.WebGLRenderer(new THREE.WebGLRendererParameters { canvas = canvas, antialias = true });
+        renderer = new NativeRender.GameRenderer(onScreen: true);
         renderer.setPixelRatio(pixelRatio(true));
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.ShadowMapType.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ToneMapping.ACESFilmicToneMapping;
+        renderer.shadowMap.type = NativeRender.ShadowMapType.PCFSoftShadowMap;
+        renderer.toneMapping = NativeRender.ToneMapping.ACESFilmicToneMapping;
 
         scene.environment = new THREE.Texture { name = "RoomEnvironment" };
         scene.environmentIntensity = 0.3;
@@ -599,7 +599,8 @@ public class Game
 
     private void finishStart()
     {
-        renderer.setAnimationLoop(() => frame());
+        // from now on the host runs the game's frame each Unity frame (GameHost.Update)
+        running = true;
         if (openingAfterLoad)
         {
             openingAfterLoad = false;
@@ -1460,7 +1461,6 @@ public class Game
             cellar.group.visible = p.cellar;
             cellar.setSide(p.cave);
             camp.setLightsNear(p.near);
-            renderer.compile(scene, camera);
             done(i + 1);
             yield return null;
         }
@@ -3821,7 +3821,7 @@ public class Game
         var st = settings;
         UiRoot.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
         audio.setVolumes(st.master, st.music, st.ambience);
-        THREE.Render.UrpSettings.SetQuality(st.quality);
+        NativeRender.UrpSettings.SetQuality(st.quality);
         ocean?.setReceiveShadow(st.quality != "handheld" && st.quality != "low");
         FramePacing.Apply(st.vsync, st.fpsLimit);
         renderer.setPixelRatio(pixelRatio(st.sharp) * st.renderScale);
@@ -6745,7 +6745,11 @@ public class Game
         };
     }
 
-    private void frame()
+    /// <summary>True once the game has started: the host runs its frame from then on.</summary>
+    internal bool running { get; private set; }
+
+    /// <summary>One frame of the game (GameHost.Update calls it, through the renderer's Tick).</summary>
+    internal void frame()
     {
         if (arrowHooks == null) makeFrameHooks();
         // losing the mouse pauses the game (Esc, Alt-Tab), but not when it was let go because the player picked up a controller
@@ -6790,11 +6794,11 @@ public class Game
         double t = time;
         input.tick(dt);
 
-        using (THREE.Render.FrameStats.Time("dayNight")) updateDayNight(dt);
-        using (THREE.Render.FrameStats.Time("sky")) sky.update(dt, camera.position.x, camera.position.z);
+        using (NativeRender.FrameStats.Time("dayNight")) updateDayNight(dt);
+        using (NativeRender.FrameStats.Time("sky")) sky.update(dt, camera.position.x, camera.position.z);
         if (underground)
         {
-            using (THREE.Render.FrameStats.Time("ocean")) ocean.update(t, camera.position.x, camera.position.z);
+            using (NativeRender.FrameStats.Time("ocean")) ocean.update(t, camera.position.x, camera.position.z);
             cellar.update(t, dt);
         }
         else if (diving)
@@ -6807,8 +6811,8 @@ public class Game
         }
         else
         {
-            using (THREE.Render.FrameStats.Time("ocean")) ocean.update(t, camera.position.x, camera.position.z);
-            using (THREE.Render.FrameStats.Time("beach")) beach.updateDetail(camera.position.x, camera.position.z);
+            using (NativeRender.FrameStats.Time("ocean")) ocean.update(t, camera.position.x, camera.position.z);
+            using (NativeRender.FrameStats.Time("beach")) beach.updateDetail(camera.position.x, camera.position.z);
             // past the reach of the camp's lights (with a little give so they do not flicker at the edge)
             double fromCamp = JS.Hypot(camera.position.x, camera.position.z - CAMP_Z);
             if ((fromCamp > (campLightsNear ? 34 : 30)) == campLightsNear)
@@ -6816,16 +6820,16 @@ public class Game
                 campLightsNear = !campLightsNear;
                 camp.setLightsNear(campLightsNear);
             }
-            using (THREE.Render.FrameStats.Time("camp")) camp.update(dt, sky.fireBoost, lanternOn, sky.starAmount);
+            using (NativeRender.FrameStats.Time("camp")) camp.update(dt, sky.fireBoost, lanternOn, sky.starAmount);
             if (JS.Hypot(player.x - Aquarium.AT.x, player.z - CAMP_Z - Aquarium.AT.z) < 28) aquarium.update(dt, time);
-            using (THREE.Render.FrameStats.Time("ecology")) ecology.update(dt, player.x, player.z);
-            using (THREE.Render.FrameStats.Time("scenery")) scenery.update(t, sky.fog.color, dt, camera.position.x, camera.position.z);
-            using (THREE.Render.FrameStats.Time("grass")) grass.update(t);
+            using (NativeRender.FrameStats.Time("ecology")) ecology.update(dt, player.x, player.z);
+            using (NativeRender.FrameStats.Time("scenery")) scenery.update(t, sky.fog.color, dt, camera.position.x, camera.position.z);
+            using (NativeRender.FrameStats.Time("grass")) grass.update(t);
             coveNets.update(t);
-            using (THREE.Render.FrameStats.Time("birds")) birds.update(dt, t, player.x, player.z, gullCry);
-            using (THREE.Render.FrameStats.Time("tracks")) tracks.update(dt, sky.starAmount);
-            using (THREE.Render.FrameStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, splashSound);
-            using (THREE.Render.FrameStats.Time("dolphins"))
+            using (NativeRender.FrameStats.Time("birds")) birds.update(dt, t, player.x, player.z, gullCry);
+            using (NativeRender.FrameStats.Time("tracks")) tracks.update(dt, sky.starAmount);
+            using (NativeRender.FrameStats.Time("sea")) sea.update(dt, t, ocean.surfaceY, player.x, player.z, splashSound);
+            using (NativeRender.FrameStats.Time("dolphins"))
             {
                 bool came = dolphins.update(dt, t, vehicle == "boat", boat.x, boat.z, boat.heading, boat.speed, ocean.surfaceY, swellFn, groundFn, splashSound);
                 if (came)
@@ -6835,7 +6839,7 @@ public class Game
                     discover("dolphins");
                 }
             }
-            using (THREE.Render.FrameStats.Time("whitecaps")) whitecaps.update(dt, ocean.surfaceY, player.x, player.z, sky.starAmount, ocean.swellTime);
+            using (NativeRender.FrameStats.Time("whitecaps")) whitecaps.update(dt, ocean.surfaceY, player.x, player.z, sky.starAmount, ocean.swellTime);
             var chest = treasure.update(dt, t, ocean.surfaceY, vehicle == "boat" ? (double?)boat.x : null, vehicle == "boat" ? (double?)boat.z : null);
             if (chest != null)
             {
@@ -6850,7 +6854,7 @@ public class Game
             // when nobody is driving, the boat just bobs gently at its mooring
             if (!(vehicle == "boat" && driving))
             {
-                using (THREE.Render.FrameStats.Time("boat")) boat.update(dt, t, null, ocean.heightAt(boat.x, boat.z), boatResolve);
+                using (NativeRender.FrameStats.Time("boat")) boat.update(dt, t, null, ocean.heightAt(boat.x, boat.z), boatResolve);
                 if (vehicle == "boat")
                 {
                     double sp = Math.Abs(boat.speed) / 14;
@@ -6872,7 +6876,7 @@ public class Game
                 ui.toast($"📬 A letter has arrived at the camp post, from {from}");
             }
         }
-        if (!alt) using (THREE.Render.FrameStats.Time("dog")) updateDog(dt, t);
+        if (!alt) using (NativeRender.FrameStats.Time("dog")) updateDog(dt, t);
         if (gameState != "EXPLORE") ui.setPrompt(null);
         audio.detectorEnabled = false;
         if (gameState == "INSPECT")
@@ -6893,10 +6897,10 @@ public class Game
         if (opening != null) updateOpening(dt);
         else if (islands[2].lighthouse != null && islands[2].lighthouse.introActive) updateLighthouseIntro(dt);
         else if (gameState == "MENU") updateMenuCamera(dt);
-        else using (THREE.Render.FrameStats.Time("camera+move")) updateCamera(dt);
-        using (THREE.Render.FrameStats.Time("music")) updateMusic();
-        using (THREE.Render.FrameStats.Time("interaction")) updateInteraction();
-        using (THREE.Render.FrameStats.Time("hover")) updateHover(dt);
+        else using (NativeRender.FrameStats.Time("camera+move")) updateCamera(dt);
+        using (NativeRender.FrameStats.Time("music")) updateMusic();
+        using (NativeRender.FrameStats.Time("interaction")) updateInteraction();
+        using (NativeRender.FrameStats.Time("hover")) updateHover(dt);
 
         if (gameState == "EXPLORE")
         {
@@ -6906,17 +6910,17 @@ public class Game
             }
             else if (tool == 1)
             {
-                using (THREE.Render.FrameStats.Time("detector")) detector.update(dt, toolHit, state, spawner, audio, beach);
+                using (NativeRender.FrameStats.Time("detector")) detector.update(dt, toolHit, state, spawner, audio, beach);
                 view.setSignal(detector.signal.strength, detector.signal.kind);
-                using (THREE.Render.FrameStats.Time("waveform")) detector.drawWaveform(ui.waveCanvas.getContext("2d"), 240, 84, t, state.tier("detector"));
+                using (NativeRender.FrameStats.Time("waveform")) detector.drawWaveform(ui.waveCanvas.getContext("2d"), 240, 84, t, state.tier("detector"));
             }
             else if (tool == 2)
             {
                 dig.hover(toolHit, state, toolHit != null && beach.canDig(toolHit.x, toolHit.z) && state.data.warmth > 0, beach);
             }
         }
-        using (THREE.Render.FrameStats.Time("dig")) dig.update(dt);
-        using (THREE.Render.FrameStats.Time("hearts")) hearts.update(dt);
+        using (NativeRender.FrameStats.Time("dig")) dig.update(dt);
+        using (NativeRender.FrameStats.Time("hearts")) hearts.update(dt);
         var targets = !alt && (arrows.busy || bullets.busy)
             ? ecology.crabTargets().Concat(birds.targets()).Concat(sea.targets()).Concat(scenery.targets()).Concat(castles.targets()).ToList()
             : NO_TARGETS;
@@ -6925,10 +6929,10 @@ public class Game
             arrows.update(dt, targets, beach, scenery.trunks, arrowHooks);
             bullets.update(dt, targets, beach, bulletHooks);
         }
-        using (THREE.Render.FrameStats.Time("spawner")) spawner.update(dt, t, hoveredItem);
+        using (NativeRender.FrameStats.Time("spawner")) spawner.update(dt, t, hoveredItem);
         if (!alt)
         {
-            using (THREE.Render.FrameStats.Time("flags")) flags.update(t);
+            using (NativeRender.FrameStats.Time("flags")) flags.update(t);
             // the buried chests on the maps barely change, so a couple of looks a second is plenty
             mapListT -= dt;
             if (mapListT <= 0)
@@ -6937,7 +6941,7 @@ public class Game
                 mapView.captain = state.data.hasBottleMap ? spawner.items.Where(i => i.def.id == "captain_chest" && !i.collected).Select(i => new[] { i.x, i.z }).ToList() : new List<double[]>();
                 mapView.treasures = state.data.hasTreasureMap ? spawner.items.Where(i => i.def.id == "treasure_cache" && !i.collected).Select(i => new[] { i.x, i.z }).ToList() : new List<double[]>();
             }
-            using (THREE.Render.FrameStats.Time("island")) foreach (var isl in islands) isl.update(t, ocean.surfaceY, sky.fog.color, sky.fog.density, camera.position.x, camera.position.z, dt);
+            using (NativeRender.FrameStats.Time("island")) foreach (var isl in islands) isl.update(t, ocean.surfaceY, sky.fog.color, sky.fog.density, camera.position.x, camera.position.z, dt);
             if (rain.amount > 0.3 && beach.rainFill(dt, rain.amount, rainKeep()))
             {
                 // a hole the rain has filled comes off the maps
@@ -6968,9 +6972,9 @@ public class Game
             mapCart.z = cart.z;
             mapBoat.x = boat.x;
             mapBoat.z = boat.z;
-            using (THREE.Render.FrameStats.Time("minimap")) mapView.drawMini(ui.miniCanvas.getContext("2d"), 150, mapPlayer, holes, waypoint, mapCart, mapBoat);
+            using (NativeRender.FrameStats.Time("minimap")) mapView.drawMini(ui.miniCanvas.getContext("2d"), 150, mapPlayer, holes, waypoint, mapCart, mapBoat);
         }
-        using (THREE.Render.FrameStats.Time("hint")) updateHint();
+        using (NativeRender.FrameStats.Time("hint")) updateHint();
         canvas.Toggle("pointer", hoveredItem != null || hoveredCamp != null || hoveredLighthouse || hoveredScope);
         if (audio.ready)
         {
@@ -6978,7 +6982,7 @@ public class Game
             double near = Math.Max(0, 1 - fd / 12);
             if (near > 0 && JS.Random() < dt * (1.5 + near * 4)) audio.crackle(near);
         }
-        using (THREE.Render.FrameStats.Time("render(sync)")) renderer.render(scene, camera);
+        using (NativeRender.FrameStats.Time("render(sync)")) renderer.render(scene, camera);
         if (photoPending) capturePhoto();
     }
 }

@@ -1,8 +1,24 @@
+using THREE;
+// inside THREE these names meant its own types; kept so after the move to NativeRender
+using Color = THREE.Color;
+using Vector2 = THREE.Vector2;
+using Vector3 = THREE.Vector3;
+using Vector4 = THREE.Vector4;
+using Quaternion = THREE.Quaternion;
+using Camera = THREE.Camera;
+using Texture = THREE.Texture;
+using Material = THREE.Material;
+using Mesh = THREE.Mesh;
+using Light = THREE.Light;
+using Sprite = THREE.Sprite;
+using Plane = THREE.Plane;
+using Ray = THREE.Ray;
+using ColorSpace = THREE.ColorSpace;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-namespace THREE.Render
+namespace NativeRender
 {
     /// <summary>The few things that talk to URP directly: render scale, shadows, camera setup and drawing into a texture.</summary>
     internal static class UrpSettings

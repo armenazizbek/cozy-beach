@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using B = THREE.Render;
+using B = NativeRender;
 
 /// <summary>
 /// The main world's frame without the bridge's scene copy (unity/NATIVE_PLAN.md S8). Everything in the world draws itself
@@ -11,7 +11,7 @@ using B = THREE.Render;
 /// <item>the camera: a rig under the world root at the camera's local pose (what hangs from the camera, the tools in hand,
 /// hangs here) and a Unity camera on an eye outside the root, placed in Unity's axes.</item>
 /// </list>
-/// The renderer hands every scene here (WebGLRenderer.render); the cleaning bench and the item photos also get their parts
+/// The renderer hands every scene here (GameRenderer.render); the cleaning bench and the item photos also get their parts
 /// and lights kept in line (SceneParts). Since S25 there is no scene copy at all.
 /// </summary>
 public static class NativeView
@@ -43,7 +43,7 @@ public static class NativeView
     public static Camera CameraFor(THREE.Camera camera) => camera != null && rigs.TryGetValue(camera, out var r) && r.cam != null ? r.cam : null;
 
     /// <summary>Gets a scene's frame ready (globals, camera pose) and returns the Unity camera that draws it.</summary>
-    internal static Camera Prepare(THREE.Scene scene, THREE.Camera camera, THREE.WebGLRenderer renderer)
+    internal static Camera Prepare(THREE.Scene scene, THREE.Camera camera, NativeRender.GameRenderer renderer)
     {
         // the smaller scenes (the cleaning bench, the item photos) keep their parts and lights in line here (SceneParts)
         if (!ReferenceEquals(scene, World.Scene)) PartsOf(scene).Sync();
@@ -62,7 +62,7 @@ public static class NativeView
         return r.cam;
     }
 
-    private static Rig RigFor(THREE.Camera camera, THREE.Scene scene, THREE.WebGLRenderer renderer)
+    private static Rig RigFor(THREE.Camera camera, THREE.Scene scene, NativeRender.GameRenderer renderer)
     {
         if (rigs.TryGetValue(camera, out var r) && r.rig != null && r.cam != null) return r;
         r = new Rig { rig = Draw.Group(World.RootOf(scene), camera.name) };
@@ -73,13 +73,13 @@ public static class NativeView
         r.cam.allowMSAA = true;
         r.cam.useOcclusionCulling = false;
         B.UrpSettings.SetupCamera(r.cam);
-        if (ReferenceEquals(renderer, THREE.WebGLRenderer.Main) && Object.FindAnyObjectByType<AudioListener>() == null) eye.AddComponent<AudioListener>();
+        if (ReferenceEquals(renderer, NativeRender.GameRenderer.Main) && Object.FindAnyObjectByType<AudioListener>() == null) eye.AddComponent<AudioListener>();
         rigs[camera] = r;
         return r;
     }
 
     /// <summary>The Cozy shaders' globals for a scene, as the bridge set them (as the bridge's scene copy did), from its Atmosphere.</summary>
-    private static void Globals(THREE.Scene scene, THREE.WebGLRenderer renderer)
+    private static void Globals(THREE.Scene scene, NativeRender.GameRenderer renderer)
     {
         var at = Atmosphere.Of(scene);
         Shader.SetGlobalFloat(_CozyThreeZ, 1f);
@@ -103,7 +103,7 @@ public static class NativeView
             Shader.SetGlobalVector(_CozyFogParams, new Vector4((float)scene.fog.near, (float)scene.fog.far, 0, 1));
         }
         else Shader.SetGlobalVector(_CozyFogParams, Vector4.zero);
-        Shader.SetGlobalVector(_CozyTone, new Vector4(renderer.toneMapping == THREE.ToneMapping.ACESFilmicToneMapping ? 1 : 0, (float)renderer.toneMappingExposure, 0, 0));
+        Shader.SetGlobalVector(_CozyTone, new Vector4(renderer.toneMapping == NativeRender.ToneMapping.ACESFilmicToneMapping ? 1 : 0, (float)renderer.toneMappingExposure, 0, 0));
         Shader.SetGlobalVector(_CozyScreen, new Vector4(Screen.width, Screen.height, (float)renderer.getPixelRatio(), 0));
         RenderSettings.sun = at.sun;
     }

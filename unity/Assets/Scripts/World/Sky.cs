@@ -118,7 +118,7 @@ public class Sky
     /// <summary>0.3..1.8 multiplier for the campfire/lantern lights</summary>
     public double fireBoost = 0.6;
 
-    private readonly THREE.WebGLRenderer renderer;
+    private readonly NativeRender.GameRenderer renderer;
     private readonly THREE.Mesh dome;
     private readonly THREE.Points stars;
     private readonly THREE.Sprite glow, core;
@@ -148,7 +148,7 @@ public class Sky
     /// </summary>
     private readonly THREE.Group heavens = new THREE.Group();
 
-    public Sky(THREE.WebGLRenderer renderer, THREE.Scene scene)
+    public Sky(NativeRender.GameRenderer renderer, THREE.Scene scene)
     {
         this.renderer = renderer;
         fog = new THREE.FogExp2(PRESETS["golden"].fog, PRESETS["golden"].fogDensity);

@@ -15,12 +15,12 @@ public static class ItemPhotos
     public static Dictionary<string, UnityEngine.Texture> takeItemPhotos(IEnumerable<string> ids)
     {
         var photos = new Dictionary<string, UnityEngine.Texture>();
-        THREE.WebGLRenderer renderer = null;
+        NativeRender.GameRenderer renderer = null;
         try
         {
-            renderer = new THREE.WebGLRenderer(new THREE.WebGLRendererParameters { antialias = true, preserveDrawingBuffer = true });
+            renderer = new NativeRender.GameRenderer(onScreen: false);
             renderer.setSize(SIZE, SIZE, false);
-            renderer.toneMapping = THREE.ToneMapping.ACESFilmicToneMapping;
+            renderer.toneMapping = NativeRender.ToneMapping.ACESFilmicToneMapping;
             var scene = new THREE.Scene { name = "Item photos" };
             scene.background = new THREE.Color(0xd9c6a3);
             var sun = new THREE.DirectionalLight(0xfff2dc, 3);
@@ -40,7 +40,7 @@ public static class ItemPhotos
                 camera.position.copy(middle).add(new THREE.Vector3(0.45, 0.8, 0.95).normalize().multiplyScalar(reach / Math.Sin(THREE.MathUtils.degToRad(14)) * 1.02));
                 camera.lookAt(middle);
                 renderer.render(scene, camera);
-                photos[id] = renderer.domElement.toDataURL("image/jpeg", 0.85);
+                photos[id] = renderer.Snapshot();
                 scene.remove(item);
                 item.traverse(o => { if (o is THREE.Mesh m) m.geometry.dispose(); });
             }

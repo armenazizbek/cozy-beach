@@ -41,7 +41,7 @@ namespace THREE
         public void dispose()
         {
             disposed = true;
-            Render.TextureCache.Release(this);
+            NativeRender.TextureCache.Release(this);
         }
 
         /// <summary>Width and height of the image, or 0 when there is none.</summary>

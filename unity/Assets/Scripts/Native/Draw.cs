@@ -94,8 +94,8 @@ public static class ShadowPolicy
     /// <summary>Once a frame: when the preset changed, every tracked renderer is decided again.</summary>
     public static void Tick()
     {
-        if (version == THREE.Render.UrpSettings.CasterVersion) return;
-        version = THREE.Render.UrpSettings.CasterVersion;
+        if (version == NativeRender.UrpSettings.CasterVersion) return;
+        version = NativeRender.UrpSettings.CasterVersion;
         for (int i = tracked.Count - 1; i >= 0; i--)
         {
             if (tracked[i].r == null) { tracked.RemoveAt(i); continue; }
@@ -106,7 +106,7 @@ public static class ShadowPolicy
     private static void Decide(Renderer r, bool wanted)
     {
         bool cast = wanted;
-        float cutoff = THREE.Render.UrpSettings.SmallCasterCutoff;
+        float cutoff = NativeRender.UrpSettings.SmallCasterCutoff;
         if (cast && cutoff > 0)
         {
             var mesh = r.GetComponent<MeshFilter>()?.sharedMesh;

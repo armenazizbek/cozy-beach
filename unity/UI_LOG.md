@@ -423,3 +423,19 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   many: the find's crust, which is switched off once clean, stayed on, because the pivot's tree was kept in line by its
   root only. The pivot is now tracked whole (`Tracked.PlaceAll`). Rechecked (telescope, crust, islands, lighthouse): all
   groups pair, within 0.00001 m.
+
+## B2: the renderer front is native (2026-11-24)
+
+- `THREE.WebGLRenderer` is `NativeRender.GameRenderer` (`Native/Render/GameRenderer.cs`): made with `onScreen` instead of
+  the browser's parameters; the canvas wrapper (`domElement.toDataURL`) is `Snapshot()`; the browser's no-ops are gone
+  (`compile`, `compileAsync`, `clear`, `forceContextLoss`, `setClearColor`, `getSize`, `getRenderTarget`,
+  `outputColorSpace`). What it still has is used: render, render targets, photos, pixel ratio, shadows, tone mapping and
+  exposure (read by the shaders), the clear colour.
+- The frame loop: no more `setAnimationLoop`. The host (`GameHost.Update`) runs `Game.frame` through the renderer's
+  `Tick(frame)` once the game has started (`Game.running`), and only with the game's own renderer, so a reloading game's
+  old frame never runs in the new scene (which `Teardown` used to ensure by clearing the loop).
+- `MaterialCache`, `TextureCache`, `UrpSettings` and `FrameStats` moved from `THREE.Render` to `NativeRender` (with
+  aliases in those files so their names keep meaning what they meant inside THREE); the materials' `bridgeEntry`,
+  `bridgeKind` and `bridgeGen` are `nativeEntry`, `nativeKind` and `nativeGen`.
+- Quick check against `refB` (base, ui, saves, newgame, photo, crust, keyboard, selfcheck): all runs clean, logs pass,
+  selfcheck 9 of 9, keyboard 0 failed, dumps paired within 0.00001 m.

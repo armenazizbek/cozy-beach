@@ -147,7 +147,7 @@ public static class UiRoot
         // in pixels instead, so on a 1440p or 4K screen everything shrank to a corner. The page is 1920 x 1080 and is scaled
         // to fit: a wider or taller screen sees more page, never less.
         // The "UI size" setting (1 to 1.3) makes the page that much smaller, so everything on it is that much larger. The 3D
-        // picture's resolution is unaffected: it is divided by this same ratio again (WebGLRenderer.setPixelRatio).
+        // picture's resolution is unaffected: it is divided by this same ratio again (GameRenderer.setPixelRatio).
         double dpr = Math.Min(sw / PAGE_WIDTH, sh / PAGE_HEIGHT) * UiScale;
         if (dpr < 0.3) dpr = 0.3;
         scale = (float)dpr;

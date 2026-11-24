@@ -32,8 +32,8 @@ namespace THREE
     public class Material
     {
         /// <summary>The bridge's cache entry for this material (MaterialCache), kept here so the sync need not look it up each frame.</summary>
-        internal object bridgeEntry;
-        internal int bridgeKind, bridgeGen;
+        internal object nativeEntry;
+        internal int nativeKind, nativeGen;
 
         private static int _nextId;
         public readonly int id = _nextId++;
@@ -86,13 +86,13 @@ namespace THREE
             m.customUniforms = new Dictionary<string, Uniform>();
             foreach (var kv in customUniforms) m.customUniforms[kv.Key] = new Uniform(kv.Value.value);
             m.disposed = false;
-            m.bridgeEntry = null; // a clone is a new material and gets its own Unity material
+            m.nativeEntry = null; // a clone is a new material and gets its own Unity material
         }
 
         public void dispose()
         {
             disposed = true;
-            Render.MaterialCache.Release(this);
+            NativeRender.MaterialCache.Release(this);
         }
     }
 

@@ -94,7 +94,10 @@ public class GameHost : MonoBehaviour
         SteamService.Tick();
         game?.input?.poll();
         Page.Tick();
-        THREE.WebGLRenderer.Main?.Tick();
+        // the game's frame runs once it has started, and only with its own renderer (a reloading game's old one must not
+        // run inside the new scene)
+        var main = NativeRender.GameRenderer.Main;
+        main?.Tick(game != null && game.running && ReferenceEquals(game.renderer, main) ? game.frame : (System.Action)null);
         // native renderers follow a change of quality preset (Native/Draw.cs)
         ShadowPolicy.Tick();
     }
@@ -125,7 +128,7 @@ public class GameHost : MonoBehaviour
         // its frame and timers inside the new scene (Load Game froze or closed the game)
         if (Instance != null) Instance.game = null;
         Page.Clear();
-        THREE.WebGLRenderer.Teardown();
+        NativeRender.GameRenderer.Teardown();
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using B = THREE.Render;
+using B = NativeRender;
 
 /// <summary>
 /// MeshKit's self-checks (S3). The checks against the old bridge's MeshCache went with the bridge (S25); what is left checks

@@ -1,10 +1,26 @@
+using THREE;
+// inside THREE these names meant its own types; kept so after the move to NativeRender
+using Color = THREE.Color;
+using Vector2 = THREE.Vector2;
+using Vector3 = THREE.Vector3;
+using Vector4 = THREE.Vector4;
+using Quaternion = THREE.Quaternion;
+using Camera = THREE.Camera;
+using Texture = THREE.Texture;
+using Material = THREE.Material;
+using Mesh = THREE.Mesh;
+using Light = THREE.Light;
+using Sprite = THREE.Sprite;
+using Plane = THREE.Plane;
+using Ray = THREE.Ray;
+using ColorSpace = THREE.ColorSpace;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 using U = UnityEngine;
 using UnityEngine.Rendering;
 
-namespace THREE.Render
+namespace NativeRender
 {
     /// <summary>
     /// Keeps one Unity material per Three material (and per kind of object it is drawn on), and copies the fields across each
@@ -27,7 +43,7 @@ namespace THREE.Render
 
         private static readonly Dictionary<(THREE.Material, Kind), Entry> cache = new Dictionary<(THREE.Material, Kind), Entry>();
 
-        /// <summary>Destroys every Unity material made so far (see WebGLRenderer.Teardown); shaders stay loaded.</summary>
+        /// <summary>Destroys every Unity material made so far (see GameRenderer.Teardown); shaders stay loaded.</summary>
         public static void Clear()
         {
             foreach (var e in cache.Values) if (e.mat != null) UnityEngine.Object.Destroy(e.mat);
@@ -43,7 +59,7 @@ namespace THREE.Render
 
         public static void Release(THREE.Material m)
         {
-            m.bridgeEntry = null;
+            m.nativeEntry = null;
             foreach (Kind k in Enum.GetValues(typeof(Kind)))
             {
                 if (cache.TryGetValue((m, k), out var e))
@@ -99,7 +115,7 @@ namespace THREE.Render
         {
             if (m == null) return null;
             Entry e;
-            if (m.bridgeEntry is Entry known && m.bridgeKind == (int)kind && m.bridgeGen == gen) e = known;
+            if (m.nativeEntry is Entry known && m.nativeKind == (int)kind && m.nativeGen == gen) e = known;
             else
             {
                 var key = (m, kind);
@@ -109,9 +125,9 @@ namespace THREE.Render
                     e = new Entry { mat = new UnityEngine.Material(FindShader(sh)) { name = m.type + " " + m.name }, shader = sh };
                     cache[key] = e;
                 }
-                m.bridgeEntry = e;
-                m.bridgeKind = (int)kind;
-                m.bridgeGen = gen;
+                m.nativeEntry = e;
+                m.nativeKind = (int)kind;
+                m.nativeGen = gen;
             }
             if (e.frame == frame && !force) return e.mat;
             e.frame = frame;

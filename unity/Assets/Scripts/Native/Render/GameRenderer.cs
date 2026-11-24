@@ -1,3 +1,19 @@
+using THREE;
+// inside THREE these names meant its own types; kept so after the move to NativeRender
+using Color = THREE.Color;
+using Vector2 = THREE.Vector2;
+using Vector3 = THREE.Vector3;
+using Vector4 = THREE.Vector4;
+using Quaternion = THREE.Quaternion;
+using Camera = THREE.Camera;
+using Texture = THREE.Texture;
+using Material = THREE.Material;
+using Mesh = THREE.Mesh;
+using Light = THREE.Light;
+using Sprite = THREE.Sprite;
+using Plane = THREE.Plane;
+using Ray = THREE.Ray;
+using ColorSpace = THREE.ColorSpace;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -5,7 +21,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using U = UnityEngine;
 
-namespace THREE
+namespace NativeRender
 {
     public enum ToneMapping { NoToneMapping = 0, LinearToneMapping = 1, ReinhardToneMapping = 2, CineonToneMapping = 3, ACESFilmicToneMapping = 4, AgXToneMapping = 6, NeutralToneMapping = 7 }
 
@@ -19,38 +35,18 @@ namespace THREE
         public bool needsUpdate;
     }
 
-    public class WebGLRendererParameters
-    {
-        public object canvas;
-        public bool antialias;
-        public bool preserveDrawingBuffer;
-        public bool alpha;
-        public string powerPreference;
-    }
-
-    /// <summary>What the game reads from renderer.domElement: its size, and a snapshot for photos.</summary>
-    public class RendererCanvas
-    {
-        internal WebGLRenderer owner;
-        public int width => owner.Width;
-        public int height => owner.Height;
-
-        /// <summary>A copy of the last frame this renderer drew (in place of a data URL).</summary>
-        public U.Texture toDataURL(string type = "image/png", double quality = 1) => owner.Snapshot();
-    }
-
     /// <summary>
-    /// The Three.js renderer, standing in front of Unity's: render() gets a scene's frame ready (NativeView) and points its Unity
-    /// camera at it. The game's own renderer draws to the screen; one made without a canvas draws into a texture of its own.
+    /// Draws the game's scenes with Unity (unity/UI_PLAN.md B2): each scene through its native view (NativeView) and a Unity
+    /// camera, to the screen or, off screen, into a texture of its own (the item photos); the render settings (scale,
+    /// shadows) go to URP; photos are read back from the GPU without a stall. The host calls Tick once a frame with the
+    /// game's frame to run.
     /// </summary>
-    public class WebGLRenderer
+    public class GameRenderer
     {
         public ShadowMapSettings shadowMap = new ShadowMapSettings();
         public ToneMapping toneMapping = ToneMapping.NoToneMapping;
         public double toneMappingExposure = 1;
-        public string outputColorSpace = ColorSpace.SRGBColorSpace;
         public bool autoClear = true;
-        public readonly RendererCanvas domElement;
         public readonly Dictionary<string, object> info = new Dictionary<string, object>();
         private double pixelRatio = 1;
         private int width, height;
@@ -59,14 +55,13 @@ namespace THREE
         private U.RenderTexture own;
         private Color clearColor = new Color(0x000000);
         private double clearAlpha = 1;
-        private Action loop;
         private readonly HashSet<U.Camera> usedThisFrame = new HashSet<U.Camera>();
         private readonly HashSet<U.Camera> known = new HashSet<U.Camera>();
         private int screenRenders;
         private static int frames;
 
         /// <summary>Whichever renderer draws to the screen (the bridge drives its frame).</summary>
-        public static WebGLRenderer Main { get; private set; }
+        public static GameRenderer Main { get; private set; }
 
         /// <summary>
         /// Forgets the whole running game before its scene is reloaded (Load Game, New Game, Main Menu). In the browser a page
@@ -75,21 +70,20 @@ namespace THREE
         /// </summary>
         public static void Teardown()
         {
-            if (Main != null) Main.loop = null;
             Main = null;
             World.Clear();
-            Render.MaterialCache.Clear();
-            Render.TextureCache.Clear();
+            MaterialCache.Clear();
+            TextureCache.Clear();
             Atmosphere.Clear();
             NativeFrame.Clear();
             NativeView.Clear();
             Picking.Clear();
         }
 
-        public WebGLRenderer(WebGLRendererParameters p = null)
+        /// <param name="onScreen">true for the game's own renderer, which draws to the screen; false draws into a texture</param>
+        public GameRenderer(bool onScreen)
         {
-            offscreen = p?.canvas == null;
-            domElement = new RendererCanvas { owner = this };
+            offscreen = !onScreen;
             width = Screen.width;
             height = Screen.height;
             if (!offscreen) Main = this;
@@ -104,7 +98,7 @@ namespace THREE
             // r is picture pixels per pixel of the UI's 1920x1080 page, which is stretched to the screen by
             // window.devicePixelRatio; URP's render scale is per screen pixel, so the stretch is taken out. Handing r over
             // as it was rendered a 1440p screen at 1.33x and a 4K one at up to 2x, and a 720p one at 0.67x.
-            if (!offscreen) Render.UrpSettings.SetRenderScale(r / Math.Max(0.01, Page.PixelRatio));
+            if (!offscreen) UrpSettings.SetRenderScale(r / Math.Max(0.01, Page.PixelRatio));
         }
 
         public double getPixelRatio() => pixelRatio;
@@ -121,27 +115,19 @@ namespace THREE
             }
         }
 
-        public Vector2 getSize(Vector2 target) => target.set(Width, Height);
-
-        public void setClearColor(Color c, double alpha = 1) { clearColor.copy(c); clearAlpha = alpha; }
-        public void setClearColor(int hex, double alpha = 1) { clearColor.setHex(hex); clearAlpha = alpha; }
-        public Color getClearColor(Color target) => target.copy(clearColor);
 
         public void setRenderTarget(WebGLRenderTarget rt) => target = rt;
-        public WebGLRenderTarget getRenderTarget() => target;
 
-        public void setAnimationLoop(Action cb) => loop = cb;
-
-        /// <summary>Called by the host each Unity frame: runs the animation loop, then retires cameras that were not used.</summary>
-        public void Tick()
+        /// <summary>Called by the host each Unity frame: runs the game's frame (null before the game has started), then retires cameras that were not used.</summary>
+        public void Tick(Action frame)
         {
             frames++;
             screenRenders = 0;
             usedThisFrame.Clear();
-            long t0 = Render.FrameStats.Ticks();
-            loop?.Invoke();
-            Render.FrameStats.tickMs += Render.FrameStats.Ms(t0);
-            Render.FrameStats.frames++;
+            long t0 = FrameStats.Ticks();
+            frame?.Invoke();
+            FrameStats.tickMs += FrameStats.Ms(t0);
+            FrameStats.frames++;
             foreach (var c in known)
             {
                 if (c == null) continue;
@@ -150,9 +136,6 @@ namespace THREE
             }
         }
 
-        public Task compileAsync(Object3D scene, Camera camera, Object3D targetScene = null) => Task.CompletedTask;
-        public void compile(Object3D scene, Camera camera) { }
-        public void clear() { }
         public void dispose()
         {
             if (own != null)
@@ -162,7 +145,6 @@ namespace THREE
                 own = null;
             }
         }
-        public void forceContextLoss() { }
 
         public void render(Object3D sceneObj, Camera camera)
         {
@@ -175,20 +157,20 @@ namespace THREE
             }
             // native objects finish their frame (NativeFrame) before anything is drawn
             NativeFrame.Run();
-            long t0 = Render.FrameStats.Ticks();
+            long t0 = FrameStats.Ticks();
             // every scene draws itself natively (Native/NativeView.cs): no scene copy, only the frame's globals and camera
             U.Camera cam;
-            using (Render.FrameStats.Time("draw:view")) cam = NativeView.Prepare(scene, camera, this);
+            using (FrameStats.Time("draw:view")) cam = NativeView.Prepare(scene, camera, this);
             known.Add(cam);
-            Render.FrameStats.syncMs += Render.FrameStats.Ms(t0);
+            FrameStats.syncMs += FrameStats.Ms(t0);
             ConfigureCamera(cam, camera, scene);
-            Render.UrpSettings.SetShadows(shadowMap.enabled);
+            UrpSettings.SetShadows(shadowMap.enabled);
             if (target != null || offscreen)
             {
                 var rt = target != null ? target.Ensure() : Own();
                 cam.enabled = false;
                 cam.targetTexture = null;
-                Render.UrpSettings.RenderTo(cam, rt);
+                UrpSettings.RenderTo(cam, rt);
                 return;
             }
             cam.targetTexture = null;
@@ -234,7 +216,7 @@ namespace THREE
             try
             {
                 cam.aspect = aspect;
-                Render.UrpSettings.RenderTo(cam, rt);
+                UrpSettings.RenderTo(cam, rt);
                 // the multisampled picture resolved into a plain one, which the GPU can hand back
                 resolved = U.RenderTexture.GetTemporary(new RenderTextureDescriptor(w, h, RenderTextureFormat.ARGB32, 0) { sRGB = true, msaaSamples = 1 });
                 Graphics.Blit(rt, resolved);
@@ -297,7 +279,8 @@ namespace THREE
             }
         }
 
-        internal U.Texture Snapshot()
+        /// <summary>A copy of the last frame this renderer drew (the item photos read their pictures with it).</summary>
+        public U.Texture Snapshot()
         {
             var src = target != null ? target.Ensure() : own;
             if (src == null) return null;

@@ -80,7 +80,7 @@ public static class Lights
 
     /// <summary>Shadows on or off, soft or hard as the preset says.</summary>
     public static void Shadows(Light l, bool cast) =>
-        l.shadows = cast ? (THREE.Render.UrpSettings.SoftShadows ? LightShadows.Soft : LightShadows.Hard) : LightShadows.None;
+        l.shadows = cast ? (NativeRender.UrpSettings.SoftShadows ? LightShadows.Soft : LightShadows.Hard) : LightShadows.None;
 
     /// <summary>
     /// Places a sun or spot light (which live outside the world root) at a game-space position, pointing at a game-space target.

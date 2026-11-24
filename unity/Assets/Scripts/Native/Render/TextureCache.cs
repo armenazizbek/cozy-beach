@@ -1,7 +1,23 @@
+using THREE;
+// inside THREE these names meant its own types; kept so after the move to NativeRender
+using Color = THREE.Color;
+using Vector2 = THREE.Vector2;
+using Vector3 = THREE.Vector3;
+using Vector4 = THREE.Vector4;
+using Quaternion = THREE.Quaternion;
+using Camera = THREE.Camera;
+using Texture = THREE.Texture;
+using Material = THREE.Material;
+using Mesh = THREE.Mesh;
+using Light = THREE.Light;
+using Sprite = THREE.Sprite;
+using Plane = THREE.Plane;
+using Ray = THREE.Ray;
+using ColorSpace = THREE.ColorSpace;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace THREE.Render
+namespace NativeRender
 {
     /// <summary>Uploads Three textures (canvases and raw pixels) as Unity Texture2Ds, again whenever needsUpdate was set.</summary>
     internal static class TextureCache
@@ -18,7 +34,7 @@ namespace THREE.Render
 
         private static readonly Dictionary<THREE.Texture, Entry> cache = new Dictionary<THREE.Texture, Entry>();
 
-        /// <summary>Destroys every texture uploaded so far (see WebGLRenderer.Teardown). Render targets belong to their owners.</summary>
+        /// <summary>Destroys every texture uploaded so far (see GameRenderer.Teardown). Render targets belong to their owners.</summary>
         public static void Clear()
         {
             foreach (var e in cache.Values) if (e.tex != null && !(e.tex is RenderTexture)) Object.Destroy(e.tex);
