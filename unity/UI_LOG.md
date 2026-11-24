@@ -554,3 +554,5 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
 - The Marigold's spanker (the opening's ship) hung from a boom 1.15 m over the quarterdeck, right through the great stern
   lantern on the centre line. The boom now rides 2.75 m up, over the lantern, so the sail hangs above it
   (World/OldShip.cs). Checked in every opening shot and from the boat's helm.
+- Follow-up: the rounded frame corners left the glass's square corners showing outside them as small pale triangles. The
+  frame now turns each corner within about a centimetre, less than its own thickness, so the glass stays inside it.

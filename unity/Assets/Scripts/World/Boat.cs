@@ -255,10 +255,11 @@ public class Boat
         THREE.Vector3 glassAt(double s, double h) => new THREE.Vector3(s * 0.6, 1.1 + 0.42 * h, -0.86 + 0.2 * s * s + 0.17 * h);
         group.add(new THREE.Mesh(sheet(16, 2, (a, b) => glassAt(a * 2 - 1, b)), glass));
         // the frame is one tube: up the left post, round the corner, along the top and down the right post, so the corners
-        // are joined (three tubes meeting there left a notch at each upper corner)
-        var frame = new List<THREE.Vector3> { glassAt(-1, -0.05), glassAt(-1, 0.45), glassAt(-1, 0.86), glassAt(-0.975, 0.975), glassAt(-0.92, 1) };
+        // are joined (three tubes meeting there left a notch at each upper corner). It turns each corner within about a
+        // centimetre, less than its own thickness, so the glass's square corner stays inside it
+        var frame = new List<THREE.Vector3> { glassAt(-1, -0.05), glassAt(-1, 0.45), glassAt(-1, 0.9), glassAt(-1, 0.985), glassAt(-0.985, 1), glassAt(-0.9, 1) };
         for (int i = -3; i <= 3; i++) frame.Add(glassAt(i * 0.25, 1));
-        frame.AddRange(new[] { glassAt(0.92, 1), glassAt(0.975, 0.975), glassAt(1, 0.86), glassAt(1, 0.45), glassAt(1, -0.05) });
+        frame.AddRange(new[] { glassAt(0.9, 1), glassAt(0.985, 1), glassAt(1, 0.985), glassAt(1, 0.9), glassAt(1, 0.45), glassAt(1, -0.05) });
         add(pipe(frame, 0.013), dark);
 
         // ---- two helm seats on pedestals
