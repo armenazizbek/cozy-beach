@@ -115,21 +115,74 @@ public class OldHouse
     public readonly THREE.Group water = new THREE.Group { name = "old house rain" };
 
     /// <summary>
-    /// Native since unity/NATIVE_PLAN.md S18: the house (with its paintings, which OldPictures paints into one texture) and the
-    /// rain that drips and pools inside it are LiveTrees under World.Land, kept in line with the descriptions at draw time.
+    /// The house (with its paintings, which OldPictures paints into one texture) and the rain that drips and pools inside it,
+    /// each realised once under World.Land (unity/UI_PLAN.md B1). The house does not move: only its materials are pushed (the
+    /// paintings' texture can arrive after it is placed). The rain brings in line, by name, its group, the puddle, the damp
+    /// patch, the rings and the drip lines, the drips' mesh when it is rewritten, and its materials' fading.
     /// </summary>
-    private LiveTree live, liveWater;
+    private Realized live, liveWater;
+    private readonly List<(THREE.Object3D o, UnityEngine.Transform t)> waterParts = new List<(THREE.Object3D, UnityEngine.Transform)>();
+    private readonly List<(THREE.Material m, MaterialKit.On on)> mats = new List<(THREE.Material, MaterialKit.On)>();
+    private UnityEngine.Mesh dripMesh;
+    private int dripVersion = -1;
 
     /// <summary>Puts the house and its rain into the world as native objects.</summary>
     public void Place()
     {
-        live = new LiveTree(group, World.Land);
-        liveWater = new LiveTree(water, World.Land);
-        NativeFrame.BeforeDraw += () =>
+        live = Realizer.Realize(group, World.Land, World.Layer);
+        liveWater = Realizer.Realize(water, World.Land, World.Layer);
+        foreach (var r in new[] { live, liveWater })
+            foreach (var kv in r.map)
+            {
+                THREE.Material m = null;
+                var on = MaterialKit.On.Mesh;
+                switch (kv.Key)
+                {
+                    case THREE.Mesh mesh: m = mesh.material; break;
+                    case THREE.Line line: m = line.material; on = MaterialKit.On.Line; break;
+                    case THREE.Points pts: m = pts.material; on = MaterialKit.On.Points; break;
+                }
+                if (m != null && !mats.Contains((m, on))) mats.Add((m, on));
+            }
+        var parts = new List<THREE.Object3D> { water, puddle, damp, dripLines };
+        if (rings != null) parts.AddRange(rings);
+        foreach (var o in parts)
         {
-            live.Sync();
-            liveWater.Sync();
-        };
+            var t = o != null ? liveWater[o] : null;
+            if (t != null) waterParts.Add((o, t));
+        }
+        dripMesh = liveWater[dripLines]?.GetComponent<UnityEngine.MeshFilter>()?.sharedMesh;
+        if (dripMesh != null) dripVersion = dripLines.geometry.ContentVersion();
+        NativeFrame.BeforeDraw += Sync;
+    }
+
+    /// <summary>Brings the rain in the house in line, and pushes the materials, before the frame is drawn.</summary>
+    private void Sync()
+    {
+        if (live == null) return;
+        if (live.root.parent != null && !live.root.parent.gameObject.activeInHierarchy) return;
+        foreach (var (m, on) in mats) MaterialKit.PushOnce(m, on);
+        // the rain, hidden, costs nothing but switching it off (as the whole-tree copy left it)
+        var waterT = liveWater.root;
+        if (waterT.gameObject.activeSelf != water.visible) waterT.gameObject.SetActive(water.visible);
+        if (!water.visible) return;
+        foreach (var (o, t) in waterParts)
+        {
+            if (o == water) continue;
+            if (t.gameObject.activeSelf != o.visible) t.gameObject.SetActive(o.visible);
+            if (o.visible) Realizer.Pose(o, t);
+        }
+        Realizer.Pose(water, waterT);
+        // the drips are rewritten as they fall; refilled whenever the rain shows, as before
+        if (dripMesh != null)
+        {
+            int v = dripLines.geometry.ContentVersion();
+            if (v != dripVersion)
+            {
+                MeshKit.RefillLines(dripMesh, dripLines.geometry, true);
+                dripVersion = v;
+            }
+        }
     }
 
     /// <summary>where the rain falls through the roof, on the floor, in the house's frame: the back half, away from the door and the dog's corner</summary>

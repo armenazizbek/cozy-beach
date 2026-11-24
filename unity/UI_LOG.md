@@ -330,3 +330,10 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   into merged meshes and have no GameObject of their own; the whole-tree copy could not move them either.
 - Found on the way: the first try left out the ships' lamps, and the night-ship dumps moved by up to 8 cm. With them in:
   quick check against `refB` (islands, island, lighthouse, ships, telescope) logs pass, dumps within 0.00001 m.
+
+## B1: the old house and its rain without the whole-tree copy (2026-11-24)
+
+- `OldHouse`: the house and its rain are realised once. The house does not move (its materials are pushed, as the
+  paintings' texture can come later); the rain brings in line, by name, its group (switched off while hidden), the
+  puddle, the damp patch, the rings and the drip lines, refills the drips' mesh as they are rewritten, and pushes the
+  fading. Quick check against `refB` (base, house, dograin, rain): logs pass, dumps within 0.00001 m.
