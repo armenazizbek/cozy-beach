@@ -106,22 +106,42 @@ public class Rain
     /// <summary>Eases toward `target` and moves the rain. `cam` is where the rain should fall around.</summary>
     /// <param name="where">"open": falls round the camera; "shelter": the camera is under the roof built by
     /// <see cref="buildShelter"/>, so it falls round that instead; "none": not seen at all (under the sea, in the cellar)</param>
-    /// <summary>The rain's GameObjects (native since unity/NATIVE_PLAN.md S11), once placed.</summary>
-    private Realized live, shelterLive;
+    /// <summary>The rain's GameObjects, once placed: the group that follows the camera and its streaks, and the same round the shelter.</summary>
+    private UnityEngine.Transform rainT, linesT, shelterT, shelterLinesT;
 
-    /// <summary>Puts the rain into the world as native objects (after <see cref="buildShelter"/>).</summary>
+    /// <summary>
+    /// Puts the rain into the world as native objects (after <see cref="buildShelter"/>), once. update moves them itself
+    /// (unity/UI_PLAN.md B1): nothing is copied over from the description each frame.
+    /// </summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Land, World.Layer).Follow(group, lines);
-        if (shelterLines != null) shelterLive = Realizer.Realize(shelterGroup, World.Land, World.Layer).Follow(shelterGroup, shelterLines);
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        rainT = live.root;
+        linesT = live[lines];
+        if (shelterLines != null)
+        {
+            var sl = Realizer.Realize(shelterGroup, World.Land, World.Layer);
+            shelterT = sl.root;
+            shelterLinesT = sl[shelterLines];
+        }
     }
 
     public void update(double dt, double target, THREE.Vector3 cam, string where = "open")
     {
         Fall(dt, target, cam, where);
-        live?.Apply();
-        shelterLive?.Apply();
-        if (live != null) MaterialKit.Push(mat, MaterialKit.On.Line);
+        if (rainT == null) return;
+        Pose(rainT, linesT, group, lines);
+        if (shelterT != null) Pose(shelterT, shelterLinesT, shelterGroup, shelterLines);
+        MaterialKit.Push(mat, MaterialKit.On.Line);
+    }
+
+    /// <summary>Sets a rain group and its streaks where Fall put them: shown or not, the group's place and lean, the streaks' slide.</summary>
+    private static void Pose(UnityEngine.Transform g, UnityEngine.Transform l, THREE.Group gd, THREE.LineSegments ld)
+    {
+        if (l.gameObject.activeSelf != ld.visible) l.gameObject.SetActive(ld.visible);
+        g.localPosition = GameSpace.V(gd.position.x, gd.position.y, gd.position.z);
+        g.localRotation = GameSpace.Euler(0, 0, gd.rotation.z);
+        l.localPosition = GameSpace.V(0, ld.position.y, 0);
     }
 
     private void Fall(double dt, double target, THREE.Vector3 cam, string where)

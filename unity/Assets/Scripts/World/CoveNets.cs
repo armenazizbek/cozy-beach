@@ -278,20 +278,22 @@ public class CoveNets
         }
     }
 
-    /// <summary>The nets' GameObjects under the world root, once placed (native since unity/NATIVE_PLAN.md S10).</summary>
-    private Realized live;
+    /// <summary>The banners' GameObjects, with the way each faces; moved directly (unity/UI_PLAN.md B1).</summary>
+    private readonly List<(UnityEngine.Transform t, double yaw, double phase)> flying = new List<(UnityEngine.Transform, double, double)>();
 
-    /// <summary>Puts the nets into the world as native objects; only the banners move.</summary>
+    /// <summary>
+    /// Puts the nets into the world as native objects, once. Only the banners move, and update turns their GameObjects
+    /// itself: nothing is copied over from the description each frame.
+    /// </summary>
     public void Place()
     {
-        live = Realizer.Realize(group, World.Land, World.Layer);
-        foreach (var (m, _) in banners) live.Follow(m);
+        var live = Realizer.Realize(group, World.Land, World.Layer);
+        foreach (var (m, ph) in banners) flying.Add((live[m], m.rotation.y, ph));
     }
 
     public void update(double t)
     {
         // the banners stir in the breeze
-        foreach (var (m, ph) in banners) m.rotation.x = Math.Sin(t * 1.3 + ph) * 0.05;
-        live?.Apply();
+        foreach (var (b, yaw, ph) in flying) b.localRotation = GameSpace.Euler(Math.Sin(t * 1.3 + ph) * 0.05, yaw, 0, "YXZ");
     }
 }

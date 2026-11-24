@@ -196,3 +196,19 @@ is the plan's recommendation, accepted by the owner on 2026-11-24.
   dolphins: only the review-only loading shots differ). Players are not affected.
 - The Keys section names a key that another row now shares ("G (also Map)", in red), unless both rows still have the
   game's own keys: Space swaps tools, swims up and brakes on purpose. `Controls.SharedWith`; two keyboard-test checks.
+
+## B1: CoveNets and Rain move their own GameObjects; fonts made at build time dropped (2026-11-24)
+
+- `CoveNets` and `Rain` are realised once, then `update` turns the banners and moves the rain group and its streaks
+  itself; no `Realized.Follow`/`Apply` copy each frame. Checked against a fresh reference from this branch (`refB`, from
+  03b6041, build kept in `C:\TidefinderParity\ref-branch`): core, world and saves suites, no FAIL; the rain draws pixel
+  for pixel the same. The rain's dump hash differs because the vertex positions are rounded to a millimetre and the
+  rotation is now worked out by `GameSpace.Euler`, not by the description's quaternion.
+- Fonts made at build time (the rest of D3): tried and dropped. Baking the glyphs up front also brings in the faces'
+  spacing pairs, so text came out a little wider and wrapped differently (the camp's upgrade cards, Help): a layout change
+  on many screens for no measured gain (the runtime fills the atlas as text appears). The faces stay made at start-up.
+- The rest of B1 is the hub (the binoculars' range check and the bow and pistol aim at description trees of the camp,
+  scenery, boat, cart, sea, birds, ecology and sea treasure); those modules keep their per-frame copy until picking hits
+  GameObjects.
+- Testing from here (the owner's choice): a quick check per change (the one or two suites it touches), one full pass at
+  the end.
