@@ -65,14 +65,7 @@ public class CleaningStation
         rim.position.set(-4, 2, -3);
         scene.add(warm, rim, new THREE.AmbientLight(0xffffff, 0.35), pivot, particles.points, sparkles.points);
 
-        brushMesh = new THREE.Group();
-        var bristles = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.14), new THREE.MeshStandardMaterial { color = 0xe4d5ae, roughness = 1 });
-        var back = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.16), new THREE.MeshStandardMaterial { color = 0x8a6240, roughness = 0.7 });
-        back.position.y = 0.11;
-        var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.9, 8), new THREE.MeshStandardMaterial { color = 0x8a6240, roughness = 0.7 });
-        handle.position.set(0.3, 0.45, 0);
-        handle.rotation.z = -0.9;
-        brushMesh.add(bristles, back, handle);
+        brushMesh = buildBrush();
         brushMesh.visible = false;
         scene.add(brushMesh);
 
@@ -182,6 +175,62 @@ public class CleaningStation
         ndc.copy(inside);
     }
 
+    /// <summary>
+    /// The scrubbing brush: a rounded, varnished wooden block with a darker stripe let into it, rows of bristle tufts that
+    /// splay a little outward, and a turned handle (a brass ferrule where it meets the block, a knob at its end) rising
+    /// toward the upper right so it stays out of the way of the find. Its bristles' tips are at the group's origin.
+    /// </summary>
+    private static THREE.Group buildBrush()
+    {
+        var g = new THREE.Group();
+        var wood = new THREE.MeshStandardMaterial { color = 0x9a6438, roughness = 0.45 };
+        var inlay = new THREE.MeshStandardMaterial { color = 0x5a3820, roughness = 0.5 };
+        var brass = new THREE.MeshStandardMaterial { color = 0xc9a25a, roughness = 0.3, metalness = 0.85 };
+        var bristleMat = new THREE.MeshStandardMaterial { color = 0xe9dcb8, roughness = 0.95 };
+        const double tuftLen = 0.1, blockH = 0.075, blockY = tuftLen + blockH / 2;
+        // the block, its stripe along each long side and a softer rounded top
+        var block = new THREE.Mesh(new THREE.RoundedBoxGeometry(0.36, blockH, 0.17, 3, 0.025), wood);
+        block.position.y = blockY;
+        g.add(block);
+        foreach (var side in new[] { -1, 1 })
+        {
+            var stripe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.014, 0.004), inlay);
+            stripe.position.set(0, blockY, side * 0.0855);
+            g.add(stripe);
+        }
+        // the tufts: three rows of seven, each a narrow cone of bristles, the outer ones leaning out a little
+        var tufts = new List<THREE.BufferGeometry>();
+        for (int row = -1; row <= 1; row++)
+            for (int col = -3; col <= 3; col++)
+            {
+                var t = new THREE.CylinderGeometry(0.017, 0.012, tuftLen, 6);
+                double lean = col * 0.035, tilt = row * 0.12;
+                t.rotateZ(-lean);
+                t.rotateX(tilt);
+                t.translate(col * 0.046 + Math.Sin(lean) * tuftLen / 2, tuftLen / 2, row * 0.048 - Math.Sin(tilt) * tuftLen / 2);
+                tufts.Add(t);
+            }
+        g.add(new THREE.Mesh(THREE.BufferGeometryUtils.mergeGeometries(tufts), bristleMat));
+        // the handle: turned along its length, from the brass ferrule on the block's end up to a rounded knob
+        var profile = new List<THREE.Vector2>
+        {
+            new THREE.Vector2(0.0, 0.0), new THREE.Vector2(0.03, 0.0), new THREE.Vector2(0.03, 0.05), new THREE.Vector2(0.026, 0.08),
+            new THREE.Vector2(0.024, 0.3), new THREE.Vector2(0.03, 0.5), new THREE.Vector2(0.033, 0.62), new THREE.Vector2(0.04, 0.68),
+            new THREE.Vector2(0.042, 0.72), new THREE.Vector2(0.034, 0.76), new THREE.Vector2(0.0, 0.775),
+        };
+        var handle = new THREE.Group();
+        handle.add(new THREE.Mesh(new THREE.LatheGeometry(profile, 14), wood));
+        var ferrule = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.05, 14), brass);
+        ferrule.position.y = 0.025;
+        handle.add(ferrule);
+        // set into the top of the block near its right end, leaning back over toward the upper right
+        handle.position.set(0.11, blockY + blockH / 2 - 0.01, 0);
+        handle.rotation.z = -0.95;
+        g.add(handle);
+        g.traverse(o => { if (o is THREE.Mesh m) { m.castShadow = true; m.receiveShadow = true; } });
+        return g;
+    }
+
     /// <summary>Pointer position in NDC; moves the brush mesh and, when `down`, scrubs.</summary>
     public bool pointer(THREE.Vector2 ndc, bool down, double speed)
     {
@@ -196,7 +245,8 @@ public class CleaningStation
             lastUV = null;
             return false;
         }
-        brushMesh.position.copy(hit.point).addScaledVector(axis.copy(hit.face.normal).transformDirection(rig.crust.matrixWorld), 0.08);
+        // the bristles' tips (the brush's origin) just off the crust, where the old block's bristles ended
+        brushMesh.position.copy(hit.point).addScaledVector(axis.copy(hit.face.normal).transformDirection(rig.crust.matrixWorld), 0.02);
         if (!down || phase != "brushing")
         {
             lastUV = null;
