@@ -561,6 +561,7 @@ public class UIManager
         "music" => s.music,
         "ambience" => s.ambience,
         "sensitivity" => s.sensitivity,
+        "vibrationSensitivity" => s.vibrationSensitivity,
         "fov" => s.fov,
         "renderScale" => s.renderScale,
         _ => 0,
@@ -574,6 +575,7 @@ public class UIManager
             case "music": s.music = v; break;
             case "ambience": s.ambience = v; break;
             case "sensitivity": s.sensitivity = v; break;
+            case "vibrationSensitivity": s.vibrationSensitivity = v; break;
             case "fov": s.fov = v; break;
             case "renderScale": s.renderScale = v; break;
         }
@@ -662,7 +664,7 @@ public class UIManager
         }
         void toggle(string label, string hintText, string key)
         {
-            bool get() => key == "shadows" ? settings.shadows : key == "vsync" ? settings.vsync : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : settings.sharp;
+            bool get() => key == "shadows" ? settings.shadows : key == "vsync" ? settings.vsync : key == "invertMouse" ? settings.invertMouse : key == "invertStick" ? settings.invertStick : key == "vibration" ? settings.vibration : settings.sharp;
             var row = rowEl(label, hintText);
             var val = new UiNode("span", "set-val");
             void put(bool on)
@@ -672,6 +674,7 @@ public class UIManager
                 else if (key == "sharp") settings.sharp = on;
                 else if (key == "invertMouse") settings.invertMouse = on;
                 else if (key == "invertStick") settings.invertStick = on;
+                else if (key == "vibration") settings.vibration = on;
             }
             void show()
             {
@@ -703,6 +706,8 @@ public class UIManager
         slider("Mouse look speed", "sensitivity", 0.4, 2.5, 0.05, v => $"{JS.ToFixed(v, 2)}x");
         toggle("Invert mouse look", "pushing the mouse forward looks down", "invertMouse");
         toggle("Invert stick look", "pushing the right stick forward looks down", "invertStick");
+        toggle("Controller vibration", "rumbles stronger as the detector nears a find", "vibration");
+        slider("Vibration sensitivity", "vibrationSensitivity", GameSettings.VIBRATION_MIN, GameSettings.VIBRATION_MAX, 0.05, pct);
         // the keys have a window of their own (openKeys), so Settings stays short
         var keysRow = rowEl("Keyboard keys", "which key does what");
         keysRow.AddClass("open-row");

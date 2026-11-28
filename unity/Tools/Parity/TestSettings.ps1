@@ -16,7 +16,7 @@ $script:SettingsBackup = "C:\TidefinderParity\player-settings-backup.reg"
 $script:SettingsHad = "C:\TidefinderParity\player-settings-backup.none"
 
 # The game's defaults (Core/Settings.cs), except: silent, VSync on, windowed at the harness's size.
-$script:TestSettingsJson = '{"master":0.0,"music":0.0,"ambience":0.0,"sensitivity":1.0,"invertMouse":false,"invertStick":false,"fov":50.0,"shadows":true,"sharp":true,"renderScale":1.0,"quality":"high","vsync":true,"fpsLimit":0,"uiScale":1.0,"displayMode":"windowed","windowSize":"1280x720"}'
+$script:TestSettingsJson = '{"master":0.0,"music":0.0,"ambience":0.0,"sensitivity":1.0,"invertMouse":false,"invertStick":false,"vibration":false,"vibrationSensitivity":1.0,"fov":50.0,"shadows":true,"sharp":true,"renderScale":1.0,"quality":"high","vsync":true,"fpsLimit":0,"uiScale":1.0,"displayMode":"windowed","windowSize":"1280x720"}'
 
 # reg.exe reports even success on stderr, which a script running with $ErrorActionPreference = "Stop" takes for an error:
 # run it with errors allowed and judge it by its exit code

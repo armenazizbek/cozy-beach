@@ -105,6 +105,11 @@ public class GameHost : MonoBehaviour
         ShadowPolicy.Tick();
     }
 
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus) GamepadInput.StopAllRumble();
+    }
+
     private void OnApplicationFocus(bool focus)
     {
         // a repeatable smoke run (-autoshot-fixedstep) must not pause because the window lost focus
@@ -113,18 +118,21 @@ public class GameHost : MonoBehaviour
 
     private void OnApplicationQuit()
     {
+        GamepadInput.StopAllRumble();
         game?.onQuit();
         SteamService.Shutdown();
     }
 
     private void OnDestroy()
     {
+        GamepadInput.StopAllRumble();
         if (Instance == this) Instance = null;
     }
 
     /// <summary>Rebuilds the world from scratch (like location.reload() in the browser for Load Game / New Game / Main Menu).</summary>
     public static void Reload()
     {
+        GamepadInput.StopAllRumble();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         // a page reload wipes everything; here the old game has to be stopped and forgotten by hand, or it keeps running

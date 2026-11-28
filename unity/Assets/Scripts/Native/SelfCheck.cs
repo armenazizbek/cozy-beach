@@ -17,6 +17,7 @@ internal static class SelfCheck
         ("GameSpace.LookAt matches Object3D.lookAt", LookAtCheck),
         ("ColorUtil.Linear matches Color(hex)", ColorCheck),
         ("World root keeps game numbers", WorldCheck),
+        ("DetectorTool.ComputeVibration scales with proximity and sensitivity", VibrationCheck),
     };
 
     /// <summary>Adds a check (MeshKit and later blocks register theirs from a static constructor or here).</summary>
@@ -119,6 +120,65 @@ internal static class SelfCheck
         {
             UnityEngine.Object.Destroy(probe.gameObject);
         }
+    }
+
+    private static string VibrationCheck()
+    {
+        // no signal or zero sensitivity must stay silent
+        var off = DetectorTool.ComputeVibration(0, 1, "generic", 1);
+        if (off.low != 0f || off.high != 0f) return $"zero signal gave ({off.low}, {off.high})";
+        var zeroSens = DetectorTool.ComputeVibration(1, 1, "coin", 0);
+        if (zeroSens.low != 0f || zeroSens.high != 0f) return $"zero sensitivity gave ({zeroSens.low}, {zeroSens.high})";
+        var nan = DetectorTool.ComputeVibration(double.NaN, double.NaN, null, double.NaN);
+        if (nan.low != 0f || nan.high != 0f) return $"NaN gave ({nan.low}, {nan.high})";
+
+        // closer to a find (higher strength) must vibrate strictly more across all signatures and sensitivities
+        foreach (var kind in new[] { "generic", "coin", "deep", "trash" })
+        {
+            foreach (var sens in new[] { 0.25, 0.5, 1.0, 1.5, 2.0 })
+            {
+                float prevLo = 0f, prevHi = 0f;
+                for (int i = 1; i <= 10; i++)
+                {
+                    double s = i / 10.0;
+                    var (lo, hi) = DetectorTool.ComputeVibration(s, 0, kind, sens);
+                    if (lo <= prevLo || hi <= prevHi) return $"non-monotonic proximity for {kind} @ sens {sens}, s={s}: ({prevLo},{prevHi}) -> ({lo},{hi})";
+                    if (lo > 1f || hi > 1f) return $"out of range for {kind} @ sens {sens}, s={s}: ({lo},{hi})";
+                    var (pLo, pHi) = DetectorTool.ComputeVibration(s, 1, kind, sens);
+                    if (pLo <= lo || pHi <= hi) return $"ping pulse did not boost {kind} @ sens {sens}, s={s}: ({lo},{hi}) vs ({pLo},{pHi})";
+                    if (pLo > 1f || pHi > 1f) return $"pulse out of range for {kind} @ sens {sens}, s={s}: ({pLo},{pHi})";
+                    prevLo = lo;
+                    prevHi = hi;
+                }
+            }
+        }
+
+        // higher sensitivity must increase vibration for the same proximity
+        float sLo = 0f, sHi = 0f;
+        foreach (var sens in new[] { 0.1, 0.5, 1.0, 1.5, 2.0 })
+        {
+            var (lo, hi) = DetectorTool.PreviewVibration(sens);
+            if (lo <= sLo || hi <= sHi) return $"non-monotonic sensitivity @ {sens}: ({sLo},{sHi}) -> ({lo},{hi})";
+            sLo = lo;
+            sHi = hi;
+        }
+
+        // GamepadInput state tracking: setRumble, pulseRumble override, stopRumble reset
+        var gp = new GamepadInput();
+        try
+        {
+            gp.setRumble(0.4f, 0.6f);
+            if (gp.currentRumble != (0.4f, 0.6f)) return $"setRumble state mismatch: {gp.currentRumble}";
+            gp.pulseRumble(0.2f, 0.3f, 0.14);
+            if (gp.currentRumble != (0.2f, 0.3f)) return $"pulseRumble override mismatch: {gp.currentRumble}";
+            gp.stopRumble();
+            if (gp.currentRumble != (0f, 0f)) return $"stopRumble did not clear: {gp.currentRumble}";
+        }
+        finally
+        {
+            gp.stopRumble();
+        }
+        return null;
     }
 
     private static Vector3 V(THREE.Vector3 v) => new Vector3((float)v.x, (float)v.y, (float)v.z);

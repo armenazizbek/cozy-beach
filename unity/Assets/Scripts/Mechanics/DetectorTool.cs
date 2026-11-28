@@ -14,6 +14,8 @@ public class DetectorTool
 {
     public readonly THREE.Group group = new THREE.Group();
     public readonly Signal signal = new Signal { strength = 0, kind = null };
+    /// <summary>0..1 short envelope peaking on each detector beep, used to give controller vibration a crisp pulse.</summary>
+    public double pingPulse { get; private set; }
     private readonly THREE.Mesh coil, pulse, edge;
     /// <summary>a dark band under each bright ring, so the rings stand out on pale sand as well as dark</summary>
     private readonly THREE.Mesh pulseDark, edgeDark;
@@ -70,7 +72,46 @@ public class DetectorTool
     {
         group.visible = on;
         foreach (var o in overlays) o.visible = on;
+        if (!on)
+        {
+            signal.strength = 0;
+            signal.kind = null;
+            pingPulse = 0;
+        }
     }
+
+    /// <summary>
+    /// Dual-motor controller vibration (0..1 low and high frequency) for the current detector reading.
+    /// Zero with no find in range; rises smoothly as the coil nears the buried find, with a short pulse on each beep.
+    /// Sensitivity below 1 scales strength down; above 1 raises sensitivity so distant finds are felt sooner and stronger
+    /// while still climbing cleanly right up to the target.
+    /// </summary>
+    public static (float low, float high) ComputeVibration(double strength, double pulse, string kind, double sensitivity)
+    {
+        if (double.IsNaN(strength) || double.IsNaN(sensitivity) || strength <= 0 || sensitivity <= 0) return (0f, 0f);
+        double s = Math.Min(1, Math.Max(0, strength));
+        double p = double.IsNaN(pulse) ? 0 : Math.Min(1, Math.Max(0, pulse));
+        double sens = Math.Min(GameSettings.VIBRATION_MAX, Math.Max(0, sensitivity));
+
+        double baseLow = 0.03 + 0.52 * Math.Pow(s, 1.85);
+        double baseHigh = 0.05 + 0.40 * Math.Pow(s, 1.35);
+        double pulseAmp = (0.08 + 0.34 * s) * p;
+
+        double lowW = 1.0, highW = 1.0;
+        if (kind == "deep") { lowW = 1.08; highW = 0.88; }
+        else if (kind == "coin") { lowW = 0.92; highW = 1.12; }
+        else if (kind == "trash") { lowW = 1.04; highW = 0.82; }
+
+        double rawLow = Math.Min(1, (baseLow + pulseAmp * 0.85) * lowW);
+        double rawHigh = Math.Min(1, (baseHigh + pulseAmp) * highW);
+
+        double low = sens <= 1 ? rawLow * sens : Math.Pow(rawLow, 1.0 / sens);
+        double high = sens <= 1 ? rawHigh * sens : Math.Pow(rawHigh, 1.0 / sens);
+        return ((float)Math.Min(1, Math.Max(0, low)), (float)Math.Min(1, Math.Max(0, high)));
+    }
+
+    /// <summary>Representative vibration pulse used in Settings so the player can feel changes right away.</summary>
+    public static (float low, float high) PreviewVibration(double sensitivity) => ComputeVibration(0.65, 0.65, "generic", sensitivity);
 
     public void update(double dt, THREE.Vector3 hit, StateManager state, LootSpawner spawner, AudioManager audio, Beach beach)
     {
@@ -83,6 +124,7 @@ public class DetectorTool
         {
             signal.strength = 0;
             signal.kind = null;
+            pingPulse = 0;
             foreach (var o in overlays) o.visible = false;
             group.visible = false;
             return;
@@ -147,14 +189,22 @@ public class DetectorTool
         // beep: 800ms far, 90ms directly overhead
         if (near != null)
         {
+            pingPulse = Math.Max(0, pingPulse - dt / 0.085);
+            double interval = 800 - (800 - 90) * Math.Pow(s, 0.85);
+            if (pingTimer > interval) pingTimer = interval;
             pingTimer -= dt * 1000;
             if (pingTimer <= 0)
             {
-                pingTimer = 800 - (800 - 90) * Math.Pow(s, 0.85);
+                pingTimer = interval;
+                pingPulse = 1;
                 audio.ping(signal.kind ?? "generic", s);
             }
         }
-        else pingTimer = Math.Min(pingTimer, 0);
+        else
+        {
+            pingTimer = Math.Min(pingTimer, 0);
+            pingPulse = 0;
+        }
 
         // the heat map is a canvas drawn on the CPU and uploaded: ten times a second is plenty for blobs that barely move
         heatT -= dt;

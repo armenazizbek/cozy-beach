@@ -1,3 +1,4 @@
+using System;
 using Newtonsoft.Json;
 using UnityEngine;
 
@@ -17,6 +18,11 @@ public class GameSettings
     public bool invertMouse = false;
     /// <summary>pushing the right stick forward looks down instead of up</summary>
     public bool invertStick = false;
+    /// <summary>controller vibration while sweeping with the detector</summary>
+    public bool vibration = true;
+    /// <summary>controller vibration strength and sensitivity, VIBRATION_MIN..VIBRATION_MAX</summary>
+    public double vibrationSensitivity = 1;
+    public const double VIBRATION_MIN = 0.1, VIBRATION_MAX = 2.0, VIBRATION_DEFAULT = 1.0;
     /// <summary>how wide the view is: the camera's vertical angle in degrees, FOV_MIN..FOV_MAX</summary>
     public double fov = 50;
     public const double FOV_MIN = 40, FOV_MAX = 70, FOV_DEFAULT = 50;
@@ -77,6 +83,9 @@ public static class Settings
             {
                 var s = Defaults();
                 JsonConvert.PopulateObject(raw, s);
+                s.vibrationSensitivity = double.IsNaN(s.vibrationSensitivity)
+                    ? GameSettings.VIBRATION_DEFAULT
+                    : Math.Max(GameSettings.VIBRATION_MIN, Math.Min(GameSettings.VIBRATION_MAX, s.vibrationSensitivity));
                 return s;
             }
         }

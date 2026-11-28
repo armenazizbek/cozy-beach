@@ -2051,7 +2051,11 @@ public class Game
         });
         audio.setOceanLevel(on ? 0.02 : gameState == "INSPECT" ? 0.02 : 0.06);
         audio.setMusicLevel(on ? 0.08 : 0, 1);
-        if (on) Page.ExitPointerLock();
+        if (on)
+        {
+            Page.ExitPointerLock();
+            pad.stopRumble();
+        }
         else grabMouse();
         input.clearKeys();
     }
@@ -3307,6 +3311,7 @@ public class Game
         }
         else
         {
+            pad.stopRumble();
             mapCursorEl?.Remove();
             if (!locked) UnityEngine.Cursor.visible = true;
         }
@@ -3866,6 +3871,7 @@ public class Game
         var st = settings;
         UiRoot.UiScale = Math.Max(1, Math.Min(1.5, st.uiScale));
         audio.setVolumes(st.master, st.music, st.ambience);
+        if (!st.vibration) pad.stopRumble();
         NativeRender.UrpSettings.SetQuality(st.quality);
         ocean?.setReceiveShadow(st.quality != "handheld" && st.quality != "low");
         FramePacing.Apply(st.vsync, st.fpsLimit);
@@ -3943,16 +3949,31 @@ public class Game
 
     private void openSettings(Action onClose = null)
     {
+        bool prevVib = settings.vibration;
+        double prevSens = settings.vibrationSensitivity;
         ui.openSettings(
             settings,
             s =>
             {
+                bool vibTurnedOn = !prevVib && s.vibration;
+                bool sensChanged = Math.Abs(s.vibrationSensitivity - prevSens) > 1e-6;
+                prevVib = s.vibration;
+                prevSens = s.vibrationSensitivity;
                 settings = s;
                 applySettings();
                 applyDisplay(false);
                 saveSettings(s);
+                if (!AutoShot.Active && s.vibration && (vibTurnedOn || sensChanged))
+                {
+                    var (lo, hi) = DetectorTool.PreviewVibration(s.vibrationSensitivity);
+                    pad.pulseRumble(lo, hi, 0.14);
+                }
             },
-            onClose
+            () =>
+            {
+                pad.stopRumble();
+                onClose?.Invoke();
+            }
         );
     }
 
@@ -4286,6 +4307,8 @@ public class Game
     public void onFocusLost()
     {
         if (AutoShot.Active) return;
+        pad.stopRumble();
+        GamepadInput.StopAllRumble();
         if (started && gameState == "EXPLORE" && !transitioning && !mapOpen && !bookOpen && !scopeOpen && hammock == null
             && islands[2].lighthouse?.introActive != true) setPaused(true);
         autoSave();
@@ -4294,6 +4317,8 @@ public class Game
     /// <summary>The game is closing (Exit Game, the Steam overlay's Stop, shutdown): saves at once, on this thread, so the write is finished before the process ends.</summary>
     public void onQuit()
     {
+        pad.stopRumble();
+        GamepadInput.StopAllRumble();
         if (AutoShot.Active || !started || gameState == "MENU" || hammock != null) return;
         try
         {
@@ -6826,6 +6851,7 @@ public class Game
                 }
             }
             audio.detectorEnabled = false;
+            pad.setRumble(0, 0);
             if (vehicle != null) audio.setEngine(false);
             renderer.render(gameState == "INSPECT" ? station.scene : scene, gameState == "INSPECT" ? station.camera : camera);
             return;
@@ -6930,6 +6956,7 @@ public class Game
         audio.detectorEnabled = false;
         if (gameState == "INSPECT")
         {
+            pad.setRumble(0, 0);
             var k = input;
             double yaw = ((k.Held(Act.RotateRight) ? 1 : 0) - (k.Held(Act.RotateLeft) ? 1 : 0)) * dt * 2.2;
             double pitch = ((k.Held(Act.TiltDown) ? 1 : 0) - (k.Held(Act.TiltUp) ? 1 : 0)) * dt * 1.8;
@@ -6951,6 +6978,7 @@ public class Game
         using (NativeRender.FrameStats.Time("interaction")) updateInteraction();
         using (NativeRender.FrameStats.Time("hover")) updateHover(dt);
 
+        bool detectorRumble = false;
         if (gameState == "EXPLORE")
         {
             if (driving || alt)
@@ -6962,12 +6990,21 @@ public class Game
                 using (NativeRender.FrameStats.Time("detector")) detector.update(dt, toolHit, state, spawner, audio, beach);
                 view.setSignal(detector.signal.strength, detector.signal.kind);
                 using (NativeRender.FrameStats.Time("waveform")) detector.drawWaveform(ui.waveCanvas.getContext("2d"), 240, 84, t, state.tier("detector"));
+                bool canVibrate = started && !transitioning && !seated && hammock == null && opening == null
+                    && islands[2].lighthouse?.introActive != true && usingPad && settings.vibration && !AutoShot.Active;
+                if (canVibrate && detector.signal.strength > 0)
+                {
+                    var (lo, hi) = DetectorTool.ComputeVibration(detector.signal.strength, detector.pingPulse, detector.signal.kind, settings.vibrationSensitivity);
+                    pad.setRumble(lo, hi);
+                    detectorRumble = true;
+                }
             }
             else if (tool == 2)
             {
                 dig.hover(toolHit, state, toolHit != null && beach.canDig(toolHit.x, toolHit.z) && state.data.warmth > 0, beach);
             }
         }
+        if (!detectorRumble) pad.setRumble(0, 0);
         using (NativeRender.FrameStats.Time("dig")) dig.update(dt);
         using (NativeRender.FrameStats.Time("hearts")) hearts.update(dt);
         var targets = !alt && (arrows.busy || bullets.busy)

@@ -47,9 +47,137 @@ public class GamepadInput
     private string navDir;
     private double navT;
 
+    // dual-motor controller vibration (Gamepad.SetMotorSpeeds)
+    private Gamepad rumblePad;
+    private float liveLow, liveHigh;
+    private float previewLow, previewHigh;
+    private double previewT;
+    private float sentLow, sentHigh;
+    private double rumbleHold;
+
     public bool isDown(string b) => held.Contains(b);
     /// <summary>True while any button at all is held.</summary>
     public bool anyDown => held.Count > 0;
+    /// <summary>The motor speeds currently commanded (preview while active, else live gameplay vibration).</summary>
+    public (float low, float high) currentRumble => previewT > 0 ? (previewLow, previewHigh) : (liveLow, liveHigh);
+
+    /// <summary>Sets the continuous gameplay vibration (0..1 per motor). Does not cancel an active Settings preview pulse.</summary>
+    public void setRumble(float low, float high)
+    {
+        low = Clamp01(low);
+        high = Clamp01(high);
+        if (low == liveLow && high == liveHigh) return;
+        liveLow = low;
+        liveHigh = high;
+        if (previewT <= 0) pushRumble(Gamepad.current, liveLow, liveHigh, false);
+    }
+
+    /// <summary>A brief timed vibration pulse (for feeling changes in Settings), overriding live rumble until it finishes.</summary>
+    public void pulseRumble(float low, float high, double seconds = 0.14)
+    {
+        low = Clamp01(low);
+        high = Clamp01(high);
+        if ((low <= 0f && high <= 0f) || seconds <= 0)
+        {
+            previewLow = previewHigh = 0f;
+            previewT = 0;
+            pushRumble(Gamepad.current, liveLow, liveHigh, true);
+            return;
+        }
+        bool fresh = previewT <= 0;
+        previewLow = low;
+        previewHigh = high;
+        previewT = seconds;
+        pushRumble(Gamepad.current, previewLow, previewHigh, fresh);
+    }
+
+    /// <summary>Stops both live and preview vibration immediately.</summary>
+    public void stopRumble()
+    {
+        liveLow = liveHigh = 0f;
+        previewLow = previewHigh = 0f;
+        previewT = 0;
+        var pad = Gamepad.current;
+        if (rumblePad != null && !ReferenceEquals(rumblePad, pad)) SafeSetMotors(rumblePad, 0f, 0f);
+        if (pad != null) SafeSetMotors(pad, 0f, 0f);
+        rumblePad = null;
+        sentLow = sentHigh = 0f;
+        rumbleHold = 0;
+    }
+
+    /// <summary>Stops vibration on every connected gamepad (used on focus loss, scene reload and quit).</summary>
+    public static void StopAllRumble()
+    {
+        var all = Gamepad.all;
+        for (int i = 0; i < all.Count; i++) SafeSetMotors(all[i], 0f, 0f);
+    }
+
+    private void tickRumble(Gamepad pad, double dt)
+    {
+        bool previewEnded = false;
+        if (previewT > 0)
+        {
+            previewT -= dt;
+            if (previewT <= 0)
+            {
+                previewT = 0;
+                previewLow = previewHigh = 0f;
+                previewEnded = true;
+            }
+        }
+        rumbleHold += dt;
+        float low = previewT > 0 ? previewLow : liveLow;
+        float high = previewT > 0 ? previewHigh : liveHigh;
+        pushRumble(pad, low, high, previewEnded);
+    }
+
+    private void pushRumble(Gamepad pad, float low, float high, bool immediate)
+    {
+        if (rumblePad != null && !ReferenceEquals(rumblePad, pad))
+        {
+            SafeSetMotors(rumblePad, 0f, 0f);
+            rumblePad = null;
+            sentLow = sentHigh = 0f;
+            rumbleHold = 0;
+        }
+        if (pad == null) return;
+
+        bool off = low <= 0f && high <= 0f;
+        bool wasOff = sentLow <= 0f && sentHigh <= 0f;
+        if (off)
+        {
+            if (!wasOff || rumblePad != null)
+            {
+                SafeSetMotors(pad, 0f, 0f);
+                sentLow = sentHigh = 0f;
+                rumblePad = null;
+                rumbleHold = 0;
+            }
+            return;
+        }
+
+        // avoid flooding USB/Bluetooth HID packets at high frame rates: send immediately on start, big jumps or a fresh
+        // pulse; throttle smooth sweeps to ~30 Hz, and refresh every 0.5 s so drivers do not time out while hovering
+        bool bigChange = Math.Abs(low - sentLow) >= 0.08f || Math.Abs(high - sentHigh) >= 0.08f;
+        bool smallChange = Math.Abs(low - sentLow) >= 0.01f || Math.Abs(high - sentHigh) >= 0.01f;
+        if (!immediate && !wasOff && !bigChange && !(smallChange && rumbleHold >= 1.0 / 30.0) && rumbleHold < 0.5)
+            return;
+
+        SafeSetMotors(pad, low, high);
+        rumblePad = pad;
+        sentLow = low;
+        sentHigh = high;
+        rumbleHold = 0;
+    }
+
+    private static void SafeSetMotors(Gamepad pad, float low, float high)
+    {
+        if (pad == null || !pad.added) return;
+        try { pad.SetMotorSpeeds(low, high); }
+        catch { /* disconnected or virtual device without haptics */ }
+    }
+
+    private static float Clamp01(float v) => float.IsNaN(v) || v <= 0f ? 0f : v >= 1f ? 1f : v;
 
     private static bool Pressed(Gamepad p, int i)
     {
@@ -87,8 +215,18 @@ public class GamepadInput
                 navDir = null;
             }
             move.x = move.y = look.x = look.y = lt = rt = 0;
+            if (rumblePad != null)
+            {
+                SafeSetMotors(rumblePad, 0f, 0f);
+                rumblePad = null;
+                sentLow = sentHigh = 0f;
+                rumbleHold = 0;
+            }
+            previewLow = previewHigh = 0f;
+            previewT = 0;
             return;
         }
+        tickRumble(pad, dt);
         bool active = false;
         for (int i = 0; i < BUTTONS.Length; i++)
         {
